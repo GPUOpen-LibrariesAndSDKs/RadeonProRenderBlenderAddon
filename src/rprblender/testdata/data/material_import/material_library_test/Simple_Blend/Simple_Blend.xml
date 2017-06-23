@@ -1,0 +1,14 @@
+<material name="Simple_Blend" version="0x10000236">
+    <description></description>
+    <node name="Simple_Blend" type="BLEND">
+        <param name="color0" type="connection" value="A"/>
+        <param name="color1" type="connection" value="B"/>
+        <param name="weight" type="float4" value="0.25, 0, 0, 0"/>
+    </node>
+    <node name="A" type="DIFFUSE">
+        <param name="color" type="float4" value="1.0, 1.0, 0.0, 0"/>
+    </node>
+    <node name="B" type="DIFFUSE">
+        <param name="color" type="float4" value="0.0, 0.0, 1.0, 0"/>
+    </node>
+</material>

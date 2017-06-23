@@ -1,0 +1,1 @@
+py -3 setup.py build_ext --inplace

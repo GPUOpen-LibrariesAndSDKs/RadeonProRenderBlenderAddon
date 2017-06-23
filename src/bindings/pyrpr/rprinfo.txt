@@ -1,0 +1,186 @@
+API_VERSION 0x10026600
+Context
+--------------------------------------------------------------------------------
+'aacellsize', def: 1, 'Numbers of cells for stratified sampling'
+'aasamples', def: 1, 'Numbers of samples per pixel'
+'aoraylength', def: 5.0, 'AO ray Length'
+'clippingplane', def: [0.0, 0.0, 0.0, 0.0], 'Clipping Plane'
+'cpuname', def: '', 'Name of the CPU in context. Constant value.'
+'displaygamma', def: 1.0, 'Display gamma'
+'framecount', def: 4294967295, 'framecount'
+'gpu0name', def: 'AMD FirePro W8100', 'Name of the GPU index 0 in context. Constant value.'
+'gpu1name', def: '', 'Name of the GPU index 1 in context. Constant value.'
+'gpu2name', def: '', 'Name of the GPU index 2 in context. Constant value.'
+'gpu3name', def: '', 'Name of the GPU index 3 in context. Constant value.'
+'gpu4name', def: '', 'Name of the GPU index 4 in context. Constant value.'
+'gpu5name', def: '', 'Name of the GPU index 5 in context. Constant value.'
+'gpu6name', def: '', 'Name of the GPU index 6 in context. Constant value.'
+'gpu7name', def: '', 'Name of the GPU index 7 in context. Constant value.'
+'imagefilter.blackmanharris.radius', def: 2.0, 'Filter radius'
+'imagefilter.box.radius', def: 1.0, 'Image filter to use'
+'imagefilter.gaussian.radius', def: 2.0, 'Filter radius'
+'imagefilter.lanczos.radius', def: 2.0, 'Filter radius'
+'imagefilter.mitchell.radius', def: 2.0, 'Filter radius'
+'imagefilter.triangle.radius', def: 1.5, 'Filter radius'
+'imagefilter.type', def: 0, 'Image filter to use'
+'maxRecursion', def: 2, 'Ray trace depth'
+'ooctexcache', def: 0, 'OOC texture cache'
+'pdfThreshold', def: 0.004999999888241291, 'pdf Threshold'
+'preview', def: 0, 'optimization for preview render mode'
+'radianceclamp', def: 3.4028234663852886e+38, 'Max radiance value'
+'raycastepsilon', def: 9.999999747378752e-05, 'Ray epsilon'
+'roughnessCap', def: 0.0, 'roughness Cap'
+'stacksize', def: 64, 'Maximum number of nodes that a material graph can support. Constant value.'
+'stage', def: 1, 'render mode'
+'texturecompression', def: 0, 'enable texture compression'
+'texturegamma', def: 1.0, 'Texture gamma'
+'tonemapping.exponential.intensity', def: 1.0, 'Exponential Tonemapping intensity'
+'tonemapping.linear.scale', def: 1.0, 'Linear scale'
+'tonemapping.photolinear.exposure', def: 0.0010000000474974513, 'Photolinear exposure'
+'tonemapping.photolinear.fstop', def: 2.799999952316284, 'Photolinear fstop'
+'tonemapping.photolinear.sensitivity', def: 100.0, 'Linear sensitivity'
+'tonemapping.reinhard02.burn', def: 3.75, 'Reinhard burn'
+'tonemapping.reinhard02.postscale', def: 1.2000000476837158, 'Reinhard postscale'
+'tonemapping.reinhard02.prescale', def: 1.0, 'Reinhard prescale'
+'tonemapping.type', def: 0, 'Tonemapping operator'
+'xflip', def: 0, 'Flip framebuffer output along X axis'
+'yflip', def: 1, 'Flip framebuffer output along Y axis'
+--------------------------------------------------------------------------------
+Material nodes
+--------------------------------------------------------------------------------
+MATERIAL_NODE_ADD 9
+/// color0 Float3
+/// color1 Float3
+/// weight Float3
+MATERIAL_NODE_ARITHMETIC 11
+/// color0 Float3
+/// color1 Float3
+/// op Float2
+/// color2 Float3
+/// color3 Float3
+MATERIAL_NODE_BLEND 10
+/// color0 Float3
+/// color1 Float3
+/// weight Float3
+MATERIAL_NODE_BLEND_VALUE 22
+/// color0 Float3
+/// color1 Float3
+/// weight Float3
+MATERIAL_NODE_BUMP_MAP 28
+/// color Float3
+/// bumpscale Float3
+MATERIAL_NODE_CHECKER_TEXTURE 18
+/// uv Float3
+MATERIAL_NODE_DIFFUSE 1
+/// color Float3
+/// normal Float3
+/// roughness Float3
+MATERIAL_NODE_DIFFUSE_REFRACTION 27
+/// color Float3
+/// normal Float3
+/// roughness Float3
+MATERIAL_NODE_DOT_TEXTURE 16
+/// uv Float3
+MATERIAL_NODE_EMISSIVE 7
+/// color Float3
+MATERIAL_NODE_FRESNEL 12
+/// normal Float3
+/// ior Float3
+/// invec Float3
+MATERIAL_NODE_FRESNEL_SCHLICK 25
+/// normal Float3
+/// invec Float3
+/// reflectance Float3
+MATERIAL_NODE_GRADIENT_TEXTURE 17
+/// color0 Float3
+/// color1 Float3
+/// uv Float3
+MATERIAL_NODE_IMAGE_TEXTURE 14
+/// uv Float3
+/// data Float3
+MATERIAL_NODE_INPUT_LOOKUP 20
+/// value Float2
+MATERIAL_NODE_MICROFACET 2
+/// color Float3
+/// normal Float3
+/// roughness Float3
+/// ior Float3
+MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION 30
+/// color Float3
+/// normal Float3
+/// roughness Float3
+/// ior Float3
+/// rotation Float3
+/// anisotropic Float3
+MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFRACTION 31
+/// color Float3
+/// normal Float3
+/// roughness Float3
+/// ior Float3
+/// rotation Float3
+/// anisotropic Float3
+MATERIAL_NODE_MICROFACET_REFRACTION 5
+/// color Float3
+/// normal Float3
+/// roughness Float3
+/// ior Float3
+MATERIAL_NODE_NOISE2D_TEXTURE 15
+/// uv Float3
+MATERIAL_NODE_NORMAL_MAP 13
+/// color Float3
+/// bumpscale Float3
+MATERIAL_NODE_ORENNAYAR 24
+/// color Float3
+/// normal Float3
+/// roughness Float3
+MATERIAL_NODE_PASSTHROUGH 23
+/// color Float3
+MATERIAL_NODE_REFLECTION 3
+/// color Float3
+/// normal Float3
+MATERIAL_NODE_REFRACTION 4
+/// color Float3
+/// normal Float3
+/// ior Float3
+MATERIAL_NODE_SIDES 32
+/// frontface Float3
+/// backface Float3
+MATERIAL_NODE_STANDARD 21
+/// diffuse.color Float
+/// diffuse.normal Float3
+/// glossy.color Float
+/// glossy.normal Float3
+/// glossy.roughness_x Float
+/// clearcoat.color Float
+/// clearcoat.normal Float3
+/// refraction.color Float
+/// refraction.normal Float3
+/// refraction.ior Float
+/// weights.diffuse2refraction Float
+/// weights.glossy2diffuse Float
+/// weights.clearcoat2glossy Float
+/// weights.transparency Float
+/// transparency.color Float3
+/// refraction.roughness Float
+/// glossy.roughness_y Float
+MATERIAL_NODE_TRANSPARENT 6
+/// color Float3
+MATERIAL_NODE_UV_PROJECT 33
+/// bumpscale Float3
+/// origin Float3
+/// zaxis Float3
+/// xaxis Float3
+/// threshold Float3
+MATERIAL_NODE_VOLUME 29
+/// sigmas Float3
+/// sigmaa Float3
+/// emission Float3
+/// g Float3
+/// multiscatter Float3
+MATERIAL_NODE_WARD 8
+/// color Float3
+/// normal Float3
+/// roughness_x Float3
+/// roughness_y Float3
+/// rotation Float3
+--------------------------------------------------------------------------------

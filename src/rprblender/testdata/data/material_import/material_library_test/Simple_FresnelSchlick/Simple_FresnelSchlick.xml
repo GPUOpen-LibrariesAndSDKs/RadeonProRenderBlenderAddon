@@ -1,0 +1,21 @@
+<material name="Simple_FresnelSchlick" version="0x10000236">
+    <description></description>
+    <node name="Simple_FresnelSchlick" type="DIFFUSE">
+        <param name="color" type="connection" value="texture0"/>
+    </node>
+    <node name="texture0" type="FRESNEL_SCHLICK">
+        <param name="normal" type="connection" value="normalmap0"/>
+        <param name="invec" type="connection" value="uv0"/>
+        <param name="reflectance" type="float4" value="0.2, 0.0, 0.0, 0"/>
+    </node>
+    <node name="normalmap0" type="NORMAL_MAP">
+        <param name="data" type="connection" value="image_file1"/>
+        <param name="bumpscale" type="float4" value="0.9, 0, 0, 0"/>
+    </node>
+    <node name="image_file1" type="INPUT_TEXTURE">
+        <param name="path" type="file_path" value="maps\normals.png"/>
+    </node>
+    <node name="uv0" type="INPUT_LOOKUP">
+        <param name="value" type="uint" value="3"/>
+    </node>
+</material>

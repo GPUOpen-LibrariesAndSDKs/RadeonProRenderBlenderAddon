@@ -1,0 +1,12 @@
+<material name="Simple_Math_Mul" version="0x10000236">
+    <description></description>
+    <node name="Simple_Math_Mul" type="DIFFUSE">
+        <param name="color" type="connection" value="arithm0"/>
+    </node>
+    <node name="arithm0" type="ARITHMETIC">
+        <param name="color0" type="float4" value="0.5, 0, 1, 1"/>
+        <param name="color1" type="float4" value="0.5, 0, 0.75, 1"/>
+        <param name="op" type="uint" value="2"/>
+    </node>
+
+</material>

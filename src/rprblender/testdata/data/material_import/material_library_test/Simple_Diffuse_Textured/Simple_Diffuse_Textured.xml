@@ -1,0 +1,14 @@
+<material name="Simple_Diffuse_Textured" version="0x10000236">
+    <description></description>
+    <node name="Simple_Diffuse_Textured" type="DIFFUSE">
+        <param name="color" type="connection" value="texture0"/>
+    </node>
+    <node name="texture0" type="IMAGE_TEXTURE">
+        <param name="data" type="connection" value="image_file0"/>
+    </node>
+    <node name="image_file0" type="INPUT_TEXTURE">
+        <param name="path" type="file_path" value="maps\striped_gradients.png"/>
+    </node>
+</material>
+
+

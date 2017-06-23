@@ -1,0 +1,27 @@
+<material name="Simple_Diffuse_Bumpmap_Textured" version="0x10000236">
+    <description></description>
+    <node name="Simple_Diffuse_Bumpmap_Textured" type="DIFFUSE">
+        <param name="color" type="connection" value="texture0"/>
+        <param name="normal" type="connection" value="bumpmap0"/>
+    </node>
+    <node name="texture0" type="IMAGE_TEXTURE">
+        <param name="data" type="connection" value="image_file0"/>
+        <param name="uv" type="connection" value="uv0"/>
+    </node>
+    <node name="image_file0" type="INPUT_TEXTURE">
+        <param name="path" type="file_path" value="maps\striped_gradients.png"/>
+    </node>
+
+    <node name="bumpmap0" type="BUMP_MAP">
+        <param name="data" type="connection" value="image_file1"/>
+    </node>
+
+    <node name="image_file1" type="INPUT_TEXTURE">
+        <param name="path" type="file_path" value="maps\hemisphere.png"/>
+    </node>
+    <node name="uv0" type="INPUT_LOOKUP">
+        <param name="value" type="uint" value="0"/>
+    </node>
+</material>
+
+

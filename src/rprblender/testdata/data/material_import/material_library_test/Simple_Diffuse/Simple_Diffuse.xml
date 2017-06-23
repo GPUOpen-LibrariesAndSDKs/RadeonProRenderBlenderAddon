@@ -1,0 +1,8 @@
+<material name="Simple_Diffuse" version="0x10000236">
+    <description></description>
+    <node name="Simple_Diffuse" type="DIFFUSE">
+        <param name="color" type="float4" value="1, 1, 0, 0"/>
+    </node>
+</material>
+
+

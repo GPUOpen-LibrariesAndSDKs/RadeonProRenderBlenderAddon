@@ -1,0 +1,10 @@
+{"categories": [
+    {"name": "DeadSimple", "materials": [
+        {"name": "Simple Emissive", "fileName": "Simple_Emissive" },
+        {"name": "Simple Diffuse Textured", "fileName": "Simple_Diffuse_Textured" },
+        {"name": "Simple Diffuse", "fileName": "Simple_Diffuse" },
+        {"name": "Simple Diffuse Bumpmap Textured", "fileName": "Simple_Diffuse_Bumpmap_Textured" },
+        {"name": "Simple Reflection Normalmap", "fileName": "Simple_Reflection_Normalmap" },
+        {"name": "Simple Refraction Normalmap", "fileName": "Simple_Refraction_Normalmap" }
+    ]}
+]}

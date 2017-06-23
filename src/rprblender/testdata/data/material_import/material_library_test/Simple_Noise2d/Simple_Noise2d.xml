@@ -1,0 +1,19 @@
+<material name="Simple_Noise2d" version="0x10000236">
+    <description></description>
+    <node name="Simple_Noise2d" type="DIFFUSE">
+        <param name="color" type="connection" value="texture0"/>
+    </node>
+    <node name="texture0" type="NOISE2D_TEXTURE">
+        <param name="uv" type="connection" value="uv0"/>
+    </node>
+
+    <node name="uv0" type="ARITHMETIC">
+        <param name="color0" type="connection" value="uvinput0"/>
+        <param name="color1" type="float4" value="1, 1, 0, 0"/>
+        <param name="op" type="uint" value="2"/>
+    </node>
+
+    <node name="uvinput0" type="INPUT_LOOKUP">
+        <param name="value" type="uint" value="0"/>
+    </node>
+</material>

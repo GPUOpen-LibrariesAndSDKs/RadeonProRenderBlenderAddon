@@ -1,0 +1,3 @@
+Fatal Python error: PyEval_SaveThread: NULL tstate
+
+Error: EXCEPTION_ACCESS_VIOLATION
