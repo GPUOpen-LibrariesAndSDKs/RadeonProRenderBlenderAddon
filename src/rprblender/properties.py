@@ -1010,8 +1010,9 @@ class UserSettings(bpy.types.PropertyGroup):
         update=helpers.settings_changed,
     )
 
-    device_type_PlusCPU = bpy.props.BoolProperty(
-        name="+ CPU (Only for Production Rendering)",
+    device_type_plus_cpu = bpy.props.BoolProperty(
+        name="Use CPU",
+        description='Only for Production Rendering',
         default=False,
         update=helpers.settings_changed,
     )

@@ -132,7 +132,7 @@ def get_context_creation_flags(is_production):
     else:
         flags = helpers.render_resources_helper.get_used_devices_flags()
         assert flags != 0
-        if (settings.device_type_PlusCPU) and (is_production):
+        if (settings.device_type_plus_cpu) and (is_production):
             flags |= pyrpr.CREATION_FLAGS_ENABLE_CPU
             logging.info('Using GPU+CPU')
     return flags

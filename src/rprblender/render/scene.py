@@ -250,7 +250,7 @@ class SceneRenderer:
         user_set_samples = rs.get_aa_samples(self.production_render)
         if rs.rendering_limits.enable:
             if 'ITER' == rs.rendering_limits.type:
-                if self.is_production and settings.device_type == 'gpu' and settings.device_type_PlusCPU:
+                if self.is_production and settings.device_type == 'gpu' and settings.device_type_plus_cpu:
                     samples = 100
                 else:
                     if numGPUs > user_set_samples:

@@ -196,7 +196,7 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
 
             col = layout.column()
             row = col.row();
-            row.prop(settings, "device_type_PlusCPU")
+            row.prop(settings, "device_type_plus_cpu")
             row.enabled = gpu_enable
 
             col = layout.column()
@@ -297,7 +297,7 @@ class RPRRender_PT_gamma_correction(RPRPanel, Panel):
 
 
 @rpraddon.register_class
-class RPRRender_PT_depth_of_field_new(RPRPanel, Panel):
+class RPRRender_PT_depth_of_field(RPRPanel, Panel):
     bl_label = "RPR Depth of Field"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -835,13 +835,13 @@ def add_rpr_export_menu_item(self, context):
     self.layout.operator(OpExportRPRModel.bl_idname, text="Radeon ProRender (.rpr)")
 
 
-links = (('HOME_PAGE', "Home page", "http://radeonprorender.com/plugins/blender"),
-         ('DOCS', "Documentation", "https://radeon-prorender.github.io/blender/UserGuide"),
-         ('TUTORIALS', "Tutorials", "https://radeon-prorender.github.io/blender/#tutorials"),
-         ('LIBRARY', "Material Library", "https://radeon-prorender.github.io/MaterialLibrary/"),
-         ('COMMUNITY', "Community", "http://blender.radeonprorender.com/support/discussions"),
-         ('ISSUE', "Report an Issue", "http://blender.radeonprorender.com/support/tickets"),
-         ('UPDATES', "Updates", "https://github.com/Radeon-ProRender/blender/releases"))
+links = (('main_site', "Main Site",         "http://pro.radeon.com/en-us/software/prorender/"),
+         ('documentation', "Documentation", "http://pro.radeon.com/en-us/software/prorender/"),
+         ('downloads', "Downloads",         "http://pro.radeon.com/en-us/software/prorender/"),
+         ('community', "Community",         "http://blender.radeonprorender.com/support/discussions"),
+         ('knowledge_base', "Knowledge Base", "http://blender.radeonprorender.com/support/home"),
+         ('bug_reports', "Bug Reports",     "http://blender.radeonprorender.com/support/login"),
+        )
 
 
 class AboutPanelHelper:
@@ -919,16 +919,16 @@ class RPRRender_PT_about(RPRPanel, Panel):
 
         row = layout.row(align=True)
         row.alignment = 'CENTER'
-        self.add_link_button(row, "HOME_PAGE")
-        self.add_link_button(row, "DOCS")
-        self.add_link_button(row, "TUTORIALS")
-        self.add_link_button(row, "UPDATES")
+        self.add_link_button(row, "main_site")
+        self.add_link_button(row, "documentation")
+        self.add_link_button(row, "downloads")
 
         row = layout.row(align=True)
         row.alignment = 'CENTER'
-        self.add_link_button(row, "LIBRARY")
-        self.add_link_button(row, "COMMUNITY")
-        self.add_link_button(row, "ISSUE")
+
+        self.add_link_button(row, "community")
+        self.add_link_button(row, "knowledge_base")
+        self.add_link_button(row, "bug_reports")
 
         row = layout.row(align=True)
         row.alignment = 'CENTER'
