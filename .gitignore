@@ -1,0 +1,32 @@
+__pycache__
+
+# idea
+.idea
+.idea/workspace.xml
+/.idea/dictionaries
+
+# build
+.build
+CMakeFiles
+
+# tests
+/prof
+/.rprtrace_*
+/failures*
+.cache
+.core_cache
+.core_trace
+
+# addon
+configdev.py
+rprblender.log
+
+# RPR
+tahoe.log
+
+# installer stuff
+/system
+build_output/
+/Installer/PluginInstaller/Generated/AddOn.wxs
+/Installer/PluginInstaller/Generated/MatLibrary.wxs
+/output

@@ -19,7 +19,7 @@ faulthandler.enable()
 rprsdk_path = Path(__file__).parents[3] / 'ThirdParty/RadeonProRender SDK'
 
 if "Windows" == platform.system():
-    bin_folder = 'Windows/bin'
+    bin_folder = 'Win/bin'
 elif "Linux" == platform.system():
     assert 'Ubuntu-16.04' in platform.platform()
     bin_folder = 'Linux/lib'
