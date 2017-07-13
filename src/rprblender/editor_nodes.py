@@ -444,6 +444,8 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
     transparency_value = 'Transparency'
     normal_in = 'Normal'
     displacement_map = 'Displacement Map'
+    displacement_min = 'Displacement Scale Min'
+    displacement_max = 'Displacement Scale Max'
 
     def diffuse_changed(self, context):
         self.inputs[self.diffuse_color].enabled = self.diffuse
@@ -504,6 +506,8 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
     def displacement_changed(self, context):
         self.inputs[self.displacement_map].enabled = self.displacement
+        self.inputs[self.displacement_min].enabled = self.displacement
+        self.inputs[self.displacement_max].enabled = self.displacement
 
     diffuse = bpy.props.BoolProperty(name='Diffuse', update=diffuse_changed, default=True)
 
@@ -568,6 +572,8 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency_value).default_value = 0.0
         self.inputs.new('rpr_socket_link', self.normal_in)
         self.inputs.new('rpr_socket_color', self.displacement_map).default_value = (0.0, 0.0, 0.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.displacement_min).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.displacement_max).default_value = 1.0
 
         self.reflection_changed(context)
         self.refraction_changed(context)
@@ -609,6 +615,12 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         row.prop(self, 'transparency', toggle=True)
         row.prop(self, 'normal', toggle=True)
         row.prop(self, 'displacement', toggle=True)
+        if self.displacement:
+            active_object = bpy.context.active_object
+            if active_object is not None:
+                from rprblender.ui import add_subdivision_properties
+                col = row.column()
+                add_subdivision_properties(col, active_object)
 
 
 ########################################################################################################################
@@ -1336,6 +1348,8 @@ class RPRShaderNode_Displacement(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_color', self.map_in)
 
     def draw_buttons(self, context, layout):
+        from rprblender.ui import add_subdivision_properties
+        add_subdivision_properties(layout, bpy.context.active_object)
         layout.prop(self, 'scale_min')
         layout.prop(self, 'scale_max')
 

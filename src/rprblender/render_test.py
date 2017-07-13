@@ -54,6 +54,7 @@ if not os.path.isdir(tracing_folder):
 enable_trace = pytest.config.getoption("--enable-trace")
 enable_cpu = pytest.config.getoption("--enable-cpu")
 
+notquick = pytest.mark.skipif(pytest.config.option.render_quickest, reason="slow")
 
 class TestSimple:
     def test_simple(self): pass
@@ -63,6 +64,7 @@ class ViewportFixture:
     viewport_renderer = None  # type: import rprblender.renderviewport.ViewportRenderer
 
     render_resolution = (320, 240)
+    render_region = None
 
     def __del__(self):
         pass
@@ -79,32 +81,38 @@ class ViewportFixture:
         bpy.context.scene.rpr.dev.show_materials_with_errors = True
 
         self.viewport_renderer = rprblender.render.viewport.ViewportRenderer()
-        self.viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
-        self.viewport_renderer.set_render_resolution(self.render_resolution)
-        self.set_render_camera()
+        self.set_render_camera_and_resolution_and_xxx(update=False)
         self.viewport_renderer.start(bpy.context.scene, threaded=True)
         self.viewport_renderer.scene_renderer.production_render = True
         self.viewport_renderer.scene_renderer_threaded.sleep_delay = 0.0
 
     def reset(self, scene):
-        self.set_render_camera()
+        self.set_render_camera_and_resolution_and_xxx(update=True)
         self.viewport_renderer.scene_reset(scene)
 
-    def set_render_camera(self):
+    def set_render_camera_and_resolution_and_xxx(self, update):
         render_camera = rprblender.sync.RenderCamera()
-        rprblender.sync.extract_render_camera_from_blender_camera(
-            bpy.context.scene.camera, render_camera,
-            self.render_resolution, 1, bpy.context.scene.rpr.render,
-            bpy.context.scene)
-        self.viewport_renderer.set_render_camera(render_camera)
 
-    def update_render_camera(self):
-        render_camera = rprblender.sync.RenderCamera()
+        scene = bpy.context.scene
+
+        border = rprblender.sync.extract_render_border_from_scene(scene)
+        render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, self.render_resolution)
+
         rprblender.sync.extract_render_camera_from_blender_camera(
             bpy.context.scene.camera, render_camera,
             self.render_resolution, 1, bpy.context.scene.rpr.render,
-            bpy.context.scene)
-        self.viewport_renderer.update_render_camera(render_camera)
+            scene, border=border)
+
+        if not update:
+            self.viewport_renderer.set_render_camera(render_camera)
+            self.viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
+            self.viewport_renderer.set_render_resolution(render_border_resolution)
+            self.viewport_renderer.set_render_region(self.render_region)
+        else:
+            self.viewport_renderer.update_render_camera(render_camera)
+            self.viewport_renderer.update_render_aov(get_render_passes_aov(bpy.context))
+            self.viewport_renderer.update_render_resolution(render_border_resolution)
+            self.viewport_renderer.update_render_region(self.render_region)
 
     def stop(self):
         self.viewport_renderer.stop()
@@ -289,7 +297,7 @@ class RenderImageCheck:
         self.aov = aov
         self.max_avg_dev = 0.005 if max_avg_dev is None else max_avg_dev
         self.max_std_dev = 0.01 if max_std_dev is None else max_std_dev
-        if isinstance(expected, str):
+        if isinstance(expected, str) or isinstance(expected, Path):
 
             image_path = testdata.get_path(expected)
             if Path(image_path).suffix in ['.png', '.bmp']:
@@ -326,7 +334,7 @@ class RenderImageCheck:
                 rpr_settings.rendering_limits.type = 'ITER'
                 rpr_settings.rendering_limits.iterations = 1
             bpy.context.scene.update()
-            self.viewport_fixture.update_render_camera()
+            self.viewport_fixture.set_render_camera_and_resolution_and_xxx(update=True)
         self.check()
 
     def __enter__(self):
@@ -690,6 +698,7 @@ def test_viewport_sync_resolution_change(viewport_fixture, sync_fixture):
         assert im.shape == (320, 240, 4)
 
 
+@notquick
 def test_viewport_sync_resolution_change_stress(viewport_fixture, sync_fixture):
     with viewport_fixture:
 
@@ -713,7 +722,7 @@ def test_viewport_sync_resolution_change_stress(viewport_fixture, sync_fixture):
                 rprblender.sync.extract_render_camera_from_blender_camera(
                     bpy.context.scene.camera, render_camera,
                     r, 1, bpy.context.scene.rpr.render,
-                    bpy.context.scene)
+                    bpy.context.scene, border=None)
                 viewport_renderer.update_render_camera(render_camera)
                 time.sleep(0.001)
 
@@ -1169,6 +1178,7 @@ def test_render_image_check_fixture(render_image_check_fixture):
         assert 0 == renderer.iteration_in_progress
 
 
+@notquick
 def test_default_scene_stress(render_image_check_fixture, material_setup, request, tmpdir_factory):
     basic_render_settings()
     rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
@@ -1217,6 +1227,38 @@ def test_material_diffuse(render_image_check_fixture, material_setup, request, t
         image_texture = editor.create_image_texture_node()
         image_texture.set_image(image)
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
+
+@pytest.mark.skip
+def test_region(render_image_check_fixture, material_setup, request, tmpdir_factory):
+    render_image_check_fixture.viewport_fixture.render_region = None
+    with render_image_check_fixture.set_expected('region/none_expected'):
+        generate_uv()
+
+        tree = material_setup.create_default_node_tree()
+        editor = MaterialEditor(tree)
+        output = OutputNode(material_setup.get_node_tree_output(tree), editor)
+
+        # create Normal Map node and connect it to Diffuse material Normal input
+        testee = editor.create_diffuse_material_node()
+
+        editor.link_nodes(testee, output.get_input_shader_socket())
+
+        editor.link_nodes(testee, output.get_input_shader_socket())
+        testee.set_color_value((1, 1, 0, 1))
+
+    with render_image_check_fixture.set_expected('region/none_expected'):
+        pass
+
+    resolution = render_image_check_fixture.viewport_fixture.render_resolution
+
+    render_image_check_fixture.viewport_fixture.viewport_renderer.update_render_region((0, resolution[0]-1, 0, resolution[1]-1))
+    with render_image_check_fixture.set_expected('region/none_expected'):
+        pass
+
+    render_image_check_fixture.viewport_fixture.viewport_renderer.update_render_region((0, resolution[0]//2-1, 0, resolution[1]//2-1))
+    with render_image_check_fixture.set_expected('region/quedrant_0_expected'):
+        pass
+
 
 
 def test_material_image_sync(render_image_check_fixture, material_setup, request, tmpdir_factory):
@@ -3448,7 +3490,7 @@ def test_subdivision_surface_material(render_image_check_fixture, material_setup
         bpy.context.object.data.materials[0] = material
         material.update_tag()
 
-
+@notquick
 def test_subdivision_stress():
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.subdivide(number_cuts=2, smoothness=0)
@@ -3546,6 +3588,107 @@ def test_displacement_shading_normal(render_image_check_fixture, material_setup,
 
         editor.link_nodes(testee, output.get_input_socket_by_name('displacement'))
 
+
+class TestViewRenderBorder:
+
+    def setup_method(self, test_method):
+        generate_uv()
+
+        bpy.context.scene.rpr.render.rendering_limits.iterations = 10
+        bpy.context.scene.rpr.render.render_mode = 'TEXCOORD'
+
+    def test_border_persp(self, render_image_check_fixture: RenderImageCheck):
+        self.run_border_test(render_image_check_fixture, 'view/border/persp')
+
+    def run_border_test(self, render_image_check_fixture, folder):
+        folder = Path(folder)
+        with render_image_check_fixture.set_expected(folder / 'horizontal/default_expected'):
+            pass
+
+        render_image_check_fixture.viewport_fixture.render_region = [[0.25, 0.5], [0, 1]]
+
+        with render_image_check_fixture.set_expected(folder / 'horizontal/left_expected'):
+            pass
+
+class TestCameraBorder:
+
+    def setup_method(self, test_method):
+        generate_uv()
+
+        bpy.context.scene.rpr.render.rendering_limits.iterations = 10
+        bpy.context.scene.rpr.render.render_mode = 'TEXCOORD'
+
+    def test_border_persp(self, render_image_check_fixture: RenderImageCheck):
+        self.run_border_test(render_image_check_fixture, 'camera/border/persp')
+
+    def test_border_ortho(self, render_image_check_fixture: RenderImageCheck):
+        camera = bpy.context.scene.camera
+
+        camera.data.type = 'ORTHO'
+        camera.data.ortho_scale = 3
+
+        self.run_border_test(render_image_check_fixture, 'camera/border/ortho/')
+
+    def run_border_test(self, render_image_check_fixture, folder):
+        folder = Path(folder)
+        with render_image_check_fixture.set_expected(folder / 'horizontal/default_expected'):
+            pass
+        bpy.context.scene.render.use_border = True
+        bpy.context.scene.render.border_min_x = 0.25
+        bpy.context.scene.render.border_max_x = 0.5
+        with render_image_check_fixture.set_expected(folder / 'horizontal/left_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0.5
+        bpy.context.scene.render.border_max_x = 0.75
+        with render_image_check_fixture.set_expected(folder / 'horizontal/right_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0
+        bpy.context.scene.render.border_max_x = 1
+        bpy.context.scene.render.border_min_y = 0.25
+        bpy.context.scene.render.border_max_y = 0.5
+        with render_image_check_fixture.set_expected(folder / 'horizontal/down_expected'):
+            pass
+        bpy.context.scene.render.border_min_y = 0.5
+        bpy.context.scene.render.border_max_y = 0.75
+        with render_image_check_fixture.set_expected(folder / 'horizontal/up_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0.25
+        bpy.context.scene.render.border_max_x = 0.75
+        bpy.context.scene.render.border_min_y = 0.25
+        bpy.context.scene.render.border_max_y = 0.75
+        with render_image_check_fixture.set_expected(folder / 'horizontal/center_expected'):
+            pass
+        bpy.context.scene.render.use_border = False
+        # make vertical
+        render_resolution = render_image_check_fixture.viewport_fixture.render_resolution
+        render_image_check_fixture.viewport_fixture.render_resolution = render_resolution[1], render_resolution[0]
+        with render_image_check_fixture.set_expected(folder / 'vertical/default_expected'):
+            pass
+        bpy.context.scene.render.use_border = True
+        bpy.context.scene.render.border_min_x = 0.25
+        bpy.context.scene.render.border_max_x = 0.5
+        with render_image_check_fixture.set_expected(folder / 'vertical/left_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0.5
+        bpy.context.scene.render.border_max_x = 0.75
+        with render_image_check_fixture.set_expected(folder / 'vertical/right_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0
+        bpy.context.scene.render.border_max_x = 1
+        bpy.context.scene.render.border_min_y = 0.25
+        bpy.context.scene.render.border_max_y = 0.5
+        with render_image_check_fixture.set_expected(folder / 'vertical/down_expected'):
+            pass
+        bpy.context.scene.render.border_min_y = 0.5
+        bpy.context.scene.render.border_max_y = 0.75
+        with render_image_check_fixture.set_expected(folder / 'vertical/up_expected'):
+            pass
+        bpy.context.scene.render.border_min_x = 0.25
+        bpy.context.scene.render.border_max_x = 0.75
+        bpy.context.scene.render.border_min_y = 0.25
+        bpy.context.scene.render.border_max_y = 0.75
+        with render_image_check_fixture.set_expected(folder / 'vertical/center_expected'):
+            pass
 
 
 
@@ -3838,7 +3981,7 @@ def test_load_image_speed(render_image_check_fixture, material_setup, request, t
 
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
-
+@notquick
 @pytest.mark.timeout(10)
 def test_load_image_cache(render_image_check_fixture, material_setup, request, tmpdir_factory):
     image = create_color_fill_image_packed((1, 1, 0), (1024,) * 2)
@@ -3905,6 +4048,7 @@ def test_load_image_cache(render_image_check_fixture, material_setup, request, t
     log(rprblender.images.image_cache.stats.format_current())
 
 
+@notquick
 @pytest.mark.timeout(20)
 def test_animation_image_cache(render_image_check_fixture, material_setup, request, tmpdir_factory):
     image = create_color_fill_image_packed((1, 1, 0), (1024,) * 2)

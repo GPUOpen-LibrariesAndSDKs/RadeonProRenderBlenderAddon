@@ -622,6 +622,29 @@ class Test:
 
         check_framebuffer_agains_baseline(frame_buffer, 'test_simple')
 
+    def test_tile(self):
+        context = self.context
+
+        scene = self.scene
+
+        # make simple quad scene for the test
+        mesh = create_simple_quad(context, scene)
+
+        frame_buffer, camera = create_simple_render_setup(context, scene, resolution=(640, 480))
+
+        ibl, img = self.create_environment_light_simpe(context, [0.5, 0.5, 0.5, 1.0], (2, 2))
+
+        pyrpr.EnvironmentLightSetIntensityScale(ibl, 1.0)
+
+        pyrpr.SceneAttachLight(scene, ibl)
+
+        pyrpr.FrameBufferClear(frame_buffer)
+
+        pyrpr.ContextRenderTile(context, 160, 480, 120, 360)
+        pyrpr.ContextRenderTile(context, 0, 320, 0, 240)
+
+        check_framebuffer_agains_baseline(frame_buffer, 'test_tile')
+
     def test_load_store(self, tmpdir_factory):
 
         context = self.context

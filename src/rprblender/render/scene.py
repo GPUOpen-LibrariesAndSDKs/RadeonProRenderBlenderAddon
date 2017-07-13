@@ -1,4 +1,5 @@
 import cProfile
+import inspect
 import itertools
 import sys
 import threading
@@ -36,6 +37,7 @@ class SceneRenderer:
         self.cache_generated = False
         self.time_in_progress = None
         self.resolution = None  # type: tuple
+        self.region = None
         self.time_render_start = None
 
         self.post_effects = {}
@@ -78,6 +80,10 @@ class SceneRenderer:
         self.make_frame_buffers(self.resolution)
 
     @call_logger.logged
+    def update_render_region(self, render_region):
+        self.region = render_region
+
+    @call_logger.logged
     def update_aov(self, aov):
         self.aov_settings = aov
 
@@ -85,6 +91,12 @@ class SceneRenderer:
         logging.info('make_frame_buffers: ', render_resolution)
 
         if self.render_layers:
+
+            # check that render_layers are not held
+            if config.debug:
+                referrers = gc.get_referrers(self.render_layers)
+                assert 1 == len(referrers), (referrers, len(referrers), self.render_layers)
+
             del self.render_layers
         self.render_layers = rprblender.render.render_layers.RenderLayers(
             self.aov_settings, self.get_core_context(), render_resolution)
@@ -277,6 +289,11 @@ class SceneRenderer:
 
         render_resolution = self.resolution
 
+        if self.region is not None:
+            render_region = np.uint32(np.concatenate(np.multiply(self.region, [[render_resolution[0]], [render_resolution[1]]])))
+        else:
+            render_region = None
+
         self.log_debug("render_proc: redraw", self.resolution)
 
         timestamp_operation_last = time.perf_counter()
@@ -335,7 +352,10 @@ class SceneRenderer:
             timestamp_operation_last = time.perf_counter()
 
             with rprblender.render.core_operations(raise_error=True):
-                pyrpr.ContextRender(self.get_core_context())
+                if render_region is None:
+                    pyrpr.ContextRender(self.get_core_context())
+                else:
+                    pyrpr.ContextRenderTile(self.get_core_context(), *render_region)
             self.cache_generated = True
 
             width, height = render_resolution
@@ -428,26 +448,72 @@ class RenderThread(threading.Thread):
         logging.debug(self, 'run complete', tag='render.scene')
 
 
+class UpdateBlock:
+
+    def __init__(self, value=None, has_value=True, equal=None):
+        self.value = value
+        self.has_value = has_value
+        self.equal = equal
+
+    @call_logger.logged
+    def set_value(self, value):
+        self.has_value = True
+        self.value = value
+
+    @call_logger.logged
+    def pop_value(self):
+        self.has_value = False
+        return self.value
+
+    def del_value(self):
+        self.has_value = False
+
+
 class UpdateData:
-    render_resolution = None
-    render_camera = None
     aov = None
+
+    def __init__(self):
+        self.render_region = UpdateBlock(value=None, equal=np.array_equal)
+        self.render_resolution = UpdateBlock(has_value=False, equal=np.array_equal)
+        self.render_camera = UpdateBlock(has_value=False, equal=lambda old, new: old is not None and old.is_same(new))
+
+    def update_block(self, block, block_value_current, block_value_new, equal=None):
+        """ """
+        equal = equal or block.equal
+
+        if block.has_value:
+            # if update queued already has same data - skip it
+            if equal(block.value, block_value_new):
+                return
+
+        # if value is already set - skip and clear update data
+        if equal(block_value_current, block_value_new):
+            # optimization - skip update value that was queued(but not applied yet) and is overriden by new value
+            if block.has_value:
+                block.del_value()
+            return
+
+        block.set_value(block_value_new)
+
+
 
 
 class SceneRendererThreaded:
 
     def __init__(self, scene_renderer):
-        self.scene_renderer = scene_renderer
+        self.scene_renderer = scene_renderer  # type: SceneRenderer
 
         self._need_scene_redraw = False
 
         self.thread = None  # type: RenderThread
         self.update_lock = threading.Lock()
+        self.image_lock = threading.Lock()
         self.render_completed_event = threading.Event()
 
-        self.update_data = UpdateData()
         self.update_data_lock = threading.Lock()
+        self.update_data = UpdateData()
         self.render_resolution = None
+        self.render_region = None
         self.render_camera = None
 
         self.scene_synced = None
@@ -476,7 +542,7 @@ class SceneRendererThreaded:
         # in case render crashed
         return self.thread.is_alive()
 
-    sleep_delay_interactive = 0.1
+    sleep_delay_interactive = 0.01
     sleep_delay_noninteractive = 0.0
 
     def start(self):
@@ -490,11 +556,10 @@ class SceneRendererThreaded:
 
     @call_logger.logged
     def _start(self):
+        self.stop_requested = False
         self.thread = RenderThread()
         self.thread.renderer = self
         self.thread.start()
-
-        self.stop_requested = False
 
     @call_logger.logged
     def stop(self):
@@ -548,12 +613,12 @@ class SceneRendererThreaded:
 
     def check_updates(self):
         with self.update_data_lock:
-            if self.update_data.render_resolution is not None:
-                self.render_resolution = self.update_data.render_resolution
-                self.update_data.render_resolution = None
+            if self.update_data.render_resolution.has_value:
+                self.render_resolution = self.update_data.render_resolution.pop_value()
                 if self.update_data.aov is not None:
                     self.scene_renderer.aov_settings = self.update_data.aov
-                self.scene_renderer.update_render_resolution(self.render_resolution)
+                with self.image_lock:
+                    self.scene_renderer.update_render_resolution(self.render_resolution)
                 self.need_scene_redraw = True
             elif self.update_data.aov is not None:
                 if self.scene_renderer.render_layers.is_aov_changed(self.update_data.aov):
@@ -561,9 +626,13 @@ class SceneRendererThreaded:
                     self.need_scene_redraw = True
                 self.update_data.aov = None
 
-            if self.update_data.render_camera is not None:
-                self._set_render_camera(self.update_data.render_camera)
-                del self.update_data.render_camera
+            if self.update_data.render_region.has_value:
+                self.render_region = self.update_data.render_region.pop_value()
+                self.scene_renderer.update_render_region(self.render_region)
+                self.need_scene_redraw = True
+
+            if self.update_data.render_camera.has_value:
+                self._set_render_camera(self.update_data.render_camera.pop_value())
                 self.need_scene_redraw = True
 
     @call_logger.logged
@@ -573,14 +642,16 @@ class SceneRendererThreaded:
 
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
-        with self.update_data_lock:
-            if self.update_data.render_resolution == render_resolution:
-                return
-            if self.render_resolution == render_resolution:
-                self.update_data.render_resolution = None
-                return
-            self.update_data.render_resolution = render_resolution
+        self.update_block(self.update_data.render_resolution, self.render_resolution, render_resolution)
 
+    @call_logger.logged
+    def set_render_region(self, render_region):
+        self.render_region = render_region
+        self.scene_renderer.update_render_region(self.render_region)
+
+    @call_logger.logged
+    def update_render_region(self, render_region):
+        self.update_block(self.update_data.render_region, self.render_region, render_region)
 
     @call_logger.logged
     def set_aov(self, aov):
@@ -589,7 +660,7 @@ class SceneRendererThreaded:
     @call_logger.logged
     def update_aov(self, aov):
         with self.update_data_lock:
-            if self.update_data.aov is not None and  self.update_data.aov == aov:
+            if self.update_data.aov is not None and self.update_data.aov == aov:
                 return
             self.update_data.aov = aov
 
@@ -604,15 +675,13 @@ class SceneRendererThreaded:
             self.scene_renderer.tile_image = (1, 1)
 
     def update_render_camera(self, render_camera):
+        self.update_block(self.update_data.render_camera, self.render_camera, render_camera)
+
+    def update_block(self, block, block_value_current, block_value_new):
         with self.update_data_lock:
-            if self.update_data.render_camera is not None and self.update_data.render_camera.is_same(render_camera):
-                return
-            if self.render_camera is not None and self.render_camera.is_same(render_camera):
-                self.update_data.render_camera = None
-                return
-            self.update_data.render_camera = render_camera
+            self.update_data.update_block(block, block_value_current, block_value_new)
+
 
     def set_scene_synced(self, scene_synced):
         self.scene_synced = scene_synced
-
 

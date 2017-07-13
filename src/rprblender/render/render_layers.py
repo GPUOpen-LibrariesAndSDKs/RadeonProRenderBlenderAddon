@@ -149,6 +149,9 @@ class RenderLayers:
 
         self.init_data(aov_settings)
 
+    def __del__(self):
+        logging.critical(self, "__del__")
+
     def init_data(self, aov_settings):
         self.enable = aov_settings is not None and aov_settings.enable
 

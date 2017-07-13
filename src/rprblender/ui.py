@@ -804,7 +804,8 @@ def export_rpr_model(context, filepath):
     render_resolution = (640, 480)
 
     render_camera = sync.RenderCamera()
-    sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings, scene)
+    sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings, scene,
+                                                   border=None)
 
     scene_synced.set_render_camera(render_camera)
 
@@ -1110,6 +1111,13 @@ class RPRMaterial_PT_preview(RPRPanel, Panel):
         self.layout.template_preview(context.material)
 
 
+def add_subdivision_properties(layout, object):
+    if object:
+        layout.prop(object.rpr_object, "subdivision")
+        layout.prop(object.rpr_object, "subdivision_crease_weight", text='Crease Weight')
+        layout.prop(object.rpr_object, "subdivision_boundary")
+
+
 @rpraddon.register_class
 class RPRObject_PT(RPRPanel, Panel):
     bl_label = "RPR Settings"
@@ -1127,10 +1135,7 @@ class RPRObject_PT(RPRPanel, Panel):
             self.layout.prop(rpr, "shadows")
             self.layout.prop(rpr, "portallight")
             subdivision_layout = self.layout.box()
-            subdivision_layout.prop(rpr, "subdivision")
-            subdivision_layout.prop(rpr, "subdivision_boundary")
-            subdivision_layout.prop(rpr, "subdivision_crease_weight", text='Crease Weight')
-
+            add_subdivision_properties(subdivision_layout, context.object)
 
 @rpraddon.register_class
 class RPRCamra_PT(RPRPanel, Panel):

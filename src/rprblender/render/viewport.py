@@ -28,6 +28,7 @@ class ViewportRenderer:
         self.render_camera = None
 
         self.render_resolution = None
+        self.render_region = None
 
         self.render_aov = None
 
@@ -45,7 +46,8 @@ class ViewportRenderer:
         self.scene_renderer = None
 
     def get_image(self, pass_name=''):
-        return self.scene_renderer.get_image(pass_name)
+        with self.scene_renderer_threaded.image_lock:
+            return self.scene_renderer.get_image(pass_name)
 
     @call_logger.logged
     def start(self, scene, threaded=True):
@@ -63,6 +65,7 @@ class ViewportRenderer:
 
         self.scene_renderer_threaded.set_aov(self.render_aov)
         self.scene_renderer_threaded.set_render_resolution(self.render_resolution)
+        self.scene_renderer_threaded.set_render_region(self.render_region)
         if self.threaded:
             self.scene_renderer_threaded.start()
 
@@ -107,7 +110,6 @@ class ViewportRenderer:
 
         self.visible_objects = self.scene_exporter.export()
 
-
     def clear_scene(self):
         self.scene_synced.reset_scene()
 
@@ -151,10 +153,21 @@ class ViewportRenderer:
         aov_settings = rprblender.render.render_layers.extract_settings(aov)
         self.scene_renderer_threaded.update_aov(aov_settings)
 
+    @call_logger.logged
     def set_render_resolution(self, render_resolution):
         self.render_resolution = render_resolution
 
+    @call_logger.logged
+    def set_render_region(self, render_region):
+        self.render_region = render_region
+
+    @call_logger.logged
     def update_render_resolution(self, render_resolution):
         self.render_resolution = render_resolution
         self.scene_renderer_threaded.update_render_resolution(render_resolution)
+
+    @call_logger.logged
+    def update_render_region(self, render_region):
+        self.render_region = render_region
+        self.scene_renderer_threaded.update_render_region(render_region)
 

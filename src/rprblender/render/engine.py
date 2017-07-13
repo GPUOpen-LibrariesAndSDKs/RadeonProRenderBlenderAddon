@@ -38,6 +38,9 @@ def start_viewport_rendering(context):
     logging.debug('start: {},{}'.format(context.region.width, context.region.height), tag='render.viewport')
     viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
     viewport_renderer.set_render_resolution((context.region.width, context.region.height))
+
+    #viewport_renderer.set_render_resolution((context.region.width, context.region.height))
+
     viewport_renderer.set_render_camera(sync.extract_viewport_render_camera(context, context.scene.rpr.render))
     viewport_renderer.start(context.scene)
 
@@ -136,11 +139,14 @@ class RPREngine(bpy.types.RenderEngine):
 
         scene_renderer.production_render = True
 
-        render_resolution = (width, height)
+        render_resolution = width, height
+
+        border = rprblender.sync.extract_render_border_from_scene(scene)
+        render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, render_resolution)
 
         render_camera = sync.RenderCamera()
         sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings,
-                                                       scene)
+                                                       scene, border=border)
 
         scene_synced.set_render_camera(render_camera)
 
@@ -150,7 +156,21 @@ class RPREngine(bpy.types.RenderEngine):
         with rprblender.render.core_operations(raise_error=True):
             scene_synced.make_core_scene()
             scene_renderer.update_aov(aov_settings)
-            scene_renderer.update_render_resolution(render_resolution)
+
+            scene_renderer.update_render_resolution(render_border_resolution)
+
+            # if scene.render.use_border:
+            #     region_relative = (
+            #         scene.render.border_min_x, scene.render.border_max_x,
+            #         scene.render.border_min_y, scene.render.border_max_y)
+            #     aspect = render_border_resolution[0]/render_border_resolution[1]
+            #
+            #     region_relative = region_relative*np.array([1, 1, 1, 1])
+            #
+            #     region = tuple(np.uint32(region_relative*np.repeat(render_border_resolution, 2)))
+            #
+            #     scene_renderer.update_render_region(region)
+
 
         try:
             if not self.is_preview:
@@ -189,7 +209,7 @@ class RPREngine(bpy.types.RenderEngine):
                     # Blender 2.79
                     self.add_passes(aov_settings)
 
-            result = self.begin_result(0, 0, width, height)
+            result = self.begin_result(0, 0, render_border_resolution[0], render_border_resolution[1])
             logging.debug("Passes in the result:", tag="render.engine.passes")
             # TODO: render to active layer or render all layers
             result_render_layer = result.layers[0]
@@ -348,6 +368,8 @@ class RPREngine(bpy.types.RenderEngine):
                       'region_data.view_camera_zoom:', context.region_data.view_camera_zoom,
                       'region.width:', context.region.width,
                       'region.height:', context.region.height,
+                      'region.x:', context.region.x,
+                      'region.y:', context.region.y,
                       'region_data.view_matrix:', context.region_data.view_matrix, tag='render.viewport.update')
 
         if context.space_data not in self.viewport_renderers:
@@ -388,9 +410,18 @@ class RPREngine(bpy.types.RenderEngine):
         logging.debug('view_draw', context,
                       'region_data.view_perspective:', context.region_data.view_perspective,
                       'space_data.lens:', context.space_data.lens,
+
+                      'space_data.use_render_border:', context.space_data.use_render_border,
+                      'space_data.render_border_min_x:', context.space_data.render_border_min_x,
+                      'space_data.render_border_max_x:', context.space_data.render_border_max_x,
+                      'space_data.render_border_min_y:', context.space_data.render_border_min_y,
+                      'space_data.render_border_max_y:', context.space_data.render_border_max_y,
+
                       'region_data.view_camera_zoom:', context.region_data.view_camera_zoom,
                       'region.width:', context.region.width,
                       'region.height:', context.region.height,
+                      'region.x:', context.region.x,
+                      'region.y:', context.region.y,
                       'region_data.view_matrix:', context.region_data.view_matrix, tag='render.viewport.draw')
 
         if context.space_data not in self.viewport_renderers:
@@ -413,6 +444,15 @@ class RPREngine(bpy.types.RenderEngine):
 
             viewport_renderer.update_render_aov(get_render_passes_aov(bpy.context))
             viewport_renderer.update_render_resolution(render_resolution)
+
+            region = self.get_view_render_region(context)
+            logging.debug("region:", region, tag='render.viewport.draw.region')
+            if region is None:
+                viewport_renderer.update_render_region(None)
+            else:
+                # flip regon verticall for RPR and clip to fit framebuffer
+                viewport_renderer.update_render_region(np.clip([region[0], [1-region[1][1], 1-region[1][0]]], 0, 1))
+
             viewport_renderer.update_render_camera(
                 sync.extract_viewport_render_camera(context, viewport_renderer.scene_renderer.render_settings))
 
@@ -436,6 +476,38 @@ class RPREngine(bpy.types.RenderEngine):
             zoom = viewport_renderer.scene_renderer.get_image_tile()
             viewportdraw.draw_image_texture(self.texture, render_resolution,
                                             zoom if zoom is not None else (1, 1))
+
+    def get_view_render_region(self, context):
+        if 'CAMERA' == context.region_data.view_perspective:
+            border = rprblender.sync.extract_render_border_from_scene(context.scene)
+            if border is not None:
+                border = np.array(border)
+                from bpy_extras import view3d_utils
+
+                # get camera frame corners in blender region space
+                camera_frame_point_in_region = []
+                for v in bpy.context.scene.camera.data.view_frame(bpy.context.scene):
+                    point_in_region_pixels = view3d_utils.location_3d_to_region_2d(
+                        context.region,
+                        context.space_data.region_3d,
+                        bpy.context.scene.camera.matrix_world * v
+                    )
+                    camera_frame_point_in_region.append(
+                        np.array(point_in_region_pixels) / (context.region.width, context.region.height))
+
+                camera_frame_rect_in_region = np.transpose([
+                    np.min(camera_frame_point_in_region, axis=0),
+                    np.max(camera_frame_point_in_region, axis=0)])
+
+                # camera border is in camera frame space - compute it int blender region space
+                upper_bound = camera_frame_rect_in_region[..., 1][:, np.newaxis]
+                lower_bound = camera_frame_rect_in_region[..., 0][:, np.newaxis]
+                return (1-border) * lower_bound + border * upper_bound
+        else:
+            if context.space_data.use_render_border:
+                return [
+                    [context.space_data.render_border_min_x, context.space_data.render_border_max_x],
+                    [context.space_data.render_border_min_y, context.space_data.render_border_max_y]]
 
     def update_script_node(self, node=None):  # Compile shader script node
         pass

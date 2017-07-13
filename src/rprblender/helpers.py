@@ -425,7 +425,10 @@ class CallLogger:
         @functools.wraps(f)
         def wrapped(*argv, **kwargs):
             if config.debug:
-                log_fun(f.__name__, ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)))
+                log_fun(f.__name__,
+                        ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)),
+                        ', '.join(name+': '+str(value) for name, value in kwargs.items()),
+                        )
             try:
                 result = f(*argv, **kwargs)
             except:

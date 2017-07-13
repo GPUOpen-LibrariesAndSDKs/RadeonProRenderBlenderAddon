@@ -198,3 +198,13 @@ def check_old_rpr_uber2_nodes():
             if node.normal_in not in node.inputs:
                 socket = node.inputs.new('rpr_socket_link', node.normal_in)
                 socket.enabled = node.normal
+
+            if node.displacement_min not in node.inputs:
+                socket = node.inputs.new('rpr_socket_float_softMin0_softMax1', node.displacement_min)
+                socket.default_value = 0.0
+                socket.enabled = node.displacement
+
+            if node.displacement_max not in node.inputs:
+                socket = node.inputs.new('rpr_socket_float_softMin0_softMax1', node.displacement_max)
+                socket.default_value = 1.0
+                socket.enabled = node.displacement

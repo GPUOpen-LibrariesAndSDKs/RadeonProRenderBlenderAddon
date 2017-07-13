@@ -1174,8 +1174,12 @@ class Material:
             else:
                 displacement_value = self.get_value(blender_node, blender_node.displacement_map)
                 if not displacement_value.is_vector():
-                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_DISPLACEMENT,
-                                          displacement_value)
+                    scale_min = self.get_value(blender_node, blender_node.displacement_min)
+                    scale_max = self.get_value(blender_node, blender_node.displacement_max)
+                    delta = self.sub_value(scale_max, scale_min)
+                    displacement_value = self.mul_value(displacement_value, delta)
+                    displacement_value = self.add_value(displacement_value, scale_min)
+                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_DISPLACEMENT, displacement_value)
 
         return shader
 

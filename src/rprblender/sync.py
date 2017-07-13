@@ -19,6 +19,7 @@ import mathutils
 
 import pyrprx
 
+
 def rotation_env(env, rot):
     rot = (-rot[0], -rot[1], -rot[2])
     euler = mathutils.Euler(rot)
@@ -387,9 +388,10 @@ class SceneSynced:
 
         if 'PERSP' == self.render_camera.type:
             self.update_camera_transform(camera, self.render_camera.matrix_world)
+            pyrpr.CameraSetLensShift(camera, *self.render_camera.shift)
 
             logging.info('camera.focal_length: ', self.render_camera.lens)
-            logging.info('camera.sensor_width: %s, sensor_height: %s' % (self.render_camera.sensor_size))
+            logging.info('camera.sensor_size: %s' % (self.render_camera.sensor_size,))
             pyrpr.CameraSetFocalLength(camera, self.render_camera.lens)
             pyrpr.CameraSetSensorSize(camera, *self.render_camera.sensor_size)
 
@@ -409,6 +411,7 @@ class SceneSynced:
 
         elif 'ORTHO' == self.render_camera.type:
             self.update_camera_transform_ortho(camera, self.render_camera.matrix_world, self.render_camera.ortho_depth)
+            pyrpr.CameraSetLensShift(camera, *self.render_camera.shift)
             pyrpr.CameraSetOrthoWidth(camera, self.render_camera.ortho_width)
             pyrpr.CameraSetOrthoHeight(camera, self.render_camera.ortho_height)
         logging.debug('motion_blur: ', self.render_camera.motion_blur_enable, self.render_camera.motion_blur_exposure)
@@ -665,6 +668,7 @@ class SceneSynced:
             )
         )
 
+    @call_logger.logged
     def update_camera_transform_ortho(self, camera, matrix_world, depth):
         m = matrix_world.reshape(4, 4)  # np.ndarray
 
@@ -699,14 +703,14 @@ class SceneSynced:
         logging.debug("reconstruct:", basis, origin, tag='render.camera')
 
         # make 4x4
-        tm = np.append(np.append(basis, [origin], 0), [[0]] * 4, 1)
+        tm = np.append(np.append(basis.T, [origin], 0), [[0]] * 4, 1)
         tm[3, 3] = 1
         logging.debug("tm:", repr(tm.reshape(4, 4)), tag='render.camera')
 
-        tm = tm.astype(np.float32).flatten()
+        tm = np.ascontiguousarray(tm, dtype=np.float32)
 
         # pyrpr.CameraSetTransform(camera, False, ffi.cast('float*', tm.ctypes.data))
-        # pyrpr.CameraSetTransform(camera, False, ffi.cast('float*', extracted['matrix_world'].ctypes.data))
+
 
         transform_ptr = ffi.new('float[16]')
         pyrpr.CameraGetInfo(camera, pyrpr.CAMERA_TRANSFORM, ffi.sizeof('float') * 16, transform_ptr, ffi.NULL)
@@ -759,7 +763,6 @@ class SceneSynced:
 
         pyrpr.ShapeSetMaterial(shape, None)
 
-
     @call_logger.logged
     def assign_material_to_mesh(self, mat_key, obj_key):
         log_mat('assign material...')
@@ -804,7 +807,7 @@ class SceneSynced:
 
         pyrpr.ShapeSetVolumeMaterial(shape, None)  # we have crash without it !!!
         pyrpr.ShapeSetDisplacementMaterial(shape, None)
-        
+
         if rpr_material.shader != None and rpr_material.shader.type == ShaderType.UBER2:
             pyrprx.xShapeAttachMaterial(rpr_material.shader.rprx_context, shape, shader)
             pyrprx.xMaterialCommit(rpr_material.shader.rprx_context, shader)
@@ -819,11 +822,10 @@ class SceneSynced:
                 pyrpr.ShapeSetVolumeMaterial(shape, volume)
 
             displacement = rpr_material.get_displacement()
-            if displacement and  displacement[0]:
+            if displacement and displacement[0]:
                 logging.info('assign displacement: ', mat_key, displacement)
                 pyrpr.ShapeSetDisplacementMaterial(shape, displacement[0].node.get_handle())
                 pyrpr.ShapeSetDisplacementScale(shape, displacement[1], displacement[2])
-
 
     @call_logger.logged
     def remove_material_from_mesh_instance(self, instance_key):
@@ -1186,7 +1188,6 @@ class SceneSynced:
         logging.error(message)
 
 
-
 def camera_get_sensor_size(camera):
     sensor_size_ptr = ffi.new('float[2]')
     pyrpr.CameraGetInfo(camera, pyrpr.CAMERA_SENSOR_SIZE, ffi.sizeof('float') * 2, sensor_size_ptr, ffi.NULL)
@@ -1230,6 +1231,8 @@ class RenderCamera:
     motion_blur_enable = False
     motion_blur_exposure = None  # type: float
 
+    shift = (0, 0)
+
     def __str__(self):
         return ' '.join(
             ["{}: {}".format(name, getattr(self, name)) for name in [
@@ -1239,35 +1242,35 @@ class RenderCamera:
                 'matrix_world',
                 'ortho_width', 'ortho_height', 'ortho_depth',
                 'motion_blur_enable', 'motion_blur_exposure',
+                'shift'
             ]])
 
     def is_same(self, other):
-        if not (
-                                                True
-                                            and self.type == other.type
-                                        and self.stereo == other.stereo
-                                    and np.all(self.matrix_world == other.matrix_world)
+        if not (True
+                and self.type == other.type
+                and self.stereo == other.stereo
+                and np.array_equal(self.matrix_world, other.matrix_world)
+                and np.array_equal(self.shift, other.shift)
+        
+                and np.array_equal(self.sensor_size, other.sensor_size)
+                and self.lens == other.lens
 
-                                and self.sensor_size == other.sensor_size
-                            and self.lens == other.lens
-
-                        and self.zoom == other.zoom
-                    and self.ortho_width == other.ortho_width
+                and self.zoom == other.zoom
+                and self.ortho_width == other.ortho_width
                 and self.ortho_height == other.ortho_height
-            and self.ortho_depth == other.ortho_depth
-        ):
+                and self.ortho_depth == other.ortho_depth
+                ):
             return False
 
         if self.dof_enable != other.dof_enable:
             return False
 
         if self.dof_enable:
-            if not (
-                            True
-                        and self.dof_focus_distance == other.dof_focus_distance
+            if not (True
+                    and self.dof_focus_distance == other.dof_focus_distance
                     and self.dof_f_stop == other.dof_f_stop
-                and self.dof_blades == other.dof_blades
-            ):
+                    and self.dof_blades == other.dof_blades
+                    ):
                 return False
 
         if self.motion_blur_enable != other.motion_blur_enable:
@@ -1303,14 +1306,54 @@ def get_dof_data(camera, blender_camera, settings):
         camera.dof_focus_distance = focus_distance
 
 
+# bpy.data.scenes[0].render.border_min_x
+# bpy.data.scenes[0].render.use_border
+
+
+@call_logger.logged
+def extract_render_border_from_scene(scene):
+    if scene.render.use_border:
+        return (
+            (bpy.context.scene.render.border_min_x, bpy.context.scene.render.border_max_x),
+            (bpy.context.scene.render.border_min_y, bpy.context.scene.render.border_max_y),
+        )
+
+
+@call_logger.logged
+def get_render_resolution_for_border(border, render_resolution):
+    if border:
+        return int((border[0][1] - border[0][0]) * render_resolution[0]), \
+               int((border[1][1] - border[1][0]) * render_resolution[1])
+    return render_resolution
+
+
 @call_logger.logged
 def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
-                                              render_camera, render_resolution, zoom, settings, scene):
+                                              render_camera, render_resolution, zoom, settings, scene,
+                                              border, view_offset=(0, 0)):
     data = active_camera.data  # type: bpy.types.Camera
 
+    # Blender defines sensor size either horizontal or vertical, or dependent on dominating resolution
+    sensor_fit_horizontal = 'HORIZONTAL' == data.sensor_fit or ('AUTO' == data.sensor_fit
+                                                                and render_resolution[0] > render_resolution[1])
     width, height = render_resolution
-    aspect = float(width) / float(height)
-    fit_horizontal = 'HORIZONTAL' == data.sensor_fit or ('AUTO' == data.sensor_fit and 1 < aspect)
+
+    if border is not None:
+        # fixup camera to render border - shifting and zooming in to border position and size
+        border = np.array(border, dtype=np.float32)
+        border_size = border[:, 1] - border[:, 0]
+
+        width *= border_size[0]
+        height *= border_size[1]
+
+        render_camera.shift = 0.5*(border[:, 1]+border[:, 0]-1)/border_size
+        sensor_side = 0 if sensor_fit_horizontal else 1
+    else:
+        render_camera.shift = np.array((0, 0), dtype=np.float32)
+
+    render_camera.shift += np.array(view_offset)*2/zoom
+
+    aspect = width / height
 
     render_camera.matrix_world = np.array(active_camera.matrix_world, dtype=np.float32)
 
@@ -1335,10 +1378,13 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
             # NOTE: seems like Core doesn't care what is as 'sensor width', only 'height' makes sense
             # i.e. it derives width from height using aspect
             # so in case something changes - those values for width(render_camera.sensor_size[0]) are not tested!
-            if fit_horizontal:
+            if sensor_fit_horizontal:
                 render_camera.sensor_size = sensor_width, sensor_width / aspect
             else:
                 render_camera.sensor_size = sensor_width * aspect, sensor_width
+
+            if border is not None:
+                render_camera.sensor_size = np.array(render_camera.sensor_size) * border_size[sensor_side]
 
         elif 'ORTHO' == data.type:
             render_camera.type = 'ORTHO'
@@ -1347,13 +1393,17 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
             # see for example, cycle's blender_camera_init, seems like 32 is the sensor size for viewports
             extent = data.ortho_scale * zoom * scene_scale
 
-            if fit_horizontal:
+            if sensor_fit_horizontal:
                 render_camera.ortho_width = extent
                 render_camera.ortho_height = extent / aspect
             else:
                 render_camera.ortho_width = extent * aspect
                 render_camera.ortho_height = extent
             render_camera.ortho_depth = data.ortho_scale * zoom / scene_scale
+
+            if border is not None:
+                render_camera.ortho_width *= border_size[sensor_side]
+                render_camera.ortho_height *= border_size[sensor_side]
 
         if 'PANO' == data.type:
             render_camera.type = active_camera.data.rpr_camera.panorama_type
@@ -1381,7 +1431,9 @@ def extract_viewport_render_camera(context: bpy.types.Context, settings):
 
         extract_render_camera_from_blender_camera(context.scene.camera,
                                                   render_camera,
-                                                  render_resolution, zoom, context.scene.rpr.render, context.scene)
+                                                  render_resolution, zoom, context.scene.rpr.render, context.scene,
+                                                  border=None,
+                                                  view_offset=tuple(context.region_data.view_camera_offset))
     elif 'PERSP' == context.region_data.view_perspective:
         render_camera.type = 'PERSP'
         render_camera.matrix_world = np.array(context.region_data.view_matrix.inverted(), dtype=np.float32)
