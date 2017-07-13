@@ -106,7 +106,7 @@ class ImageTexture(Node):
 
     _all_sockets = {'mapping'}
 
-    def set_image_name(self, name):
+    def set_image(self, name):
         self.image_name = name
 
 

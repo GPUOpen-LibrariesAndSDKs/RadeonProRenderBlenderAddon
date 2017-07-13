@@ -21,6 +21,8 @@ from . import config
 
 from . import rpraddon
 
+import pyrprx
+
 call_logger = CallLogger(tag='sync')
 
 
@@ -43,7 +45,7 @@ class NodeThumbnailManager:
         # Thumbnail collection.
         self.thumbnails = {}
 
-        self.materials_for_render = {};
+        self.materials_for_render = {}
 
         self.materials_queue = {}
 
@@ -59,8 +61,8 @@ class NodeThumbnailManager:
             self.scene_renderer = rprblender.render.scene.SceneRenderer(settings, False)
             self.scene_renderer_lock = threading.Lock()  # to make sure only one thread renders thumbnail at a time
 
-            self.scene_renderer.update_aov(rprblender.render.render_layers.extract_settings(
-                self.scene_renderer.render_settings))
+            aov_extracted = rprblender.render.render_layers.extract_settings(bpy.context.scene.rpr.thumbnails_aov)
+            self.scene_renderer.update_aov(aov_extracted)
             self.scene_renderer.update_render_resolution((self.size, self.size))
 
             # Create the shared render context and scene state used by all thumbnails.
@@ -69,6 +71,7 @@ class NodeThumbnailManager:
             self.camera = self.create_camera()
             self.mesh = self.create_mesh()
             self.material_system = self.create_material_system()
+            self.uber_rprx_context = self.create_rprx_uber_context()
 
             ibl_map = str(Path(rprblender.__file__).parent / 'img/env.hdr')
             self.light, self.ibl_img = self.create_environment_light(ibl_map)
@@ -86,6 +89,10 @@ class NodeThumbnailManager:
 
     @call_logger.logged
     def __del__(self):
+
+        if self.uber_rprx_context != None:
+            pyrprx.DeleteContext(self.uber_rprx_context)
+            self.uber_rprx_context = None
 
         self.context = None
         self.scene = None
@@ -176,6 +183,9 @@ class NodeThumbnailManager:
     def get_core_context(self):
         return self.context
 
+    def get_uber_rprx_context(self):
+        return self.uber_rprx_context
+
     def create_scene(self):
 
         scene = pyrpr.Scene(self.context)
@@ -239,6 +249,12 @@ class NodeThumbnailManager:
         pyrpr.ContextCreateMaterialSystem(self.context, 0, system)
 
         return system
+
+    def create_rprx_uber_context(self):
+        uber_rprx_context = pyrprx.Object('rprx_context')
+        pyrprx.CreateContext(self.material_system, 0, uber_rprx_context)
+
+        return uber_rprx_context
 
     def create_environment_light(self, image_path):
         image_path = bpy.path.native_pathsep(bpy.path.abspath(image_path))
@@ -571,6 +587,7 @@ class RPRMaterial_PT_Thumbnails(RPRPanel, bpy.types.Panel):
         self.layout.prop(context.scene.rpr.thumbnails, "enable", text='')
 
     def draw(self, context):
+        self.layout.label('Experimental', icon='ERROR')
         self.layout.prop(context.scene.rpr.thumbnails, "use_large_preview")
 
 

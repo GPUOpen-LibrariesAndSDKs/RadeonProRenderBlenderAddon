@@ -1,31 +1,15 @@
-import cProfile
-import itertools
-import sys
-import threading
 import time
-import traceback
 import bpy
-import gc
 import numpy as np
-import pyrpr
-from pyrpr import ffi
 import ctypes
-from ctypes import wintypes
 from ctypes import windll
 from ctypes import Structure, WINFUNCTYPE, c_uint, c_int, byref, c_long, pointer, sizeof, c_char, c_float
 from ctypes.wintypes import BYTE, WORD, LONG, DWORD, HWND, HANDLE, LPCWSTR, WPARAM, LPARAM, RECT, POINT, MSG, SIZE
-from _ctypes import __version__ as _ctypes_version
-
-import rprblender.render
-import rprblender.render
-from rprblender import config
-from rprblender import logging
-from rprblender.helpers import CallLogger
-import rprblender.render.render_layers
 import socket
 from . import helpers
+from rprblender.versions import get_addon_version
 import winreg
-import addon_utils
+
 
 FW_NORMAL = 400
 DEFAULT_CHARSET = 1
@@ -82,9 +66,7 @@ def get_cpu_name():
 
 
 def render_stamp( text, context,  image, image_width, image_height,channels, iter, frame_time ):
-    mod = sys.modules.get('rprblender')
-    info = addon_utils.module_bl_info(mod)
-    ver = info['version']
+    ver = get_addon_version()
 
     cpu_name = get_cpu_name()
     settings = helpers.get_user_settings()

@@ -12,7 +12,7 @@ import rprblender
 from rprblender.helpers import create_core_enum_for_property
 from rprblender.environment_op import callback_draw_sun
 import rprblender.render.render_layers
-
+from . import versions
 
 def convert_K_to_RGB(colour_temperature):
     # range check
@@ -151,7 +151,7 @@ class RenderPassesAov(bpy.types.PropertyGroup):
     render_passes_items = (('default', "Color (default)", "Color (default) (layer 'Combined')"),
                            ('world_coordinate', "World Coordinate", "World Coordinate (layer 'Vector')"),
                            ('uv', "UV", "UV (layer 'UV')"),
-                           ('material_idx', "Material Idx", "Material Idx (layer 'IndexMA')"),
+                           ('material_idx', "Material Index", "Material Index (layer 'IndexMA')"),
                            ('geometric_normal', "Geometric Normal", "Geometric Normal (layer 'Emit')"),
                            ('shading_normal', "Shading Normal", "Shading Normal (layer 'Normal')"),
                            ('depth', "Depth", "Depth (layer 'Z')"),
@@ -160,7 +160,7 @@ class RenderPassesAov(bpy.types.PropertyGroup):
     enable = bpy.props.BoolProperty(
         name="Render Passes (AOV)",
         description="Render Layers / Passes & AOVs",
-        default=False,
+        default=versions.is_blender_support_aov(),
         update=aov_enable_change,
     )
     pass_displayed = bpy.props.EnumProperty(
@@ -250,7 +250,7 @@ class RenderEnvironmentIBL(bpy.types.PropertyGroup):
 @rpraddon.register_class
 class RenderEnvironmentSunSky(bpy.types.PropertyGroup):
     def update_type(self, context):
-        bpy.context.scene.rpr.render.environment.switch_sun_helper()
+        bpy.context.scene.world.rpr_data.environment.switch_sun_helper()
 
     type = bpy.props.EnumProperty(
         name="Sun & Sky System",
@@ -444,14 +444,29 @@ class RenderEnvironmentGround(bpy.types.PropertyGroup):
 
 @rpraddon.register_class
 class RenderEnvironment(bpy.types.PropertyGroup):
-    position = bpy.props.FloatVectorProperty(
-        name='Position', description='Position',
-        subtype='TRANSLATION', size=3
-    )
-    rotation = bpy.props.FloatVectorProperty(
+    def update_gizmo_rotation(self, context):
+        if self.gizmo in bpy.data.objects:
+            obj = bpy.data.objects[self.gizmo]
+            obj.rotation_euler = self.gizmo_rotation
+
+    def update_gizmo(self, context):
+        if self.gizmo in bpy.data.objects:
+            obj = bpy.data.objects[self.gizmo]
+            self['gizmo_rotation'] = obj.rotation_euler
+
+
+    gizmo_rotation = bpy.props.FloatVectorProperty(
         name='Rotation', description='Rotation',
-        subtype='EULER', size=3
+        subtype='EULER', size=3,
+        update=update_gizmo_rotation
     )
+
+    gizmo = bpy.props.StringProperty(
+        name="Gizmo",
+        description="Environment Helper",
+        update=update_gizmo
+    )
+
 
     handle_sun_draw = None
 
@@ -467,8 +482,6 @@ class RenderEnvironment(bpy.types.PropertyGroup):
                 bpy.types.SpaceView3D.draw_handler_remove(RenderEnvironment.handle_sun_draw, 'WINDOW')
 
     def update_enable(self, context):
-        override = bpy.context.copy()
-        bpy.ops.rpr.op_modify_env_matrix(override, enable=self.enable, position=self.position, rotation=self.rotation)
         self.switch_sun_helper()
 
     enable = bpy.props.BoolProperty(
@@ -882,15 +895,16 @@ class ViewportQuality():
 
 @rpraddon.register_class
 class RenderSettings(bpy.types.PropertyGroup):
+    if not versions.is_blender_support_aov():
+        passes_aov = bpy.props.PointerProperty(type=RenderPassesAov)
+
     rendering_limits = bpy.props.PointerProperty(type=RenderingLimits)  # type: RenderingLimits
-    environment = bpy.props.PointerProperty(type=RenderEnvironment)  # type: RenderEnvironment
     aa = bpy.props.PointerProperty(type=AntiAliasingSettings)  # type: AntiAliasingSettings
     global_illumination = bpy.props.PointerProperty(type=GlobalIlluminationSettings)  # type: GlobalIlluminationSettings
     tone_mapping = bpy.props.PointerProperty(type=ToneMappingSettings)  # type: ToneMappingSettings
     white_balance = bpy.props.PointerProperty(type=WhiteBalanceSettings)  # type: WhiteBalanceSettings
     gamma_correction = bpy.props.PointerProperty(type=GammaCorrectionSettings)  # type: GammaCorrectionSettings
     camera = bpy.props.PointerProperty(type=CameraSettings)  # type: CameraSettings
-    passes_aov = bpy.props.PointerProperty(type=RenderPassesAov)  # type: RenderPassesAov
     dof = bpy.props.PointerProperty(type=DofSettings)  # type: DofSettings
 
     render_mode, rendermode_remap = create_core_enum_property(
@@ -1145,12 +1159,20 @@ class RPRRenderSettings(bpy.types.PropertyGroup):
             type=cls,
         )
 
+        cls.saved_addon_version = bpy.props.IntVectorProperty(name="Version")
+
         cls.render = bpy.props.PointerProperty(type=RenderSettings)  # type: RenderSettings
-        cls.render_preview = bpy.props.PointerProperty(type=RenderSettings)
         cls.fake_user_settings = bpy.props.PointerProperty(type=UserSettings)  # without installed addon
-        cls.render_thumbnail = bpy.props.PointerProperty(type=RenderSettings)
         cls.dev = bpy.props.PointerProperty(type=DeveloperSettings)  # type: DeveloperSettings
+
+
+        cls.render_preview = bpy.props.PointerProperty(type=RenderSettings)
+        cls.preview_environment = bpy.props.PointerProperty(type=RenderEnvironment)  # type: RenderEnvironment
+        cls.preview_aov = bpy.props.PointerProperty(type=RenderPassesAov)
+
+        cls.render_thumbnail = bpy.props.PointerProperty(type=RenderSettings)
         cls.thumbnails = bpy.props.PointerProperty(type=ThumbnailsSettings)  # type: ThumbnailsSettings
+        cls.thumbnails_aov = bpy.props.PointerProperty(type=RenderPassesAov)
 
         ################################################################################################################
         # Settings
@@ -1223,6 +1245,7 @@ class RPRObject(bpy.types.PropertyGroup):
             name="Subdivision",
             description="Subdivision factor for mesh",
             default=0,
+            min=0,
         )
 
         cls.subdivision_boundary = bpy.props.EnumProperty(
@@ -1235,7 +1258,8 @@ class RPRObject(bpy.types.PropertyGroup):
         cls.subdivision_crease_weight = bpy.props.FloatProperty(
             name="Subdivision Weight",
             description="Subdivision interop for mesh",
-            default=6.0,
+            default=1.0,
+            min=0,
         )
 
 
@@ -1283,6 +1307,35 @@ class RPRLamp(bpy.types.PropertyGroup):
     def unregister(cls):
         del bpy.types.Lamp.rpr_lamp
 
+
+@rpraddon.register_class
+class RPRWorldData(bpy.types.PropertyGroup):
+    @classmethod
+    def register(cls):
+        bpy.types.World.rpr_data = bpy.props.PointerProperty(
+            name="RPR Data",
+            type=cls,
+        )
+        cls.environment = bpy.props.PointerProperty(type=RenderEnvironment)
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.World.rpr_data
+
+@rpraddon.register_class
+class RPRSceneRenderLayerData(bpy.types.PropertyGroup):
+    @classmethod
+    def register(cls):
+        bpy.types.SceneRenderLayer.rpr_data = bpy.props.PointerProperty(
+            name="RPR Data",
+            type=cls,
+        )
+        if versions.is_blender_support_aov():
+            cls.passes_aov = bpy.props.PointerProperty(type=RenderPassesAov)
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.SceneRenderLayer.rpr_data
 
 def register():
     logging.debug("properties.register()")

@@ -233,7 +233,7 @@ class SceneSynced:
         self.materials.remove(key)
 
     @logged
-    def remove_material_from_mesh(self, obj_key):
+    def remove_material_from_mesh(self, obj_key, material_key):
         if obj_key in self.mesh_materials:
             del self.mesh_materials[obj_key]
 
@@ -288,7 +288,9 @@ class SceneSynced:
 
 
 def export_to(scene_synced):
-    return rprblender.export.SceneExport(bpy.context.scene, scene_synced, preview=True)
+    scene_exporter = rprblender.export.SceneExport(bpy.context.scene, scene_synced, preview=True)
+    scene_exporter.sync_environment_settings(bpy.context.scene.world.rpr_data.environment if bpy.context.scene.world else None)
+    return scene_exporter
 
 
 class ExportFixture:
@@ -1692,6 +1694,12 @@ def get_environment_lights_attached(scene_synced):
 
 
 class TestEnvironment:
+
+    def update_scene(self, export_fixture):
+        export_fixture.export.sync_environment_settings(
+            bpy.context.scene.world.rpr_data.environment if bpy.context.scene.world else None)
+        export_fixture.scene.update()
+
     def test_ibl(self, export_fixture, sync_fixture):
         cube = bpy.context.object
 
@@ -1704,8 +1712,10 @@ class TestEnvironment:
         export = export_fixture.export
         scene = export_fixture.scene
         render_settings = scene.rpr.render  # type: rprblender.properties.RenderSettings
+        env_settings = scene.world.rpr_data.environment
 
         calls = scene_synced.call_log
+        print('calls: ', calls)
         assert ['environment_light_create_color'] == [r[0] for r in calls if 'env' in r[0]]
         assert [True] == get_environment_lights_attached(scene_synced)
         assert 1.0 == scene_synced.environment_lights[0].intensity
@@ -1713,65 +1723,67 @@ class TestEnvironment:
         sync_fixture.set_sync(export.sync)
         with sync_fixture:
             log('update intensity')
-            render_settings.environment.ibl.intensity = 2.0
-            scene.update()
+            env_settings.ibl.intensity = 2.0
+
+            self.update_scene(export_fixture)
+
             assert ['environment_light_create_color'] == [r[0] for r in calls if 'env' in r[0]]
             assert 2.0 == scene_synced.environment_lights[0].intensity
 
             calls.clear()
             lamp.location = (2, 7, 8)
 
-            scene.update()
+            self.update_scene(export_fixture)
             expected = [True]
             assert expected == get_environment_lights_attached(scene_synced)
 
             calls.clear()
-            render_settings.environment.enable = True
-            render_settings.environment.type = 'IBL'
-            render_settings.environment.ibl.use_ibl_map = True
-            render_settings.environment.ibl.ibl_map = 'hello.png'
+            env_settings.enable = True
+            env_settings.type = 'IBL'
+            env_settings.ibl.use_ibl_map = True
+            env_settings.ibl.ibl_map = 'hello.png'
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert ['environment_light_create'] == [r[0] for r in calls if 'env' in r[0]]
             assert 2 == len(scene_synced.environment_lights)
             assert [False, True] == get_environment_lights_attached(scene_synced)
 
             calls.clear()
-            render_settings.environment.enable = False
+            env_settings.enable = False
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [False, False] == get_environment_lights_attached(scene_synced)
 
             calls.clear()
-            render_settings.environment.enable = True
-            render_settings.environment.ibl.use_ibl_map = False
+            env_settings.enable = True
+            env_settings.ibl.use_ibl_map = False
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [False, False, True] == get_environment_lights_attached(scene_synced)
             assert (0.5,) * 3 == scene_synced.environment_lights[-1].value, 'default color value'
 
             log("test re-enable previous map")
             calls.clear()
-            render_settings.environment.enable = True
-            render_settings.environment.ibl.use_ibl_map = True
+            env_settings.enable = True
+            env_settings.ibl.use_ibl_map = True
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [False, False, False, True] == get_environment_lights_attached(scene_synced)
 
             log("test re-enable color")
-            render_settings.environment.enable = True
-            render_settings.environment.ibl.use_ibl_map = False
-            scene.update()
+            env_settings.enable = True
+            env_settings.ibl.use_ibl_map = False
+            self.update_scene(export_fixture)
             assert [False, False, False, False, True] == get_environment_lights_attached(scene_synced)
 
-            render_settings.environment.enable = False
-            scene.update()
+            env_settings.enable = False
+            self.update_scene(export_fixture)
             assert [False, False, False, False, False] == get_environment_lights_attached(scene_synced)
 
             log("test re-enable environment with default color")
-            render_settings.environment.enable = True
-            render_settings.environment.ibl.use_ibl_map = False
-            scene.update()
+            env_settings.enable = True
+            env_settings.ibl.use_ibl_map = False
+            self.update_scene(export_fixture)
             assert [False, False, False, False, True] == get_environment_lights_attached(scene_synced)
 
     def test_background(self, export_fixture, sync_fixture):
@@ -1786,6 +1798,7 @@ class TestEnvironment:
         export = export_fixture.export
         scene = export_fixture.scene
         render_settings = scene.rpr.render  # type: rprblender.properties.RenderSettings
+        env_settings = scene.world.rpr_data.environment
 
         calls = scene_synced.call_log
         assert [] == [r[0] for r in calls if 'back' in r[0]]
@@ -1793,36 +1806,36 @@ class TestEnvironment:
         sync_fixture.set_sync(export.sync)
         with sync_fixture:
             calls.clear()
-            render_settings.environment.enable = True
-            render_settings.environment.ibl.maps.override_background = True
-            render_settings.environment.ibl.maps.background_map = 'hello'
+            env_settings.enable = True
+            env_settings.ibl.maps.override_background = True
+            env_settings.ibl.maps.background_map = 'hello'
 
-            scene.update()
+            self.update_scene(export_fixture)
             # assert ['background_create'] == [r[0] for r in calls if 'back' in r[0]]
             assert [True] == [b.enabled for b in scene_synced.backgrounds]
 
             calls.clear()
-            render_settings.environment.ibl.maps.override_background = False
+            env_settings.ibl.maps.override_background = False
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [False] == [b.enabled for b in scene_synced.backgrounds]
 
             calls.clear()
-            render_settings.environment.ibl.maps.override_background = True
+            env_settings.ibl.maps.override_background = True
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [True] == [b.enabled for b in scene_synced.backgrounds]
 
             calls.clear()
-            render_settings.environment.enable = False
+            env_settings.enable = False
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [False] == [b.enabled for b in scene_synced.backgrounds]
 
             calls.clear()
-            render_settings.environment.enable = True
+            env_settings.enable = True
 
-            scene.update()
+            self.update_scene(export_fixture)
             assert [True] == [b.enabled for b in scene_synced.backgrounds]
 
 

@@ -1,24 +1,36 @@
 #!python3
 import bpy
 import math
-import sys
 import platform
-import addon_utils
 import rprblender
 import pyrpr
 import pyrpr_load_store
 from pyrpr import ffi
 from datetime import datetime
 from bpy.types import Panel, Menu, Operator
-
 from . import rpraddon
 from .nodes import RPRPanel
-
+from . import versions
 from . import logging
 from pathlib import Path
 from bpy_extras.io_utils import ExportHelper
 
 from rprblender.node_editor import shader_node_output_name, find_node
+from rprblender.versions import get_render_passes_aov, is_blender_support_aov
+
+
+def create_ui_autosize_column(context, col):
+    if context.region.width > 200:
+        row = col.row()
+        split = row.split(percentage=0.5)
+        col1 = split.column()
+        split = split.split()
+        col2 = split.column(align=True)
+    else:
+        col1 = col.row().column()
+        col.separator()
+        col2 = col.row().column(align=True)
+    return col1, col2
 
 
 def createRoseShape():
@@ -60,53 +72,6 @@ def createRoseShape():
         edges.append((i0, i1))
 
     return verteces, edges
-
-
-@rpraddon.register_class
-class ModifyEnvMatrix(bpy.types.Operator):
-    bl_idname = "rpr.op_modify_env_matrix"
-    bl_label = "Modify Env Matrix"
-
-    enable = bpy.props.BoolProperty(
-        name="Enable",
-        default=False,
-    )
-    position = bpy.props.FloatVectorProperty(
-        name='Position', description='Position',
-        subtype='TRANSLATION', size=3
-    )
-    rotation = bpy.props.FloatVectorProperty(
-        name='Rotation', description='Rotation',
-        subtype='EULER', size=3
-    )
-
-    object_name = 'EnvObject'
-
-    def execute(self, context):
-        if self.enable:
-            if 'EnvObject' not in bpy.data.objects:
-                verteces, edges = createRoseShape()
-                shape_scale = 0.03
-                me = bpy.data.meshes.new(self.object_name + 'Mesh')
-                me.from_pydata(verteces, edges, [])
-                me.update()
-                obj = bpy.data.objects.new(self.object_name, me)
-                bpy.context.scene.objects.link(obj)
-                obj.location = self.position
-                obj.scale = (shape_scale, shape_scale, shape_scale)
-                obj.rotation_euler = self.rotation
-                obj.draw_type = 'WIRE'
-                obj.hide_render = True
-        else:
-            if self.object_name in bpy.data.objects:
-                obj = bpy.data.objects[self.object_name]
-                context.scene.rpr.render.environment.position = obj.location
-                context.scene.rpr.render.environment.rotation = obj.rotation_euler
-                bpy.context.scene.objects.unlink(obj)
-                obj.user_clear()
-                bpy.data.objects.remove(obj)
-        return {'FINISHED'}
-
 
 @rpraddon.register_class
 class SelectIESLightData(bpy.types.Operator, ExportHelper):
@@ -156,11 +121,9 @@ def draw_lamp_settings(self, context):
 ########################################################################################################################
 # Render panel
 ########################################################################################################################
-
 def draw_settings(self, context):
     if context.scene.render.engine == 'RPR':
-        settings = context.scene.rpr.render
-        self.layout.prop(context.scene.rpr.render.passes_aov, "transparent")
+        self.layout.prop(get_render_passes_aov(context), "transparent")
 
 
 from . import helpers
@@ -334,30 +297,11 @@ class RPRRender_PT_motion_blur(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.rpr.render
-
-        row_base = layout.row()
-        row_base.enabled = settings.motion_blur
-        col_base = row_base.column()
-        row = col_base.row()
-        row.prop(settings, "motion_blur_type", expand=True)
-
-        if settings.motion_blur_type == 'GEOMETRY':
-            row = col_base.row()
-            col = row.column(align=True)
-            col.alignment = 'EXPAND'
-            col.prop(settings, "motion_blur_geometry_exposure")
-            col.prop(settings, "motion_blur_geometry_scale")
-        else:
-            row = col_base.row()
-            col = row.column(align=True)
-            col.alignment = 'EXPAND'
-            col.prop(settings, "motion_blur_image_exposure")
-            col.prop(settings, "motion_blur_image_scale")
-            col = row.column(align=True)
-            col.alignment = 'EXPAND'
-            col.prop(settings, "motion_blur_image_frame_start")
-            col.prop(settings, "motion_blur_image_frame_stop")
-            row.enabled = False
+        col = layout.column()
+        col.enabled = settings.motion_blur
+        col1, col2 = create_ui_autosize_column(context, col)
+        col1.prop(settings, "motion_blur_geometry_exposure")
+        col2.prop(settings, "motion_blur_geometry_scale")
 
 
 @rpraddon.register_class
@@ -449,13 +393,17 @@ class RPRRender_PT_preview_settings(RPRPanel, Panel):
         layout.prop(settings.aa, "filter")
 
 
+
 @rpraddon.register_class
 class RPRRender_PT_environment(RPRPanel, Panel):
     bl_label = "RPR Environment IBLs and Sun & Sky"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "world"
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.world and super().poll(context)
 
     def draw_maps(self, layout, maps):
-
         row = layout.row()
         row.prop(maps, "override_background")
         col = layout.column()
@@ -472,11 +420,11 @@ class RPRRender_PT_environment(RPRPanel, Panel):
             row.prop(maps, "background_color")
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.environment, "enable", text="")
+        self.layout.prop(context.scene.world.rpr_data.environment, "enable", text="")
 
     def draw(self, context):
         layout = self.layout
-        env = context.scene.rpr.render.environment
+        env = context.scene.world.rpr_data.environment
         col = layout.column()
         col.enabled = env.enable
         row = col.row()
@@ -571,14 +519,41 @@ class RPRRender_PT_environment(RPRPanel, Panel):
                 row.operator("view3d.location_select", text="By Map", icon='WORLD')
                 row.operator("rpr.location_select_by_city", text="By City", icon="SYNTAX_ON")
 
+        box = col.box()
+        col1, col2 = create_ui_autosize_column(context, box)
+        col1.label('Object:')
+        row = col1.row(align=True)
+        row.prop_search(env, 'gizmo', bpy.data, 'objects', text='')
+        if not env.gizmo:
+            row.operator("rpr.op_create_environment_gizmo", icon='ZOOMIN', text="").rotation = env.gizmo_rotation
+        col2.prop(env, 'gizmo_rotation')
+
 
 @rpraddon.register_class
-class OpGetLoacation(bpy.types.Operator):
-    bl_idname = "rpr.op_get_location"
-    bl_label = "Get Location"
+class OpCreateEnvironmentGizmo(bpy.types.Operator):
+    bl_idname = "rpr.op_create_environment_gizmo"
+    bl_label = "Create Environment Gizmo"
+
+    rotation = bpy.props.FloatVectorProperty(
+        name='Rotation', description='Rotation',
+        subtype='EULER', size=3
+    )
+    object_name = 'EnvObject'
 
     def execute(self, context):
-        logging.info("call - rpr.op_get_location, need implement")
+        verteces, edges = createRoseShape()
+        shape_scale = 0.03
+        me = bpy.data.meshes.new(self.object_name + 'Mesh')
+        me.from_pydata(verteces, edges, [])
+        me.update()
+        obj = bpy.data.objects.new(self.object_name, me)
+        bpy.context.scene.objects.link(obj)
+        obj.location = (0, 0, 0)
+        obj.scale = (shape_scale, shape_scale, shape_scale)
+        obj.rotation_euler = self.rotation
+        obj.draw_type = 'WIRE'
+        obj.hide_render = True
+        context.scene.world.rpr_data.environment.gizmo = obj.name
         return {'FINISHED'}
 
 
@@ -587,8 +562,12 @@ class OpGetTimeNow(bpy.types.Operator):
     bl_idname = "rpr.op_get_time_now"
     bl_label = "Get Time Now"
 
+    @classmethod
+    def poll(cls, context):
+        return context.scene.world
+
     def execute(self, context):
-        prop = context.scene.rpr.render.environment.sun_sky
+        prop = context.scene.world.rpr_data.environment.sun_sky
         local = datetime.now()
         prop.date_year = local.year
         prop.date_month = local.month
@@ -622,33 +601,6 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
 
 
 @rpraddon.register_class
-class RPRRender_PT_passes_aov(RPRPanel, Panel):
-    bl_label = "RPR Render Layers / Passes & AOVs"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.passes_aov, "enable", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        rpr = context.scene.rpr.render
-        col = layout.column()
-        col.enabled = rpr.passes_aov.enable
-        col.prop(rpr.passes_aov, 'pass_displayed')
-        count = math.ceil(len(rpr.passes_aov.render_passes_items) * 0.5 + 0.5)
-        row = col.box()
-        row = row.row()
-        col = row.column()
-
-        for i, set in enumerate(rpr.passes_aov.render_passes_items):
-            if i == 0:  # skip default
-                continue
-            if i == count:
-                col = row.column()
-            col.prop(rpr.passes_aov, 'passesStates', index=i, text=set[1])
-
-
-@rpraddon.register_class
 class RPRRender_PT_layers(RPRPanel, Panel):
     bl_label = "RPR Layers"
     bl_context = "render_layer"
@@ -664,6 +616,53 @@ class RPRRender_PT_layers(RPRPanel, Panel):
 
         col = split.column()
         col.prop(scene.render.layers.active, "layers", text="Layer")
+
+
+@rpraddon.register_class
+class RPRRender_PT_passes_aov(RPRPanel, Panel):
+    bl_label = "RPR Passes & AOVs"
+
+    if is_blender_support_aov():
+        bl_context = "render_layer"
+    else:
+        bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.layers.active and super().poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(get_render_passes_aov(context), "enable", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        passes = get_render_passes_aov(context)
+        col = layout.column()
+        col.enabled = passes.enable
+        row = col.row()
+
+        if context.region.width > 200:
+            row.prop(passes, 'pass_displayed')
+            row = col.box()
+
+            split = row.split(percentage=0.5)
+            col1 = split.column()
+            split = split.split()
+            col2 = split.column(align=True)
+        else:
+            row.label('Pass Displayed:')
+            row = col.row()
+            row.prop(passes, 'pass_displayed', text='')
+
+            row = col.box()
+            col1 = row.column()
+            col2 = col1
+
+
+        count = math.ceil(len(passes.render_passes_items) * 0.5)
+        for i, set in enumerate(passes.render_passes_items):
+            col = col2 if i >= count else col1
+            col.prop(passes, 'passesStates', index=i, text=set[1])
 
 
 def draw_camera_settings(camera, layout):
@@ -800,7 +799,7 @@ def export_rpr_model(context, filepath):
     settings = scene.rpr.render
 
     core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder())
-    scene_synced = sync.SceneSynced(core_context, scene, settings)
+    scene_synced = sync.SceneSynced(core_context, scene, settings,  scene.world.rpr_data.environment)
 
     render_resolution = (640, 480)
 
@@ -903,8 +902,7 @@ class RPRRender_PT_about(RPRPanel, Panel):
         row = col.row(align=True)
         row.alignment = 'CENTER'
 
-        mod = sys.modules.get(__package__)
-        info = addon_utils.module_bl_info(mod);
+        info = versions.get_addon_info()
         ver = info['version'];
         row.label("%s for Blender v%d.%d.%d" % (info['name'], ver[0], ver[1], ver[2]))
         row = col.row(align=True)
@@ -1125,7 +1123,7 @@ class RPRObject_PT(RPRPanel, Panel):
     def draw(self, context):
         if context.object.type in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META'):
             rpr = context.object.rpr_object
-            self.layout.prop(rpr, "shadowcatcher")
+            #self.layout.prop(rpr, "shadowcatcher")
             self.layout.prop(rpr, "shadows")
             self.layout.prop(rpr, "portallight")
             subdivision_layout = self.layout.box()
@@ -1169,17 +1167,8 @@ def draw_camera_dof(context, layout, camera):
     dof_options = camera.gpu_dof
 
     row = layout.row()
-    if context.region.width > 200:
-        row = layout.row()
-        split = row.split(percentage=0.5)
-        col1 = split.column()
-        split = split.split()
-        col2 = split.column(align=True)
-    else:
-        col1 = layout.row().column()
-        layout.separator()
-        col2 = layout.row().column(align=True)
 
+    col1, col2 = create_ui_autosize_column(context, layout)
     col1.enabled = context.scene.rpr.render.dof.enable
     col2.enabled = context.scene.rpr.render.dof.enable
 

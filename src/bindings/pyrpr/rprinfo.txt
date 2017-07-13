@@ -1,4 +1,4 @@
-API_VERSION 0x10026600
+API_VERSION 0x10027100
 Context
 --------------------------------------------------------------------------------
 'aacellsize', def: 1, 'Numbers of cells for stratified sampling'
@@ -6,6 +6,7 @@ Context
 'aoraylength', def: 5.0, 'AO ray Length'
 'clippingplane', def: [0.0, 0.0, 0.0, 0.0], 'Clipping Plane'
 'cpuname', def: '', 'Name of the CPU in context. Constant value.'
+'cputhreadlimit', def: 128, 'limit number of CPU threads. Constant value.'
 'displaygamma', def: 1.0, 'Display gamma'
 'framecount', def: 4294967295, 'framecount'
 'gpu0name', def: 'AMD FirePro W8100', 'Name of the GPU index 0 in context. Constant value.'
@@ -23,6 +24,7 @@ Context
 'imagefilter.mitchell.radius', def: 2.0, 'Filter radius'
 'imagefilter.triangle.radius', def: 1.5, 'Filter radius'
 'imagefilter.type', def: 0, 'Image filter to use'
+'lasterror', def: '', 'last error message as string.'
 'maxRecursion', def: 2, 'Ray trace depth'
 'ooctexcache', def: 0, 'OOC texture cache'
 'pdfThreshold', def: 0.004999999888241291, 'pdf Threshold'
@@ -142,9 +144,6 @@ MATERIAL_NODE_REFRACTION 4
 /// color Float3
 /// normal Float3
 /// ior Float3
-MATERIAL_NODE_SIDES 32
-/// frontface Float3
-/// backface Float3
 MATERIAL_NODE_STANDARD 21
 /// diffuse.color Float
 /// diffuse.normal Float3
@@ -165,6 +164,9 @@ MATERIAL_NODE_STANDARD 21
 /// glossy.roughness_y Float
 MATERIAL_NODE_TRANSPARENT 6
 /// color Float3
+MATERIAL_NODE_TWOSIDED 32
+/// frontface Float3
+/// backface Float3
 MATERIAL_NODE_UV_PROJECT 33
 /// bumpscale Float3
 /// origin Float3

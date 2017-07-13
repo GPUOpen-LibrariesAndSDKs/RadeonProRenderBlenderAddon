@@ -46,9 +46,7 @@ def get_image(width, height, render_buffer):
     return fb_image
 
 
-def extract_settings(render_settings):
-    aov_settings = render_settings.passes_aov
-
+def extract_settings(aov_settings):
     class Settings:
         enable = aov_settings.enable
         pass_displayed = aov_settings.pass_displayed

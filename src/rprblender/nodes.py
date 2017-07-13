@@ -116,7 +116,6 @@ class RPRNodeGroupData(bpy.types.PropertyGroup):
 class RPRGroupNode(RPRTreeNode):
     bl_icon = 'OUTLINER_OB_EMPTY'
     bl_width_min = 180
-    image_name = bpy.props.StringProperty(default='')
 
     @classmethod
     def poll(cls, context):
@@ -462,6 +461,11 @@ class OpGroupEdit(bpy.types.Operator):
 
     from_shortcut = bpy.props.BoolProperty()
 
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine == 'RPR'
+
     def execute(self, context):
         ng = bpy.data.node_groups
         node = context.active_node if self.from_shortcut else context.node
@@ -486,6 +490,8 @@ class OpGroupMake(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        if context.scene.render.engine != 'RPR':
+            return False
         return context.space_data.tree_type == RPR_SHADER_TREE_NAME
 
     def execute(self, context):
@@ -545,6 +551,8 @@ class OpGroupUngroup(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        if context.scene.render.engine != 'RPR':
+            return False
         group_node = context.active_node
         if not group_node:
             return False
@@ -623,6 +631,8 @@ class OpNodeGroupSwitch(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
+        if context.scene.render.engine != 'RPR':
+            return False
         return context.space_data.tree_type == RPR_SHADER_TREE_NAME
 
     def execute(self, context):
@@ -846,6 +856,7 @@ node_categories = [
         NodeItem("rpr_shader_node_transparent"),
         NodeItem("rpr_shader_node_ward"),
         NodeItem("rpr_shader_node_uber"),
+        NodeItem("rpr_shader_node_uber2"),
         NodeItem("rpr_shader_node_subsurface"),
         NodeItem("rpr_shader_node_volume"),
         NodeItem("rpr_shader_node_displacement"),

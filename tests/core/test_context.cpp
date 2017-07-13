@@ -26,10 +26,10 @@ bool test()
     ASSERT_EQ(status, FR_SUCCESS);
 
     std::string tahoe_name;
-    #ifdef __unix__ 
- 	tahoe_name = "libTahoe64.so";
+    #ifdef WIN32 
+        tahoe_name = "Tahoe64.dll";
     #else
-	tahoe_name = "Tahoe64.dll";
+        tahoe_name = "libTahoe64.so";
     #endif
 
     fr_int tahoePluginID = frRegisterPlugin(tahoe_name.c_str());

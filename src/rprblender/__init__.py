@@ -4,7 +4,7 @@ bl_info = {
     "name": "Radeon ProRender",
     "description": "Radeon ProRender rendering plugin for Blender.",
     "author": "AMD",
-    "version": (1, 2, 0),
+    "version": (1, 2, 3),
     "blender": (2, 78, 0),
     "location": "Info header, render engine menu",
     "warning": "",  # used for warning icon and text in addons panel
@@ -20,6 +20,7 @@ logging.debug("loading addon");
 
 from . import config
 from . import addon
+from . import versions
 
 
 class Addon(addon.Addon):
@@ -30,6 +31,8 @@ rpraddon = Addon()
 
 
 def check_data_from_library():
+    if versions.is_blender_support_new_image_node():
+        return
     for mat in bpy.data.materials:
         lib = mat.library
         if not lib:
@@ -52,8 +55,9 @@ def check_data_from_library():
 # handlers
 # https://www.blender.org/api/blender_python_api_2_77_3/bpy.app.handlers.html
 @bpy.app.handlers.persistent
-def load_post(context):
+def load_post(dummy):
     logging.info("load_post...")
+    versions.dump_scene_addon_version()
 
     from . import nodes
     nodes.node_groups_load_post()
@@ -73,10 +77,17 @@ def load_post(context):
 
     bpy.ops.wm.rpr_thumbnail_update_caller_operator()
 
-    bpy.context.scene.rpr.render.environment.switch_sun_helper()
+    if bpy.context.scene.world:
+        versions.check_old_environment_settings()
+        bpy.context.scene.world.rpr_data.environment.switch_sun_helper()
+
+
+    versions.check_old_passes_aov_settings()
+
+    versions.check_old_rpr_image_nodes()
+    versions.check_old_rpr_uber2_nodes()
 
     check_data_from_library()
-
     logging.debug("load_post ok")
 
 
@@ -111,6 +122,15 @@ def on_scene_update_post(scene):
     prev_engine = scene.render.engine
     prev_nodeeditor_name = ui.get_activate_editor_name()
 
+    # update gizmo rotation
+    env = bpy.context.scene.world.rpr_data.environment
+    if bpy.data.objects.is_updated:
+        name = env.gizmo
+        if name in bpy.data.objects:
+            obj = bpy.data.objects[name]
+            if obj.is_updated:
+                env['gizmo_rotation'] = obj.rotation_euler
+
 
 bpy.app.handlers.scene_update_post.append(on_scene_update_post)
 
@@ -121,11 +141,19 @@ def frame_change_pre(scene):
     logging.debug("frame_change_pre", scene.frame_current)
 
 
+@bpy.app.handlers.persistent
+def save_pre(dummy):
+    logging.debug("save_pre...")
+    versions.set_scene_addon_version()
+
+
 bpy.app.handlers.frame_change_pre.append(frame_change_pre)
+bpy.app.handlers.save_pre.append(save_pre)
 
 
 def register():
     logging.info('rpr.register')
+    logging.info('Blender version: ', bpy.app.version)
 
     bpy.app.handlers.load_post.append(load_post)
 

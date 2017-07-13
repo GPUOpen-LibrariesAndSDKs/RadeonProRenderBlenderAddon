@@ -8,7 +8,7 @@ import pyrpr
 from pyrpr import ffi
 
 from rprblender import logging
-from rprblender.core.nodes import log_mat, Material
+from rprblender.core.nodes import log_mat, Material, ShaderType
 from rprblender.export import extract_mesh
 from rprblender.export import get_blender_mesh
 from rprblender.export import getUnitsToMeters
@@ -17,6 +17,7 @@ from rprblender.timing import TimedContext
 
 import mathutils
 
+import pyrprx
 
 def rotation_env(env, rot):
     rot = (-rot[0], -rot[1], -rot[2])
@@ -244,6 +245,7 @@ call_logger = CallLogger(tag='export.sync.scene')
 class SceneSynced:
     def __init__(self, core_context, blender_scene, settings):
         self.core_context = core_context
+        self.core_uber_rprx_context = None
         self.core_material_system = None
         self.core_scene = None  # type: pyrpr.Scene
         self.blender_scene = blender_scene
@@ -290,10 +292,17 @@ class SceneSynced:
         self.ibls_attached = set()
         self.background = None
 
+        if self.core_uber_rprx_context != None:
+            pyrprx.DeleteContext(self.core_uber_rprx_context)
+            self.core_uber_rprx_context = None
+
         self.core_material_system = None
 
     def get_core_context(self):
         return self.core_context
+
+    def get_uber_rprx_context(self):
+        return self.core_uber_rprx_context
 
     def get_core_scene(self):
         return self.core_scene
@@ -322,6 +331,10 @@ class SceneSynced:
         self.core_material_system = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(self.core_context, 0, self.core_material_system)
 
+        if self.core_uber_rprx_context == None:
+            self.core_uber_rprx_context = pyrprx.Object('rprx_context')
+            pyrprx.CreateContext(self.core_material_system, 0, self.core_uber_rprx_context)
+
         self.reset_scene()
 
     def reset_scene(self):
@@ -336,6 +349,8 @@ class SceneSynced:
         self.meshes = set()
         self.portal_lights_meshes = set()
         self.lamps = {}
+
+        self.materialsNodes = {}
 
         self.setup_core_camera()
 
@@ -730,13 +745,20 @@ class SceneSynced:
         log_mat("remove_material : ok (key: %s)" % key)
 
     @call_logger.logged
-    def remove_material_from_mesh(self, obj_key):
+    def remove_material_from_mesh(self, obj_key, material_key):
         log_mat('remove_material_from_mesh')
         if not obj_key in self.objects_synced:
             # log_mat("assign_material_to_mesh : Object (key: %s) not exist: " % obj_key)
             return
         shape = self.get_core_obj(obj_key)
+
+        if material_key in self.materialsNodes:
+            material = self.materialsNodes[material_key]
+            if material != None and material.shader != None and material.shader.type == ShaderType.UBER2:
+                pyrprx.xShapeDetachMaterial(material.shader.rprx_context, shape, material.shader.get_handle())
+
         pyrpr.ShapeSetMaterial(shape, None)
+
 
     @call_logger.logged
     def assign_material_to_mesh(self, mat_key, obj_key):
@@ -755,21 +777,7 @@ class SceneSynced:
         rpr_material = self.materialsNodes[mat_key]
         assert rpr_material
 
-        shape = self.get_core_obj(obj_key)
-        shader = rpr_material.get_handle()
-        pyrpr.ShapeSetVolumeMaterial(shape, None)  # we have crash without it !!!
-        pyrpr.ShapeSetMaterial(shape, shader)
-
-        volume = rpr_material.get_volume()
-        if volume:
-            logging.info('assign volume material: ', mat_key, volume)
-            pyrpr.ShapeSetVolumeMaterial(shape, volume)
-
-        displacement = rpr_material.get_displacement()
-        if displacement:
-            logging.info('assign displacement: ', mat_key, displacement)
-            pyrpr.ShapeSetDisplacementMaterial(shape, displacement[0].node.get_handle())
-            pyrpr.ShapeSetDisplacementScale(shape, displacement[1], displacement[2])
+        self._assign_material_to_shape(mat_key, self.get_core_obj(obj_key), rpr_material)
 
         log_mat("assign_material_to_mesh : set mesh (key: %s) material (key: %s) ok: " % (mat_key, obj_key))
 
@@ -786,12 +794,36 @@ class SceneSynced:
         rpr_material = self.materialsNodes[mat_key]
         assert rpr_material
 
-        shape = self.get_core_obj(instance_key)
-        shader = rpr_material.get_handle()
+        self._assign_material_to_shape(mat_key, self.get_core_obj(instance_key), rpr_material)
 
-        pyrpr.ShapeSetMaterial(shape, shader)
         log_mat(
             "assign_material_to_mesh_instance : set mesh (key: %s) material (key: %s) ok: " % (mat_key, instance_key))
+
+    def _assign_material_to_shape(self, mat_key, shape, rpr_material):
+        shader = rpr_material.get_handle()
+
+        pyrpr.ShapeSetVolumeMaterial(shape, None)  # we have crash without it !!!
+        pyrpr.ShapeSetDisplacementMaterial(shape, None)
+        
+        if rpr_material.shader != None and rpr_material.shader.type == ShaderType.UBER2:
+            pyrprx.xShapeAttachMaterial(rpr_material.shader.rprx_context, shape, shader)
+            pyrprx.xMaterialCommit(rpr_material.shader.rprx_context, shader)
+        else:
+
+            volume = rpr_material.get_volume()
+            pyrpr.ShapeSetMaterial(shape, shader)
+
+            volume = rpr_material.get_volume()
+            if volume:
+                logging.info('assign volume material: ', mat_key, volume)
+                pyrpr.ShapeSetVolumeMaterial(shape, volume)
+
+            displacement = rpr_material.get_displacement()
+            if displacement and  displacement[0]:
+                logging.info('assign displacement: ', mat_key, displacement)
+                pyrpr.ShapeSetDisplacementMaterial(shape, displacement[0].node.get_handle())
+                pyrpr.ShapeSetDisplacementScale(shape, displacement[1], displacement[2])
+
 
     @call_logger.logged
     def remove_material_from_mesh_instance(self, instance_key):
@@ -815,16 +847,27 @@ class SceneSynced:
 
         pyrpr.ObjectSetName(core_shape._get_handle(), str(obj_key).encode('latin1'))
 
-        matrix = np.array(matrix_world, dtype=np.float32)
-        matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-        # Blender needs matrix to be transposed
-        pyrpr.ShapeSetTransform(core_shape, True, matrix_ptr)
+        self.shape_set_transform(core_shape, matrix_world)
 
         self.add_synced_obj(obj_key, core_shape)
         self.meshes.add(core_shape)
 
         logging.debug('add mesh done')
         return True
+
+    def shape_set_transform(self, core_shape, matrix_world):
+        matrix = np.array(matrix_world, dtype=np.float32)
+
+        if pyrpr.is_transform_matrix_valid(matrix):
+            try:
+                # Blender needs matrix to be transposed
+                pyrpr.ShapeSetTransform(core_shape, True, ffi.cast('float*', matrix.ctypes.data))
+                return
+            except pyrpr.CoreError:
+                pass
+        self.report_error("invalid maatrix supplied: %s" % matrix_world)
+        matrix = np.eye(4, dtype=np.float32)
+        pyrpr.ShapeSetTransform(core_shape, True, ffi.cast('float*', matrix.ctypes.data))
 
     @call_logger.logged
     def set_motion_blur(self, obj_key, obj_matrix, next_obj_matrix, scale):
@@ -942,7 +985,7 @@ class SceneSynced:
 
     def add_back_preview(self, is_icon):
         if is_icon:
-            filename = self.settings.environment.ibl.maps.background_map
+            filename = bpy.context.scene.rpr.preview_environment.ibl.maps.background_map
             if os.path.exists(filename) and os.path.isfile(filename):
                 image = pyrpr.Image()
                 pyrpr.ContextCreateImageFromFile(self.get_core_context(), str(filename).encode('utf8'), image)
@@ -998,10 +1041,7 @@ class SceneSynced:
         shape = core_instance
         pyrpr.SceneAttachShape(self.get_core_scene(), shape);
 
-        matrix = np.array(matrix_world, dtype=np.float32)
-        matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-        # Blender needs matrix to be transposed
-        pyrpr.ShapeSetTransform(shape, True, matrix_ptr)
+        self.shape_set_transform(shape, matrix_world)
 
         self.add_synced_obj(key, core_instance)
         self.meshes.add(core_instance)
@@ -1063,10 +1103,7 @@ class SceneSynced:
     def update_shape_transform(self, key, matrix_world):
         assert key in self.objects_synced
 
-        matrix = np.array(matrix_world, dtype=np.float32)
-        matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-        # Blender needs matrix to be transposed
-        pyrpr.ShapeSetTransform(self.get_core_obj(key), True, matrix_ptr)
+        self.shape_set_transform(self.get_core_obj(key), matrix_world)
 
     def core_make_mesh(self, obj):
         logging.debug("core_make_mesh")
@@ -1144,6 +1181,10 @@ class SceneSynced:
 
         if self.core_scene:
             self.setup_core_camera()
+
+    def report_error(self, message):
+        logging.error(message)
+
 
 
 def camera_get_sensor_size(camera):

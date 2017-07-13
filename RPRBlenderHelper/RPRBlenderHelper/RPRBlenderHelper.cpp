@@ -266,15 +266,15 @@ void populateDrivers()
         _drivers.push_back(driver);
 
         pclsObj->Release(); 
-		pclsObj = NULL;
+        pclsObj = NULL;
     }
 
     pEnumerator->Release(); 
-	pEnumerator = NULL;
+    pEnumerator = NULL;
     pSvc->Release(); 
-	pSvc = NULL;
+    pSvc = NULL;
     pLoc->Release();
-	pLoc = NULL;
+    pLoc = NULL;
 }
 
 
@@ -325,7 +325,7 @@ std::string g_addon_path;
 
 extern "C" EXPORT void init(const char * addon_path)
 {
-	g_addon_path = addon_path;
+    g_addon_path = addon_path;
 #if defined(WIN32)
     populateDrivers();
     updateDriverCompatibility();
@@ -343,5 +343,5 @@ extern "C" EXPORT bool check_driver(const char * deviceName)
 
 extern "C" EXPORT RPR_TOOLS_COMPATIBILITY check_device(const rpr_char* rendererDLL, bool doWhiteListTest, RPR_TOOLS_DEVICE device, RPR_TOOLS_OS os)
 {
-    return  rprIsDeviceCompatible(rendererDLL, device, doWhiteListTest, os);
+    return  rprIsDeviceCompatible(rendererDLL, device, 0, doWhiteListTest, os);
 }

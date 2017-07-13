@@ -264,11 +264,6 @@ class SceneRenderer:
                     self.used_iterations = 1
                     self.iteration_divider = 1
 
-                logging.info('User Set Iterations: ', rs.rendering_limits.iterations)
-                logging.info('User Set Samples: ', user_set_samples)
-                logging.info('Used Iterations: ', self.used_iterations)
-                logging.info('Used Samples: ', samples)
-                logging.info('Sub Iterations (UserSet VS Used): ', rs.rendering_limits.iterations * user_set_samples, ' VS ',self.used_iterations * samples)
             else:
                 samples = user_set_samples
         else:

@@ -9,6 +9,7 @@ from . import rpraddon
 from rprblender.core.nodes import log_mat
 from . import logging
 from bpy_extras.image_utils import load_image
+from . import versions
 
 def fix_path(path):
     if path.startswith('//'):
@@ -395,6 +396,219 @@ class RPRShaderNode_Uber(RPRNodeType_Shader):
         row.prop(self, 'reflection', toggle=True)
         row.prop(self, 'clear_coat', toggle=True)
         row.prop(self, 'refraction', toggle=True)
+
+########################################################################################################################
+# Uber2 node
+########################################################################################################################
+# before change - check check_old_rpr_uber2_nodes() please
+@rpraddon.register_class
+class RPRShaderNode_Uber2(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_uber2'
+    bl_label = 'RPR Uber2'
+    bl_width_min = 300
+
+    diffuse_color = 'Diffuse Color'
+    diffuse_weight = 'Diffuse Weight'
+    diffuse_roughness = 'Diffuse Roughness'
+
+    reflection_color = 'Reflection Color'
+    reflection_weight = 'Reflection Weight'
+    reflection_roughness = 'Reflection Roughness'
+    reflection_anisotropy = 'Reflection Anisotropy'
+    reflection_anisotropy_rotation = 'Reflection Anisotropy Rotation'
+    reflection_fresnel_ior = 'Reflection Fresnel IOR'
+    reflection_fresnel_metalness = 'Reflection Fresnel Metalness'
+
+    refraction_color = 'Refraction Color'
+    refraction_weight = 'Refraction Weight'
+    refraction_roughness = 'Refraciton Roughness'
+    refraction_ior = 'Refraction IOR'
+
+    coating_color = 'Coating Color'
+    coating_weight = 'Coating Weight'
+    coating_roughness = 'Coating Roughness'
+    coating_fresnel_ior = 'Coating Fresnel IOR'
+    coating_fresnel_metalness = 'Coating Fresnel Metalness'
+
+    emissive_color = 'Emissive Color'
+    emissive_intensity = 'Emissive Intensity'
+    emissive_weight = 'Emissive Weight'
+
+    subsurface_color = 'Subsurface Color'
+    subsurface_weight = 'Subsurface Weight'
+    subsurface_volume_transmission = 'Subsurface Volume Transmission'
+    subsurface_volume_scatter = 'Subsurface Volume Scatter'
+    subsurface_volume_density = 'Subsurface Volume Density'
+    subsurface_scattering_direction = 'Subsurface Scattering Direction'
+
+    transparency_value = 'Transparency'
+    normal_in = 'Normal'
+    displacement_map = 'Displacement Map'
+
+    def diffuse_changed(self, context):
+        self.inputs[self.diffuse_color].enabled = self.diffuse
+        self.inputs[self.diffuse_weight].enabled = self.diffuse
+        self.inputs[self.diffuse_roughness].enabled = self.diffuse
+
+    def reflection_changed(self, context):
+        self.inputs[self.reflection_color].enabled = self.reflection
+        self.inputs[self.reflection_weight].enabled = self.reflection
+        self.inputs[self.reflection_roughness].enabled = self.reflection
+        self.inputs[self.reflection_anisotropy].enabled = self.reflection
+        self.inputs[self.reflection_anisotropy_rotation].enabled = self.reflection
+        self.inputs[self.reflection_fresnel_ior].enabled = self.reflection and not self.reflection_fresnel_metalmaterial
+        self.inputs[self.reflection_fresnel_metalness].enabled = self.reflection and self.reflection_fresnel_metalmaterial
+
+    def reflection_fresnel_metalmaterial_changed(self, context):
+        self.inputs[self.reflection_fresnel_ior].enabled = not self.reflection_fresnel_metalmaterial
+        self.inputs[self.reflection_fresnel_metalness].enabled = self.reflection_fresnel_metalmaterial
+
+    def refraction_changed(self, context):
+        self.inputs[self.refraction_color].enabled = self.refraction
+        self.inputs[self.refraction_weight].enabled = self.refraction
+        self.inputs[self.refraction_roughness].enabled = self.refraction
+        self.inputs[self.refraction_ior].enabled = self.refraction
+
+    def coating_changed(self, context):
+        self.inputs[self.coating_color].enabled = self.coating
+        self.inputs[self.coating_weight].enabled = self.coating
+        self.inputs[self.coating_roughness].enabled = self.coating
+        self.inputs[self.coating_fresnel_ior].enabled = self.coating and not self.coating_fresnel_metal_material
+        self.inputs[self.coating_fresnel_metalness].enabled = self.coating and self.coating_fresnel_metal_material
+
+    def coating_fresnel_metal_material_changed(self, context):
+        self.inputs[self.coating_fresnel_ior].enabled = not self.coating_fresnel_metal_material
+        self.inputs[self.coating_fresnel_metalness].enabled = self.coating_fresnel_metal_material
+
+    def emissive_changed(self, context):
+        self.inputs[self.emissive_color].enabled = self.emissive
+        self.inputs[self.emissive_weight].enabled = self.emissive
+        self.inputs[self.emissive_intensity].enabled = self.emissive
+
+    def subsurface_changed(self, context):
+        self.inputs[self.subsurface_color].enabled = self.subsurface and not self.subsurface_use_diffuse_color
+        self.inputs[self.subsurface_weight].enabled = self.subsurface
+        self.inputs[self.subsurface_volume_transmission].enabled = self.subsurface
+        self.inputs[self.subsurface_volume_scatter].enabled = self.subsurface
+        self.inputs[self.subsurface_volume_density].enabled = self.subsurface
+        self.inputs[self.subsurface_scattering_direction].enabled = self.subsurface
+
+    def subsurface_use_diffuse_color_changed(self, context):
+        self.inputs[self.subsurface_color].enabled = not self.subsurface_use_diffuse_color
+
+    def transparency_changed(self, context):
+        self.inputs[self.transparency_value].enabled = self.transparency
+
+    def normal_changed(self, context):
+        self.inputs[self.normal_in].enabled = self.normal
+
+    def displacement_changed(self, context):
+        self.inputs[self.displacement_map].enabled = self.displacement
+
+    diffuse = bpy.props.BoolProperty(name='Diffuse', update=diffuse_changed, default=True)
+
+    reflection = bpy.props.BoolProperty(name='Reflection', update=reflection_changed)
+    reflection_fresnel_metalmaterial = bpy.props.BoolProperty(name='Reflection Fresnel Metal Material', update=reflection_fresnel_metalmaterial_changed)
+
+    refraction = bpy.props.BoolProperty(name='Refraction', update=refraction_changed)
+    refraction_link_to_reflection = bpy.props.BoolProperty(name='Refraction Link to Reflection')
+    refraction_thin_surface = bpy.props.BoolProperty(name='Refraction Thin Surface')
+
+    coating = bpy.props.BoolProperty(name='Coating', update=coating_changed)
+    coating_fresnel_metal_material = bpy.props.BoolProperty(name='Reflection Fresnel Metal Material', update=coating_fresnel_metal_material_changed)
+
+    emissive = bpy.props.BoolProperty(name='Emissive', update=emissive_changed)
+    emissive_double_sided = bpy.props.BoolProperty(name='Emissive Double Sided')
+
+    subsurface = bpy.props.BoolProperty(name='Subsurface', update=subsurface_changed)
+    subsurface_use_diffuse_color = bpy.props.BoolProperty(name='Subsurface Use Diffuse Color', update=subsurface_use_diffuse_color_changed)
+    subsurface_multiple_scattering = bpy.props.BoolProperty(name='Subsurface Multiple Scattering', default=True)
+
+    transparency = bpy.props.BoolProperty(name='Transparency', update=transparency_changed)
+    normal = bpy.props.BoolProperty(name='Normal', update=normal_changed)
+    displacement = bpy.props.BoolProperty(name='Displacement', update=displacement_changed)
+
+    def init(self, context):
+        super(RPRShaderNode_Uber2, self).init()
+
+        self.inputs.new('rpr_socket_color', self.diffuse_color).default_value = (0.644, 0.644, 0.644, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_roughness).default_value = 1.0
+
+        self.inputs.new('rpr_socket_color', self.reflection_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.reflection_anisotropy).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_anisotropy_rotation).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.reflection_fresnel_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_fresnel_metalness).default_value = 1.0
+
+        self.inputs.new('rpr_socket_color', self.refraction_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.refraction_ior).default_value = 1.5
+
+        self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.coating_fresnel_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_fresnel_metalness).default_value = 1.0
+
+        self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_factor', self.emissive_intensity)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 1.0
+
+        self.inputs.new('rpr_socket_color', self.subsurface_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.subsurface_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_color', self.subsurface_volume_transmission).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_color', self.subsurface_volume_scatter).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax10', self.subsurface_volume_density).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.subsurface_scattering_direction).default_value = 0.0
+
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency_value).default_value = 0.0
+        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_color', self.displacement_map).default_value = (0.0, 0.0, 0.0, 1.0)
+
+        self.reflection_changed(context)
+        self.refraction_changed(context)
+        self.coating_changed(context)
+        self.emissive_changed(context)
+        self.subsurface_changed(context)
+        self.transparency_changed(context)
+        self.normal_changed(context)
+        self.displacement_changed(context)
+
+    def draw_buttons(self, context, layout):
+        row = layout.column(align=True)
+        row.alignment = 'EXPAND'
+
+        row.prop(self, 'diffuse', toggle=True)
+
+        row.prop(self, 'reflection', toggle=True)
+        if self.reflection:
+            row.prop(self, 'reflection_fresnel_metalmaterial', toggle=False)
+
+        row.prop(self, 'refraction', toggle=True)
+        if self.refraction:
+            row.prop(self, 'refraction_link_to_reflection', toggle=False)
+            row.prop(self, 'refraction_thin_surface', toggle=False)
+
+        row.prop(self, 'coating', toggle=True)
+        if self.coating:
+            row.prop(self, 'coating_fresnel_metal_material', toggle=False)
+
+        row.prop(self, 'emissive', toggle=True)
+        if self.emissive:
+            row.prop(self, 'emissive_double_sided', toggle=False)
+
+        row.prop(self, 'subsurface', toggle=True)
+        if self.subsurface:
+            row.prop(self, 'subsurface_use_diffuse_color', toggle=False)
+            row.prop(self, 'subsurface_multiple_scattering', toggle=False)
+
+        row.prop(self, 'transparency', toggle=True)
+        row.prop(self, 'normal', toggle=True)
+        row.prop(self, 'displacement', toggle=True)
 
 
 ########################################################################################################################
@@ -922,40 +1136,43 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
         item = preview_collections[name]
         wm = context.window_manager
 
-        new_image_name = self.image_name
-        if item.image_name == new_image_name:
-            return item.previews
-        else:
-            item.image_name = new_image_name
-
-        item.clear()
-
         enum_items = []
 
-        if self.image_name in bpy.data.images:
-            image = bpy.data.images[self.image_name]
-            thumb = item.load(image.name, bpy.path.abspath(image.filepath), 'IMAGE')
-            enum_items = [(image.filepath, image.name, '', thumb.icon_id, 0)]
-            #self.update_thumbnail()
+        img = self.get_image()
+        if img:
+            new_image_name =img.name
+            if item.image_name == new_image_name:
+                return item.previews
+            else:
+                item.image_name = new_image_name
+
+            item.clear()
+
+            thumb = item.load(img.name, bpy.path.abspath(img.filepath), 'IMAGE')
+            enum_items = [(img.filepath, img.name, '', thumb.icon_id, 0)]
 
         item.previews = enum_items
         return item.previews
 
-    def load_image(self, context):
-        self.requested_load = True
-        bpy.ops.rpr.open_image_wrapper('INVOKE_DEFAULT')
-        self['open_image_button'] = False
+    if versions.is_blender_support_new_image_node():
+        image = bpy.props.PointerProperty(type=bpy.types.Image)
+    else:
+        def load_image(self, context):
+            self.requested_load = True
+            bpy.ops.rpr.open_image_wrapper('INVOKE_DEFAULT')
+            self['open_image_button'] = False
 
-    def update_image(self, context):
-        if self.image_name in bpy.data.images:
-            image = bpy.data.images[self.image_name]
-            image.use_fake_user = True
-            self.texturePath = image.filepath
+        def update_image(self, context):
+            if self.image_name in bpy.data.images:
+                image = bpy.data.images[self.image_name]
+                image.use_fake_user = True
+                self.texturePath = image.filepath
 
-    texturePath = bpy.props.StringProperty(name='', description='Image Map Path')
-    image_name = bpy.props.StringProperty(default='', update=update_image)
-    requested_load = bpy.props.BoolProperty()
-    open_image_button = bpy.props.BoolProperty(name='Open', description='Open a new image', update=load_image)
+        texturePath = bpy.props.StringProperty(name='', description='Image Map Path')
+        image_name = bpy.props.StringProperty(default='', update=update_image)
+        requested_load = bpy.props.BoolProperty()
+        open_image_button = bpy.props.BoolProperty(name='Open', description='Open a new image', update=load_image)
+
     preview = bpy.props.EnumProperty(items=generate_preview)
 
     def init(self, context):
@@ -963,15 +1180,26 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
         self.inputs.new('rpr_socket_transform', self.mapping_in)
 
     def draw_buttons(self, context, layout):
-        split = layout.split(align=True, percentage=0.7)
-        split.prop_search(self, 'image_name', bpy.data, 'images', text='')
-        split.prop(self, 'open_image_button', toggle=True, icon='FILESEL')
-        layout.template_icon_view(self, 'preview', show_labels=True)
+        if versions.is_blender_support_new_image_node():
+            layout.template_ID(self, "image", open="image.open")
+            layout.template_icon_view(self, 'preview', show_labels=True)
+        else:
+            split = layout.split(align=True, percentage=0.7)
+            split.prop_search(self, 'image_name', bpy.data, 'images', text='')
+            split.prop(self, 'open_image_button', toggle=True, icon='FILESEL')
+            layout.template_icon_view(self, 'preview', show_labels=True)
 
     def draw_label(self):
-        if not self.image_name:
+        img = self.get_image()
+        if not img:
             return self.name
-        return self.image_name
+        return img.name
+
+    def get_image(self):
+        if versions.is_blender_support_new_image_node():
+            return self.image
+        else:
+            return bpy.data.images[self.image_name] if self.image_name in bpy.data.images else None
 
 
 @rpraddon.register_class

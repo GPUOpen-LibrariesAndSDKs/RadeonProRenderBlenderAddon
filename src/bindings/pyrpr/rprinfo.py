@@ -59,7 +59,7 @@ pyrpr.ContextGetInfo(context, pyrpr.CONTEXT_PARAMETER_COUNT, ffi.sizeof('size_t'
                      contextParameterCountPtr, ffi.NULL)
 
 contextParameterCount = contextParameterCountPtr[0]
-assert 44 == contextParameterCount, contextParameterCount
+assert 46 == contextParameterCount, contextParameterCount
 
 types = set()
 

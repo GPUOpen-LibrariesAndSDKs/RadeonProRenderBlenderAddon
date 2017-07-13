@@ -147,7 +147,7 @@ class BumpmapNodeCompiler(NodeCompiler):
             fpath = compiler.nodes[value].find('param').get('value')
 
             image_node = compiler.editor.create_image_texture_node()
-            image_node.set_image_name(self.load_image(fpath))
+            image_node.set_image(self.load_image(fpath))
             return image_node
         return super().compile_input_node(name, value)
 
@@ -212,7 +212,7 @@ class ImageTextureCompiler(NodeCompiler):
             input_texture_node = self.compiler.nodes[value]
             assert 'INPUT_TEXTURE' == input_texture_node.get('type')
             fpath = input_texture_node.find('param').get('value')
-            self.node_instance.set_image_name(self.load_image(fpath))
+            self.node_instance.set_image(self.load_image(fpath))
             return
         assert 'gamma' == name
 

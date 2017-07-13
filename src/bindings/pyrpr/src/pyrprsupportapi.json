@@ -1,0 +1,576 @@
+{
+  "constants": {
+    "RPRX_SUPPORT_API_VERSION": {
+      "name": "RPRX_SUPPORT_API_VERSION",
+      "value": "0x0000002"
+    },
+    "RPRX_FLAGS_ENABLE_LOGGING": {
+      "name": "RPRX_FLAGS_ENABLE_LOGGING",
+      "value": "0x1"
+    },
+    "RPRX_MATERIAL_UBER": {
+      "name": "RPRX_MATERIAL_UBER",
+      "value": "0x1"
+    },
+    "RPRX_MATERIAL_ARCHITECTURAL": {
+      "name": "RPRX_MATERIAL_ARCHITECTURAL",
+      "value": "0x2"
+    },
+    "RPRX_MATERIAL_SKIN": {
+      "name": "RPRX_MATERIAL_SKIN",
+      "value": "0x3"
+    },
+    "RPRX_MATERIAL_CARPAINT": {
+      "name": "RPRX_MATERIAL_CARPAINT",
+      "value": "0x4"
+    },
+    "RPRX_UBER_MATERIAL_DIFFUSE_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_DIFFUSE_COLOR",
+      "value": "0x100U"
+    },
+    "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT",
+      "value": "0x101U"
+    },
+    "RPRX_UBER_MATERIAL_DIFFUSE_ROUGHNESS": {
+      "name": "RPRX_UBER_MATERIAL_DIFFUSE_ROUGHNESS",
+      "value": "0x102U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_COLOR",
+      "value": "0x103U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT",
+      "value": "0x104U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_ROUGHNESS": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_ROUGHNESS",
+      "value": "0x105U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY",
+      "value": "0x106U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION",
+      "value": "0x107U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_MODE": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_MODE",
+      "value": "0x108U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_IOR": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_IOR",
+      "value": "0x109U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_METALNESS": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_METALNESS",
+      "value": "0x109U"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_COLOR",
+      "value": "0x10AU"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_WEIGHT",
+      "value": "0x10BU"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_ROUGHNESS": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_ROUGHNESS",
+      "value": "0x10CU"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_IOR": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_IOR",
+      "value": "0x10DU"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_IOR_MODE": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_IOR_MODE",
+      "value": "0x10EU"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE",
+      "value": "0x10FU"
+    },
+    "RPRX_UBER_MATERIAL_COATING_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_COATING_COLOR",
+      "value": "0x110U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_COATING_WEIGHT",
+      "value": "0x111U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_ROUGHNESS": {
+      "name": "RPRX_UBER_MATERIAL_COATING_ROUGHNESS",
+      "value": "0x112U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_MODE": {
+      "name": "RPRX_UBER_MATERIAL_COATING_MODE",
+      "value": "0x113U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_IOR": {
+      "name": "RPRX_UBER_MATERIAL_COATING_IOR",
+      "value": "0x114U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_METALNESS": {
+      "name": "RPRX_UBER_MATERIAL_COATING_METALNESS",
+      "value": "0x114U"
+    },
+    "RPRX_UBER_MATERIAL_EMISSION_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_EMISSION_COLOR",
+      "value": "0x115U"
+    },
+    "RPRX_UBER_MATERIAL_EMISSION_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_EMISSION_WEIGHT",
+      "value": "0x116U"
+    },
+    "RPRX_UBER_MATERIAL_EMISSION_MODE": {
+      "name": "RPRX_UBER_MATERIAL_EMISSION_MODE",
+      "value": "0x117U"
+    },
+    "RPRX_UBER_MATERIAL_TRANSPARENCY": {
+      "name": "RPRX_UBER_MATERIAL_TRANSPARENCY",
+      "value": "0x118U"
+    },
+    "RPRX_UBER_MATERIAL_NORMAL": {
+      "name": "RPRX_UBER_MATERIAL_NORMAL",
+      "value": "0x119U"
+    },
+    "RPRX_UBER_MATERIAL_BUMP": {
+      "name": "RPRX_UBER_MATERIAL_BUMP",
+      "value": "0x11AU"
+    },
+    "RPRX_UBER_MATERIAL_DISPLACEMENT": {
+      "name": "RPRX_UBER_MATERIAL_DISPLACEMENT",
+      "value": "0x11BU"
+    },
+    "RPRX_UBER_MATERIAL_SSS_ABSORPTION_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_SSS_ABSORPTION_COLOR",
+      "value": "0x11CU"
+    },
+    "RPRX_UBER_MATERIAL_SSS_SCATTER_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_SSS_SCATTER_COLOR",
+      "value": "0x11DU"
+    },
+    "RPRX_UBER_MATERIAL_SSS_ABSORPTION_DISTANCE": {
+      "name": "RPRX_UBER_MATERIAL_SSS_ABSORPTION_DISTANCE",
+      "value": "0x11EU"
+    },
+    "RPRX_UBER_MATERIAL_SSS_SCATTER_DISTANCE": {
+      "name": "RPRX_UBER_MATERIAL_SSS_SCATTER_DISTANCE",
+      "value": "0x11FU"
+    },
+    "RPRX_UBER_MATERIAL_SSS_SCATTER_DIRECTION": {
+      "name": "RPRX_UBER_MATERIAL_SSS_SCATTER_DIRECTION",
+      "value": "0x120U"
+    },
+    "RPRX_UBER_MATERIAL_SSS_WEIGHT": {
+      "name": "RPRX_UBER_MATERIAL_SSS_WEIGHT",
+      "value": "0x121U"
+    },
+    "RPRX_UBER_MATERIAL_SSS_SUBSURFACE_COLOR": {
+      "name": "RPRX_UBER_MATERIAL_SSS_SUBSURFACE_COLOR",
+      "value": "0x122U"
+    },
+    "RPRX_UBER_MATERIAL_SSS_MULTISCATTER": {
+      "name": "RPRX_UBER_MATERIAL_SSS_MULTISCATTER",
+      "value": "0x123U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_MODE_PBR": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_MODE_PBR",
+      "value": "0x1U"
+    },
+    "RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS": {
+      "name": "RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS",
+      "value": "0x2U"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_MODE_SEPARATE": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_MODE_SEPARATE",
+      "value": "0x1U"
+    },
+    "RPRX_UBER_MATERIAL_REFRACTION_MODE_LINKED": {
+      "name": "RPRX_UBER_MATERIAL_REFRACTION_MODE_LINKED",
+      "value": "0x2U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_MODE_PBR": {
+      "name": "RPRX_UBER_MATERIAL_COATING_MODE_PBR",
+      "value": "0x1U"
+    },
+    "RPRX_UBER_MATERIAL_COATING_MODE_METALNESS": {
+      "name": "RPRX_UBER_MATERIAL_COATING_MODE_METALNESS",
+      "value": "0x2U"
+    },
+    "RPRX_UBER_MATERIAL_EMISSION_MODE_SINGLESIDED": {
+      "name": "RPRX_UBER_MATERIAL_EMISSION_MODE_SINGLESIDED",
+      "value": "0x1U"
+    },
+    "RPRX_UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED": {
+      "name": "RPRX_UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED",
+      "value": "0x2U"
+    },
+    "RPRX_PARAMETER_TYPE_FLOAT4": {
+      "name": "RPRX_PARAMETER_TYPE_FLOAT4",
+      "value": "0x1U"
+    },
+    "RPRX_PARAMETER_TYPE_UINT": {
+      "name": "RPRX_PARAMETER_TYPE_UINT",
+      "value": "0x2U"
+    },
+    "RPRX_PARAMETER_TYPE_NODE": {
+      "name": "RPRX_PARAMETER_TYPE_NODE",
+      "value": "0x3U"
+    }
+  },
+  "types": {
+    "rprx_context": {
+      "name": "rprx_context",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rprx_material": {
+      "name": "rprx_material",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rprx_material_type": {
+      "name": "rprx_material_type",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
+    "rprx_parameter": {
+      "name": "rprx_parameter",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    }
+  },
+  "functions": {
+    "rprxCreateContext": {
+      "name": "rprxCreateContext",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "material_system",
+          "type": "rpr_material_system"
+        },
+        {
+          "name": "flags",
+          "type": "rpr_uint"
+        },
+        {
+          "name": "out_context",
+          "type": "rprx_context*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxCreateMaterial": {
+      "name": "rprxCreateMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "type",
+          "type": "rprx_material_type"
+        },
+        {
+          "name": "out_material",
+          "type": "rprx_material*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxDeleteContext": {
+      "name": "rprxDeleteContext",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        }
+      ],
+      "docs": null
+    },
+    "rprxGetLog": {
+      "name": "rprxGetLog",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "log",
+          "type": "rpr_char*"
+        },
+        {
+          "name": "size",
+          "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxIsMaterialRprx": {
+      "name": "rprxIsMaterialRprx",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "node",
+          "type": "rpr_material_node"
+        },
+        {
+          "name": "out_result",
+          "type": "rpr_bool*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialAttachMaterial": {
+      "name": "rprxMaterialAttachMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "node",
+          "type": "rpr_material_node"
+        },
+        {
+          "name": "parameter",
+          "type": "rpr_char const*"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialCommit": {
+      "name": "rprxMaterialCommit",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialDelete": {
+      "name": "rprxMaterialDelete",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialDetachMaterial": {
+      "name": "rprxMaterialDetachMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "node",
+          "type": "rpr_material_node"
+        },
+        {
+          "name": "parameter",
+          "type": "rpr_char const*"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialGetParameterType": {
+      "name": "rprxMaterialGetParameterType",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        },
+        {
+          "name": "parameter",
+          "type": "rprx_parameter"
+        },
+        {
+          "name": "out_type",
+          "type": "rpr_parameter_type*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialGetParameterValue": {
+      "name": "rprxMaterialGetParameterValue",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        },
+        {
+          "name": "parameter",
+          "type": "rprx_parameter"
+        },
+        {
+          "name": "out_value",
+          "type": "void*"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialSetParameterF": {
+      "name": "rprxMaterialSetParameterF",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        },
+        {
+          "name": "parameter",
+          "type": "rprx_parameter"
+        },
+        {
+          "name": "x",
+          "type": "rpr_float"
+        },
+        {
+          "name": "y",
+          "type": "rpr_float"
+        },
+        {
+          "name": "z",
+          "type": "rpr_float"
+        },
+        {
+          "name": "w",
+          "type": "rpr_float"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialSetParameterN": {
+      "name": "rprxMaterialSetParameterN",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        },
+        {
+          "name": "parameter",
+          "type": "rprx_parameter"
+        },
+        {
+          "name": "node",
+          "type": "rpr_material_node"
+        }
+      ],
+      "docs": null
+    },
+    "rprxMaterialSetParameterU": {
+      "name": "rprxMaterialSetParameterU",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        },
+        {
+          "name": "parameter",
+          "type": "rprx_parameter"
+        },
+        {
+          "name": "value",
+          "type": "rpr_uint"
+        }
+      ],
+      "docs": null
+    },
+    "rprxShapeAttachMaterial": {
+      "name": "rprxShapeAttachMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    },
+    "rprxShapeDetachMaterial": {
+      "name": "rprxShapeDetachMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material"
+        }
+      ],
+      "docs": null
+    }
+  }
+}

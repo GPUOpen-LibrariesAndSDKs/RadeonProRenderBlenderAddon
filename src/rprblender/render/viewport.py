@@ -73,7 +73,6 @@ class ViewportRenderer:
             self.scene_renderer_threaded.need_scene_redraw = True
 
             self.scene_synced = sync.SceneSynced(self.scene_renderer.core_context, scene, scene.rpr.render)
-
             self.scene_synced.set_render_camera(self.render_camera)
 
             self.scene_synced.make_core_scene()
@@ -103,7 +102,11 @@ class ViewportRenderer:
         pyrpr.ContextSetParameter1u(self.scene_renderer.get_core_context(), b"texturecompression",
                                       self.scene_synced.settings.texturecompression)
         self.scene_exporter = export.SceneExport(scene, self.scene_synced, preview=True)
+
+        self.scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)
+
         self.visible_objects = self.scene_exporter.export()
+
 
     def clear_scene(self):
         self.scene_synced.reset_scene()
@@ -111,6 +114,8 @@ class ViewportRenderer:
     def scene_update(self, scene):
         logging.debug('ViewportRenderer.scene_update')
         yield 'scene'
+
+        self.scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)
         self.scene_exporter.sync()
         need_scene_reset = self.scene_exporter.need_scene_reset
 
@@ -139,11 +144,11 @@ class ViewportRenderer:
         self.render_camera = render_camera
         self.scene_renderer_threaded.update_render_camera(render_camera)
 
-    def set_render_aov(self, render_settings):
-        self.render_aov = rprblender.render.render_layers.extract_settings(render_settings)
+    def set_render_aov(self, aov):
+        self.render_aov = rprblender.render.render_layers.extract_settings(aov)
 
-    def update_render_aov(self, render_settings):
-        aov_settings = rprblender.render.render_layers.extract_settings(render_settings)
+    def update_render_aov(self, aov):
+        aov_settings = rprblender.render.render_layers.extract_settings(aov)
         self.scene_renderer_threaded.update_aov(aov_settings)
 
     def set_render_resolution(self, render_resolution):

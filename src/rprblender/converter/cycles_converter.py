@@ -460,7 +460,7 @@ class CyclesMaterialConverter(converter.MaterialConverter):
     def convert_node_tex_image(self, params):
         cycles_node = params.node
         image_node = self.material_editor.create_image_texture_node()
-        image_node.set_image_name(cycles_node.image.name)
+        image_node.set_image(cycles_node.image)
 
         if 'Color' == params.socket.name:
             image_node.node.location = self.get_new_loacation(cycles_node, 50)

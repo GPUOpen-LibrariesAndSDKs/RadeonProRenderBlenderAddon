@@ -72,9 +72,14 @@ class WardMaterial(Material):
         return self.get_input_socket_by_name('rotation')
 
 
+from . import versions
+
 class ImageTexture(ValueNode):
-    def set_image_name(self, name):
-        self.node.image_name = name
+    def set_image(self, image):
+        if versions.is_blender_support_new_image_node():
+            self.node.image = image
+        else:
+            self.node.image_name = image.name
 
 
 class Lookup(ValueNode):
@@ -130,6 +135,9 @@ class MaterialEditor:
 
     def create_uber_material_node(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_uber'), self)
+
+    def create_uber_material_node2(self):
+        return Material(self.tree.nodes.new(type='rpr_shader_node_uber2'), self)
 
     def create_reflection_material_node(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_reflection'), self)
@@ -212,4 +220,4 @@ class MaterialEditor:
     def load_image(self, fpath):
         logging.debug("load_image:", fpath, tag='material')
         image = bpy.data.images.load(fpath)
-        return image.name
+        return image

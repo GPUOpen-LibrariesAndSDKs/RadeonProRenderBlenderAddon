@@ -16,7 +16,6 @@ import pyrpr
 from pyrpr import ffi
 
 from rprblender import helpers
-from rprblender.ui import ModifyEnvMatrix
 from rprblender.timing import TimedContext
 from rprblender import config
 from . import logging
@@ -281,7 +280,7 @@ class ObjectsSync:
 
         for submesh_key in sumbesh_keys:
             if submesh_key in self.material_for_submesh:
-                self.scene_synced.remove_material_from_mesh(submesh_key)
+                self.scene_synced.remove_material_from_mesh(submesh_key,key)
                 for instance_key in self.get_instances_added_for_prototype(submesh_key[0]):
                     self.scene_synced.remove_material_from_mesh_instance((instance_key, submesh_key[1]))
 
@@ -394,10 +393,16 @@ class ObjectsSync:
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh_prototype(self, key):
         mesh_sync = self.object_instances[key]
-        for i in mesh_sync.materials_assigned:
-            self.scene_synced.remove_material_from_mesh((key, i))
-            self.scene_synced.remove_mesh((key, i))
         prototype_key = self.object_instances[key].get_prototype_key()
+
+        for i in mesh_sync.materials_assigned:
+            mat_key = 0
+            prototype_submesh_key = prototype_key, i
+            if prototype_submesh_key in self.material_for_submesh:
+                mat_key = self.material_for_submesh[prototype_submesh_key]
+            self.scene_synced.remove_material_from_mesh((key, i), mat_key)
+            self.scene_synced.remove_mesh((key, i))
+
         del self.mesh_added_for_prototype[prototype_key]
         self.object_instances_instantiated_as_mesh_prototype.remove(key)
 
@@ -708,7 +713,7 @@ class SceneExport:
 
         self.environment_settings = {
             'enable': False,
-            'rotation': (0, 0, 0),
+            'gizmo_rotation': (0, 0, 0),
             'ibl': {
                 'color': (0, 0, 0),
                 'intensity': 1.0,
@@ -718,6 +723,8 @@ class SceneExport:
                 }
             }
         }
+
+        self.environment_settings_pre = self.environment_settings
 
         self.environment_exporter = EnvironmentExportState()
         self.environment_exporter.scene_synced = scene_synced
@@ -1073,6 +1080,23 @@ class SceneExport:
             logging.critical(traceback.format_exc(), tag='export')
             raise
 
+
+    def sync_environment_settings(self, env):
+        if env:
+            environment_extracted_settings = self.extract_settings(env, self.get_env_settings_keys())
+        else:
+            environment_extracted_settings = {
+                'enable': False,
+            }
+
+        self.set_environment_settings(environment_extracted_settings)
+
+
+    def set_environment_settings(self, environment_extracted_settings):
+        logging.debug('set_environment_settings: ', environment_extracted_settings, tag='sync')
+        self.environment_settings_pre = environment_extracted_settings
+
+
     def _sync(self):
         logging.debug("export.sync")
 
@@ -1255,7 +1279,7 @@ class SceneExport:
         self.environment_exporter.sun_sky.set_intensity(intensity)
 
         # set sky rotation
-        rotation_var = sync.get('rotation')
+        rotation_var = sync.get('gizmo_rotation')
 
         if azimuth_was_changed or rotation_var.updated() or attach:
             sun_azimuth = lib.get_sun_azimuth()
@@ -1279,11 +1303,11 @@ class SceneExport:
         if attach:
             self.environment_exporter.sun_sky.attach()
 
-    def sync_environment(self):
-        logging.debug('sync_environment', tag='sync')
+    @staticmethod
+    def get_env_settings_keys():
         env_settings_keys = {
             'enable': None,
-            'rotation': tuple,
+            'gizmo_rotation': tuple,
             'type': None,
             'ibl': {
                 'color': tuple,
@@ -1323,25 +1347,21 @@ class SceneExport:
                 'texture_resolution': None,
             }
         }
+        return env_settings_keys
 
-        if ModifyEnvMatrix.object_name in bpy.data.objects:
-            obj = bpy.data.objects[ModifyEnvMatrix.object_name]
-            self.scene_synced.settings.environment.position = obj.location
-            self.scene_synced.settings.environment.rotation = obj.rotation_euler
-        else:
-            if self.scene_synced.settings.environment.enable:
-                self.scene_synced.settings.environment.position = (0, 0, 0)
-                self.scene_synced.settings.environment.rotation = (0, 0, 0)
 
-        environment_settings = self.extract_settings(self.scene_synced.settings.environment, env_settings_keys)
+    def sync_environment(self):
+        logging.debug('sync_environment', tag='sync')
 
-        logging.debug('environment_settings: ', environment_settings, tag='sync')
+        logging.debug('self.environment_settings_pre: ', self.environment_settings_pre, tag='sync')
         logging.debug('self.environment_settings: ', self.environment_settings, tag='sync')
-        if self.environment_settings != environment_settings:
-            logging.debug('environment_settings NOT equal', environment_settings, tag='sync')
+
+
+        if self.environment_settings != self.environment_settings_pre:
+            logging.debug('environment_settings NOT equal', self.environment_settings_pre, tag='sync')
 
             settings_sync = self.filter_environment_light_settings_changes(self.environment_settings,
-                                                                           environment_settings)  # type: SettingsSyncer
+                                                                           self.environment_settings_pre)
             self.set_environment_light(settings_sync)
             settings_sync.update()
 
@@ -1486,7 +1506,7 @@ class SceneExport:
         type = sync.get('type')
         type.use_new_value()
 
-        sync.get('rotation').use_new_value()
+        sync.get('gizmo_rotation').use_new_value()
 
         if type.get_updated_value() == 'IBL':
             sync.get('ibl', 'intensity').use_new_value()
@@ -1610,7 +1630,7 @@ class SceneExport:
         ibl_map = sync.get('ibl', 'ibl_map')
         intensity = sync.get('ibl', 'intensity')
 
-        rotation = sync.get('rotation')
+        rotation = sync.get('gizmo_rotation')
 
         if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value()):
             self.environment_exporter.ibl_detach()

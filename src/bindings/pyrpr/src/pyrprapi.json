@@ -2,7 +2,7 @@
   "constants": {
     "RPR_API_VERSION": {
       "name": "RPR_API_VERSION",
-      "value": "0x010026700"
+      "value": "0x010027100"
     },
     "RPR_SUCCESS": {
       "name": "RPR_SUCCESS",
@@ -132,18 +132,6 @@
       "name": "RPR_PARAMETER_TYPE_UINT",
       "value": "0x8"
     },
-    "RPR_IMAGE_TYPE_1D": {
-      "name": "RPR_IMAGE_TYPE_1D",
-      "value": "0x1"
-    },
-    "RPR_IMAGE_TYPE_2D": {
-      "name": "RPR_IMAGE_TYPE_2D",
-      "value": "0x2"
-    },
-    "RPR_IMAGE_TYPE_3D": {
-      "name": "RPR_IMAGE_TYPE_3D",
-      "value": "0x3"
-    },
     "RPR_CONTEXT_OPENCL": {
       "name": "RPR_CONTEXT_OPENCL",
       "value": "(1 << 0)"
@@ -263,6 +251,10 @@
     "RPR_OBJECT_NAME": {
       "name": "RPR_OBJECT_NAME",
       "value": "0x777777"
+    },
+    "RPR_CONTEXT_CREATEPROP_CPU_THREAD_LIMIT": {
+      "name": "RPR_CONTEXT_CREATEPROP_CPU_THREAD_LIMIT",
+      "value": "0x600"
     },
     "RPR_CONTEXT_CREATION_FLAGS": {
       "name": "RPR_CONTEXT_CREATION_FLAGS",
@@ -472,9 +464,17 @@
       "name": "RPR_CONTEXT_PREVIEW",
       "value": "0x135"
     },
+    "RPR_CONTEXT_CPU_THREAD_LIMIT": {
+      "name": "RPR_CONTEXT_CPU_THREAD_LIMIT",
+      "value": "0x136"
+    },
+    "RPR_CONTEXT_LAST_ERROR_MESSAGE": {
+      "name": "RPR_CONTEXT_LAST_ERROR_MESSAGE",
+      "value": "0x137"
+    },
     "RPR_CONTEXT_MAX": {
       "name": "RPR_CONTEXT_MAX",
-      "value": "0x136"
+      "value": "0x138"
     },
     "RPR_CAMERA_TRANSFORM": {
       "name": "RPR_CAMERA_TRANSFORM",
@@ -548,6 +548,14 @@
       "name": "RPR_CAMERA_TILT_CORRECTION",
       "value": "0x212"
     },
+    "RPR_CAMERA_NEAR_PLANE": {
+      "name": "RPR_CAMERA_NEAR_PLANE",
+      "value": "0x213"
+    },
+    "RPR_CAMERA_FAR_PLANE": {
+      "name": "RPR_CAMERA_FAR_PLANE",
+      "value": "0x214"
+    },
     "RPR_IMAGE_FORMAT": {
       "name": "RPR_IMAGE_FORMAT",
       "value": "0x301"
@@ -567,6 +575,30 @@
     "RPR_IMAGE_WRAP": {
       "name": "RPR_IMAGE_WRAP",
       "value": "0x305"
+    },
+    "RPR_IMAGE_FILTER_NEAREST": {
+      "name": "RPR_IMAGE_FILTER_NEAREST",
+      "value": "(1 << 0)"
+    },
+    "RPR_IMAGE_FILTER_LINEAR": {
+      "name": "RPR_IMAGE_FILTER_LINEAR",
+      "value": "(1 << 1)"
+    },
+    "RPR_IMAGE_WRAP_REPEAT": {
+      "name": "RPR_IMAGE_WRAP_REPEAT",
+      "value": "(1 << 2)"
+    },
+    "RPR_IMAGE_WRAP_MIRRORED_REPEAT": {
+      "name": "RPR_IMAGE_WRAP_MIRRORED_REPEAT",
+      "value": "(1 << 3)"
+    },
+    "RPR_IMAGE_WRAP_CLAMP_TO_EDGE": {
+      "name": "RPR_IMAGE_WRAP_CLAMP_TO_EDGE",
+      "value": "(1 << 4)"
+    },
+    "RPR_IMAGE_WRAP_CLAMP_TO_BORDER": {
+      "name": "RPR_IMAGE_WRAP_CLAMP_TO_BORDER",
+      "value": "(1 << 5)"
     },
     "RPR_SHAPE_TYPE": {
       "name": "RPR_SHAPE_TYPE",
@@ -639,6 +671,10 @@
     "RPR_SHAPE_DISPLACEMENT_MATERIAL": {
       "name": "RPR_SHAPE_DISPLACEMENT_MATERIAL",
       "value": "0x413"
+    },
+    "RPR_SHAPE_MATERIALS_PER_FACE": {
+      "name": "RPR_SHAPE_MATERIALS_PER_FACE",
+      "value": "0x415"
     },
     "RPR_MESH_POLYGON_COUNT": {
       "name": "RPR_MESH_POLYGON_COUNT",
@@ -767,6 +803,10 @@
     "RPR_SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND": {
       "name": "RPR_SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND",
       "value": "0x70C"
+    },
+    "RPR_SCENE_AABB": {
+      "name": "RPR_SCENE_AABB",
+      "value": "0x70D"
     },
     "RPR_LIGHT_TYPE": {
       "name": "RPR_LIGHT_TYPE",
@@ -1176,8 +1216,8 @@
       "name": "RPR_MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFRACTION",
       "value": "0x1F"
     },
-    "RPR_MATERIAL_NODE_SIDES": {
-      "name": "RPR_MATERIAL_NODE_SIDES",
+    "RPR_MATERIAL_NODE_TWOSIDED": {
+      "name": "RPR_MATERIAL_NODE_TWOSIDED",
       "value": "0x20"
     },
     "RPR_MATERIAL_NODE_UV_PROJECT": {
@@ -1652,9 +1692,21 @@
       "name": "RPR_AOV_SHADOW_CATCHER",
       "value": "0x0a"
     },
+    "RPR_AOV_BACKGROUND": {
+      "name": "RPR_AOV_BACKGROUND",
+      "value": "0x0b"
+    },
+    "RPR_AOV_EMISSION": {
+      "name": "RPR_AOV_EMISSION",
+      "value": "0x0c"
+    },
+    "RPR_AOV_VELOCITY": {
+      "name": "RPR_AOV_VELOCITY",
+      "value": "0x0d"
+    },
     "RPR_AOV_MAX": {
       "name": "RPR_AOV_MAX",
-      "value": "0x0b"
+      "value": "0x0e"
     },
     "RPR_POST_EFFECT_TONE_MAP": {
       "name": "RPR_POST_EFFECT_TONE_MAP",
@@ -1748,6 +1800,106 @@
       "name": "RPR_MAX_AA_GRID_SIZE",
       "value": "16"
     },
+    "RPR_COMPOSITE_TYPE": {
+      "name": "RPR_COMPOSITE_TYPE",
+      "value": "0x1"
+    },
+    "RPR_COMPOSITE_FRAMEBUFFER_INPUT_FB": {
+      "name": "RPR_COMPOSITE_FRAMEBUFFER_INPUT_FB",
+      "value": "0x2"
+    },
+    "RPR_COMPOSITE_NORMALIZE_INPUT_COLOR": {
+      "name": "RPR_COMPOSITE_NORMALIZE_INPUT_COLOR",
+      "value": "0x3"
+    },
+    "RPR_COMPOSITE_NORMALIZE_INPUT_SHADOWCATCHER": {
+      "name": "RPR_COMPOSITE_NORMALIZE_INPUT_SHADOWCATCHER",
+      "value": "0x4"
+    },
+    "RPR_COMPOSITE_CONSTANT_INPUT_VALUE": {
+      "name": "RPR_COMPOSITE_CONSTANT_INPUT_VALUE",
+      "value": "0x5"
+    },
+    "RPR_COMPOSITE_LERP_VALUE_INPUT_COLOR0": {
+      "name": "RPR_COMPOSITE_LERP_VALUE_INPUT_COLOR0",
+      "value": "0x6"
+    },
+    "RPR_COMPOSITE_LERP_VALUE_INPUT_COLOR1": {
+      "name": "RPR_COMPOSITE_LERP_VALUE_INPUT_COLOR1",
+      "value": "0x7"
+    },
+    "RPR_COMPOSITE_LERP_VALUE_INPUT_WEIGHT": {
+      "name": "RPR_COMPOSITE_LERP_VALUE_INPUT_WEIGHT",
+      "value": "0x8"
+    },
+    "RPR_COMPOSITE_ARITHMETIC_INPUT_COLOR0": {
+      "name": "RPR_COMPOSITE_ARITHMETIC_INPUT_COLOR0",
+      "value": "0x9"
+    },
+    "RPR_COMPOSITE_ARITHMETIC_INPUT_COLOR1": {
+      "name": "RPR_COMPOSITE_ARITHMETIC_INPUT_COLOR1",
+      "value": "0x0a"
+    },
+    "RPR_COMPOSITE_ARITHMETIC_INPUT_OP": {
+      "name": "RPR_COMPOSITE_ARITHMETIC_INPUT_OP",
+      "value": "0x0b"
+    },
+    "RPR_COMPOSITE_GAMMA_CORRECTION_INPUT_COLOR": {
+      "name": "RPR_COMPOSITE_GAMMA_CORRECTION_INPUT_COLOR",
+      "value": "0x0c"
+    },
+    "RPR_COMPOSITE_ARITHMETIC": {
+      "name": "RPR_COMPOSITE_ARITHMETIC",
+      "value": "0x1"
+    },
+    "RPR_COMPOSITE_LERP_VALUE": {
+      "name": "RPR_COMPOSITE_LERP_VALUE",
+      "value": "0x2"
+    },
+    "RPR_COMPOSITE_INVERSE": {
+      "name": "RPR_COMPOSITE_INVERSE",
+      "value": "0x3"
+    },
+    "RPR_COMPOSITE_NORMALIZE": {
+      "name": "RPR_COMPOSITE_NORMALIZE",
+      "value": "0x4"
+    },
+    "RPR_COMPOSITE_GAMMA_CORRECTION": {
+      "name": "RPR_COMPOSITE_GAMMA_CORRECTION",
+      "value": "0x5"
+    },
+    "RPR_COMPOSITE_EXPOSURE": {
+      "name": "RPR_COMPOSITE_EXPOSURE",
+      "value": "0x6"
+    },
+    "RPR_COMPOSITE_CONTRAST": {
+      "name": "RPR_COMPOSITE_CONTRAST",
+      "value": "0x7"
+    },
+    "RPR_COMPOSITE_SIDE_BY_SIDE": {
+      "name": "RPR_COMPOSITE_SIDE_BY_SIDE",
+      "value": "0x8"
+    },
+    "RPR_COMPOSITE_TONEMAP_ACES": {
+      "name": "RPR_COMPOSITE_TONEMAP_ACES",
+      "value": "0x9"
+    },
+    "RPR_COMPOSITE_TONEMAP_REINHARD": {
+      "name": "RPR_COMPOSITE_TONEMAP_REINHARD",
+      "value": "0xa"
+    },
+    "RPR_COMPOSITE_TONEMAP_LINEAR": {
+      "name": "RPR_COMPOSITE_TONEMAP_LINEAR",
+      "value": "0xb"
+    },
+    "RPR_COMPOSITE_FRAMEBUFFER": {
+      "name": "RPR_COMPOSITE_FRAMEBUFFER",
+      "value": "0xc"
+    },
+    "RPR_COMPOSITE_CONSTANT": {
+      "name": "RPR_COMPOSITE_CONSTANT",
+      "value": "0xd"
+    },
     "RPR_FALSE": {
       "name": "RPR_FALSE",
       "value": "0"
@@ -1758,7 +1910,7 @@
     },
     "FR_API_VERSION": {
       "name": "FR_API_VERSION",
-      "value": "0x010026700"
+      "value": "0x010027100"
     },
     "FR_SUCCESS": {
       "name": "FR_SUCCESS",
@@ -1888,18 +2040,6 @@
       "name": "FR_PARAMETER_TYPE_UINT",
       "value": "0x8"
     },
-    "FR_IMAGE_TYPE_1D": {
-      "name": "FR_IMAGE_TYPE_1D",
-      "value": "0x1"
-    },
-    "FR_IMAGE_TYPE_2D": {
-      "name": "FR_IMAGE_TYPE_2D",
-      "value": "0x2"
-    },
-    "FR_IMAGE_TYPE_3D": {
-      "name": "FR_IMAGE_TYPE_3D",
-      "value": "0x3"
-    },
     "FR_CONTEXT_OPENCL": {
       "name": "FR_CONTEXT_OPENCL",
       "value": "(1 << 0)"
@@ -2019,6 +2159,10 @@
     "FR_OBJECT_NAME": {
       "name": "FR_OBJECT_NAME",
       "value": "0x777777"
+    },
+    "FR_CONTEXT_CREATEPROP_CPU_THREAD_LIMIT": {
+      "name": "FR_CONTEXT_CREATEPROP_CPU_THREAD_LIMIT",
+      "value": "0x600"
     },
     "FR_CONTEXT_CREATION_FLAGS": {
       "name": "FR_CONTEXT_CREATION_FLAGS",
@@ -2228,9 +2372,17 @@
       "name": "FR_CONTEXT_PREVIEW",
       "value": "0x135"
     },
+    "FR_CONTEXT_CPU_THREAD_LIMIT": {
+      "name": "FR_CONTEXT_CPU_THREAD_LIMIT",
+      "value": "0x136"
+    },
+    "FR_CONTEXT_LAST_ERROR_MESSAGE": {
+      "name": "FR_CONTEXT_LAST_ERROR_MESSAGE",
+      "value": "0x137"
+    },
     "FR_CONTEXT_MAX": {
       "name": "FR_CONTEXT_MAX",
-      "value": "0x136"
+      "value": "0x138"
     },
     "FR_CAMERA_TRANSFORM": {
       "name": "FR_CAMERA_TRANSFORM",
@@ -2304,6 +2456,14 @@
       "name": "FR_CAMERA_TILT_CORRECTION",
       "value": "0x212"
     },
+    "FR_CAMERA_NEAR_PLANE": {
+      "name": "FR_CAMERA_NEAR_PLANE",
+      "value": "0x213"
+    },
+    "FR_CAMERA_FAR_PLANE": {
+      "name": "FR_CAMERA_FAR_PLANE",
+      "value": "0x214"
+    },
     "FR_IMAGE_FORMAT": {
       "name": "FR_IMAGE_FORMAT",
       "value": "0x301"
@@ -2323,6 +2483,30 @@
     "FR_IMAGE_WRAP": {
       "name": "FR_IMAGE_WRAP",
       "value": "0x305"
+    },
+    "FR_IMAGE_FILTER_NEAREST": {
+      "name": "FR_IMAGE_FILTER_NEAREST",
+      "value": "(1 << 0)"
+    },
+    "FR_IMAGE_FILTER_LINEAR": {
+      "name": "FR_IMAGE_FILTER_LINEAR",
+      "value": "(1 << 1)"
+    },
+    "FR_IMAGE_WRAP_REPEAT": {
+      "name": "FR_IMAGE_WRAP_REPEAT",
+      "value": "(1 << 2)"
+    },
+    "FR_IMAGE_WRAP_MIRRORED_REPEAT": {
+      "name": "FR_IMAGE_WRAP_MIRRORED_REPEAT",
+      "value": "(1 << 3)"
+    },
+    "FR_IMAGE_WRAP_CLAMP_TO_EDGE": {
+      "name": "FR_IMAGE_WRAP_CLAMP_TO_EDGE",
+      "value": "(1 << 4)"
+    },
+    "FR_IMAGE_WRAP_CLAMP_TO_BORDER": {
+      "name": "FR_IMAGE_WRAP_CLAMP_TO_BORDER",
+      "value": "(1 << 5)"
     },
     "FR_SHAPE_TYPE": {
       "name": "FR_SHAPE_TYPE",
@@ -2395,6 +2579,10 @@
     "FR_SHAPE_DISPLACEMENT_MATERIAL": {
       "name": "FR_SHAPE_DISPLACEMENT_MATERIAL",
       "value": "0x413"
+    },
+    "FR_SHAPE_MATERIALS_PER_FACE": {
+      "name": "FR_SHAPE_MATERIALS_PER_FACE",
+      "value": "0x415"
     },
     "FR_MESH_POLYGON_COUNT": {
       "name": "FR_MESH_POLYGON_COUNT",
@@ -2523,6 +2711,10 @@
     "FR_SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND": {
       "name": "FR_SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND",
       "value": "0x70C"
+    },
+    "FR_SCENE_AABB": {
+      "name": "FR_SCENE_AABB",
+      "value": "0x70D"
     },
     "FR_LIGHT_TYPE": {
       "name": "FR_LIGHT_TYPE",
@@ -2932,8 +3124,8 @@
       "name": "FR_MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFRACTION",
       "value": "0x1F"
     },
-    "FR_MATERIAL_NODE_SIDES": {
-      "name": "FR_MATERIAL_NODE_SIDES",
+    "FR_MATERIAL_NODE_TWOSIDED": {
+      "name": "FR_MATERIAL_NODE_TWOSIDED",
       "value": "0x20"
     },
     "FR_MATERIAL_NODE_UV_PROJECT": {
@@ -3408,9 +3600,21 @@
       "name": "FR_AOV_SHADOW_CATCHER",
       "value": "0x0a"
     },
+    "FR_AOV_BACKGROUND": {
+      "name": "FR_AOV_BACKGROUND",
+      "value": "0x0b"
+    },
+    "FR_AOV_EMISSION": {
+      "name": "FR_AOV_EMISSION",
+      "value": "0x0c"
+    },
+    "FR_AOV_VELOCITY": {
+      "name": "FR_AOV_VELOCITY",
+      "value": "0x0d"
+    },
     "FR_AOV_MAX": {
       "name": "FR_AOV_MAX",
-      "value": "0x0b"
+      "value": "0x0e"
     },
     "FR_POST_EFFECT_TONE_MAP": {
       "name": "FR_POST_EFFECT_TONE_MAP",
@@ -3503,6 +3707,106 @@
     "FR_MAX_AA_GRID_SIZE": {
       "name": "FR_MAX_AA_GRID_SIZE",
       "value": "16"
+    },
+    "FR_COMPOSITE_TYPE": {
+      "name": "FR_COMPOSITE_TYPE",
+      "value": "0x1"
+    },
+    "FR_COMPOSITE_FRAMEBUFFER_INPUT_FB": {
+      "name": "FR_COMPOSITE_FRAMEBUFFER_INPUT_FB",
+      "value": "0x2"
+    },
+    "FR_COMPOSITE_NORMALIZE_INPUT_COLOR": {
+      "name": "FR_COMPOSITE_NORMALIZE_INPUT_COLOR",
+      "value": "0x3"
+    },
+    "FR_COMPOSITE_NORMALIZE_INPUT_SHADOWCATCHER": {
+      "name": "FR_COMPOSITE_NORMALIZE_INPUT_SHADOWCATCHER",
+      "value": "0x4"
+    },
+    "FR_COMPOSITE_CONSTANT_INPUT_VALUE": {
+      "name": "FR_COMPOSITE_CONSTANT_INPUT_VALUE",
+      "value": "0x5"
+    },
+    "FR_COMPOSITE_LERP_VALUE_INPUT_COLOR0": {
+      "name": "FR_COMPOSITE_LERP_VALUE_INPUT_COLOR0",
+      "value": "0x6"
+    },
+    "FR_COMPOSITE_LERP_VALUE_INPUT_COLOR1": {
+      "name": "FR_COMPOSITE_LERP_VALUE_INPUT_COLOR1",
+      "value": "0x7"
+    },
+    "FR_COMPOSITE_LERP_VALUE_INPUT_WEIGHT": {
+      "name": "FR_COMPOSITE_LERP_VALUE_INPUT_WEIGHT",
+      "value": "0x8"
+    },
+    "FR_COMPOSITE_ARITHMETIC_INPUT_COLOR0": {
+      "name": "FR_COMPOSITE_ARITHMETIC_INPUT_COLOR0",
+      "value": "0x9"
+    },
+    "FR_COMPOSITE_ARITHMETIC_INPUT_COLOR1": {
+      "name": "FR_COMPOSITE_ARITHMETIC_INPUT_COLOR1",
+      "value": "0x0a"
+    },
+    "FR_COMPOSITE_ARITHMETIC_INPUT_OP": {
+      "name": "FR_COMPOSITE_ARITHMETIC_INPUT_OP",
+      "value": "0x0b"
+    },
+    "FR_COMPOSITE_GAMMA_CORRECTION_INPUT_COLOR": {
+      "name": "FR_COMPOSITE_GAMMA_CORRECTION_INPUT_COLOR",
+      "value": "0x0c"
+    },
+    "FR_COMPOSITE_ARITHMETIC": {
+      "name": "FR_COMPOSITE_ARITHMETIC",
+      "value": "0x1"
+    },
+    "FR_COMPOSITE_LERP_VALUE": {
+      "name": "FR_COMPOSITE_LERP_VALUE",
+      "value": "0x2"
+    },
+    "FR_COMPOSITE_INVERSE": {
+      "name": "FR_COMPOSITE_INVERSE",
+      "value": "0x3"
+    },
+    "FR_COMPOSITE_NORMALIZE": {
+      "name": "FR_COMPOSITE_NORMALIZE",
+      "value": "0x4"
+    },
+    "FR_COMPOSITE_GAMMA_CORRECTION": {
+      "name": "FR_COMPOSITE_GAMMA_CORRECTION",
+      "value": "0x5"
+    },
+    "FR_COMPOSITE_EXPOSURE": {
+      "name": "FR_COMPOSITE_EXPOSURE",
+      "value": "0x6"
+    },
+    "FR_COMPOSITE_CONTRAST": {
+      "name": "FR_COMPOSITE_CONTRAST",
+      "value": "0x7"
+    },
+    "FR_COMPOSITE_SIDE_BY_SIDE": {
+      "name": "FR_COMPOSITE_SIDE_BY_SIDE",
+      "value": "0x8"
+    },
+    "FR_COMPOSITE_TONEMAP_ACES": {
+      "name": "FR_COMPOSITE_TONEMAP_ACES",
+      "value": "0x9"
+    },
+    "FR_COMPOSITE_TONEMAP_REINHARD": {
+      "name": "FR_COMPOSITE_TONEMAP_REINHARD",
+      "value": "0xa"
+    },
+    "FR_COMPOSITE_TONEMAP_LINEAR": {
+      "name": "FR_COMPOSITE_TONEMAP_LINEAR",
+      "value": "0xb"
+    },
+    "FR_COMPOSITE_FRAMEBUFFER": {
+      "name": "FR_COMPOSITE_FRAMEBUFFER",
+      "value": "0xc"
+    },
+    "FR_COMPOSITE_CONSTANT": {
+      "name": "FR_COMPOSITE_CONSTANT",
+      "value": "0xd"
     },
     "FR_FALSE": {
       "name": "FR_FALSE",
@@ -3746,6 +4050,21 @@
       "kind": "typedef",
       "type": "rpr_uint"
     },
+    "rpr_composite": {
+      "name": "rpr_composite",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rpr_composite_info": {
+      "name": "rpr_composite_info",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
+    "rpr_composite_type": {
+      "name": "rpr_composite_type",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
     "rpr_context": {
       "name": "rpr_context",
       "kind": "typedef",
@@ -3791,8 +4110,8 @@
       "kind": "typedef",
       "type": "rpr_uint"
     },
-    "rpr_image_type": {
-      "name": "rpr_image_type",
+    "rpr_image_option": {
+      "name": "rpr_image_option",
       "kind": "typedef",
       "type": "rpr_uint"
     },
@@ -4025,6 +4344,21 @@
       "kind": "typedef",
       "type": "rpr_component_type"
     },
+    "fr_composite": {
+      "name": "fr_composite",
+      "kind": "typedef",
+      "type": "rpr_composite"
+    },
+    "fr_composite_info": {
+      "name": "fr_composite_info",
+      "kind": "typedef",
+      "type": "rpr_composite_info"
+    },
+    "fr_composite_type": {
+      "name": "fr_composite_type",
+      "kind": "typedef",
+      "type": "rpr_composite_type"
+    },
     "fr_context": {
       "name": "fr_context",
       "kind": "typedef",
@@ -4070,10 +4404,10 @@
       "kind": "typedef",
       "type": "rpr_image_info"
     },
-    "fr_image_type": {
-      "name": "fr_image_type",
+    "fr_image_option": {
+      "name": "fr_image_option",
       "kind": "typedef",
-      "type": "rpr_image_type"
+      "type": "rpr_image_option"
     },
     "fr_image_wrap_type": {
       "name": "fr_image_wrap_type",
@@ -4448,6 +4782,21 @@
       ],
       "docs": null
     },
+    "frCameraSetFarPlane": {
+      "name": "frCameraSetFarPlane",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "camera",
+          "type": "fr_camera"
+        },
+        {
+          "name": "far",
+          "type": "fr_float"
+        }
+      ],
+      "docs": null
+    },
     "frCameraSetFocalLength": {
       "name": "frCameraSetFocalLength",
       "restype": "fr_int",
@@ -4542,6 +4891,21 @@
       ],
       "docs": null
     },
+    "frCameraSetNearPlane": {
+      "name": "frCameraSetNearPlane",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "camera",
+          "type": "fr_camera"
+        },
+        {
+          "name": "near",
+          "type": "fr_float"
+        }
+      ],
+      "docs": null
+    },
     "frCameraSetOrthoHeight": {
       "name": "frCameraSetOrthoHeight",
       "restype": "fr_int",
@@ -4629,6 +4993,155 @@
       ],
       "docs": null
     },
+    "frCompositeCompute": {
+      "name": "frCompositeCompute",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "fb",
+          "type": "fr_framebuffer"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeGetInfo": {
+      "name": "frCompositeGetInfo",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "composite_info",
+          "type": "fr_composite_info"
+        },
+        {
+          "name": "size",
+          "type": "size_t"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        },
+        {
+          "name": "size_ret",
+          "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeSetInput1u": {
+      "name": "frCompositeSetInput1u",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "value",
+          "type": "unsigned int"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeSetInput4f": {
+      "name": "frCompositeSetInput4f",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "x",
+          "type": "float"
+        },
+        {
+          "name": "y",
+          "type": "float"
+        },
+        {
+          "name": "z",
+          "type": "float"
+        },
+        {
+          "name": "w",
+          "type": "float"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeSetInputC": {
+      "name": "frCompositeSetInputC",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "input",
+          "type": "fr_composite"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeSetInputFb": {
+      "name": "frCompositeSetInputFb",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "input",
+          "type": "fr_framebuffer"
+        }
+      ],
+      "docs": null
+    },
+    "frCompositeSetInputOp": {
+      "name": "frCompositeSetInputOp",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "fr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "op",
+          "type": "fr_material_node_arithmetic_operation"
+        }
+      ],
+      "docs": null
+    },
     "frContextAttachPostEffect": {
       "name": "frContextAttachPostEffect",
       "restype": "fr_int",
@@ -4666,6 +5179,25 @@
         {
           "name": "out_camera",
           "type": "fr_camera*"
+        }
+      ],
+      "docs": null
+    },
+    "frContextCreateComposite": {
+      "name": "frContextCreateComposite",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "fr_context"
+        },
+        {
+          "name": "in_type",
+          "type": "fr_composite_type"
+        },
+        {
+          "name": "out_composite",
+          "type": "fr_composite*"
         }
       ],
       "docs": null
@@ -5740,6 +6272,21 @@
       ],
       "docs": null
     },
+    "frImageSetOption": {
+      "name": "frImageSetOption",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "image",
+          "type": "fr_image"
+        },
+        {
+          "name": "option",
+          "type": "fr_image_option"
+        }
+      ],
+      "docs": null
+    },
     "frImageSetWrap": {
       "name": "frImageSetWrap",
       "restype": "fr_int",
@@ -5977,6 +6524,21 @@
         {
           "name": "out_node",
           "type": "fr_material_node*"
+        }
+      ],
+      "docs": null
+    },
+    "frMaterialSystemGetSize": {
+      "name": "frMaterialSystemGetSize",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "in_context",
+          "type": "fr_context"
+        },
+        {
+          "name": "out_size",
+          "type": "fr_uint*"
         }
       ],
       "docs": null
@@ -6544,6 +7106,29 @@
       ],
       "docs": null
     },
+    "frShapeSetMaterialFaces": {
+      "name": "frShapeSetMaterialFaces",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "fr_shape"
+        },
+        {
+          "name": "node",
+          "type": "fr_material_node"
+        },
+        {
+          "name": "face_indices",
+          "type": "fr_int*"
+        },
+        {
+          "name": "num_faces",
+          "type": "size_t"
+        }
+      ],
+      "docs": null
+    },
     "frShapeSetObjectGroupID": {
       "name": "frShapeSetObjectGroupID",
       "restype": "fr_int",
@@ -7029,6 +7614,31 @@
         ]
       ]
     },
+    "rprCameraSetFarPlane": {
+      "name": "rprCameraSetFarPlane",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "camera",
+          "type": "rpr_camera"
+        },
+        {
+          "name": "far",
+          "type": "rpr_float"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCameraSetFarPlane(rpr_camera camera, rpr_float far);\n",
+        [
+          "/** @brief Set far plane of a camear\n",
+          "*\n",
+          "*  @param  camera  The camera to set far plane for\n",
+          "*  @param  far   Far plane distance in meters, default is 100000000.f\n",
+          "*  @return         RPR_SUCCESS in case of success, error code otherwise\n",
+          "*/\n"
+        ]
+      ]
+    },
     "rprCameraSetFocalLength": {
       "name": "rprCameraSetFocalLength",
       "restype": "rpr_int",
@@ -7192,6 +7802,31 @@
         ]
       ]
     },
+    "rprCameraSetNearPlane": {
+      "name": "rprCameraSetNearPlane",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "camera",
+          "type": "rpr_camera"
+        },
+        {
+          "name": "near",
+          "type": "rpr_float"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCameraSetNearPlane(rpr_camera camera, rpr_float near);\n",
+        [
+          "/** @brief Set near plane of a camear\n",
+          "*\n",
+          "*  @param  camera  The camera to set near plane for\n",
+          "*  @param  near   Near plane distance in meters, default is 0.01f\n",
+          "*  @return         RPR_SUCCESS in case of success, error code otherwise\n",
+          "*/\n"
+        ]
+      ]
+    },
     "rprCameraSetOrthoHeight": {
       "name": "rprCameraSetOrthoHeight",
       "restype": "rpr_int",
@@ -7333,6 +7968,232 @@
         ]
       ]
     },
+    "rprCompositeCompute": {
+      "name": "rprCompositeCompute",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "fb",
+          "type": "rpr_framebuffer"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeCompute(rpr_composite composite, rpr_framebuffer fb);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeGetInfo": {
+      "name": "rprCompositeGetInfo",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "composite_info",
+          "type": "rpr_composite_info"
+        },
+        {
+          "name": "size",
+          "type": "size_t"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        },
+        {
+          "name": "size_ret",
+          "type": "size_t*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeGetInfo(rpr_composite composite, rpr_composite_info composite_info, size_t size, void *  data, size_t * size_ret);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeSetInput1u": {
+      "name": "rprCompositeSetInput1u",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "value",
+          "type": "unsigned int"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeSetInput1u(rpr_composite composite, const char * inputName, unsigned int value);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeSetInput4f": {
+      "name": "rprCompositeSetInput4f",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "x",
+          "type": "float"
+        },
+        {
+          "name": "y",
+          "type": "float"
+        },
+        {
+          "name": "z",
+          "type": "float"
+        },
+        {
+          "name": "w",
+          "type": "float"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeSetInput4f(rpr_composite composite, const char * inputName, float x, float y, float z, float w);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeSetInputC": {
+      "name": "rprCompositeSetInputC",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "input",
+          "type": "rpr_composite"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeSetInputC(rpr_composite composite, const char * inputName, rpr_composite input);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeSetInputFb": {
+      "name": "rprCompositeSetInputFb",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "input",
+          "type": "rpr_framebuffer"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeSetInputFb(rpr_composite composite, const char * inputName, rpr_framebuffer input);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprCompositeSetInputOp": {
+      "name": "rprCompositeSetInputOp",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "composite",
+          "type": "rpr_composite"
+        },
+        {
+          "name": "inputName",
+          "type": "char const*"
+        },
+        {
+          "name": "op",
+          "type": "rpr_material_node_arithmetic_operation"
+        }
+      ],
+      "docs": [
+        "rpr_int rprCompositeSetInputOp(rpr_composite composite, const char * inputName, rpr_material_node_arithmetic_operation op);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
     "rprContextAttachPostEffect": {
       "name": "rprContextAttachPostEffect",
       "restype": "rpr_int",
@@ -7417,6 +8278,36 @@
           " *  @param  out_camera Pointer to camera object\n",
           " *  @return RPR_SUCCESS in case of success, error code otherwise\n",
           " */\n"
+        ]
+      ]
+    },
+    "rprContextCreateComposite": {
+      "name": "rprContextCreateComposite",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rpr_context"
+        },
+        {
+          "name": "in_type",
+          "type": "rpr_composite_type"
+        },
+        {
+          "name": "out_composite",
+          "type": "rpr_composite*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprContextCreateComposite(rpr_context context, rpr_composite_type in_type, rpr_composite * out_composite);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
         ]
       ]
     },
@@ -8877,8 +9768,11 @@
           "  *  @param api_version     Api version constant\n",
           "  *\t @param context_type    Determines compute API to use, OPENCL only is supported for now\n",
           "  *  @param creation_flags  Determines multi-gpu or cpu-gpu configuration\n",
-          "  *  @param props           Context properties, reserved for future use\n",
+          "  *  @param props           Context creation properties. Specifies a list of context property names and their corresponding values. \n",
+          "  *                         Each property name is immediately followed by the corresponding desired value. \n",
+          "  *                         The list is terminated with 0.  \n",
           "  *  @param cache_path      Full path to kernel cache created by FireRender, NULL means to use current folder\n",
+          "  *  @param cpu_thread_limit\tLimit for the number of threads used for CPU rendering\n",
           "  *  @param out_context\t\tPointer to context object\n",
           "  *  @return                RPR_SUCCESS in case of success, error code otherwise\n",
           "*/\n"
@@ -9319,6 +10213,36 @@
         ]
       ]
     },
+    "rprImageSetOption": {
+      "name": "rprImageSetOption",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "image",
+          "type": "rpr_image"
+        },
+        {
+          "name": "option",
+          "type": "rpr_image_option"
+        }
+      ],
+      "docs": [
+        "rpr_int rprImageSetOption(rpr_image image, rpr_image_option option);\n",
+        [
+          "/** @brief Sets an image option\n",
+          " *\n",
+          " *\tThe default option for each image is FR_IMAGE_FILTER_LINEAR | FR_IMAGE_WRAP_REPEAT\n",
+          " *  Possible error codes are:\n",
+          " *\n",
+          " *      FR_ERROR_INVALID_PARAMETER\n",
+          " *\n",
+          " *  @param  image\t\t\t\tThe image to set the option for\n",
+          " *  @param  option      The option to set\n",
+          " *  @return             RPR_SUCCESS in case of success, error code otherwise\n",
+          " */\n"
+        ]
+      ]
+    },
     "rprImageSetWrap": {
       "name": "rprImageSetWrap",
       "restype": "rpr_int",
@@ -9680,6 +10604,32 @@
       ],
       "docs": [
         "rpr_int rprMaterialSystemCreateNode(rpr_material_system in_matsys, rpr_material_node_type in_type, rpr_material_node * out_node);\n",
+        [
+          "/** @brief Returns the number of material nodes for a given material system\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprMaterialSystemGetSize": {
+      "name": "rprMaterialSystemGetSize",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "in_context",
+          "type": "rpr_context"
+        },
+        {
+          "name": "out_size",
+          "type": "rpr_uint*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprMaterialSystemGetSize(rpr_context in_context, rpr_uint * out_size);\n",
         [
           "/** @brief Create material node\n",
           "*\n",
@@ -10629,6 +11579,40 @@
         [
           "/** @brief Set shape material\n",
           "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprShapeSetMaterialFaces": {
+      "name": "rprShapeSetMaterialFaces",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "node",
+          "type": "rpr_material_node"
+        },
+        {
+          "name": "face_indices",
+          "type": "rpr_int*"
+        },
+        {
+          "name": "num_faces",
+          "type": "size_t"
+        }
+      ],
+      "docs": [
+        "rpr_int rprShapeSetMaterialFaces(rpr_shape shape, rpr_material_node node, rpr_int* face_indices, size_t num_faces);\n",
+        [
+          "/** @brief Set shape materials for specific faces\n",
+          "*\n",
+          "*  @param  shape\tThe shape to set the material for\n",
+          "*  @param  node \tThe material to set\n",
+          "*  @param  face_indices\t\n",
+          "*  @return\t\tRPR_SUCCESS in case of success, error code otherwise\n",
           "*/\n"
         ]
       ]

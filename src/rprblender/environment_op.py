@@ -48,13 +48,6 @@ image_map = None
 
 
 def get_sun_pos(env):
-    from rprblender.ui import ModifyEnvMatrix
-
-    if ModifyEnvMatrix.object_name not in bpy.data.objects:
-        return None
-
-    obj = bpy.data.objects[ModifyEnvMatrix.object_name]
-
     lib = helpers.render_resources_helper.lib
     lib.set_sun_horizontal_coordinate.argtypes = [ctypes.c_float, ctypes.c_float]
     lib.get_sun_azimuth.restype = ctypes.c_float
@@ -69,7 +62,7 @@ def get_sun_pos(env):
     sun_azimuth = lib.get_sun_azimuth()
     sun_altitude = lib.get_sun_altitude()
 
-    rot = obj.rotation_euler if obj else (0, 0, 0)
+    rot = env.gizmo_rotation
     euler_main_rotation = mathutils.Euler((rot[0], rot[1], rot[2]))
     main_matrix = euler_main_rotation.to_matrix()
     euler_azimut_rotation = mathutils.Euler((0, -sun_altitude, -sun_azimuth - np.pi * 0.5))
@@ -80,7 +73,6 @@ def get_sun_pos(env):
 
 
 def log_error_context(f):
-
     @functools.wraps(f)
     def wrapped(*argv):
         try:
@@ -110,12 +102,14 @@ def callback_draw_sun(self, context):
     font_height = 18
     distance = 10.0
 
-    vec = get_sun_pos(bpy.context.scene.rpr.render.environment)
+    vec = get_sun_pos(bpy.context.scene.world.rpr_data.environment)
     if not vec:
         return
 
     origin_xy = location_3d_to_region_2d(context.region, context.region_data, (0, 0, 0))
     sun_pos2d = location_3d_to_region_2d(context.region, context.region_data, vec * distance)
+    if not sun_pos2d:
+        return
 
     bgl.glDisable(bgl.GL_DEPTH_TEST)
     bgl.glEnable(bgl.GL_BLEND)
@@ -289,7 +283,7 @@ class OpLoacationSelectCore(bpy.types.Operator):
         elif event.type in {'RIGHTMOUSE', 'RET'} and self.result:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
 
-            sun_sky = bpy.context.scene.rpr.render.environment.sun_sky
+            sun_sky = bpy.context.scene.world.rpr_data.environment.sun_sky
             sun_sky.latitude = self.result[1]
             sun_sky.longitude = self.result[0]
 
@@ -311,7 +305,7 @@ class OpLoacationSelectCore(bpy.types.Operator):
 
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
-            sun_sky = bpy.context.scene.rpr.render.environment.sun_sky
+            sun_sky = bpy.context.scene.world.rpr_data.environment.sun_sky
             self.result = [sun_sky.longitude, sun_sky.latitude]
             self.pick_point = None
             self.target_point = None
@@ -397,7 +391,7 @@ class OpLoacationSelectByCity(bpy.types.Operator):
                                 ctypes.c_void_p(longi.ctypes.data),
                                 ctypes.c_void_p(utcoffset.ctypes.data))
         if res:
-            sun_sky = bpy.context.scene.rpr.render.environment.sun_sky
+            sun_sky = bpy.context.scene.world.rpr_data.environment.sun_sky
             sun_sky.latitude = math.radians(latt)
             sun_sky.longitude = math.radians(longi)
             sun_sky.time_zone = utcoffset

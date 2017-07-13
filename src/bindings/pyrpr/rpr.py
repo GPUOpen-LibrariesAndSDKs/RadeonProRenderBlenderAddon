@@ -8,59 +8,41 @@ import cffi
 sys.path.append('src')
 import pyrprapi
 
-ffi = cffi.FFI()
+def export(json_file_name, dependencies, header_file_name, cffi_name, output_name, output_name_make):
+    ffi = cffi.FFI()
 
 rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
 
-api_desc_fpath = str(Path(pyrprapi.__file__).parent / 'pyrprapi.json')
-api = pyrprapi.load(api_desc_fpath)
+    api_desc_fpath = str(Path(pyrprapi.__file__).parent / json_file_name)
 
-with open('rprapi.h', 'w') as f:
-    for name, c in api.constants.items():
-        print('#define', name, eval(c.value), file=f)
+    with open('rprapi.h', 'w') as f:
+        for dep in dependencies:
+            write_api(str(Path(pyrprapi.__file__).parent / dep), f)
+        write_api(api_desc_fpath, f)
 
-    for name, t in api.types.items():
-        print(name, t.kind)
-        if 'struct' == t.kind:
-            print('typedef struct', name, '{', file=f)
-            for field in t.fields:
-                print('    ' + field.type, field.name + ';', file=f)
-            print('};', file=f)
-        else:
-            print('typedef ', t.type, name, ';', file=f)
+    ffi.cdef(Path('rprapi.h').read_text())
 
-    for name, t in api.functions.items():
-        print(name, [(arg.name, arg.type) for arg in t.args])
-        print(t.restype, name, '(' + ', '.join(arg.type + ' ' + arg.name for arg in t.args) + ');', file=f)
+    lib_names = ['RadeonProRender64', 'RprSupport64']
+    if "Windows" == platform.system():
+    elif "Linux" == platform.system():
+        assert 'Ubuntu-16.04' in platform.platform()
+    else:
+        assert False
 
-ffi.cdef(Path('rprapi.h').read_text())
+    abi_mode = 'Windows' != platform.system()
 
-lib_name = 'RadeonProRender64'
-lib_folder = 'lib'
-if "Windows" == platform.system():
-    platform_folder = "Win"
-elif "Linux" == platform.system():
-    assert 'Ubuntu-16.04' in platform.platform()
-    platform_folder = "Linux"
-else:
-    assert False
+    if abi_mode:
+        ffi.set_source(cffi_name, None)
+    else:
+        ffi.set_source(cffi_name,
+                       """
+                       #include <""" + header_file_name + """>
+                       """,
+                       libraries=lib_names,
+                       source_extension='.cpp',
+                       )
 
-abi_mode = 'Windows' != platform.system()
 
-if abi_mode:
-    ffi.set_source("__rpr", None)
-else:
-    ffi.set_source("__rpr",
-                   """
-                   #include <RadeonProRender.h>
-                   """,
-                   libraries=[lib_name],
-                   include_dirs=[str(rprsdk_path / platform_folder / 'inc')],
-                   library_dirs=[str(rprsdk_path / platform_folder / lib_folder)],
-                   source_extension='.cpp',
-                   )
-
-if __name__ == "__main__":
     build_dir = Path(__file__).parent / '.build'
     src_dir = Path(__file__).parent
 
@@ -70,8 +52,10 @@ if __name__ == "__main__":
     import shutil
     import subprocess
 
-    with (build_dir / 'pyrprwrap.py').open('w') as pyrprwrap:
-        subprocess.check_call([sys.executable, 'pyrprwrap_make.py', str(api_desc_fpath)], stdout=pyrprwrap)
+    with (build_dir / output_name).open('w') as pyrprwrap:
+        cmd = [sys.executable, output_name_make, str(api_desc_fpath)]
+        print(cmd)
+        subprocess.check_call(cmd, stdout=pyrprwrap)
 
     import _cffi_backend
 
@@ -91,3 +75,29 @@ if __name__ == "__main__":
         cmd = ['patchelf', '--set-rpath', "$ORIGIN", str(cffi_backend_path)]
         print(' '.join(cmd))
         subprocess.check_call(cmd)
+
+
+def write_api(api_desc_fpath, f):
+    api = pyrprapi.load(api_desc_fpath)
+    for name, c in api.constants.items():
+        print(name)
+        print('#define', name, '...', file=f)
+    for name, t in api.types.items():
+        print(name, t.kind)
+        if 'struct' == t.kind:
+            print('typedef struct', name, '{', file=f)
+            for field in t.fields:
+                print('    ' + field.type, field.name + ';', file=f)
+            print('};', file=f)
+        else:
+            print('typedef ', t.type, name, ';', file=f)
+    for name, t in api.functions.items():
+        if 'rprxGetLog' == name:continue
+        print(name, [(arg.name, arg.type) for arg in t.args])
+        print(t.restype, name, '(' + ', '.join(arg.type + ' ' + arg.name for arg in t.args) + ');', file=f)
+
+
+if __name__ == "__main__":
+    export('pyrprapi.json', [], 'RadeonProRender.h', '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py')
+    export('pyrprsupportapi.json', ['pyrprapi.json'],
+           'RprSupport.h', '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py')

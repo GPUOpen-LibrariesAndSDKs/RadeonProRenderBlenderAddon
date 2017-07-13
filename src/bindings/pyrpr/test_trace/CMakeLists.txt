@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(test_trace)
 
-set(RPR_SDK_PATH "${CMAKE_SOURCE_DIR}/../../../../ThirdParty/RadeonProRender SDK/Win")
+set(RPR_SDK_PATH "${CMAKE_SOURCE_DIR}/../../../../RadeonProRender")
 
 if (NOT EXISTS "${RPR_SDK_PATH}")
     message(FATAL_ERROR "not exists RPR_SDK_PATH=${RPR_SDK_PATH}")
@@ -18,5 +18,5 @@ endif()
 
 add_executable(app ${result})
 
-target_link_libraries(app "${RPR_SDK_PATH}/lib/RadeonProRender64.lib")
+target_link_libraries(app "${RPR_SDK_PATH}/libWin64/RadeonProRender64.lib")
 target_include_directories(app PRIVATE "${RPR_SDK_PATH}/inc")

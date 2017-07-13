@@ -14,6 +14,7 @@ import rprblender.ui
 import rprblender.core.image
 from rprblender.nodes import get_node_groups_by_id
 
+import pyrprx
 
 def log_mat(*args):
     logging.debug(*args, tag='material')
@@ -50,6 +51,7 @@ class ShaderType(IntEnum):
     TRANSPARENT = pyrpr.MATERIAL_NODE_TRANSPARENT
     WARD = pyrpr.MATERIAL_NODE_WARD
     UBER = pyrpr.MATERIAL_NODE_STANDARD
+    UBER2 = 0xFF
 
 
 class NodeType(IntEnum):
@@ -158,10 +160,14 @@ class Image:
 
 class Node:
     handle = None
+    rprx_context = None
 
     def __init__(self, handle):
         assert handle
         self.handle = handle
+
+    def set_rprx_context(self, rprx_context_temp):
+        self.rprx_context = rprx_context_temp
 
     def set_value(self, name, value):
         if value.is_vector():
@@ -177,14 +183,51 @@ class Node:
         else:
             log_mat('set_value : none "%s" (%s)' % (name, value))
 
+    def set_value_rprx(self, parameter, value):
+        if value.is_vector():
+            log_mat('  set_value_rprx : set "%s" rpr vector from value(%f, %f, %f, %f,)'
+                    % (parameter, value.x, value.y, value.z, value.w))
+            pyrprx.MaterialSetParameterF(self.rprx_context, self.get_handle(),
+                                          parameter,
+                                          value.x, value.y, value.z, value.w)
+        elif value.is_node():
+            node = value.node
+            pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
+                                          node.get_handle() if node.get_handle() else None)
+        elif value.is_image():
+            image = value.image
+            pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
+                                          image.get_handle() if image.get_handle() else None)
+        else:
+            log_mat('set_value : none "%s" (%s)' % (parameter, value))
+
+
+
     def set_int(self, name, int_val):
         log_mat('  set_int : set "%s" int(%d)' % (name, int_val))
         pyrpr.MaterialNodeSetInputU(self.get_handle(), name, int_val)
 
+    def set_int_rprx(self, parameter, int_val):
+        log_mat('  set_int : set "%s" int(%d)' % (parameter, int_val))
+        pyrprx.xMaterialSetParameterU(self.rprx_context, self.get_handle(), parameter, int_val)
+
     def set_node(self, name, rpr_node):
         assert self.get_handle()
         log_mat('  set_node : set node to param "%s"' % name)
-        pyrpr.MaterialNodeSetInputN(self.get_handle(), name, rpr_node.get_handle() if rpr_node.get_handle() else None)
+        if rpr_node.rprx_context == None:
+            pyrpr.MaterialNodeSetInputN(self.get_handle(), name,
+                                        rpr_node.get_handle() if rpr_node.get_handle() else None)
+        else:
+            # attach rprx shader output to some material's input
+            # note: there's no call to rprxShapeDetachMaterial
+            pyrprx.xMaterialAttachMaterial(rpr_node.rprx_context, self.get_handle(), name,
+                                           rpr_node.get_handle() if rpr_node.get_handle() else None)
+
+
+
+    def set_node_rprx(self, parameter, rpr_node):
+        pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
+                                      rpr_node.get_handle() if rpr_node.get_handle() else None)
 
     def set_image(self, name, image):
         assert self.get_handle()
@@ -302,7 +345,11 @@ class Shader(Node):
     type = None
 
     def __init__(self, mat, type):
-        super().__init__(mat.create_material_node(type))
+        if type == ShaderType.UBER2:
+            super().__init__(mat.create_uber_material())
+            super().set_rprx_context(mat.manager.get_uber_rprx_context())
+        else:
+            super().__init__(mat.create_material_node(type))
         self.type = type
 
 
@@ -532,9 +579,15 @@ class UberShader(Shader):
         self.set_value(b"weights.transparency", value)
 
 
+
+class UberShader2(Shader):
+    def __init__(self, mat):
+        super().__init__(mat, ShaderType.UBER2)
+
+
 class Material:
+    shader = None
     manager = None
-    root_handle = None
     volume_handle = None
     displacement = None
 
@@ -546,8 +599,13 @@ class Material:
 
         self.parse(blender_mat)
 
+    def __del__(self):
+        if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
+            pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
+            self.shader.rprx_context = None
+
     def get_handle(self):
-        return self.root_handle
+        return None if self.shader == None else self.shader.get_handle()
 
     def get_volume(self):
         return self.volume_handle
@@ -687,8 +745,18 @@ class Material:
         scale_min = blender_node.scale_min
         scale_max = blender_node.scale_max
         socket = self.get_socket(blender_node, blender_node.map_in)
-        assert socket
-        return self.parse_node(socket), scale_min, scale_max
+        res = None
+
+        logging.info('socket: ', socket)
+        if socket:
+            res = self.parse_node(socket)
+        else:
+            logging.warn("Displacement node hasn't map")
+
+        if res.is_vector(): # error value
+            logging.warn("Displacement map error")
+            res = None
+        return res, scale_min, scale_max
 
     def parse_shader_node_emissive(self, blender_node):
         log_mat('parse_shader_node_emissive...')
@@ -927,6 +995,191 @@ class Material:
 
         return shader
 
+
+    def parse_shader_node_uber2(self, blender_node):
+        log_mat('parse_shader_node_uber2...')
+
+        shader = UberShader2(self)
+
+        nul_value_vector = ValueVector(0,0,0,0)
+
+        # DIFFUSE:
+        if blender_node.diffuse:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR,
+                                  self.get_value(blender_node, blender_node.diffuse_color))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT,
+                                  self.get_value(blender_node, blender_node.diffuse_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS,
+                                  self.get_value(blender_node, blender_node.diffuse_roughness))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT,
+                                  nul_value_vector)
+
+        # REFLECTION:
+        if blender_node.reflection:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_COLOR,
+                                  self.get_value(blender_node, blender_node.reflection_color))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT,
+                                  self.get_value(blender_node, blender_node.reflection_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS,
+                                  self.get_value(blender_node, blender_node.reflection_roughness))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY,
+                                  self.get_value(blender_node, blender_node.reflection_anisotropy))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION,
+                                  self.get_value(blender_node, blender_node.reflection_anisotropy_rotation))
+
+            if blender_node.reflection_fresnel_metalmaterial:
+                # metallic material:
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
+                                    pyrprx.UBER_MATERIAL_REFLECTION_MODE_METALNESS)
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS,
+                                      self.get_value(blender_node, blender_node.reflection_fresnel_metalness))
+            else:
+                # PBR material
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
+                                    pyrprx.UBER_MATERIAL_REFLECTION_MODE_PBR)
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_IOR,
+                                      self.get_value(blender_node, blender_node.reflection_fresnel_ior))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT,
+                                  nul_value_vector)
+
+        # REFRACTION:
+        if blender_node.refraction:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_COLOR,
+                                  self.get_value(blender_node, blender_node.refraction_color))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT,
+                                  self.get_value(blender_node, blender_node.refraction_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ROUGHNESS,
+                                  self.get_value(blender_node, blender_node.refraction_roughness))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR,
+                                  self.get_value(blender_node, blender_node.refraction_ior))
+
+            is_linked = blender_node.refraction_link_to_reflection
+            is_thin_surface = blender_node.refraction_thin_surface
+
+            # prevent crash in RPR (1.258) - "linked IOR" doesn't work when reflection mode set to "metallic"
+            if blender_node.reflection_fresnel_metalmaterial:
+                is_linked = False
+
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR_MODE,
+                                pyrprx.UBER_MATERIAL_REFRACTION_MODE_LINKED if is_linked else
+                                pyrprx.UBER_MATERIAL_REFRACTION_MODE_SEPARATE)
+
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE,
+                                pyrpr.TRUE if is_thin_surface else
+                                pyrpr.FALSE)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT,
+                                  nul_value_vector)
+
+        # COATING
+        if blender_node.coating:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_COLOR,
+                                self.get_value(blender_node, blender_node.coating_color))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
+                                self.get_value(blender_node, blender_node.coating_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS,
+                                self.get_value(blender_node, blender_node.coating_roughness))
+
+            is_metal_material = blender_node.coating_fresnel_metal_material
+
+            if is_metal_material:
+                # metallic material:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_METALNESS,
+                                    self.get_value(blender_node, blender_node.coating_fresnel_metalness))
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE,
+                                    pyrprx.UBER_MATERIAL_COATING_MODE_METALNESS)
+            else:
+                # PBR material:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_IOR,
+                                    self.get_value(blender_node, blender_node.coating_fresnel_ior))
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE,
+                                    pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
+                                  nul_value_vector)
+
+        # EMISSIVE:
+        if blender_node.emissive:
+            emissive_color = self.get_value(blender_node, blender_node.emissive_color)
+            emissive_intesivity = self.get_value(blender_node, blender_node.emissive_intensity)
+            val = self.mul_value(emissive_color, emissive_intesivity)
+
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT,
+                                self.get_value(blender_node, blender_node.emissive_weight))
+
+            is_double_sided = blender_node.emissive_double_sided
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE,
+                                pyrprx.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED if is_double_sided else
+                                pyrprx.UBER_MATERIAL_EMISSION_MODE_SINGLESIDED)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT,
+                                  nul_value_vector)
+
+        # SUBSURFACE
+        if blender_node.subsurface:
+            use_diffuse_color = blender_node.subsurface_use_diffuse_color
+            if use_diffuse_color and blender_node.diffuse:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
+                                      self.get_value(blender_node, blender_node.diffuse_color))
+            else:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
+                                      self.get_value(blender_node, blender_node.subsurface_color))
+
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
+                                  self.get_value(blender_node, blender_node.subsurface_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_ABSORPTION_COLOR,
+                                  self.get_value(blender_node, blender_node.subsurface_volume_transmission))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
+                                  self.get_value(blender_node, blender_node.subsurface_volume_scatter))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_ABSORPTION_DISTANCE,
+                                  self.get_value(blender_node, blender_node.subsurface_volume_density))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE,
+                                  self.get_value(blender_node, blender_node.subsurface_volume_density))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION,
+                                  self.get_value(blender_node, blender_node.subsurface_scattering_direction))
+
+            is_multi_scattering = blender_node.subsurface_multiple_scattering
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
+                                pyrpr.TRUE if is_multi_scattering else pyrpr.FALSE)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
+                                  nul_value_vector)
+
+        # TRANSPARENCY
+        if blender_node.transparency:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_TRANSPARENCY,
+                                  self.get_value(blender_node, blender_node.transparency_value))
+
+
+        # NORMAL
+        if blender_node.normal:
+            normal_socket = self.get_socket(blender_node, blender_node.normal_in)
+            if normal_socket is not None:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_NORMAL, self.parse_node(normal_socket))
+
+
+        # DISPLACEMENT
+        if blender_node.displacement:
+            displacement_socket = self.get_socket(blender_node, blender_node.displacement_map)
+
+            if type(displacement_socket) == bpy.types.NodeSocketShader:
+                #displacement shader:
+                #it's not handled,
+                #use arithmetic nodes to change height
+                logging.critical('Instead of Displacement Shader, Use Arithmetic Node to change Height!')
+                assert(False)
+            else:
+                displacement_value = self.get_value(blender_node, blender_node.displacement_map)
+                if not displacement_value.is_vector():
+                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_DISPLACEMENT,
+                                          displacement_value)
+
+        return shader
+
+
     def parse_input_node_constant(self, blender_node):
         log_mat('parse_input_node_constant...')
         color = blender_node.color
@@ -968,15 +1221,15 @@ class Material:
         return ValueNode(node)
 
     def parse_texture_node_get_image(self, blender_node):
-        if blender_node.image_name not in bpy.data.images:
-            log_mat(
-                "_parse_texture_node_get_image : cant find image '%s', return error value" % blender_node.image_name)
+        img = blender_node.get_image()
+        if not img:
+            log_mat("parse_texture_node_get_image : image is empty")
             return None
-        img = bpy.data.images[blender_node.image_name]
+
         if img.channels == 0:
-            log_mat("_parse_texture_node_get_image : image '%s' is empty, return error value" % blender_node.image_name)
+            log_mat("parse_texture_node_get_image : image '%s' data is empty" % img.name)
             return None
-        return self.parse_image(bpy.data.images[blender_node.image_name])
+        return self.parse_image(img)
 
     def parse_image(self, source_image):
         log_mat('Parse : image map "%s"...' % source_image.filepath)
@@ -1186,6 +1439,12 @@ class Material:
         self.node_list.append(core_node)
         return core_node
 
+    def create_uber_material(self):
+        uber_material = pyrprx.Object('rprx_material')
+        pyrprx.CreateMaterial(self.manager.get_uber_rprx_context(), pyrprx.MATERIAL_UBER, uber_material)
+        self.node_list.append(uber_material)
+        return uber_material
+
     def blend_shader(self, shader1, shader2, weight):
         log_mat("blend_shader : %s, %s" % (shader1, shader2))
 
@@ -1289,13 +1548,11 @@ class Material:
             return
 
         try:
-            shader = self.parse_node(None, blender_node)
+            self.shader = self.parse_node(None, blender_node)
         except BaseException as e:
             logging.warn('{}(failed to parse material node "{}")'.format(e, blender_node.name), tag='material')
             logging.critical(traceback.format_exc())
-            shader = self.create_error_shader()
-
-        self.root_handle = shader.get_handle()
+            self.shader = self.create_error_shader()
 
     def get_socket_index(self, sockets_list, socket):
         for i, s in enumerate(sockets_list):
@@ -1325,6 +1582,7 @@ class Material:
             'rpr_shader_node_transparent': self.parse_shader_node_transparent,
             'rpr_shader_node_ward': self.parse_shader_node_ward,
             'rpr_shader_node_uber': self.parse_shader_node_uber,
+            'rpr_shader_node_uber2': self.parse_shader_node_uber2,
 
             'rpr_texture_node_image_map': self.parse_texture_node_image_map,
             'rpr_mapping_node': self.parse_mapping_node,
@@ -1438,7 +1696,10 @@ class Material:
 
     def clear(self):
         self.node_list.clear()
-        self.root_handle = None
+        if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
+            pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
+            self.shader.rprx_context = None
+        self.shader = None
         self.volume_handle = None
 
     ########################################################################################################################

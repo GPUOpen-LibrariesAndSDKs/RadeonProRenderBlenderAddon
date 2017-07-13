@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from itertools import *
 
@@ -140,7 +141,7 @@ class Saver(collections.OrderedDict):
             value.save(self.add_record(key))
 
 
-def save(api: ApiDesc):
+def save(api: ApiDesc, file_name):
     import json
 
     saver = Saver()
@@ -150,7 +151,7 @@ def save(api: ApiDesc):
     saver.add_record('functions').update_from_dict(api.functions)
     print(saver)
 
-    json.dump(saver, open('pyrprapi.json', 'w'), indent=2)
+    json.dump(saver, open(file_name, 'w'), indent=2)
 
 
 class Loader:
@@ -173,15 +174,11 @@ def load(fpath):
     return api
 
 
-def export():
+def export(rpr_header, json_file_name, prefixes, castxml):
     import xml.etree.ElementTree
     import subprocess
 
     import sys
-
-    rpr_header = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
-
-    castxml = r'C:\tools\castxml\bin\castxml'
 
     subprocess.check_call([castxml, '-E', '-dD', rpr_header, '-o', 'rprapi.pp'])
     subprocess.check_call([castxml, '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
@@ -353,6 +350,7 @@ def export():
             return 'struct:'+str((self.name, [repr(members.get(id, id)) for id in self.fields] ))
 
         def get_name_for_typedef(self):
+            # case for "typedef struct {}* typename;" which cffi can't parse
             return 'struct ' + self.name
 
         def generate_cdecl(self):
@@ -435,14 +433,14 @@ def export():
     for i in sorted(typedefs_sorted.keys()):
         for t in sorted(typedefs_sorted[i], key=lambda t: t.name):
             name = t.name
-            for prefix in ['rpr_', '_rpr', 'fr_', '_fr']:
+            for prefix in prefixes['type']:
                 if name.startswith(prefix):
                     local_name = name[len(prefix):]
                     api.types[name] = t.generate_desc()
 
     for t in sorted(functions, key=lambda t: t.name):
         name = t.name
-        for prefix in ['rpr', 'fr']:
+        for prefix in prefixes['function']:
             if name.startswith(prefix):
                 local_name = name[len(prefix):]
                 api.functions[name] = t.generate_desc()
@@ -453,7 +451,7 @@ def export():
             tokens = line.split()
             name = tokens[1]
             if 'API_ENTRY' not in name:
-                for prefix in ['RPR_', 'FR_']:
+                for prefix in prefixes['constant']:
                     if name.startswith(prefix):
                         value = ' '.join(tokens[2:])
                         local_name = name[len(prefix):]
@@ -506,8 +504,32 @@ def export():
             local_name = name[len('rpr'):]
             api.functions[name].docs = sig[2]
 
-    save(api)
+    save(api,json_file_name)
 
 
 if __name__=='__main__':
-    export()
+    #change paths according to your developer environment:
+    #castxml = r'C:\Development\tools\castxml\bin\castxml'
+
+    castxml = sys.argv[1]
+
+    rpr_header_rpr = '../../../../RadeonProRender/inc/RadeonProRender.h'
+    json_file_name_rpr = 'pyrprapi.json'
+
+    rpr_header_rpr_support = '../../../../RadeonProRender/inc/RprSupport.h'
+    json_file_name_rpr_support = 'pyrprsupportapi.json'
+
+    export(rpr_header_rpr, json_file_name_rpr,
+           {
+               'type':['rpr_', '_rpr', 'fr_', '_fr'],
+               'function':['rpr', 'fr'],
+               'constant':['RPR_', 'FR_']
+           },
+        castxml)
+    export(rpr_header_rpr_support, json_file_name_rpr_support,
+           {
+               'type': ['rprx_', '_rprx'],
+               'function': ['rprx'],
+               'constant': ['RPRX_']
+           },
+           castxml)

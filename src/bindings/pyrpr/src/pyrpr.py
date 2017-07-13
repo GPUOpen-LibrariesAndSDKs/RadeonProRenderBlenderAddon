@@ -13,36 +13,36 @@ lib_wrapped_log_calls = False
 
 class CoreError(Exception):
 
-    def __init__(self, status, func_name, argv):
+    def __init__(self, status, func_name, argv, module_name):
         for name in pyrprwrap._constants_names:
             value = getattr(pyrprwrap, name)
             if name.startswith('ERROR_') and status == value:
                 status = "%s<%d>" % (name, value)
                 break
         super().__init__(
-            "RPR call %s(%s) returned error code: <%s>"%(
-                func_name, ', '.join(str(a) for a in argv), status))
+            "%s call %s(%s) returned error code: <%s>"%(
+                module_name, func_name, ', '.join(str(a) for a in argv), status))
 
 
-def wrap_core_check_success(f):
+def wrap_core_check_success(f, module_name):
     @functools.wraps(f)
     def wrapped(*argv):
         status = f(*argv)
         if SUCCESS != status:
-            raise CoreError(status, f.__name__, argv)
+            raise CoreError(status, f.__name__, argv, module_name)
         return status
     return wrapped
 
-def wrap_core_log_call(f, log_fun):
+def wrap_core_log_call(f, log_fun, module_name):
     signature = inspect.signature(f)
 
     @functools.wraps(f)
     def wrapped(*argv):
-        log_fun(f.__name__, ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)))
+        log_fun(module_name+'::'+f.__name__, ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)))
         #log_fun(f.__name__, ', '.join(p.name for p in signature.parameters.values()))
 
         result = f(*argv)
-        log_fun(f.__name__, "done")
+        log_fun(module_name+'::'+f.__name__, "done")
         return result
     return wrapped
 
@@ -73,20 +73,21 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
     if "Windows" == platform.system():
         # preload OpenImage dll so we don't have to add PATH
         ctypes.CDLL(str(rprsdk_bin_path / 'OpenImageIO_RPR.dll'))
-        lib_name = 'RadeonProRender64.dll'
+        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll']
     elif "Linux" == platform.system():
-        lib_name = 'libRadeonProRender64.so'
+        lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so']
     else:
         assert False
 
-    rpr_lib_path = rprsdk_bin_path / lib_name
-    ctypes.CDLL(str(rpr_lib_path))
+    for lib_name in lib_names:
+        rpr_lib_path = rprsdk_bin_path / lib_name
+        ctypes.CDLL(str(rpr_lib_path))
 
     import __rpr
     try:
         lib = __rpr.lib
     except AttributeError:
-        lib = __rpr.ffi.dlopen(str(rprsdk_bin_path/lib_name))
+        lib = __rpr.ffi.dlopen(str(rprsdk_bin_path/lib_names[0]))
     pyrprwrap.lib = lib
     pyrprwrap.ffi = __rpr.ffi
     global ffi
@@ -103,9 +104,9 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
         if sync_calls:
             wrapped = wrap_core_sync(wrapped)
         if lib_wrapped_log_calls:
-            wrapped = wrap_core_log_call(wrapped, log_fun)
+            wrapped = wrap_core_log_call(wrapped, log_fun, 'RPR')
         if all(name not in wrapped.__name__ for name in ['RegisterPlugin', 'CreateContext']):
-            wrapped = wrap_core_check_success(wrapped)
+            wrapped = wrap_core_check_success(wrapped, 'RPR')
         setattr(_module, name, wrapped)
 
     del _module
@@ -200,4 +201,12 @@ class Image(Object):
 class PostEffect(Object):
 
     core_type_name = 'rpr_post_effect'
+
+
+def is_transform_matrix_valid(transform):
+    import numpy as np
+    # just checking for 'NaN', everything else - catch failure of SetTransform and recover
+    if not np.all(np.isfinite(transform)):
+        return False
+    return True
 

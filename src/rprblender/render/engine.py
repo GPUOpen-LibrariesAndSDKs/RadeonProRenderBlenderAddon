@@ -17,6 +17,7 @@ import rprblender.render.viewport
 from rprblender import rpraddon, logging, config, sync, export
 from rprblender.helpers import CallLogger
 from rprblender.timing import TimedContext
+from rprblender.versions import get_render_passes_aov
 
 call_logger = CallLogger(tag='render.engine')
 
@@ -35,7 +36,7 @@ class RenderViewport(bpy.types.Operator):
 def start_viewport_rendering(context):
     viewport_renderer = rprblender.render.viewport.ViewportRenderer()
     logging.debug('start: {},{}'.format(context.region.width, context.region.height), tag='render.viewport')
-    viewport_renderer.set_render_aov(bpy.context.scene.rpr.render)
+    viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
     viewport_renderer.set_render_resolution((context.region.width, context.region.height))
     viewport_renderer.set_render_camera(sync.extract_viewport_render_camera(context, context.scene.rpr.render))
     viewport_renderer.start(context.scene)
@@ -97,7 +98,7 @@ class RPREngine(bpy.types.RenderEngine):
 
     @staticmethod
     def init_preview_settings():
-        ibl = bpy.context.scene.rpr.render_preview.environment.ibl
+        ibl = bpy.context.scene.rpr.preview_environment.ibl
         ibl.use_ibl_map = True
         ibl.ibl_map = str(Path(rprblender.__file__).parent / 'img/env.hdr')
         ibl.maps.background_map = str(Path(rprblender.__file__).parent / 'img/gray.jpg')
@@ -126,7 +127,7 @@ class RPREngine(bpy.types.RenderEngine):
         width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
         height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100.0)
 
-        settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render  # type: rprblender.properties.RenderSettings
+        settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render
 
         with rprblender.render.core_operations(raise_error=True):
             scene_renderer = rprblender.render.scene.SceneRenderer(settings, not self.is_preview)  #
@@ -143,11 +144,11 @@ class RPREngine(bpy.types.RenderEngine):
 
         scene_synced.set_render_camera(render_camera)
 
-        aov_settings = rprblender.render.render_layers.extract_settings(
-                scene_renderer.render_settings)
+        passes_aov = bpy.context.scene.rpr.preview_aov if self.is_preview else get_render_passes_aov(bpy.context)
+        aov_settings = rprblender.render.render_layers.extract_settings(passes_aov)
+
         with rprblender.render.core_operations(raise_error=True):
             scene_synced.make_core_scene()
-
             scene_renderer.update_aov(aov_settings)
             scene_renderer.update_render_resolution(render_resolution)
 
@@ -160,6 +161,12 @@ class RPREngine(bpy.types.RenderEngine):
             # texture compression context param needs to be set before exporting textures
             pyrpr.ContextSetParameter1u(scene_renderer.get_core_context(), b"texturecompression",
                                         settings.texturecompression)
+
+            if self.is_preview:
+                settings_environment = bpy.context.scene.rpr.preview_environment
+            else:
+                settings_environment = scene.world.rpr_data.environment if scene.world else None
+            scene_exporter.sync_environment_settings(settings_environment)
 
             if self.is_preview:
                 is_icon = width <= 32 and height <= 32
@@ -194,6 +201,7 @@ class RPREngine(bpy.types.RenderEngine):
                 iteration_displayed = None
                 while True:
                     render_completed = False
+
                     # update render stats few times before displaying intermediate results(long operation in Blender)
                     for i in range(10):
                         if not scene_renderer_treaded.is_alive():
@@ -205,16 +213,18 @@ class RPREngine(bpy.types.RenderEngine):
                         if scene_renderer_treaded.render_completed_event.wait(timeout=0.1):
                             render_completed = True
                             break
+
+                    iteration = self.get_rendered_iteration(scene_renderer)
+                    if iteration_displayed != iteration:
+                        self.set_render_to_result(result_render_layer, scene_renderer)
+
+                        if not render_completed:
+                            iteration_displayed = iteration
+                            with TimedContext("update_result"):
+                                self.update_result(result)
+
                     if render_completed:
                         break
-                    iteration = self.set_rendered_image_to_result(result_render_layer, scene_renderer, iteration_displayed)
-                    if iteration is not None:
-                        iteration_displayed = iteration
-                        with TimedContext("update_result"):
-                            self.update_result(result)
-
-                iteration = self.set_rendered_image_to_result(result_render_layer, scene_renderer, iteration_displayed)
-                assert iteration is not None
             finally:
                 scene_renderer_treaded.stop()
                 del scene_renderer_treaded
@@ -281,16 +291,14 @@ class RPREngine(bpy.types.RenderEngine):
             engine.update_progress(0)
             engine.update_stats('iteration: {}/-'.format(iteration_in_progress + 1), 'rendering...')
 
-    @staticmethod
-    def set_rendered_image_to_result(result_render_layer, scene_renderer, iteration_displayed):
-        with TimedContext("get contiguous image"):
+    def get_rendered_iteration(self, scene_renderer):
+        with TimedContext("scene_renderer.get_image"):
             if scene_renderer.get_image() is None:
                 return None
-            im = scene_renderer.get_image()
-            iteration = scene_renderer.im_iteration
-            if iteration_displayed == iteration:
-                return None  # don't redisplay same image
+            return scene_renderer.im_iteration
 
+    def set_render_to_result(self, result_render_layer, scene_renderer):
+        im = scene_renderer.get_image()
         with TimedContext("copy image to rect"):
             res = []
             for p in result_render_layer.passes:
@@ -310,12 +318,9 @@ class RPREngine(bpy.types.RenderEngine):
                                                                 scene_renderer.time_in_progress)
 
                 res.append(pass_image.flatten())
-
         with TimedContext("set image to blender"):
             logging.debug("result_render_layer.passes.foreach_set:", len(res), tag="render.engine")
             result_render_layer.passes.foreach_set("rect", np.concatenate(res))
-
-        return iteration
 
     def report_render_error(self, error_type, message):
         self.update_stats("ERROR", "Check log for details")
@@ -406,7 +411,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.view_draw_get_image_timestamp = time_view_draw_start
             logging.debug("get_image", tag='render.viewport.draw')
 
-            viewport_renderer.update_render_aov(bpy.context.scene.rpr.render)
+            viewport_renderer.update_render_aov(get_render_passes_aov(bpy.context))
             viewport_renderer.update_render_resolution(render_resolution)
             viewport_renderer.update_render_camera(
                 sync.extract_viewport_render_camera(context, viewport_renderer.scene_renderer.render_settings))
@@ -442,7 +447,9 @@ class RPREngine(bpy.types.RenderEngine):
         self._register_pass(scene, srl, 'Combined')
 
         render_settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render  # type: rprblender.properties.RenderSettings
-        aov_settings = rprblender.render.render_layers.extract_settings(render_settings)
+        passes_aov = bpy.context.scene.rpr.preview_aov if self.is_preview else get_render_passes_aov(bpy.context)
+
+        aov_settings = rprblender.render.render_layers.extract_settings(passes_aov)
         for pass_name in self.enumerate_passes(aov_settings):
             self._register_pass(scene, srl, pass_name)
 

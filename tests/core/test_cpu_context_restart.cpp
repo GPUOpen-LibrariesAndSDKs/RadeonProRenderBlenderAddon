@@ -2,10 +2,8 @@
 #include <condition_variable>
 #include <RadeonProRender.h>
 
-#include <chrono>
-#include <windows.h>
-#include <rtcapi.h>
 #include <assert.h>
+#include <chrono>
 
 void CheckFrStatus(rpr_int status)
 {
@@ -19,6 +17,9 @@ void CheckFrStatus(rpr_int status)
 #define RPRTRACE_CHECK  CheckFrStatus(status);
 #define RPRTRACE_DEV 1
 
+#if defined(WIN32)
+#include <windows.h>
+#include <rtcapi.h>
 #include <Dbghelp.h>
 void make_minidump(EXCEPTION_POINTERS* e)
 {
@@ -76,14 +77,16 @@ int runtime_check_handler(int errorType, const char *filename, int linenumber, c
     printf("Error type %d at %s line %d in %s", errorType, filename, linenumber, moduleName);
     exit(1);
 }
-
+#endif
 
 int main() {
 
+#if defined(WIN32)
     DWORD dwMode = SetErrorMode(SEM_NOGPFAULTERRORBOX);
     SetErrorMode(dwMode | SEM_NOGPFAULTERRORBOX);
     SetUnhandledExceptionFilter((LPTOP_LEVEL_EXCEPTION_FILTER)&exception_handler); 
     _RTC_SetErrorFunc(&runtime_check_handler);
+#endif
 
     rpr_int status = RPR_SUCCESS;
     rpr_int tahoePluginID_0x0000000000000008 = NULL;
@@ -99,7 +102,18 @@ int main() {
     auto time_start = std::chrono::system_clock::now();
     for(int i=0;i!=50;++i){
         printf("running: %d ...", i);
-        tahoePluginID_0x0000000000000008 = rprRegisterPlugin((rpr_char*)"Tahoe64.dll");  RPRTRACE_CHECK
+
+        std::string tahoe_name;
+        #ifdef WIN32 
+            tahoe_name = "Tahoe64.dll";
+        #else
+            tahoe_name = "libTahoe64.so";
+        #endif
+
+        fr_int tahoePluginID = frRegisterPlugin(tahoe_name.c_str());
+        assert(tahoePluginID!=-1);
+
+        tahoePluginID_0x0000000000000008 = tahoePluginID;  RPRTRACE_CHECK
         //Context creation
         #if defined(RPRTRACE_DEV)
         rpr_int tahoePluginIDlist_0[1] = { tahoePluginID_0x0000000000000008};

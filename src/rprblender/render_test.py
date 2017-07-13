@@ -35,6 +35,8 @@ from rprblender import material_editor
 from rprblender import node_editor
 from rprblender.material_editor import OutputNode, MaterialEditor
 from rprblender.timing import TimedContext
+from rprblender.versions import get_render_passes_aov, is_blender_support_new_image_node
+
 
 print = rprblender.logging.warn
 
@@ -77,7 +79,7 @@ class ViewportFixture:
         bpy.context.scene.rpr.dev.show_materials_with_errors = True
 
         self.viewport_renderer = rprblender.render.viewport.ViewportRenderer()
-        self.viewport_renderer.set_render_aov(bpy.context.scene.rpr.render)
+        self.viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
         self.viewport_renderer.set_render_resolution(self.render_resolution)
         self.set_render_camera()
         self.viewport_renderer.start(bpy.context.scene, threaded=True)
@@ -452,7 +454,7 @@ def basic_render_settings():
     rpr_settings.rendering_limits.type = 'ITER'
     rpr_settings.rendering_limits.iterations = 50
 
-    rpr_settings.environment.ibl.color = (0, 0, 0)
+    bpy.context.scene.world.rpr_data.environment.ibl.color = (0, 0, 0)
 
     # setup camera
     bpy.context.scene.camera.location = (0, 0, 4)
@@ -704,7 +706,7 @@ def test_viewport_sync_resolution_change_stress(viewport_fixture, sync_fixture):
             for y in range(100):
                 r = (render_resolution[0] - x, render_resolution[1] - y)
                 print('change resolution:', r)
-                viewport_renderer.update_render_aov(viewport_renderer.scene_renderer.render_settings)
+                viewport_renderer.update_render_aov(get_render_passes_aov(bpy.context))
                 viewport_renderer.update_render_resolution(r)
 
                 render_camera = rprblender.sync.RenderCamera()
@@ -787,7 +789,7 @@ def create_gradients_image(tmpdir_factory):
     image.filepath_raw = str(tmpdir_factory.mktemp('textures').join('image_texture.png'))
     image.file_format = 'PNG'
     image.save()
-    return image.name
+    return image
 
 
 def create_striped_gradients_image(tmpdir_factory):
@@ -822,7 +824,7 @@ def create_striped_gradients_image_data(height, width):
 def create_striped_gradients_map(tree, request, tmpdir_factory):
     editor = MaterialEditor(tree)
     image_texture = editor.create_image_texture_node()
-    image_texture.set_image_name(create_striped_gradients_image(tmpdir_factory).name)
+    image_texture.set_image(create_striped_gradients_image(tmpdir_factory))
     return image_texture.node
 
 
@@ -867,10 +869,10 @@ def create_color_fill_image_packed(color, size):
 def add_ibl(tmpdir_factory):
     path = str(tmpdir_factory.mktemp('data').join('ibl.png'))
     image = create_striped_sky_image(path)
-    bpy.context.scene.rpr.render.environment.enable = True
-    bpy.context.scene.rpr.render.environment.type = 'IBL'
-    bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = True
-    bpy.context.scene.rpr.render.environment.ibl.ibl_map = path
+    bpy.context.scene.world.rpr_data.environment.enable = True
+    bpy.context.scene.world.rpr_data.environment.type = 'IBL'
+    bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
+    bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = path
 
 
 def create_hemisphere_image_data(size):
@@ -895,7 +897,11 @@ def create_hemisphere_image_map(name, tree, tmpdir_factory):
     image.filepath_raw = str(tmpdir_factory.mktemp('textures').join(name + '.png'))
     image.file_format = 'PNG'
     image.save()
-    node.image_name = image.name
+
+    if is_blender_support_new_image_node():
+        node.image = image
+    else:
+        node.image_name = image.name
 
     return node
 
@@ -936,7 +942,12 @@ def create_normalmap(tree, scale=0.9):
     # add image map node
     node_imagemap = tree.nodes.new(type='rpr_texture_node_image_map')
     image = bpy_extras.image_utils.load_image(testdata.get_path('../data/material_normalmap_normals.png'))
-    node_imagemap.image_name = image.name
+
+    if is_blender_support_new_image_node():
+        node_imagemap.image = image
+    else:
+        node_imagemap.image_name = image.name
+
     tree.links.new(node_imagemap.outputs[node_imagemap.value_out], node_normalmap.inputs[node_normalmap.map_in])
     return node_normalmap
 
@@ -1109,7 +1120,7 @@ class TestMaterialImport:
 
                     image = bpy_extras.image_utils.load_image(
                         str(preview_scene_folder / '53863A_AMD_E_Blk_RGB_square.png'))
-                    image_texture.set_image_name(image.name)
+                    image_texture.set_image(image)
                     editor.link_nodes(image_texture, shader.get_input_socket_by_name('color'))
 
                     editor.link_nodes(shader, material_editor.OutputNode(output, editor).get_input_shader_socket())
@@ -1194,7 +1205,7 @@ def test_material_diffuse(render_image_check_fixture, material_setup, request, t
 
     with render_image_check_fixture.set_expected('material_diffuse_image_map_expected'):
         image_texture = editor.create_image_texture_node()
-        image_texture.set_image_name(create_striped_gradients_image_packed(256, 256).name)
+        image_texture.set_image(create_striped_gradients_image_packed(256, 256))
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
     with render_image_check_fixture.set_expected('material_diffuse_image_map_packed_expected'):
@@ -1204,7 +1215,7 @@ def test_material_diffuse(render_image_check_fixture, material_setup, request, t
         image.pixels = im.flatten()
 
         image_texture = editor.create_image_texture_node()
-        image_texture.set_image_name(image.name)
+        image_texture.set_image(image)
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
 
@@ -1232,7 +1243,7 @@ def test_material_image_sync(render_image_check_fixture, material_setup, request
     image_file = create_striped_gradients_image_packed(256, 256)
     with render_image_check_fixture.set_expected_synced('material_diffuse_image_map_expected'):
         image_texture = editor.create_image_texture_node()
-        image_texture.set_image_name(image_file.name)
+        image_texture.set_image(image_file)
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
     log("set packed image")
@@ -1243,13 +1254,13 @@ def test_material_image_sync(render_image_check_fixture, material_setup, request
         image.pixels = im.flatten()
 
         image_texture = editor.create_image_texture_node()
-        image_texture.set_image_name(image.name)
+        image_texture.set_image(image)
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
     log("set image back")
     with render_image_check_fixture.set_expected_synced('material_diffuse_image_map_expected'):
         image_texture = editor.create_image_texture_node()
-        image_texture.set_image_name(image_file.name)
+        image_texture.set_image(image_file)
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
 
@@ -1302,7 +1313,11 @@ def test_material_normalmap(render_image_check_fixture, material_setup):
         # load image into imagemap node and connect it to NormalMap node input
         node_imagemap = material_editor.ValueNode(tree.nodes.new(type='rpr_texture_node_image_map'), editor)
         image = bpy_extras.image_utils.load_image(testdata.get_path('../data/material_normalmap_normals.png'))
-        node_imagemap.node.image_name = image.name
+        if is_blender_support_new_image_node():
+            node_imagemap.node.image = image
+        else:
+            node_imagemap.node.image_name = image.name
+
         editor.link_nodes(node_imagemap, node_normalmap.get_input_socket_by_name('map'))
 
     with render_image_check_fixture.set_expected('normalmap/mapping_expected'):
@@ -1460,6 +1475,9 @@ def test_material_volume(render_image_check_fixture, material_setup, request, tm
 
     with render_image_check_fixture.set_expected('material_volume/volumee_multiscatter'):
         volume_node.inputs[volume_node.multiscatter_in].default_value = True
+
+    with render_image_check_fixture.set_expected_synced('material_volume/detached'):
+        editor.tree.links.remove(output.get_input_socket_by_name('volume').links[0])
 
 
 def test_material_noise2d(render_image_check_fixture):
@@ -1904,7 +1922,12 @@ def test_material_diffuse_refraction(render_image_check_fixture, material_setup)
 
         node_imagemap = tree.nodes.new(type='rpr_texture_node_image_map')
         image = bpy_extras.image_utils.load_image(testdata.get_path('../data/material_normalmap_normals.png'))
-        node_imagemap.image_name = image.name
+
+        if is_blender_support_new_image_node():
+            node_imagemap.image = image
+        else:
+            node_imagemap.image_name = image.name
+
         tree.links.new(node_imagemap.outputs[node_imagemap.value_out], node_normalmap.inputs[node_normalmap.map_in])
 
 
@@ -1927,7 +1950,7 @@ def test_shader_node_uber(render_image_check_fixture, material_setup, request, t
         node_normalmap = create_normalmap(tree)
         tree.links.new(node_normalmap.outputs[node_normalmap.value_out], uber.inputs[uber.diffuse_normal_in])
 
-    # REFRLECTION
+    # REFLECTION
     with render_image_check_fixture.set_expected('uber/uber_reflection_ior_10_expected'):
         uber.reflection = True
         uber.inputs[uber.reflect_ior_in].default_value = 10
@@ -1989,6 +2012,237 @@ def test_shader_node_uber(render_image_check_fixture, material_setup, request, t
     with render_image_check_fixture.set_expected('uber/uber_refraction_roughness_expected'):
         uber.inputs[uber.refraction_roughness_in].default_value = 0.04
 
+
+def test_shader_node_uber2(render_image_check_fixture, material_setup, request, tmpdir_factory):
+    add_emissive_object(material_setup).scale = (2.0, 0.5, 0.5)
+
+    add_ibl(tmpdir_factory)
+
+    generate_uv()
+    tree = material_setup.create_default_node_tree()
+    output = material_setup.get_node_tree_output(tree)
+    uber2 = tree.nodes.new(type='rpr_shader_node_uber2')
+    tree.links.new(uber2.outputs[uber2.shader_out], output.inputs[output.shader_in])
+
+    uber2.normal = True  # enable normal first to be able to link socket
+    normal_map = create_normalmap(tree)
+    normal_map_0_3 = create_normalmap(tree, 0.3)
+    tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out],uber2.inputs[uber2.normal_in])
+    assert uber2.inputs[uber2.normal_in].is_linked and len(uber2.inputs[uber2.normal_in].links) > 0
+
+    # check defaults params
+    with render_image_check_fixture.set_expected('uber2/uber2_default_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = False
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        uber2.inputs[uber2.diffuse_color].default_value = (0.63, 0.63, 0.63, 1.0)
+
+    # check diffuse and transparent only
+    with render_image_check_fixture.set_expected('uber2/uber2_with_normals_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = True
+
+        uber2.inputs[uber2.diffuse_weight].default_value = 1
+        uber2.inputs[uber2.diffuse_roughness].default_value = 1
+
+        uber2.inputs[uber2.transparency_value].default_value = 0.1
+
+        uber2.inputs[uber2.diffuse_color].default_value = (0.63, 0.63, 0.63, 1.0)
+        # tree.links.new(normal_map.outputs[normal_map.value_out], uber2.inputs[uber2.diffuse_color])
+
+    # REFLECTION
+    with render_image_check_fixture.set_expected('uber2/uber2_reflection_ior_0_2_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = True
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.reflection_color])
+        uber2.inputs[uber2.reflection_weight].default_value = 1
+        uber2.inputs[uber2.reflection_roughness].default_value = 1
+
+        uber2.reflection_fresnel_metalmaterial = False
+        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 0.2
+
+    with render_image_check_fixture.set_expected('uber2/uber2_reflection_ior_0_1_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = True
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.reflection_color])
+        uber2.inputs[uber2.reflection_weight].default_value = 1
+        uber2.inputs[uber2.reflection_roughness].default_value = 1
+
+        uber2.reflection_fresnel_metalmaterial = False
+        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 0.1
+
+    with render_image_check_fixture.set_expected('uber2/uber2_reflection_ior_2_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = True
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.reflection_color])
+        uber2.inputs[uber2.reflection_weight].default_value = 1
+        uber2.inputs[uber2.reflection_roughness].default_value = 1
+
+        uber2.reflection_fresnel_metalmaterial = False
+        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 2
+
+    # CLEAR COAT
+    with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_0_1_expected'):
+        uber2.coating = True
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        uber2.inputs[uber2.coating_color].default_value = (0.3, 1.0, 0.3, 1)
+        uber2.inputs[uber2.coating_weight].default_value = 1
+        uber2.inputs[uber2.coating_roughness].default_value = 1
+
+        uber2.coating_fresnel_metal_material = False
+        uber2.inputs[uber2.coating_fresnel_ior].default_value = 0.1
+
+    with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_0_2_expected'):
+        uber2.coating = True
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        uber2.inputs[uber2.coating_color].default_value = (0.3, 1.0, 0.3, 1)
+        uber2.inputs[uber2.coating_weight].default_value = 1
+        uber2.inputs[uber2.coating_roughness].default_value = 1
+
+        uber2.coating_fresnel_metal_material = False
+        uber2.inputs[uber2.coating_fresnel_ior].default_value = 0.2
+
+    with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_2_expected'):
+        uber2.coating = True
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        uber2.inputs[uber2.coating_color].default_value = (0.3, 1.0, 0.3, 1)
+        uber2.inputs[uber2.coating_weight].default_value = 1
+        uber2.inputs[uber2.coating_roughness].default_value = 1
+
+        uber2.coating_fresnel_metal_material = False
+        uber2.inputs[uber2.coating_fresnel_ior].default_value = 2
+
+
+    # REFRACTION
+    with render_image_check_fixture.set_expected('uber2/uber2_refraction_ior_0_1_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = True
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.refraction_color])
+        uber2.inputs[uber2.refraction_weight].default_value = 1
+        uber2.inputs[uber2.refraction_roughness].default_value = 1
+        uber2.inputs[uber2.refraction_ior].default_value = 0.1
+
+    with render_image_check_fixture.set_expected('uber2/uber2_refraction_ior_0_2_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = True
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.refraction_color])
+        uber2.inputs[uber2.refraction_weight].default_value = 1
+        uber2.inputs[uber2.refraction_roughness].default_value = 1
+        uber2.inputs[uber2.refraction_ior].default_value = 0.2
+
+    with render_image_check_fixture.set_expected('uber2/uber2_refraction_ior_2_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = True
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        tree.links.new(normal_map_0_3.outputs[normal_map_0_3.value_out], uber2.inputs[uber2.refraction_color])
+        uber2.inputs[uber2.refraction_weight].default_value = 1
+        uber2.inputs[uber2.refraction_roughness].default_value = 1
+        uber2.inputs[uber2.refraction_ior].default_value = 2
+
+
+    # EMISSIVE
+    with render_image_check_fixture.set_expected('uber2/uber2_emissive_expected'):
+        uber2.coating = False
+        uber2.diffuse = True
+        uber2.emissive = True
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = False
+        uber2.transparency = False
+
+        uber2.inputs[uber2.emissive_color].default_value = (0, 0, 1, 1)
+
+
+    # SUBSURFACE
+    # TODO: REGENERATE ONCE CORE BUGS HAVE BEEN FIXED
+    with render_image_check_fixture.set_expected('uber2/uber2_basic_sss_expected'):
+        uber2.coating = False
+        uber2.diffuse = False
+        uber2.emissive = False
+        uber2.normal = True
+        uber2.reflection = False
+        uber2.refraction = False
+        uber2.subsurface = True
+        uber2.transparency = False
+
+        uber2.inputs[uber2.subsurface_color].default_value = (1, 0, 0, 1)
+        uber2.inputs[uber2.subsurface_volume_transmission].default_value = (0, 1, 0, 1)
+        uber2.inputs[uber2.subsurface_volume_scatter].default_value = (0, 0, 1, 1)
 
 def test_node_value_blend(render_image_check_fixture):
     with render_image_check_fixture.set_expected('node_value_blend_expected'):
@@ -2075,7 +2329,7 @@ def test_node_math(op, render_image_check_fixture, material_setup, request, tmpd
     node1 = editor.create_image_texture_node()
     blender_image = create_striped_gradients_image_packed(256, 256)
     # blender_image = create_striped_gradients_image(tmpdir_factory)
-    node1.set_image_name(blender_image.name)
+    node1.set_image(blender_image)
 
     node2 = editor.create_input_constant_node()
     # node2.node.color = (1, 0.2, 0 if op != 'DIV' else 0.5, 1.0)
@@ -2174,7 +2428,7 @@ def test_gamma_correction(render_image_check_fixture, material_setup, request, t
     editor.link_nodes(emissive, output.get_input_shader_socket())
 
     image = bpy_extras.image_utils.load_image(testdata.get_path('../data/rgb_tri.png'))
-    image_texture.set_image_name(image.name)
+    image_texture.set_image(image)
 
     gc = bpy.context.scene.rpr.render.gamma_correction
     assert gc.viewport_only
@@ -2321,7 +2575,8 @@ class TestMaterialSync:
 
     def test_two_materials_on_one_mesh(self, render_image_check_fixture: RenderImageCheck, material_setup):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5,) * 3
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5,) * 3
 
         bpy.context.object.data.materials[0] = self.make_simple_material()
         assert 1 == len(bpy.context.object.data.materials)
@@ -2503,7 +2758,7 @@ class TestEnvironmentLight:
         # XXX: offset needed as RPR renders negative pixels along the envmap stitch
         # see AMDBLENDER-103
         log("render ibl")
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
 
         log("test no map set gives error")
         with render_image_check_fixture.set_expected('environment_light/error_expected'):
@@ -2552,8 +2807,7 @@ class TestEnvironmentLight:
         with render_image_check_fixture.set_expected('environment_light/rotation_expected'):
             environment.enable = True
             environment.ibl.intensity = 1.0
-            obj = bpy.data.objects['EnvObject']
-            obj.rotation_euler = (3.142 / 4, 3.142 / 8, 3.142 / 16)
+            environment.gizmo_rotation = (3.142 / 4, 3.142 / 8, 3.142 / 16)
 
     def _test_simplest(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
         render_image_check_fixture.viewport_fixture.render_resolution = (32, 32)
@@ -2571,28 +2825,28 @@ class TestEnvironmentLight:
         with render_image_check_fixture.set_expected('environment_light/simplest/expected'):
             bpy.context.scene.camera.location = (0, 0, 16)
 
-            bpy.context.scene.rpr.render.environment.enable = True
-            bpy.context.scene.rpr.render.environment.type = 'IBL'
-            bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = True
-            bpy.context.scene.rpr.render.environment.ibl.ibl_map = path
+            bpy.context.scene.world.rpr_data.environment.enable = True
+            bpy.context.scene.world.rpr_data.environment.type = 'IBL'
+            bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
+            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = path
 
         with render_image_check_fixture.set_expected('environment_light/simplest/off_expected'):
-            bpy.context.scene.rpr.render.environment.enable = False
+            bpy.context.scene.world.rpr_data.environment.enable = False
 
         with render_image_check_fixture.set_expected('environment_light/simplest/off_expected'):
-            bpy.context.scene.rpr.render.environment.enable = True
-            bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = False
+            bpy.context.scene.world.rpr_data.environment.enable = True
+            bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = False
 
         with render_image_check_fixture.set_expected('environment_light/simplest/error_expected'):
-            bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = True
+            bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
 
-            bpy.context.scene.rpr.render.environment.ibl.ibl_map = 'not here!!!'
+            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = 'not here!!!'
 
         with render_image_check_fixture.set_expected('environment_light/simplest/expected'):
-            bpy.context.scene.rpr.render.environment.ibl.ibl_map = path
+            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = path
 
         with render_image_check_fixture.set_expected('environment_light/simplest/intens_x2_expected'):
-            bpy.context.scene.rpr.render.environment.ibl.intensity = 2.0
+            bpy.context.scene.world.rpr_data.environment.ibl.intensity = 2.0
 
     def test_background_simple(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request,
                                material_setup):
@@ -2616,12 +2870,12 @@ class TestEnvironmentLight:
         with render_image_check_fixture.set_expected('environment_light/backplate_simple_expected'):
             bpy.context.scene.camera.location = (0, 0, 16)
 
-            bpy.context.scene.rpr.render.environment.enable = True
-            bpy.context.scene.rpr.render.environment.type = 'IBL'
-            bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = True
-            bpy.context.scene.rpr.render.environment.ibl.ibl_map = ibl_image_path
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background = True
-            bpy.context.scene.rpr.render.environment.ibl.maps.background_map = background_image_path
+            bpy.context.scene.world.rpr_data.environment.enable = True
+            bpy.context.scene.world.rpr_data.environment.type = 'IBL'
+            bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
+            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = ibl_image_path
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = True
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = background_image_path
 
     def test_background(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
         # 1.239 has bug with light from Background - AMDMAX-1060
@@ -2642,33 +2896,33 @@ class TestEnvironmentLight:
         with render_image_check_fixture.set_expected('environment_light/backplate_expected'):
             bpy.context.scene.camera.location = (0, 0, 16)
 
-            bpy.context.scene.rpr.render.environment.enable = True
-            bpy.context.scene.rpr.render.environment.type = 'IBL'
-            bpy.context.scene.rpr.render.environment.ibl.use_ibl_map = True
-            bpy.context.scene.rpr.render.environment.ibl.ibl_map = ibl_image_path
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background = True
-            bpy.context.scene.rpr.render.environment.ibl.maps.background_map = background_image_path
+            bpy.context.scene.world.rpr_data.environment.enable = True
+            bpy.context.scene.world.rpr_data.environment.type = 'IBL'
+            bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
+            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = ibl_image_path
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = True
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = background_image_path
 
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_off_expected'):
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background = False
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = False
 
         log('test turning on same background again')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_expected'):
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background = True
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = True
 
         log('test not an image')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_error_expected'):
-            bpy.context.scene.rpr.render.environment.ibl.maps.background_map = 'hello'
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = 'hello'
 
         log('color')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_color'):
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background_type = 'color'
-            bpy.context.scene.rpr.render.environment.ibl.maps.background_color = (1, 1, 0)
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background_type = 'color'
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_color = (1, 1, 0)
 
         log('color change')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_color_changed'):
-            bpy.context.scene.rpr.render.environment.ibl.maps.override_background_type = 'color'
-            bpy.context.scene.rpr.render.environment.ibl.maps.background_color = (0, 0.5, 1)
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background_type = 'color'
+            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_color = (0, 0.5, 1)
 
 
 class TestLights:
@@ -2826,7 +3080,7 @@ class TestShadowcatcher:
         plane.scale = (0.25,) * 3
         plane.rotation_euler = (0, 0, 0)
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
         environment.enable = True
         environment.type = 'IBL'
         environment.ibl.use_ibl_map = False
@@ -2883,7 +3137,7 @@ class TestShadowcatcher:
         lamp_object.data.shape = 'SQUARE'
         lamp_object.data.size = 0.5
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
         environment.enable = True
         environment.type = 'IBL'
         environment.ibl.use_ibl_map = False
@@ -2921,7 +3175,7 @@ class TestPortallight:
         plane.scale = (0.25,) * 3
         plane.rotation_euler = (0, 0, 0)
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
         environment.enable = True
         environment.type = 'IBL'
         environment.ibl.use_ibl_map = False
@@ -2960,7 +3214,7 @@ class TestMotionblur:
         lamp_object.location = (0.0, 0.0, 0)
         set_light_intensity(lamp_object, 4 * math.pi)
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
         environment.enable = True
         environment.type = 'IBL'
         environment.ibl.use_ibl_map = False
@@ -3010,7 +3264,7 @@ class TestMotionblur:
         lamp_object.location = (0.0, 0.0, 0)
         set_light_intensity(lamp_object, 10)
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
         environment.enable = True
         environment.type = 'IBL'
         environment.ibl.use_ibl_map = False
@@ -3097,8 +3351,9 @@ class TestShadows:
         node.set_input_socket_value_by_name('ior', 1.3)
         editor.link_nodes(node, output.get_input_shader_socket())
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RPRRenderSettings
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
         rpr_settings.rendering_limits.iterations = 200
-        rpr_settings.environment.enable = False
+        rpr_settings_env.enable = False
         with render_image_check_fixture.set_expected('shadows/expected'):
             shadowcaster_obj.rpr_object.shadows = True
         with render_image_check_fixture.set_expected('shadows/off_expected'):
@@ -3154,7 +3409,7 @@ def test_subdivision_show_hide_with_material(render_image_check_fixture, materia
         bpy.context.object.hide = True
 
     with render_image_check_fixture.set_expected_synced(
-            folder + '/expected_colored' if 0x010026700 != pyrpr.API_VERSION else None):
+            folder + '/expected_colored'):
         bpy.context.object.hide = False
 
 
@@ -3174,20 +3429,24 @@ def test_subdivision_surface_material(render_image_check_fixture, material_setup
         bpy.context.object.rpr_object.subdivision_crease_weight = 0.0
         bpy.context.object.rpr_object.subdivision = 6
 
-    log("renders with yellow but DIFFERENT material material")
-    with render_image_check_fixture.set_expected_synced(
-            folder + '/expected_colored' if 0x010026700 != pyrpr.API_VERSION else None):
+    log("renders with DIFFERENT material")
+    with render_image_check_fixture.set_expected_synced(folder + '/expected_other_colored'):
+
         material = bpy.data.materials.new(name='YellowAgain')
+
+        # create node tree with output node
         tree = material_setup.create_default_node_tree(material)
         editor = MaterialEditor(tree)
         output = OutputNode(material_setup.get_node_tree_output(tree), editor)
-        # create Normal Map node and connect it to Diffuse material Normal input
+
+        # create colored diffuse node and connect to output
         testee = editor.create_diffuse_material_node()
         editor.link_nodes(testee, output.get_input_shader_socket())
-        editor.link_nodes(testee, output.get_input_shader_socket())
-        testee.set_color_value((1, 1, 0, 1))
+        testee.set_color_value((0, 1, 1, 1))
 
+        # set material to active slot
         bpy.context.object.data.materials[0] = material
+        material.update_tag()
 
 
 def test_subdivision_stress():
@@ -3223,10 +3482,7 @@ def test_subdivision_stress():
 
 
 def test_displacement(render_image_check_fixture, material_setup, tmpdir_factory):
-    broken = 0x010026700 == pyrpr.API_VERSION
-
-    with render_image_check_fixture.set_expected('displacement/expected' if not broken else
-                                                 'displacement/expected_broken'):
+    with render_image_check_fixture.set_expected('displacement/expected'):
         # generate simple uvs - RPR subdivision code requires them
         generate_uv()
 
@@ -3247,9 +3503,19 @@ def test_displacement(render_image_check_fixture, material_setup, tmpdir_factory
 
         editor.link_nodes(testee, output.get_input_socket_by_name('displacement'))
 
+    log("check that displacement disconnect syncs")
+    with render_image_check_fixture.set_expected_synced('displacement/detached_expected'):
+        log("add colored surface material - seems there is a bug that it's removed when displacement removed")
+        colored = editor.create_diffuse_material_node()
+        colored.set_color_value((1, 1, 0, 1))
+        editor.link_nodes(colored, output.get_input_shader_socket())
+
+        editor.tree.links.remove(output.get_input_socket_by_name('displacement').links[0])
+
+
 
 def test_displacement_shading_normal(render_image_check_fixture, material_setup, tmpdir_factory):
-    passes_aov = bpy.context.scene.rpr.render.passes_aov
+    passes_aov = get_render_passes_aov(bpy.context)
     passes_aov.enable = True
 
     aov_nam = 'shading_normal'
@@ -3258,10 +3524,7 @@ def test_displacement_shading_normal(render_image_check_fixture, material_setup,
     for i in range(len(passes_aov.passesStates)):
         passes_aov.passesStates[i] = aov_nam == passes_aov.render_passes_items[i][0]
 
-    broken = 0x010026700 == pyrpr.API_VERSION
-
-    with render_image_check_fixture.set_expected('displacement/shading_normal_expected' if not broken else
-                                                 'displacement/shading_normal_expected_broken',
+    with render_image_check_fixture.set_expected('displacement/shading_normal_expected',
                                                  aov=blender_pass):
         # generate simple uvs - RPR subdivision code requires them
         generate_uv()
@@ -3519,7 +3782,7 @@ def test_texturecompression(render_image_check_fixture, material_setup, request,
     editor.link_nodes(testee, output.get_input_shader_socket())
 
     image_texture = editor.create_image_texture_node()
-    image_texture.set_image_name(create_gradients_image(tmpdir_factory))
+    image_texture.set_image(create_gradients_image(tmpdir_factory))
     editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
     set_light_intensity(bpy.context.scene.objects['Lamp'], 4 * math.pi * 200)
@@ -3564,14 +3827,14 @@ def test_load_image_speed(render_image_check_fixture, material_setup, request, t
         # image.file_format = 'HDR'
         # image.save()
 
-        environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
 
         # environment.enable = True
         # environment.ibl.use_ibl_map = True
         # environment.type = 'IBL'
         # environment.ibl.ibl_map = image.filepath_raw
 
-        image_texture.set_image_name(image.name)
+        image_texture.set_image(image)
 
         editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
@@ -3584,7 +3847,7 @@ def test_load_image_cache(render_image_check_fixture, material_setup, request, t
     # image.file_format = 'HDR'
     # image.save()
 
-    environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+    environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
 
     # environment.enable = True
     # environment.ibl.use_ibl_map = True
@@ -3631,7 +3894,7 @@ def test_load_image_cache(render_image_check_fixture, material_setup, request, t
 
             image_texture = editor.create_image_texture_node()
 
-            image_texture.set_image_name(image.name)
+            image_texture.set_image(image)
 
             editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
@@ -3650,7 +3913,7 @@ def test_animation_image_cache(render_image_check_fixture, material_setup, reque
     # image.file_format = 'HDR'
     # image.save()
 
-    environment = bpy.context.scene.rpr.render.environment  # type: rprblender.properties.RenderEnvironment
+    environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
 
     # environment.enable = True
     # environment.ibl.use_ibl_map = True
@@ -3697,7 +3960,7 @@ def test_animation_image_cache(render_image_check_fixture, material_setup, reque
 
             image_texture = editor.create_image_texture_node()
 
-            image_texture.set_image_name(image.name)
+            image_texture.set_image(image)
 
             editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
 
@@ -3759,7 +4022,7 @@ class TestAov:
         bpy.context.object.location = (1, 0, -1)
         bpy.context.object.scale = (1.5,) * 3
 
-        passes_aov = bpy.context.scene.rpr.render.passes_aov
+        passes_aov = get_render_passes_aov(bpy.context)
         passes_aov.enable = True
 
         aov_name_tested = rprblender.render.render_layers.pass2aov[blender_pass]
@@ -5433,7 +5696,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_glass(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
@@ -5444,7 +5708,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_refraction(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
@@ -5455,7 +5720,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_glossy(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
@@ -5466,7 +5732,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_glossy_bump(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
@@ -5492,7 +5759,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_volume_scatter(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
@@ -5503,7 +5771,8 @@ class TestCyclesConvertRender(TestCyclesConvertBase):
 
     def test_volume_absorption(self, render_image_check_fixture: RenderImageCheck):
         rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
-        rpr_settings.environment.ibl.color = (0.5, 0.5, 0.5)
+        rpr_settings_env = bpy.context.scene.world.rpr_data.environment
+        rpr_settings_env.ibl.color = (0.5, 0.5, 0.5)
         rpr_settings.global_illumination.use_clamp_irradiance = True
         rpr_settings.global_illumination.clamp_irradiance = 1.0
 
