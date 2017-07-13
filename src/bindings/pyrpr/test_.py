@@ -32,6 +32,8 @@ sys.path.append('src')
 # NOTE: pyrpr needs to be inited, here it's done at the end - to pass flags to it from args
 import pyrpr
 import pyrpr_load_store
+import pyrprx
+
 
 log_lock = threading.Lock()
 
@@ -266,11 +268,11 @@ def context_fixture(request):
     pyrpr.ContextSetParameterString(None, b'tracingfolder', os.path.abspath(".rprtrace").encode('latin1'))
     pyrpr.ContextSetParameter1u(None, b'tracing', True)
 
-    tahoePluginID = pyrpr.RegisterPlugin(str(tahoe_path).encode('ascii'))
+    tahoe_plugin_id = pyrpr.RegisterPlugin(str(tahoe_path).encode('ascii'))
 
-    assert -1 != tahoePluginID, tahoe_path
+    assert -1 != tahoe_plugin_id, tahoe_path
 
-    plugins = [tahoePluginID]
+    plugins = [tahoe_plugin_id]
     pluginCount = len(plugins)
 
     self.context = pyrpr.Context(plugins, get_gpu_creation_flags(), cache_path=ensure_core_cache_folder())
@@ -453,7 +455,7 @@ class Test:
                              contextParameterCountPtr, pyrpr.ffi.NULL)
 
         contextParameterCount = contextParameterCountPtr[0]
-        assert 44 == contextParameterCount
+        assert 46 == contextParameterCount
 
         types = set()
         for i in range(contextParameterCount):
@@ -555,7 +557,7 @@ class Test:
                              contextParameterCountPtr, pyrpr.ffi.NULL)
 
         contextParameterCount = contextParameterCountPtr[0]
-        assert 44 == contextParameterCount
+        assert 46 == contextParameterCount
 
         for i in range(contextParameterCount):
             sizePtr = pyrpr.ffi.new('size_t *', 0)
@@ -2112,6 +2114,34 @@ class Test:
 
             fixture.set_shader(shader)
 
+    def test_shape_set_transform_validity_check(self, simple_material_render_fixture):
+        fixture = self.render_fixture
+
+        mesh = create_simple_quad(self.context, self.scene)
+
+        print('check nan raises error')
+        transform = np.full((4, 4), float('nan'), dtype=np.float32)
+        assert not pyrpr.is_transform_matrix_valid(transform)
+
+        pytest.raises(pyrpr.CoreError,
+                      pyrpr.ShapeSetTransform, mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+        print('check degenerate raises error')
+        transform = np.full((4, 4), 0, dtype=np.float32)
+        assert pyrpr.is_transform_matrix_valid(transform)
+
+        pytest.raises(pyrpr.CoreError,
+                      pyrpr.ShapeSetTransform, mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+        print('check degenerate raises error, so shouldnt we?')
+        transform = np.eye(4, dtype=np.float32)
+        transform[3, 3] = float('nan')
+        assert not pyrpr.is_transform_matrix_valid(transform)
+
+        pytest.raises(pyrpr.CoreError,
+                       pyrpr.ShapeSetTransform, mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+
 
 def assert_images_similar(a, b, max_average_deviation=0.005, max_std_dev=0.02):
     deviations_flat = (a - b).ravel()
@@ -2196,6 +2226,44 @@ def check_image_agains_baseline(im, name):
         os.remove(actual_path)
 
 
+class TestRprx(unittest.TestCase):
+    
+    def test_simple(self):
+        tahoe_plugin_id = pyrpr.RegisterPlugin(str(tahoe_path).encode('ascii'))
+    
+        assert -1 != tahoe_plugin_id, tahoe_path
+    
+        plugins = [tahoe_plugin_id]
+    
+        self.context = pyrpr.Context(plugins, get_gpu_creation_flags(), cache_path=ensure_core_cache_folder())
+        assert pyrpr.SUCCESS == self.context.create_result
+
+        self.matsys = pyrpr.MaterialSystem()
+        pyrpr.ContextCreateMaterialSystem(self.context, 0, self.matsys)
+
+        uber_context = pyrprx.Object('rprx_context')
+        pyrprx.CreateContext(self.matsys, 0, uber_context)
+
+        uber_material = pyrprx.Object('rprx_material')
+        pyrprx.CreateMaterial(uber_context, pyrprx.MATERIAL_UBER, uber_material)
+
+        pytest.raises(pyrpr.CoreError,
+            pyrprx.MaterialSetParameterF, uber_context, uber_material,
+                                           pyrprx.UBER_MATERIAL_REFLECTION_MODE, 1, 1, 1, 1)
+
+        pyrprx.MaterialSetParameterF(uber_context, uber_material,
+                                           pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, 1, 1, 1, 1)
+
+        pyrprx.MaterialCommit(uber_context, uber_material)
+
+
+        pyrprx.MaterialDelete(uber_context, uber_material)
+
+        pyrprx.DeleteContext(uber_context)
+
+
+
+
 if __name__ == '__main__':
     pyrpr_log_flag = '--pyrpr-log'
     if pyrpr_log_flag in sys.argv:
@@ -2204,6 +2272,7 @@ if __name__ == '__main__':
 
     pyrpr.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
     pyrpr_load_store.init(rprsdk_path / bin_folder)
+    pyrprx.init(print)
 
     pytest.main([__file__, '-s'])
 else:
@@ -2213,3 +2282,5 @@ else:
 
     pyrpr.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
     pyrpr_load_store.init(rprsdk_path / bin_folder)
+    pyrprx.init(print)
+

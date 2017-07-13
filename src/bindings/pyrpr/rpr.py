@@ -11,7 +11,7 @@ import pyrprapi
 def export(json_file_name, dependencies, header_file_name, cffi_name, output_name, output_name_make):
     ffi = cffi.FFI()
 
-rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
+    rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
 
     api_desc_fpath = str(Path(pyrprapi.__file__).parent / json_file_name)
 
@@ -24,8 +24,10 @@ rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
 
     lib_names = ['RadeonProRender64', 'RprSupport64']
     if "Windows" == platform.system():
+        platform_folder = 'Win'
     elif "Linux" == platform.system():
         assert 'Ubuntu-16.04' in platform.platform()
+        platform_folder = 'Linux'
     else:
         assert False
 
@@ -39,6 +41,8 @@ rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
                        #include <""" + header_file_name + """>
                        """,
                        libraries=lib_names,
+                       include_dirs=[str(rprsdk_path / platform_folder / 'inc')],
+                       library_dirs=[str(rprsdk_path / platform_folder / 'lib' )],
                        source_extension='.cpp',
                        )
 

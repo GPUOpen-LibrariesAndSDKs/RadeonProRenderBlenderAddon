@@ -35,6 +35,9 @@ def log_pyrpr(*argv):
 
 
 def pyrpr_init(bindings_import_path, rprsdk_bin_path):
+    print("####")
+    print(bindings_import_path)
+    print(rprsdk_bin_path)
     if bindings_import_path not in sys.path:
         sys.path.append(bindings_import_path)
     try:
@@ -46,6 +49,10 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
 
         import pyrpr_load_store
         pyrpr_load_store.init(rprsdk_bin_path)
+
+        import pyrprx
+        pyrprx.lib_wrapped_log_calls = config.pyrprx_log_calls
+        pyrprx.init(log_pyrpr)
 
     except:
         logging.critical(traceback.format_exc(), tag='')
