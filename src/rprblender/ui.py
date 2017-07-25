@@ -799,7 +799,7 @@ def export_rpr_model(context, filepath):
     settings = scene.rpr.render
 
     core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder())
-    scene_synced = sync.SceneSynced(core_context, scene, settings,  scene.world.rpr_data.environment)
+    scene_synced = sync.SceneSynced(core_context, scene, settings)
 
     render_resolution = (640, 480)
 
