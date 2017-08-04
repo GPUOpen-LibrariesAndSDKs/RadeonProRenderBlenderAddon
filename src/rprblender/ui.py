@@ -8,29 +8,34 @@ import pyrpr_load_store
 from pyrpr import ffi
 from datetime import datetime
 from bpy.types import Panel, Menu, Operator
+
 from . import rpraddon
 from .nodes import RPRPanel
 from . import versions
 from . import logging
 from pathlib import Path
 from bpy_extras.io_utils import ExportHelper
-
 from rprblender.node_editor import shader_node_output_name, find_node
 from rprblender.versions import get_render_passes_aov, is_blender_support_aov
+from . import version_checking
 
+PANEL_WIDTH_FOR_COLUMN = 200
 
-def create_ui_autosize_column(context, col):
-    if context.region.width > 200:
+def create_ui_autosize_column(context, col, single=False):
+    if context.region.width > PANEL_WIDTH_FOR_COLUMN:
         row = col.row()
         split = row.split(percentage=0.5)
-        col1 = split.column()
+        col1 = split.column(align=True)
         split = split.split()
         col2 = split.column(align=True)
+        is_row = False
     else:
-        col1 = col.row().column()
-        col.separator()
+        col1 = col.row().column(align=True)
+        if not single:
+            col.separator()
         col2 = col.row().column(align=True)
-    return col1, col2
+        is_row = True
+    return col1, col2, is_row
 
 
 def createRoseShape():
@@ -136,7 +141,6 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         settings = helpers.get_user_settings()
-
         if len(helpers.render_resources_helper.devices) > 0:
             # check non certified devices
             have_only_certified = True
@@ -146,29 +150,29 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
                 if not device['certified']:
                     have_only_certified = False
 
-            # ui draw
-            layout.label('Device Type')
-            row = layout.row()
-            split = row.split(percentage=0.5)
-            col = split.column()
-            col.prop(settings, "device_type", text='')
             gpu_enable = settings.device_type != "cpu"
-            col = split.column()
-            col.enabled = gpu_enable
-            col.prop(settings, "gpu_count")
 
-            col = layout.column()
-            row = col.row();
-            row.prop(settings, "device_type_plus_cpu")
+            # ui draw
+            col1, col2, is_row = create_ui_autosize_column(context, layout, True)
+
+            col1.label('Device Type')
+            col1.prop(settings, "device_type", text='')
+
+            col1.prop(settings, "samples", slider=True)
+            row = col1.row()
             row.enabled = gpu_enable
+            row.prop(settings, "device_type_plus_cpu")
+
+            if not is_row:
+                col2.label('')
+            col2.prop(settings, "gpu_count")
+            col2.operator("rpr.op_gpu_list")
+            col2.enabled = gpu_enable
 
             col = layout.column()
             if not have_only_certified:
                 row = col.row()
                 row.prop(settings, "include_uncertified_devices")
-            row = col.row()
-            row.enabled = gpu_enable
-            row.operator("rpr.op_gpu_list")
         else:
             layout.label("You haven't any compatibility GPU. Render using CPU only.")
 
@@ -299,7 +303,7 @@ class RPRRender_PT_motion_blur(RPRPanel, Panel):
         settings = context.scene.rpr.render
         col = layout.column()
         col.enabled = settings.motion_blur
-        col1, col2 = create_ui_autosize_column(context, col)
+        col1, col2, is_row = create_ui_autosize_column(context, col)
         col1.prop(settings, "motion_blur_geometry_exposure")
         col2.prop(settings, "motion_blur_geometry_scale")
 
@@ -403,18 +407,16 @@ class RPRRender_PT_environment(RPRPanel, Panel):
     def poll(cls, context):
         return context.scene.world and super().poll(context)
 
-    def draw_maps(self, layout, maps):
-        row = layout.row()
-        row.prop(maps, "override_background")
-        col = layout.column()
-        col.enabled = maps.override_background
-
+    def draw_maps(self, col, maps):
+        col.prop(maps, "override_background")
         row = col.row()
         row.prop(maps, "override_background_type", expand=True)
 
         if maps.override_background_type == "image":
-            row = col.row()
-            row.prop(maps, "background_map", text='')
+            if versions.is_blender_support_ibl_image():
+                col.template_ID(maps, "background_image", open="image.open")
+            else:
+                col.prop(maps, "background_map", text='')
         else:
             row = col.row()
             row.prop(maps, "background_color")
@@ -437,13 +439,14 @@ class RPRRender_PT_environment(RPRPanel, Panel):
             row = box.row()
             row.prop(env.ibl, "intensity")
 
-            row = box.row()
-            row.prop(env.ibl, "use_ibl_map")
-            row = box.row()
-            row.enabled = env.ibl.use_ibl_map
-            row.prop(env.ibl, "ibl_map", text='')
+            col = box.column()
+            col.prop(env.ibl, "use_ibl_map")
+            if versions.is_blender_support_ibl_image():
+                col.template_ID(env.ibl, "ibl_image", open="image.open")
+            else:
+                col.prop(env.ibl, "ibl_map", text='')
 
-            self.draw_maps(box, env.ibl.maps)
+            self.draw_maps(col, env.ibl.maps)
 
         elif env.type == 'SUN_SKY':
             box = col.box()
@@ -520,7 +523,7 @@ class RPRRender_PT_environment(RPRPanel, Panel):
                 row.operator("rpr.location_select_by_city", text="By City", icon="SYNTAX_ON")
 
         box = col.box()
-        col1, col2 = create_ui_autosize_column(context, box)
+        col1, col2, is_row = create_ui_autosize_column(context, box)
         col1.label('Object:')
         row = col1.row(align=True)
         row.prop_search(env, 'gizmo', bpy.data, 'objects', text='')
@@ -541,18 +544,26 @@ class OpCreateEnvironmentGizmo(bpy.types.Operator):
     object_name = 'EnvObject'
 
     def execute(self, context):
-        verteces, edges = createRoseShape()
-        shape_scale = 0.03
-        me = bpy.data.meshes.new(self.object_name + 'Mesh')
-        me.from_pydata(verteces, edges, [])
-        me.update()
-        obj = bpy.data.objects.new(self.object_name, me)
-        bpy.context.scene.objects.link(obj)
+        # verteces, edges = createRoseShape()
+        # shape_scale = 0.03
+        # me = bpy.data.meshes.new(self.object_name + 'Mesh')
+        # me.from_pydata(verteces, edges, [])
+        # me.update()
+        # obj = bpy.data.objects.new(self.object_name, me)
+        # bpy.context.scene.objects.link(obj)
+        # obj.location = (0, 0, 0)
+        # obj.scale = (shape_scale, shape_scale, shape_scale)
+        # obj.rotation_euler = self.rotation
+        # obj.draw_type = 'WIRE'
+        # obj.hide_render = True
+        # context.scene.world.rpr_data.environment.gizmo = obj.name
+
+        obj = bpy.data.objects.new(self.object_name, None)
         obj.location = (0, 0, 0)
-        obj.scale = (shape_scale, shape_scale, shape_scale)
         obj.rotation_euler = self.rotation
-        obj.draw_type = 'WIRE'
-        obj.hide_render = True
+        obj.empty_draw_size = 3.0
+        obj.empty_draw_type = 'PLAIN_AXES'
+        bpy.context.scene.objects.link(obj)
         context.scene.world.rpr_data.environment.gizmo = obj.name
         return {'FINISHED'}
 
@@ -743,18 +754,15 @@ class RPRRender_PT_global_anti_aliasing(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         rpr = context.scene.rpr.render.aa
-        row = layout.row()
-        col = row.column(align=True)
-        col.alignment = 'EXPAND'
-        col.label('Filter:')
-        col.prop(rpr, "filter", text='')
-        col.prop(rpr, "radius", slider=True, text='Width')
-
-        col = row.column(align=True)
-        col.alignment = 'EXPAND'
-        col.label('AA:')
-        col.prop(rpr, "samples", slider=True, text='Samples')
-        col.prop(rpr, "grid", slider=True, text='Grid')
+        col1, col2, is_row = create_ui_autosize_column(context, layout)
+        col1.label('Filter:')
+        col1.prop(rpr, "filter", text='')
+        if is_row:
+            col1.alignment = 'EXPAND'
+            col1.prop(rpr, "radius", slider=True, text='Radius')
+        else:
+            col2.label('')
+            col2.prop(rpr, "radius", slider=True, text='Radius')
 
 
 @rpraddon.register_class
@@ -765,9 +773,6 @@ class RPRRender_PT_developer(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         dev = context.scene.rpr.dev
-
-        row = layout.row()
-        row.prop(dev, "show_materials_with_errors")
         row = layout.row()
         row.prop(dev, "trace_dump")
         row = layout.row()
@@ -795,11 +800,12 @@ class OpExportRPRModel(Operator, ExportHelper):
 
 def export_rpr_model(context, filepath):
     from rprblender import sync, export
+    import rprblender.render.scene
     scene = bpy.context.scene
     settings = scene.rpr.render
 
-    core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder())
-    scene_synced = sync.SceneSynced(core_context, scene, settings)
+    render_device = rprblender.render.get_render_device(is_production=False)
+    scene_synced = sync.SceneSynced(render_device, settings)
 
     render_resolution = (640, 480)
 
@@ -814,9 +820,11 @@ def export_rpr_model(context, filepath):
 
     try:
         scene_exporter = export.SceneExport(scene, scene_synced, ['MESH', 'CURVE'])
+        scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)
         scene_exporter.export()
+
         logging.info("Exporting RPR model to:", filepath)
-        result = pyrpr_load_store.export(filepath, core_context, scene_synced.get_core_scene())
+        result = pyrpr_load_store.export(filepath, render_device.core_context, scene_synced.get_core_scene())
         if result == 0:
             logging.info("Export complete")
         else:
@@ -963,6 +971,8 @@ class OpOpenWebPage(bpy.types.Operator):
         import webbrowser
         webbrowser.open(path)
         return {'FINISHED'}
+
+
 
 
 ########################################################################################################################
@@ -1134,6 +1144,15 @@ class RPRObject_PT(RPRPanel, Panel):
             #self.layout.prop(rpr, "shadowcatcher")
             self.layout.prop(rpr, "shadows")
             self.layout.prop(rpr, "portallight")
+
+            self.layout .label('Ray Visibility:')
+
+            if context.region.width > PANEL_WIDTH_FOR_COLUMN:
+                visibility_layout = self.layout.row()
+            else:
+                visibility_layout = self.layout.column()
+
+            visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Primary")
             subdivision_layout = self.layout.box()
             add_subdivision_properties(subdivision_layout, context.object)
 
@@ -1173,7 +1192,7 @@ def draw_camera_dof(context, layout, camera):
 
     row = layout.row()
 
-    col1, col2 = create_ui_autosize_column(context, layout)
+    col1, col2, is_row = create_ui_autosize_column(context, layout)
     col1.enabled = context.scene.rpr.render.dof.enable
     col2.enabled = context.scene.rpr.render.dof.enable
 

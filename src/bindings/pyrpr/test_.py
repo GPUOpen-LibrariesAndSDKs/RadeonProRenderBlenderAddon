@@ -90,6 +90,7 @@ def create_simple_quad(context, scene):
 
 
 def create_mesh_simple(context, vertices, indices):
+    print("create_mesh_simple:", vertices, indices)
     vertices_ptr = pyrpr.ffi.cast("float *", vertices.ctypes.data)
     # test ptr
     numpy.testing.assert_almost_equal(vertices.flatten(),
@@ -685,7 +686,7 @@ class Test:
         pyrpr.ShapeSetTransform(mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
 
         # motion blur setup
-        pyrpr.ShapeSetAngularMotion(mesh, 0, 0, 1, 1)
+        pyrpr.ShapeSetAngularMotion(mesh, 0, 0, 1, 0.1)
         # pyrpr.ShapeSetLinearMotion(mesh, 1, 0, 0)
 
         fixture.mesh = mesh
@@ -698,7 +699,7 @@ class Test:
         pyrpr.SceneAttachLight(scene, ibl)
 
         with fixture:
-            pyrpr.CameraSetExposure(fixture.camera, 1)
+            pyrpr.CameraSetExposure(fixture.camera, 10)
             pass
 
     def test_camera_cubemap_stereo(self):
@@ -866,10 +867,16 @@ class Test:
             pyrpr.ContextDetachPostEffect(context, white_balance)
             del white_balance
 
-    @pytest.mark.parametrize('aov_name', [name for name in dir(pyrpr) if name.startswith('AOV_')
-                                          if name not in ('AOV_COLOR', 'AOV_MAX')])
+    aov_names = [name for name in dir(pyrpr) if name.startswith('AOV_')
+                 if name not in ('AOV_COLOR', 'AOV_MAX')]
+    assert 13 == len(aov_names), "Make sure aovs are actually collected, please adjust number to expected aov count"
+
+    @pytest.mark.parametrize('aov_name', aov_names)
     def test_aov(self, aov_name):
         context = self.context
+
+        matsys = pyrpr.MaterialSystem()
+        pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
 
         scene = self.scene
 
@@ -877,16 +884,45 @@ class Test:
         ibl, img = self.create_environment_light_simpe(context, (1,) * 4, (2, 2))
         pyrpr.SceneAttachLight(scene, ibl)
 
+        meshes = []
+        shaders = []
+
+        for i in range(2):
+            shader = pyrpr.MaterialNode()
+            pyrpr.MaterialSystemCreateNode(matsys,
+                                           pyrpr.MATERIAL_NODE_DIFFUSE
+                                           if i % 2 else pyrpr.MATERIAL_NODE_EMISSIVE, shader)
+            pyrpr.MaterialNodeSetInputF(shader, b'color', 1.0, 1.0, 1.0, 1.0)
+            shaders.append(shader)
+
+        size = 2
+        idx = 0
+        for xi in range(size):
+            for yi in range(size):
         # make simple quad scene for the test
         mesh = create_simple_quad(context, scene)
+
+                x, y = (np.array([xi, yi])/(size-1)*0.2-0.1)
+
         transform = np.array([
-            [0.1, 0, 0, 0],
-            [0, 0.1, 0, 0],
-            [0, 0, 0.1, 0],
-            [0, 0, 0, 1],
+                    [0.075/((size-1)*2), 0, 0, 0],
+                    [0, 0.075/((size-1)*2), 0, 0],
+                    [0, 0, 1, 0],
+                    [x, y, -((x+y)+0.2)*0.2, 1],
         ], dtype=np.float32)
 
         pyrpr.ShapeSetTransform(mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+                pyrpr.ShapeSetMaterial(mesh, shaders[xi % len(shaders)])
+
+                pyrpr.ShapeSetObjectGroupID(mesh, 250-idx*50) # invert indices for groups just to make it different from object id
+
+                #pyrpr.ShapeSetAngularMotion(mesh, 0, 0, 1, 0.0001)
+                pyrpr.ShapeSetLinearMotion(mesh, 0, 0, 1.0)
+
+                idx += 1
+
+                meshes.append(mesh)
 
         resolution = (320, 240)
 
@@ -931,8 +967,32 @@ class Test:
         for i in range(10):
             pyrpr.ContextRender(context)
 
-        if all(name not in aov_name.lower() for name in ['material_idx', 'object_group_id', 'object_id']):
-            check_framebuffer_agains_baseline(frame_buffer_aov, 'test_aov_' + aov_name.replace('AOV_', '').lower())
+        frame_buffer_normalize = pyrpr.FrameBuffer()
+        pyrpr.ContextCreateFrameBuffer(context, fmt, desc, frame_buffer_normalize)
+
+        normalize = pyrpr.PostEffect()
+        pyrpr.ContextCreatePostEffect(context, pyrpr.POST_EFFECT_NORMALIZATION, normalize)
+        pyrpr.ContextAttachPostEffect(context, normalize)
+
+        pyrpr.ContextResolveFrameBuffer(context, frame_buffer_aov, frame_buffer_normalize)
+
+        im = get_frame_buffer_image(frame_buffer_normalize, resolution)
+
+        # RPR 1.273 has issue with index-type aovs being divided by 255, i.e. instead of 1, 2, 3
+        # it has 0.00392, 0.00784 ... which is fine but 1, 2, 3 feels more 'right' for indices
+        # "group_id" is not included here because it's already big values set above
+        aov_idx_type = any(name in aov_name.lower() for name in ['material_idx', 'object_id'])
+        if aov_idx_type:
+            im *= 255/5
+
+        if 'velocity' in aov_name.lower():
+            im = im*0.2+0.5
+
+        if 'world' in aov_name.lower():
+            im = im*2+0.5
+
+        check_image_agains_baseline2(
+            im[..., :3], 'test_aov_' + aov_name.replace('AOV_', '').lower())
 
     def test_pentagonal(self):
         context = self.context
@@ -2105,7 +2165,7 @@ class Test:
 
             fixture.set_shader(shader)
 
-    def test_image_from_file(self, tmpdir_factory, simple_material_render_fixture):
+    def test_image_from_memory(self, tmpdir_factory, simple_material_render_fixture):
         fixture = self.render_fixture
         fixture.set_name('test_image_from_file')
 
@@ -2136,6 +2196,118 @@ class Test:
             pyrpr.MaterialNodeSetInputN(shader, b'color', texture)
 
             fixture.set_shader(shader)
+
+    def test_image_from_file(self, tmpdir_factory, simple_material_render_fixture):
+        fixture = self.render_fixture
+        fixture.set_name('test_image_from_file')
+
+        fpath = str(tmpdir_factory.mktemp('data').join('image.png'))
+
+        colors = np.array([
+            [[1, 0, 0, 1], [0, 1, 0, 1]],
+            [[0, 0, 1, 1], [1, 1, 1, 1]], ], dtype=np.float32)
+
+        # upscale
+        # colors = np.repeat(np.repeat(colors, 2, axis=0), 2, axis=1)
+        colors = np.tile(colors, (2, 2, 1))
+
+        imageio.imwrite(fpath, colors)
+
+        with fixture:
+            shader = pyrpr.MaterialNode()
+            pyrpr.MaterialSystemCreateNode(fixture.matsys, pyrpr.MATERIAL_NODE_EMISSIVE, shader)
+
+            image = pyrpr.Image()
+            pyrpr.ContextCreateImageFromFile(fixture.context, fpath.encode('latin1'), image)
+
+            texture = pyrpr.MaterialNode()
+            pyrpr.MaterialSystemCreateNode(fixture.matsys, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, texture)
+            pyrpr.MaterialNodeSetInputImageData(texture, b'data', image)
+
+            pyrpr.MaterialNodeSetInputN(shader, b'color', texture)
+
+            fixture.set_shader(shader)
+
+    @pytest.mark.skipif(pyrpr.API_VERSION <= 0x010027300, reason="issue found in this version, see AMDBLENDER-789")
+    def test_image_from_file_memory(self, tmpdir_factory):
+
+        fpath = str(tmpdir_factory.mktemp('data').join('image.png'))
+
+        colors = np.array([
+            [[1, 0, 0, 1], [0, 1, 0, 1]],
+            [[0, 0, 1, 1], [1, 1, 1, 1]], ], dtype=np.float32)
+
+        # upscale
+        scale = 4096
+        colors = np.repeat(np.repeat(colors, scale, axis=0), scale, axis=1)
+
+        imageio.imwrite(fpath, colors)
+
+        class Fixture:
+            pass
+
+        fixture = Fixture()
+        fixture.name = 'test_image_from_file_memory'
+
+        fixture.render_resolution = (320, 240)
+
+        fixture.context = self.context
+
+        for i in range(10):
+            print('render:', i)
+
+            image_fpath = str(tmpdir_factory.mktemp('textures').join('image_texture%d.png'%i))
+            shutil.copy(fpath, image_fpath)
+
+            image = pyrpr.Image()
+            pyrpr.ContextCreateImageFromFile(fixture.context, image_fpath.encode('latin1'), image)
+            del image
+            continue
+
+            fixture.matsys = pyrpr.MaterialSystem()
+            pyrpr.ContextCreateMaterialSystem(fixture.context, 0, fixture.matsys)
+
+            fixture.scene = pyrpr.Scene(fixture.context)
+            pyrpr.ContextSetScene(fixture.context, fixture.scene)
+            fixture.mesh = create_simple_quad(fixture.context, fixture.scene)
+            fixture.frame_buffer = None
+
+            fixture.frame_buffer, fixture.camera = create_simple_render_setup(
+                fixture.context, fixture.scene, fixture.render_resolution)
+            pyrpr.ContextSetParameter1u(fixture.context, b'rendermode', pyrpr.RENDER_MODE_GLOBAL_ILLUMINATION)
+
+            shader = pyrpr.MaterialNode()
+            pyrpr.MaterialSystemCreateNode(fixture.matsys, pyrpr.MATERIAL_NODE_EMISSIVE, shader)
+
+            texture = pyrpr.MaterialNode()
+            pyrpr.MaterialSystemCreateNode(fixture.matsys, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, texture)
+            pyrpr.MaterialNodeSetInputImageData(texture, b'data', image)
+
+            pyrpr.MaterialNodeSetInputN(shader, b'color', texture)
+
+            pyrpr.ShapeSetMaterial(fixture.mesh, shader)
+
+            pyrpr.FrameBufferClear(fixture.frame_buffer)
+
+            for j in range(1):
+                pyrpr.ContextRender(self.context)
+
+            check_framebuffer_agains_baseline(fixture.frame_buffer, fixture.name)
+
+            pyrpr.ShapeSetMaterial(fixture.mesh, None)
+            del shader
+            del texture
+            del image
+
+            pyrpr.SceneDetachShape(fixture.scene, fixture.mesh)
+            pyrpr.ContextSetScene(fixture.context, None)
+            pyrpr.ContextSetAOV(fixture.context, pyrpr.AOV_COLOR, None)
+
+            del fixture.mesh
+            del fixture.frame_buffer
+            del fixture.scene
+            del fixture.camera
+            del fixture.matsys
 
     def test_shape_set_transform_validity_check(self, simple_material_render_fixture):
         fixture = self.render_fixture
@@ -2176,7 +2348,7 @@ def assert_images_similar(a, b, max_average_deviation=0.005, max_std_dev=0.02):
     assert std_dev <= max_std_dev, (std_dev, max_std_dev)
 
 
-def check_framebuffer_agains_baseline(frame_buffer, name, max_average_deviation=0.005, max_std_dev=0.02):
+def check_framebuffer_agains_baseline(frame_buffer, name, max_average_deviation=0.005, max_std_dev=0.02, scale=1.0):
     fname = name + ".png"
     pyrpr.FrameBufferSaveToFile(frame_buffer, fname.encode('latin1'))
 
@@ -2189,7 +2361,7 @@ def check_framebuffer_agains_baseline(frame_buffer, name, max_average_deviation=
     if not os.path.isfile(expected_path):
         shutil.copy(actual_path, expected_path)
 
-    actual = imageio.imread(actual_path)[..., 0:3].astype(np.float32) * (1 / 255)
+    actual = imageio.imread(actual_path)[..., 0:3].astype(np.float32) * (1 / 255) * scale
 
     expected = imageio.imread(expected_path)[..., 0:3].astype(np.float32) * (1 / 255)
 
@@ -2211,6 +2383,45 @@ def check_framebuffer_agains_baseline(frame_buffer, name, max_average_deviation=
     else:
         os.remove(actual_path)
 
+
+def check_image_agains_baseline2(im, name):
+
+    assert 0 <= np.min(im) and np.max(im) <= 1
+
+    fname = name + ".png"
+
+    if not os.path.isdir('baseline'):
+        os.mkdir('baseline')
+
+    expected_path = os.path.join('baseline', fname)
+    actual_path = fname
+
+    imageio.imwrite(actual_path, im)
+
+    if not os.path.isfile(expected_path):
+        shutil.copy(actual_path, expected_path)
+
+    actual = imageio.imread(actual_path)[..., 0:3].astype(np.float32) * (1 / 255)
+
+    expected = imageio.imread(expected_path)[..., 0:3].astype(np.float32) * (1 / 255)
+
+    diff = expected - actual
+    # sum differences from all channels
+    diff_channels = np.abs(diff[..., 0]), np.abs(diff[..., 1]), np.abs(diff[..., 2])
+    # make red dots where there's any difference
+    diff_max = np.concatenate([a[..., np.newaxis] for a in diff_channels], axis=2).max(axis=2)
+
+    diff_display = (diff_max != 0)[:, :, np.newaxis] * [1, 0, 0]
+
+    try:
+        assert_images_similar(expected, actual)
+    except AssertionError:
+        imageio.imwrite(name + '_baseline.png', expected)
+        imageio.imwrite(name + '_diff.png', diff_display)
+        imageio.imwrite(name + '_diff_module.png', diff_max)
+        raise
+    else:
+        os.remove(actual_path)
 
 def check_image_agains_baseline(im, name):
     fname = name + ".png"
@@ -2286,6 +2497,10 @@ class TestRprx(unittest.TestCase):
 
 
 
+def init_modules():
+    pyrpr.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
+    pyrpr_load_store.init(rprsdk_path / bin_folder)
+    pyrprx.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
 
 if __name__ == '__main__':
     pyrpr_log_flag = '--pyrpr-log'
@@ -2293,9 +2508,7 @@ if __name__ == '__main__':
         pyrpr.lib_wrapped_log_calls = True
         sys.argv.remove(pyrpr_log_flag)
 
-    pyrpr.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
-    pyrpr_load_store.init(rprsdk_path / bin_folder)
-    pyrprx.init(print)
+    init_modules()
 
     pytest.main([__file__, '-s'])
 else:
@@ -2303,7 +2516,5 @@ else:
     if pytest.config.option.pyrpr_log:
         pyrpr.lib_wrapped_log_calls = True
 
-    pyrpr.init(print, rprsdk_bin_path=rprsdk_path / bin_folder)
-    pyrpr_load_store.init(rprsdk_path / bin_folder)
-    pyrprx.init(print)
+    init_modules()
 

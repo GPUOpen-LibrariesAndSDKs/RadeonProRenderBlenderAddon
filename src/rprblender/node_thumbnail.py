@@ -58,7 +58,9 @@ class NodeThumbnailManager:
         with rprblender.render.core_operations():
             settings = bpy.context.scene.rpr.render_thumbnail  # type: rprblender.properties.RenderSettings
 
-            self.scene_renderer = rprblender.render.scene.SceneRenderer(settings, False)
+            self.scene_renderer = rprblender.render.scene.SceneRenderer(
+                rprblender.render.get_render_device(is_production=True),
+                settings, False)
             self.scene_renderer_lock = threading.Lock()  # to make sure only one thread renders thumbnail at a time
 
             aov_extracted = rprblender.render.render_layers.extract_settings(bpy.context.scene.rpr.thumbnails_aov)
@@ -548,12 +550,17 @@ class ThumbnailUpdateCallerOperator(bpy.types.Operator):
     limits = bpy.props.IntProperty(default=0)
     _timer = None
     _last_change = 0
+    _terminate = False
 
     @staticmethod
     def material_changed():
         ThumbnailUpdateCallerOperator._last_change = time.perf_counter()
 
     def modal(self, context, event):
+        if ThumbnailUpdateCallerOperator._terminate:
+            self.cancel(context)
+            return {'FINISHED'}
+
         if event.type == 'TIMER' and context.scene.render.engine == 'RPR':
             if time.perf_counter() - ThumbnailUpdateCallerOperator._last_change > 0.6:
                 get_thumbnail_manager().swap_queue()
@@ -561,13 +568,32 @@ class ThumbnailUpdateCallerOperator(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        wm = context.window_manager
         if ThumbnailUpdateCallerOperator._timer:
-            wm.event_timer_remove(ThumbnailUpdateCallerOperator._timer)
+            return {'FINISHED'}
+        wm = context.window_manager
+        ThumbnailUpdateCallerOperator._terminate = False
 
+        logging.info('execute rpr_thumbnail_update_caller_operator...')
         ThumbnailUpdateCallerOperator._timer = wm.event_timer_add(time_step=1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}
+
+    def cancel(self, context):
+        logging.info('Cancel rpr_thumbnail_update_caller_operator...')
+        wm = context.window_manager
+        wm.event_timer_remove(ThumbnailUpdateCallerOperator._timer)
+        ThumbnailUpdateCallerOperator._timer = None
+        return {'FINISHED'}
+
+
+@rpraddon.register_class
+class ThumbnailUpdateCallerDisableOperator(bpy.types.Operator):
+    bl_idname = "wm.rpr_thumbnail_update_caller_disable_operator"
+    bl_label = "Modal Timer Disable Operator"
+
+    def execute(self, context):
+        ThumbnailUpdateCallerOperator._terminate = True
+        return {'FINISHED'}
 
 
 @rpraddon.register_class
@@ -587,7 +613,7 @@ class RPRMaterial_PT_Thumbnails(RPRPanel, bpy.types.Panel):
         self.layout.prop(context.scene.rpr.thumbnails, "enable", text='')
 
     def draw(self, context):
-        self.layout.label('Experimental', icon='ERROR')
+        self.layout.label('Experimental (see console)', icon='ERROR')
         self.layout.prop(context.scene.rpr.thumbnails, "use_large_preview")
 
 

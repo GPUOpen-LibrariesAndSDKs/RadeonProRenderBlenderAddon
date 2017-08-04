@@ -4,7 +4,7 @@ bl_info = {
     "name": "Radeon ProRender",
     "description": "Radeon ProRender rendering plugin for Blender.",
     "author": "AMD",
-    "version": (1, 2, 4),
+    "version": (1, 2, 10),
     "blender": (2, 78, 0),
     "location": "Info header, render engine menu",
     "warning": "",  # used for warning icon and text in addons panel
@@ -75,7 +75,6 @@ def load_post(dummy):
 
     helpers.render_resources_helper.enable_autosave()
 
-    bpy.ops.wm.rpr_thumbnail_update_caller_operator()
 
     if bpy.context.scene.world:
         versions.check_old_environment_settings()
@@ -86,8 +85,16 @@ def load_post(dummy):
 
     versions.check_old_rpr_image_nodes()
     versions.check_old_rpr_uber2_nodes()
+    versions.check_old_rpr_ibl_images()
 
     check_data_from_library()
+
+    from rprblender import render
+
+    # free cached render device to make sure cached images don't consume memory
+    # as RPR doesn't free images created from files, see AMDBLENDER-789
+    render.free_render_devices()
+
     logging.debug("load_post ok")
 
 
@@ -123,13 +130,14 @@ def on_scene_update_post(scene):
     prev_nodeeditor_name = ui.get_activate_editor_name()
 
     # update gizmo rotation
-    env = bpy.context.scene.world.rpr_data.environment
-    if bpy.data.objects.is_updated:
-        name = env.gizmo
-        if name in bpy.data.objects:
-            obj = bpy.data.objects[name]
-            if obj.is_updated:
-                env['gizmo_rotation'] = obj.rotation_euler
+    if hasattr(bpy.context.scene.world, 'rpr_data'):
+        env = bpy.context.scene.world.rpr_data.environment
+        if bpy.data.objects.is_updated:
+            name = env.gizmo
+            if name in bpy.data.objects:
+                obj = bpy.data.objects[name]
+                if obj.is_updated:
+                    env['gizmo_rotation'] = obj.rotation_euler
 
 
 bpy.app.handlers.scene_update_post.append(on_scene_update_post)

@@ -1,4 +1,5 @@
 import datetime
+import gc
 import time
 import traceback
 import weakref
@@ -7,15 +8,17 @@ from pathlib import Path
 import bpy
 import numpy as np
 import pyrpr
+import sys
 import viewportdraw
 
+import rprblender.core.image
 import rprblender.render
 import rprblender.render.render_layers
 import rprblender.render.render_stamp
 import rprblender.render.scene
 import rprblender.render.viewport
 from rprblender import rpraddon, logging, config, sync, export
-from rprblender.helpers import CallLogger
+from rprblender.helpers import CallLogger, print_memory_usage
 from rprblender.timing import TimedContext
 from rprblender.versions import get_render_passes_aov
 
@@ -93,18 +96,16 @@ class RPREngine(bpy.types.RenderEngine):
         logging.debug('bake')
 
     def render(self, scene):
-        logging.debug('render')
+        logging.debug('render', tag='render.engine')
         try:
             self._render(scene)
         except:
             self.report_render_error('render', "Exception: %s" % traceback.format_exc())
+        logging.debug('render done', tag='render.engine')
 
     @staticmethod
     def init_preview_settings():
-        ibl = bpy.context.scene.rpr.preview_environment.ibl
-        ibl.use_ibl_map = True
-        ibl.ibl_map = str(Path(rprblender.__file__).parent / 'img/env.hdr')
-        ibl.maps.background_map = str(Path(rprblender.__file__).parent / 'img/gray.jpg')
+        pass
 
     def show_gpu_info(self):
         from . import helpers
@@ -133,9 +134,10 @@ class RPREngine(bpy.types.RenderEngine):
         settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render
 
         with rprblender.render.core_operations(raise_error=True):
-            scene_renderer = rprblender.render.scene.SceneRenderer(settings, not self.is_preview)  #
+            render_device = rprblender.render.get_render_device(is_production=True, persistent=True)
+            scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)  #
 
-        scene_synced = sync.SceneSynced(scene_renderer.core_context, scene, settings)
+        scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
 
         scene_renderer.production_render = True
 
@@ -176,30 +178,68 @@ class RPREngine(bpy.types.RenderEngine):
             if not self.is_preview:
                 self.update_stats('', 'exporting scene...')
             time_export_start = time.perf_counter()
+            print_memory_usage("before export")
             scene_exporter = export.SceneExport(scene, scene_synced)
+            try:
 
-            # texture compression context param needs to be set before exporting textures
-            pyrpr.ContextSetParameter1u(scene_renderer.get_core_context(), b"texturecompression",
-                                        settings.texturecompression)
+                # texture compression context param needs to be set before exporting textures
+                pyrpr.ContextSetParameter1u(scene_renderer.get_core_context(), b"texturecompression",
+                                            settings.texturecompression)
 
-            if self.is_preview:
-                settings_environment = bpy.context.scene.rpr.preview_environment
-            else:
-                settings_environment = scene.world.rpr_data.environment if scene.world else None
-            scene_exporter.sync_environment_settings(settings_environment)
+                if self.is_preview:
+                    is_icon = width <= 32 and height <= 32
 
-            if self.is_preview:
-                is_icon = width <= 32 and height <= 32
-                scene_exporter.export_preview(is_icon)
-            else:
-                for name in scene_exporter.export_iter():
-                    if self.test_break():
-                        return
-                    logging.debug('exporting:', name, tag='sync')
-                    self.update_stats("Exporting", str(name))
-                if not self.is_preview:
-                    self.report({'INFO'},
-                                'RPR: scene export took {:.3f} seconds'.format(time.perf_counter() - time_export_start))
+                    scene_exporter.export_preview(is_icon)
+
+                    environment_light_image = rprblender.core.image.create_core_image_from_image_file(
+                        scene_renderer.core_context, str(Path(rprblender.__file__).parent / 'img/env.hdr'))
+                    environment_light = scene_synced.environment_light_create_from_core_image(
+                        "preview_ibl", environment_light_image)
+                    environment_light.attach()
+
+                    if is_icon:
+                        background_image = rprblender.core.image.create_core_image_from_image_file(
+                            scene_renderer.core_context, str(Path(rprblender.__file__).parent / 'img/gray.jpg'))
+                        background = scene_synced.background_create_from_core_image(
+                            "preview_background", background_image)
+                        background._enable()
+                else:
+                    settings_environment = scene.world.rpr_data.environment if scene.world else None
+                    scene_exporter.sync_environment_settings(settings_environment)
+
+                    for name in scene_exporter.export_iter():
+                        print_memory_usage("export %s" % name)
+                        if scene_synced.has_error:
+                            self.report({'WARNING'},'Scene export completed with errors.\nPlease see the log for more details!')
+                            scene_synced.has_error = False
+                        if self.test_break():
+                            return
+                        logging.debug('exporting:', name, tag='sync')
+                        self.update_stats("Exporting", str(name))
+
+                    if not self.is_preview:
+                        self.report({'INFO'},
+                                    'RPR: scene export took {:.3f} seconds'.format(time.perf_counter() - time_export_start))
+            finally:
+                print_memory_usage("export done")
+
+                if config.debug:
+                    referrers = gc.get_referrers(scene_exporter)
+                    if 1 != len(referrers):
+                        logging.critical("exporter has more than one reference(current frame and something else):")
+                        for r in referrers:
+                            if r != sys._getframe(0):
+                                logging.critical(r)
+                                try:
+                                    logging.critical(r.f_code)
+                                except AttributeError:
+                                    pass
+                    del referrers
+
+                # delete exported to free up memory before rendering
+                del scene_exporter
+
+                print_memory_usage("exporter deleted")
 
             scene_renderer_treaded = rprblender.render.scene.SceneRendererThreaded(scene_renderer)
             scene_renderer_treaded.start_noninteractive()
@@ -256,10 +296,11 @@ class RPREngine(bpy.types.RenderEngine):
                     self.report_render_error('render', 'render failed')
 
         finally:
-            del scene_exporter
             scene_synced.destroy()
             del scene_synced
             del scene_renderer
+            del render_device
+            #rprblender.render.free_render_devices()
 
     @staticmethod
     def update_scene_render_stats(engine, scene_renderer: rprblender.render.scene.SceneRenderer, limits):
@@ -322,11 +363,12 @@ class RPREngine(bpy.types.RenderEngine):
         with TimedContext("copy image to rect"):
             res = []
             for p in result_render_layer.passes:
-                pass_image = scene_renderer.get_image(p.name)
-                if pass_image is None:
+                aov_name = rprblender.render.render_layers.pass_to_aov_name(p.name)
+                if aov_name is None:
                     width, height = im.shape[1], im.shape[0]
                     pass_image = np.ones(height * width * p.channels, dtype=np.float32)
                 else:
+                    pass_image = scene_renderer.get_image(aov_name)
                     if p.channels != 4:
                         pass_image = pass_image[:, :, 0:p.channels]
 
@@ -389,7 +431,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.update_stats("Sync", name)
         self.tag_redraw()
 
-    view_draw_get_image_fps_max = 20
+    view_draw_get_image_fps_max = 100
     view_draw_get_image_timestamp = -1 / view_draw_get_image_fps_max
 
     def view_draw(self, context):  # Draw viewport render
@@ -456,8 +498,12 @@ class RPREngine(bpy.types.RenderEngine):
             viewport_renderer.update_render_camera(
                 sync.extract_viewport_render_camera(context, viewport_renderer.scene_renderer.render_settings))
 
-            im = viewport_renderer.get_image()
+            logging.debug("pass:", viewport_renderer.render_aov.pass_displayed,
+                          get_render_passes_aov(bpy.context).pass_displayed,
+                          tag='render.viewport.draw')
+            im = viewport_renderer.get_image(viewport_renderer.render_aov.pass_displayed)
             if im is not None:
+                logging.debug("pass image retrieved", tag='render.viewport.draw')
                 assert im.flags['C_CONTIGUOUS']
                 self.im = im
             settings = bpy.context.scene.rpr.render
@@ -550,10 +596,15 @@ class RPREngine(bpy.types.RenderEngine):
 
         # leave out Combined from enumeration, see add_passes comment - calling add_pass
         # for Combined doesn't work well(in blender-2.78.0-git.528ae88-windows64)
-        #passes.add('Combined')
+        # passes.add('Combined')
 
         if aov_settings.enable:
             for i, pass_name in enumerate(aov_settings.passes_names):
-                if aov_settings.passes_states[i]:
-                    passes.add(rprblender.render.render_layers.aov2pass[pass_name])
+
+                # skip enumerating Combined pass, adding it breaks appering it in the resulting Render Layer
+                # AMDBLENDER-777
+                if pass_name != 'default':
+                    if aov_settings.passes_states[i]:
+                        logging.debug("add pass:", pass_name, tag="render.engine.passes")
+                        passes.add(rprblender.render.render_layers.aov2pass[pass_name])
         return passes

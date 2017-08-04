@@ -69,14 +69,15 @@ class ImageCache:
         self.stats = ImageCacheStats()
 
     def get_image_pixels(self, image, load_pixels_from_blender_image):
-        try:
-            self.stats.requested(image)
+        self.stats.requested(image)
+
+        if image in self.image2pixels:
             return self.image2pixels[image]
-        except KeyError:
-            pixels = load_pixels_from_blender_image(image)
-            self.image2pixels[image] = pixels
-            self.stats.loaded(image, pixels)
-            return pixels
+
+        pixels = load_pixels_from_blender_image(image)
+        self.image2pixels[image] = pixels
+        self.stats.loaded(image, pixels)
+        return pixels
 
     def delete_image_pixels(self, image):
         try:
@@ -97,13 +98,16 @@ class CoreImageCache:
 
     def get_core_image(self, context, image, load_image):
         images = self.images4context.setdefault(context, {})
-        try:
+        if image in images:
             return images[image]
-        except KeyError:
-            return images.setdefault(image, load_image(context, image))
+        return images.setdefault(image, load_image(context, image))
 
     def purge(self):
         self.images4context.clear()
+
+    def purge_for_context(self, core_context):
+        self.images4context.get(core_context, {}).clear()
+
 
 
 core_image_cache = CoreImageCache()

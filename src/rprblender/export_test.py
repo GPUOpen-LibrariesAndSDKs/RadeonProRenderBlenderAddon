@@ -10,7 +10,6 @@ import rprblender.properties
 from rprblender.core.image import extract_pixels_from_blender_image
 from rprblender.testing import SyncFixture, assert_arrays_approx_equal
 from rprblender.timing import TimedContext
-from rprblender.export import getUnitsToMeters
 
 import numpy as np
 
@@ -181,6 +180,14 @@ class SceneSynced:
 
     @logged
     def mesh_set_shadows(self, key, matrix):
+        pass
+
+    @logged
+    def mesh_set_visibility_in_primary_rays(self, obj_key, value):
+        pass
+
+    @logged
+    def mesh_set_visibility_in_specular(self, obj_key, value):
         pass
 
     @logged
@@ -1903,38 +1910,34 @@ def generate_uv():
 
 class TestExtractMesh:
     def test_simple(self):
-        scale = getUnitsToMeters(bpy.context.scene)
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         assert 6 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, scale)
+        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
         assert 24 == len(mesh['data']['indices'])
 
     def test_simple_triangles(self):
         mod = bpy.context.object.modifiers.new("triangulate", 'TRIANGULATE')
 
         # assert 1 == len(bpy.context.object.data.polygons)
-        scale = getUnitsToMeters(bpy.context.scene)
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         assert 12 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, scale)
+        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
         assert 48 == len(mesh['data']['indices'])
 
     def test_material_index(self):
-        scale = getUnitsToMeters(bpy.context.scene)
         bpy.context.object.data.polygons[2].material_index = 1
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
-        mesh = rprblender.export.extract_mesh(blender_mesh, scale)
+        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
         assert 1 == list(mesh['data']['faces_materials']).count(1)
         assert 5 == list(mesh['data']['faces_materials']).count(0)
 
     def test_curve(self):
-        scale = getUnitsToMeters(bpy.context.scene)
         bpy.ops.curve.primitive_bezier_circle_add(radius=1)
         bpy.context.object.data.dimensions = '2D'
         bpy.context.object.data.fill_mode = 'BOTH'
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)  # type: bpy.types.Mesh
         assert 46 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, scale)
+        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
         assert 184 == len(mesh['data']['indices'])
 
     @pytest.mark.skipif(condition=not pytest.config.option.perf, reason='this is for simple profiling of export code')
@@ -1946,13 +1949,11 @@ class TestExtractMesh:
         bpy.ops.mesh.subdivide(number_cuts=100, smoothness=1)
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        scale = getUnitsToMeters(bpy.context.scene)
-
         with TimedContext("get_blender_mesh"):
             blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         with TimedContext("extract_mesh"):
             # s = cProfile.runctx("rprblender.export.extract_mesh(blender_mesh)", globals(), locals(), sort='cumulative')
-            mesh = rprblender.export.extract_mesh(blender_mesh, scale)
+            mesh = rprblender.export.extract_mesh(blender_mesh, 1)
         assert 3305124 == len(mesh['data']['indices'])
 
 

@@ -29,7 +29,7 @@ import rprblender.testing
 import rprblender.ui
 import rprblender.images
 import rprblender.core.image
-from rprblender import config
+from rprblender import config, versions
 from rprblender import helpers
 from rprblender import material_editor
 from rprblender import node_editor
@@ -75,14 +75,12 @@ class ViewportFixture:
             self.viewport_renderer.scene_synced.destroy()
             self.stop()
             self.viewport_renderer = None
-            context.delete()
+            #context.delete()
 
     def start(self):
-        bpy.context.scene.rpr.dev.show_materials_with_errors = True
-
         self.viewport_renderer = rprblender.render.viewport.ViewportRenderer()
         self.set_render_camera_and_resolution_and_xxx(update=False)
-        self.viewport_renderer.start(bpy.context.scene, threaded=True)
+        self.viewport_renderer.start(bpy.context.scene, threaded=True, is_production=True)
         self.viewport_renderer.scene_renderer.production_render = True
         self.viewport_renderer.scene_renderer_threaded.sleep_delay = 0.0
 
@@ -278,7 +276,7 @@ class RenderImageCheck:
         self.failure_encountered = False
 
     def set_expected(self, expected, scale=None, offset=None, gamma=None, clamp=None, max_avg_dev=None,
-                     max_std_dev=None, aov=None):
+                     max_std_dev=None, aov='default'):
         """ Context that checks image on exit by performing full re-export and render of the current scene
 
         :param gamma: displaygamma(rendered pixels a taken to power of 1/gamma)
@@ -311,7 +309,7 @@ class RenderImageCheck:
         return self
 
     @contextlib.contextmanager
-    def set_expected_synced(self, expected, scale=None, offset=None, max_avg_dev=None, max_std_dev=None, aov=None):
+    def set_expected_synced(self, expected, scale=None, offset=None, max_avg_dev=None, max_std_dev=None, aov='default'):
         ''' Context that checks image on exit by performing 'sync'(i.e. updating, not re-exporting) and render of the current scene
 
         :param expected:
@@ -323,7 +321,7 @@ class RenderImageCheck:
         :return:
         '''
         self.set_expected(expected, scale=scale, offset=offset, max_avg_dev=max_avg_dev, max_std_dev=max_std_dev,
-                          aov=None)
+                          aov=aov)
         self.sync_fixture.set_sync(self.viewport_fixture.update)
 
         with self.sync_fixture:
@@ -454,8 +452,6 @@ def basic_render_settings():
     rpr_settings.tone_mapping.enable = False
     rpr_settings.aa.filter = 'BOX'
     rpr_settings.aa.radius = 0.0
-    rpr_settings.aa.grid = 1
-    rpr_settings.aa.samples = 1
     rpr_settings.global_illumination.max_ray_depth = 10
 
     rpr_settings.rendering_limits.enable = True
@@ -483,6 +479,7 @@ def basic_render_settings():
 
     if enable_cpu:
         helpers.get_user_settings().device_type = 'cpu'
+    helpers.get_user_settings().samples = 1
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -881,7 +878,7 @@ def add_ibl(tmpdir_factory):
     bpy.context.scene.world.rpr_data.environment.enable = True
     bpy.context.scene.world.rpr_data.environment.type = 'IBL'
     bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
-    bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = path
+    set_ibl_image(bpy.context.scene.world.rpr_data.environment.ibl, path)
 
 
 def create_hemisphere_image_data(size):
@@ -1099,14 +1096,12 @@ class TestMaterialImport:
             # render_image_check_fixture.viewport_fixture.render_resolution = (512, 512)
             bpy.context.scene.rpr.render.rendering_limits.type = 'ITER'  # TIME ITER
             bpy.context.scene.rpr.render.rendering_limits.time = 5
-            bpy.context.scene.rpr.render.rendering_limits.iterations = 100
+            bpy.context.scene.rpr.render.rendering_limits.iterations = 400
             render_image_check_fixture.viewport_fixture.render_resolution = (128, 128)
 
             rpr_settings = bpy.context.scene.rpr.render
             rpr_settings.aa.filter = "MITCHELL"
             rpr_settings.aa.radius = 1.5
-            rpr_settings.aa.grid = 4
-            rpr_settings.aa.samples = 4
             rpr_settings.global_illumination.max_ray_depth = 10
 
             for o in bpy.context.scene.objects:
@@ -1811,10 +1806,19 @@ def test_shader_node_reflection(render_image_check_fixture, material_setup, requ
         node = editor.create_reflection_material_node()
         editor.link_nodes(node, output.get_input_shader_socket())
 
+    with render_image_check_fixture.set_expected('reflection/reflection_color_expected'):
+        node.set_color_value((0.5, 1, 0.75, 1))
+
+    node.set_color_value((1, 1, 1, 1))
+
     with render_image_check_fixture.set_expected('reflection/reflection_normal_expected'):
         normal_map = material_editor.ValueNode(create_normalmap(tree), editor)
         editor.link_nodes(normal_map, node.get_input_socket_by_name('normal'))
         normal_map.set_input_socket_value_by_name('scale', 0.5)
+
+    with render_image_check_fixture.set_expected('reflection/reflection_color_node_expected'):
+        noise = editor.create_noise2d_node()
+        editor.link_nodes(noise, node.get_input_socket_by_name('color'))
 
 
 def test_shader_node_transparent(render_image_check_fixture, material_setup, request, tmpdir_factory):
@@ -2781,6 +2785,26 @@ def test_viewport_sync_perf_multiple_objects(viewport_fixture, sync_fixture):
         assert im is not None
 
 
+def set_ibl_image(ibl, path):
+    if versions.is_blender_support_ibl_image():
+        try:
+            ibl.ibl_image = bpy.data.images.load(path, True)
+        except RuntimeError:
+            ibl.ibl_image = None
+    else:
+        ibl.ibl_map = path
+
+
+def set_background_image(ibl, path):
+    if versions.is_blender_support_ibl_image():
+        try:
+            ibl.maps.background_image = bpy.data.images.load(path, True)
+        except RuntimeError:
+            ibl.maps.background_image = None
+    else:
+        ibl.maps.background_map = path
+
+
 class TestEnvironmentLight:
     def set_diffuse_color(self, color, output):
         surface_material = output.inputs[output.shader_in].links[0].from_node
@@ -2810,7 +2834,7 @@ class TestEnvironmentLight:
 
         log("test sync map set after it was not")
         with render_image_check_fixture.set_expected_synced('environment_light/simple_expected'):
-            environment.ibl.ibl_map = path
+            set_ibl_image(environment.ibl, path)
 
         log("test environment disable")
         with render_image_check_fixture.set_expected('environment_light/off_expected'):
@@ -2828,14 +2852,22 @@ class TestEnvironmentLight:
             environment.ibl.color = (1, 1, 0)
             environment.ibl.use_ibl_map = False
 
-        log("test map removed while ibl enabled")
+        log("not a file image")
         with render_image_check_fixture.set_expected('environment_light/error_expected'):
             environment.ibl.use_ibl_map = True
-            environment.ibl.ibl_map = 'not here!!!'
+
+            missing_path = str(tmpdir_factory.mktemp('textures').join('missing_image_texture.png'))
+
+            image = bpy.data.images.new("rpr_striped_gradients", width=32, height=32)
+            image.pixels = []  # emulate missing image load
+            image.filepath_raw = missing_path
+
+            # TODO: simulate missing file with bpy.ops.wm.save_mainfile(filepath=)
+            set_ibl_image(environment.ibl, missing_path)
 
         log("test map removed while ibl enabled")
         with render_image_check_fixture.set_expected('environment_light/simple_expected'):
-            environment.ibl.ibl_map = path
+            set_ibl_image(environment.ibl, path)
 
         log("test intensity")
         with render_image_check_fixture.set_expected('environment_light/intens_x2_expected'):
@@ -2898,10 +2930,10 @@ class TestEnvironmentLight:
         bpy.context.scene.objects['Lamp'].hide = True
 
         background_image_path = str(tmpdir_factory.mktemp('data').join('background.png'))
-        create_color_fill_image(background_image_path, (0.0, 1.0, 1.0))
+        background_image = create_color_fill_image(background_image_path, (0.0, 1.0, 1.0))
 
         ibl_image_path = str(tmpdir_factory.mktemp('data').join('ibl.png'))
-        create_color_fill_image(ibl_image_path, (1.0, 0.0, 0.0))
+        ibl_image = create_color_fill_image(ibl_image_path, (1.0, 0.0, 0.0))
 
         tree = material_setup.create_default_node_tree()
         output = material_setup.get_node_tree_output(tree)
@@ -2915,19 +2947,21 @@ class TestEnvironmentLight:
             bpy.context.scene.world.rpr_data.environment.enable = True
             bpy.context.scene.world.rpr_data.environment.type = 'IBL'
             bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
-            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = ibl_image_path
+
+            set_ibl_image(bpy.context.scene.world.rpr_data.environment.ibl, ibl_image_path)
             bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = True
-            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = background_image_path
+            set_background_image(bpy.context.scene.world.rpr_data.environment.ibl, background_image_path)
+
 
     def test_background(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
         # 1.239 has bug with light from Background - AMDMAX-1060
         # render_image_check_fixture.skip_image_comparison = 0x010000239 == pyrpr.API_VERSION
 
         background_image_path = str(tmpdir_factory.mktemp('data').join('background.png'))
-        create_striped_sky_image(background_image_path)
+        background_image = create_striped_sky_image(background_image_path)
 
         ibl_image_path = str(tmpdir_factory.mktemp('data').join('ibl.png'))
-        create_color_fill_image(ibl_image_path, (1.0, 0.0, 0.0))
+        ibl_image = create_color_fill_image(ibl_image_path, (1.0, 0.0, 0.0))
 
         tree = material_setup.create_default_node_tree()
         output = material_setup.get_node_tree_output(tree)
@@ -2941,9 +2975,9 @@ class TestEnvironmentLight:
             bpy.context.scene.world.rpr_data.environment.enable = True
             bpy.context.scene.world.rpr_data.environment.type = 'IBL'
             bpy.context.scene.world.rpr_data.environment.ibl.use_ibl_map = True
-            bpy.context.scene.world.rpr_data.environment.ibl.ibl_map = ibl_image_path
+            set_ibl_image(bpy.context.scene.world.rpr_data.environment.ibl, ibl_image_path)
             bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = True
-            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = background_image_path
+            set_background_image(bpy.context.scene.world.rpr_data.environment.ibl, background_image_path)
 
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_off_expected'):
             bpy.context.scene.world.rpr_data.environment.ibl.maps.override_background = False
@@ -2954,7 +2988,11 @@ class TestEnvironmentLight:
 
         log('test not an image')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_error_expected'):
-            bpy.context.scene.world.rpr_data.environment.ibl.maps.background_map = 'hello'
+            image = bpy.data.images.new("rpr_striped_gradients", width=32, height=32)
+            image.filepath_raw = str(tmpdir_factory.mktemp('textures').join('missing_image_texture.png'))
+
+            # TODO: simulate missing file with bpy.ops.wm.save_mainfile(filepath=)
+            set_background_image(bpy.context.scene.world.rpr_data.environment.ibl, image.filepath_raw)
 
         log('color')
         with render_image_check_fixture.set_expected_synced('environment_light/backplate_color'):
@@ -3204,6 +3242,7 @@ class TestShadowcatcher:
 
 
 class TestPortallight:
+
     def test_simple(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
         portallight_obj = bpy.context.object
 
@@ -3246,6 +3285,105 @@ class TestPortallight:
         with render_image_check_fixture.set_expected_synced('portallight/off_expected'):
             portallight_obj.rpr_object.portallight = False
             portallight_obj.update_tag()
+
+
+        # seems line in RPR 1.252 background is not visible through invisible portal!
+        # so enabling background dosn't make eny difference
+        environment.ibl.maps.override_background = True
+        environment.ibl.maps.override_background_type = 'color'
+        environment.ibl.maps.background_color = (1, 1, 0)
+
+        with render_image_check_fixture.set_expected('portallight/visibility_primary_off_expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = False
+            portallight_obj.rpr_object.portallight = True
+
+    def test_lighting(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
+
+        bpy.context.object.select = False
+        bpy.context.scene.objects['Lamp'].select = True
+        bpy.ops.object.delete()
+
+        cube = bpy.context.object
+
+        bpy.ops.mesh.primitive_plane_add(radius=1)
+        plane = bpy.context.object
+        plane.location = (0.0, 0.0, 1.5)
+        plane.scale = (0.25,) * 3
+        plane.rotation_euler = (3.14159, 0, 0) # rotate portal to face mesh to light
+        portallight_obj = plane
+
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
+        environment.enable = True
+        environment.type = 'IBL'
+        environment.ibl.use_ibl_map = False
+        environment.ibl.color = (0, 1, 1)
+        environment.ibl.intensity = 5
+
+        portallight_obj.rpr_object.portallight = True
+
+        with render_image_check_fixture.set_expected('portallight/lighting/expected'):
+            pass
+
+        with render_image_check_fixture.set_expected('portallight/lighting/visibility_primary_off_expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = False
+
+        log("check background doesn't change lighting")
+        environment.ibl.maps.override_background = True
+        environment.ibl.maps.override_background_type = 'color'
+        environment.ibl.maps.background_color = (1, 1, 0)
+
+        with render_image_check_fixture.set_expected('portallight/lighting/visibility_primary_off_expected'):
+            pass
+
+        with render_image_check_fixture.set_expected('portallight/lighting/expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = True
+
+        log("test sync")
+        with render_image_check_fixture.set_expected_synced('portallight/lighting/visibility_primary_off_expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = False
+            portallight_obj.update_tag()
+
+        with render_image_check_fixture.set_expected_synced('portallight/lighting/expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = True
+            portallight_obj.update_tag()
+
+    def test_appearance(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
+
+        cube = bpy.context.object
+        cube.scale = (0.5,) * 3
+
+        bpy.ops.mesh.primitive_plane_add(radius=1)
+        plane = bpy.context.object
+        plane.location = (0.0, 0.0, 1.5)
+        plane.scale = (1,) * 3
+        portallight_obj = plane
+
+        environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
+        environment.enable = True
+        environment.type = 'IBL'
+        environment.ibl.use_ibl_map = False
+        environment.ibl.color = (0, 1, 1)
+        environment.ibl.intensity = 1
+
+        portallight_obj.rpr_object.portallight = True
+
+        with render_image_check_fixture.set_expected('portallight/appearance/expected'):
+            pass
+
+        with render_image_check_fixture.set_expected('portallight/appearance/visibility_primary_off_expected'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = False
+
+        log("check background doesn't change lighting")
+        environment.ibl.maps.override_background = True
+        environment.ibl.maps.override_background_type = 'color'
+        environment.ibl.maps.background_color = (1, 1, 0)
+
+        #NOTE: RPR 1.273 doesn't show background for portal tha doesn't show shape in primary rays
+        with render_image_check_fixture.set_expected('portallight/appearance/visibility_primary_off_with_background_expected'):
+            pass
+
+        with render_image_check_fixture.set_expected('portallight/appearance/background'):
+            portallight_obj.rpr_object.visibility_in_primary_rays = True
 
 
 class TestMotionblur:
@@ -3567,7 +3705,7 @@ def test_displacement_shading_normal(render_image_check_fixture, material_setup,
         passes_aov.passesStates[i] = aov_nam == passes_aov.render_passes_items[i][0]
 
     with render_image_check_fixture.set_expected('displacement/shading_normal_expected',
-                                                 aov=blender_pass):
+                                                 aov=aov_nam):
         # generate simple uvs - RPR subdivision code requires them
         generate_uv()
 
@@ -4048,6 +4186,177 @@ def test_load_image_cache(render_image_check_fixture, material_setup, request, t
     log(rprblender.images.image_cache.stats.format_current())
 
 
+
+@notquick
+@pytest.mark.timeout(30)
+def test_core_image_cache_and_context_cache_for_engine_render_calls(render_image_check_fixture, material_setup, request, tmpdir_factory):
+    """"test that images are cached between unrelated render final renders, for example when renderring
+    animation sequence - same settings(HW, texturecompression etc) but different RenderEngine calls"""
+    #image = create_color_fill_image_packed((1, 1, 0), (4096,) * 2)
+
+    image_fpath = str(tmpdir_factory.mktemp('textures').join('image_texture.png'))
+
+    # make really hute texture to make sure its setup takes time
+    im = np.full((16384, 16384, 3), (255, 255, 0), dtype=np.uint8)
+    import imageio
+    imageio.imsave(image_fpath, im)
+    image = bpy_extras.image_utils.load_image(image_fpath)
+
+    # image.filepath_raw = str(tmpdir_factory.mktemp('textures').join('image_texture.hdr'))
+    # image.file_format = 'HDR'
+    # image.save()
+
+    environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
+
+    # environment.enable = True
+    # environment.ibl.use_ibl_map = True
+    # environment.type = 'IBL'
+    # environment.ibl.ibl_map = image.filepath_raw
+    # environment.ibl.color = (1, 1, 1)
+
+    bpy.ops.object.delete()
+
+    # config.image_cache_blender = True
+    # config.image_cache_core = False
+
+    x, y = 0, 0
+
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.object.location = (2 * x, 2 * y, 0)
+    bpy.context.object.scale = (0.5, 0.5, 0.025)
+
+    # create default material
+    material = bpy.data.materials.new('Material')
+    mesh = bpy.context.object.data
+    mesh.materials.append(material)
+
+    tree = material_setup.create_default_node_tree()
+    editor = MaterialEditor(tree)
+    output = OutputNode(material_setup.get_node_tree_output(tree), editor)
+
+    blend = editor.create_blend_material_node()
+
+    # create Normal Map node and connect it to Diffuse material Normal input
+    testee = editor.create_diffuse_material_node()
+    transparent = editor.create_diffuse_material_node()
+    transparent.set_input_socket_value_by_name('color', (0.5, 0.5, 1, 1))
+
+    editor.link_nodes(testee, blend.get_input_socket_by_name('shader1'))
+    editor.link_nodes(transparent, blend.get_input_socket_by_name('shader2'))
+
+    editor.link_nodes(blend, output.get_input_shader_socket())
+    blend.set_input_socket_value_by_name('weight',
+                                         0.25 + 0.25 * np.sin((np.square(x) + np.square(y)) * np.pi * 2))
+    # blend.set_input_socket_value_by_name('weight', 1)
+
+    image_texture = editor.create_image_texture_node()
+
+    image_texture.set_image(image)
+
+    editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
+
+    rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
+    rpr_settings.rendering_limits.enable = True
+    rpr_settings.rendering_limits.type = 'ITER'
+    rpr_settings.rendering_limits.iterations = 1
+
+    # set texture compression so making core image would take more time
+    rpr_settings.texturecompression = True
+
+    for i in range(20):
+
+        fpath = Path(str(tmpdir_factory.mktemp('data').join('image.png')))
+        try:
+            bpy.context.scene.render.filepath = str(fpath)
+            bpy.ops.render.render(write_still=True)
+            assert fpath.is_file(), tempfile
+            # TODO:check resulting image here
+        finally:
+            fpath.unlink()
+
+    import rprblender.images
+    log(rprblender.images.image_cache.stats.format_current())
+
+
+@pytest.fixture(scope='session')
+def huge_image(tmpdir_factory):
+    image_fpath = str(tmpdir_factory.mktemp('textures').join('huge_image.png'))
+    # make really hute texture to make sure its setup takes time
+    size = 4096*2
+    im = np.full((size, size, 3), (255, 255, 0), dtype=np.uint8)
+    import imageio
+    imageio.imsave(image_fpath, im)
+    yield image_fpath
+
+
+@notquick
+@pytest.mark.parametrize('i', range(100))
+def test_context_reuse_memory(i, reset_blender, material_setup, tmpdir_factory, huge_image):
+    """"test that image cache is cleared between scene loads. if not this will run only with lots os memory avail"""
+
+    # make image unique per run so it's not definitely cached
+    image_fpath = str(tmpdir_factory.mktemp('textures').join('image_texture%d.png'%i))
+    shutil.copy(huge_image, image_fpath)
+
+    image = bpy_extras.image_utils.load_image(image_fpath)
+
+    bpy.ops.object.delete()
+
+    x, y = 0, 0
+
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.object.location = (2 * x, 2 * y, 0)
+    bpy.context.object.scale = (0.5, 0.5, 0.025)
+
+    # create default material
+    material = bpy.data.materials.new('Material')
+    mesh = bpy.context.object.data
+    mesh.materials.append(material)
+
+    tree = material_setup.create_default_node_tree()
+    editor = MaterialEditor(tree)
+    output = OutputNode(material_setup.get_node_tree_output(tree), editor)
+
+    # create Normal Map node and connect it to Diffuse material Normal input
+    testee = editor.create_diffuse_material_node()
+    transparent = editor.create_diffuse_material_node()
+    transparent.set_input_socket_value_by_name('color', (0.5, 0.5, 1, 1))
+
+    editor.link_nodes(testee, output.get_input_shader_socket())
+
+    image_texture = editor.create_image_texture_node()
+
+    image_texture.set_image(image)
+
+    editor.link_nodes(image_texture, testee.get_input_socket_by_name('color'))
+
+    rpr_settings = bpy.context.scene.rpr.render  # type: rprblender.properties.RenderSettings
+    rpr_settings.rendering_limits.enable = True
+    rpr_settings.rendering_limits.type = 'ITER'
+    rpr_settings.rendering_limits.iterations = 1
+
+    # set texture compression so making core image would take more time
+    rpr_settings.texturecompression = True
+
+    environment = bpy.context.scene.world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
+    environment.enable = False
+
+    bpy.context.scene.rpr.dev.trace_dump = True
+    bpy.context.scene.rpr.dev.trace_dump_folder = tracing_folder
+
+    fpath = Path(str(tmpdir_factory.mktemp('data').join('image.png')))
+    try:
+        bpy.context.scene.render.filepath = str(fpath)
+        bpy.ops.render.render(write_still=True)
+        assert fpath.is_file(), tempfile
+        # TODO:check resulting image here
+    finally:
+        fpath.unlink()
+
+    import rprblender.images
+    log(rprblender.images.image_cache.stats.format_current())
+
+
 @notquick
 @pytest.mark.timeout(20)
 def test_animation_image_cache(render_image_check_fixture, material_setup, request, tmpdir_factory):
@@ -4181,12 +4490,66 @@ class TestAov:
         if 'index' in blender_pass.lower():
             name = None
 
-        with render_image_check_fixture.set_expected(name, aov=blender_pass):
+        with render_image_check_fixture.set_expected(name, aov=aov_name_tested):
             pass
 
             # make sure getting combined is fine too
             # with render_image_check_fixture.set_expected_synced(name, aov='COMBINED'):
             #     pass
+
+    def test_aov_sync(self, material_setup, render_image_check_fixture: RenderImageCheck):
+        generate_uv()
+
+        # make transparent material for mesh
+        bpy.context.object.data.materials.append(bpy.data.materials.new('Material'))
+        tree = material_setup.create_default_node_tree()
+        editor = MaterialEditor(tree)
+        output = OutputNode(material_setup.get_node_tree_output(tree), editor)
+        # create Normal Map node and connect it to Diffuse material Normal input
+        diffuse = editor.create_diffuse_material_node()
+        transparent = editor.create_transparent_material_node()
+        blend = editor.create_blend_material_node()
+
+        diffuse.set_color_value((1.0, 0.5, 0.75, 1))
+        editor.link_nodes(transparent, blend.get_input_socket_by_name('shader1'))
+        editor.link_nodes(diffuse, blend.get_input_socket_by_name('shader2'))
+        blend.set_input_socket_value_by_name('weight', 0.25)
+        editor.link_nodes(blend, output.get_input_shader_socket())
+
+        bpy.ops.mesh.primitive_ico_sphere_add()
+        bpy.context.object.location = (1, 0, -1)
+        bpy.context.object.scale = (1.5,) * 3
+
+        passes_aov = get_render_passes_aov(bpy.context)
+        passes_aov.enable = True
+
+        aov_name = 'shading_normal'
+
+        # enable only pass under test
+        for i, item in enumerate(passes_aov.render_passes_items):
+            passes_aov.passesStates[i] = aov_name == item[0]
+
+        with render_image_check_fixture.set_expected('aov/aov_pass_' + aov_name,
+                                                     aov=aov_name):
+            pass
+
+        # retrieving non-rendered pass
+        assert render_image_check_fixture.viewport_fixture.viewport_renderer.get_image('depth') is None
+
+        aov_name = 'depth'
+
+        # enable only pass under test
+        for i, item in enumerate(passes_aov.render_passes_items):
+            passes_aov.passesStates[i] = aov_name == item[0]
+
+
+        # check that retrieving image immediately doesn't fail
+        render_image_check_fixture.viewport_fixture.viewport_renderer.get_image('depth')
+
+        with render_image_check_fixture.set_expected('aov/aov_pass_' + aov_name,
+                                                     aov=aov_name):
+            pass
+
 
 
 class TestPerf:
@@ -4199,21 +4562,22 @@ class TestPerf:
 
     @pytest.mark.skip()
     def test_image_load(self, tmpdir_factory):
-        context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder())
+        render_device = rprblender.render.get_render_device()
+        context = render_device.core_context
 
         for i in range(10):
             path = str(tmpdir_factory.mktemp('textures').join('image_texture%d.png' % i))
-            create_color_fill_image(path, (1, 0, 0), (1048,) * 2)
+            create_color_fill_image(path, (1, 0, 0), (2048,) * 2)
 
-            rprblender.core.image.create_core_image_from_image_file(context, path, False)
+            rprblender.core.image.create_core_image_from_image_file_via_blender(context, path, False)
 
     @pytest.mark.skipif(condition=not pytest.config.option.perf, reason='this is for simple profiling of export code')
     def test_exr(self):
         import rprblender.render.scene
         import rprblender.sync
         scene = bpy.context.scene
-        scene_renderer = rprblender.render.scene.SceneRenderer(scene.rpr.render)
-        scene_synced = rprblender.sync.SceneSynced(scene_renderer.core_context, scene, scene.rpr.render)
+        render_device = rprblender.render.get_render_device(is_production=True),
+        scene_synced = rprblender.sync.SceneSynced(render_device, scene.rpr.render)
 
         for i in range(10):
             path = None
@@ -6085,3 +6449,11 @@ class TestLog:
     def test_simple(self):
         import rprblender.logging
         rprblender.logging.info("hello!!!!!!!!!!!!!")
+
+
+class TestExportRpr:
+
+    def test_simple(self, tmpdir_factory):
+        fpath = Path(str(tmpdir_factory.mktemp('rprexport').join('simple.rpr')))
+        rprblender.ui.export_rpr_model(bpy.context, str(fpath))
+        assert fpath.is_file()

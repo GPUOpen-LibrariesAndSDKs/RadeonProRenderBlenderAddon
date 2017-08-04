@@ -1,36 +1,43 @@
-import cProfile
-import inspect
 import itertools
+import operator
 import sys
 import threading
 import time
-import traceback
-import bpy
-import gc
+
 import numpy as np
 import pyrpr
-from pyrpr import ffi
 
 import rprblender.render
 import rprblender.render
-from rprblender import config
+import rprblender.render.render_layers
+import rprblender.render.device
+from rprblender import helpers, config
 from rprblender import logging
 from rprblender.helpers import CallLogger
-import rprblender.render.render_layers
-from rprblender import helpers
 
 call_logger = CallLogger(tag='render.scene')
 
 
 class SceneRenderer:
 
-    def __init__(self, rs, is_production=False):
-        self.core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder(), is_production)
+    @property
+    def core_context(self):
+        return self.render_device.core_context
 
-        pyrpr.ContextSetParameter1u(self.get_core_context(), b'xflip', 0)
-        pyrpr.ContextSetParameter1u(self.get_core_context(), b'yflip', 1)
+    @property
+    def post_effects(self):
+        return self.render_device.post_effects
+
+    render_targets = None
+    render_layers = None
+
+    def __init__(self, render_device, rs, is_production=False):
+        self.render_device = render_device
+
+        self.posteffect_chain = rprblender.render.device.PostEffectChain(self.render_device)
 
         self.im = None
+        self.im_tile = None
         self.im_iteration = None
         self.im_prepared = {}
         self.iteration_in_progress = None
@@ -40,44 +47,41 @@ class SceneRenderer:
         self.region = None
         self.time_render_start = None
 
-        self.post_effects = {}
         self.render_settings = rs
         self.production_render = False
-        self.render_layers = None
-        self.frame_buffer = None
-        self.frame_buffer_tonemapped = None
         self.aov_settings = None
         self.tile_image = None
 
-        self.is_production = is_production;
+        self.is_production = is_production
         self.used_iterations = 1
         self.iteration_divider = 1
 
     @call_logger.logged
     def __del__(self):
-        del self.render_layers
-        del self.frame_buffer
-        del self.frame_buffer_tonemapped
-        del self.post_effects
+        self.render_layers = None
+        if self.render_targets is not None:
+            self.render_device.detach_render_target(self.render_targets)
+            del self.render_targets
 
-        if config.debug:
-            referrers = gc.get_referrers(self.core_context)
-            assert 1 == len(referrers), (referrers, self.core_context)
-        del self.core_context
+        del self.posteffect_chain
+        del self.render_device
 
     def get_core_context(self):
         return self.core_context
 
-    def get_core_frame_buffer(self):
-        return self.frame_buffer
-
-    def get_core_frame_buffer_resolved(self):
-        return self.frame_buffer_tonemapped
-
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
+        self.render_layers = None
+        if self.render_targets is not None:
+            self.render_device.detach_render_target(self.render_targets)
+            del self.render_targets
+
         self.resolution = render_resolution
-        self.make_frame_buffers(self.resolution)
+        self.render_targets = rprblender.render.device.RenderTargets(self.render_device, self.resolution)
+        self.render_layers = rprblender.render.render_layers.RenderLayers(
+            self.aov_settings, self.render_targets)
+
+        self.render_device.attach_render_target(self.render_targets)
 
     @call_logger.logged
     def update_render_region(self, render_region):
@@ -87,78 +91,6 @@ class SceneRenderer:
     def update_aov(self, aov):
         self.aov_settings = aov
 
-    def make_frame_buffers(self, render_resolution):
-        logging.info('make_frame_buffers: ', render_resolution)
-
-        if self.render_layers:
-
-            # check that render_layers are not held
-            if config.debug:
-                referrers = gc.get_referrers(self.render_layers)
-                assert 1 == len(referrers), (referrers, len(referrers), self.render_layers)
-
-            del self.render_layers
-        self.render_layers = rprblender.render.render_layers.RenderLayers(
-            self.aov_settings, self.get_core_context(), render_resolution)
-        self.frame_buffer = self.render_layers.get_frame_buffer()
-
-        desc = ffi.new("rpr_framebuffer_desc*")
-        desc.fb_width, desc.fb_height = render_resolution
-        fmt = (4, pyrpr.COMPONENT_TYPE_FLOAT32)
-
-        self.frame_buffer_tonemapped = pyrpr.FrameBuffer()
-        pyrpr.ContextCreateFrameBuffer(self.get_core_context(), fmt, desc, self.frame_buffer_tonemapped)
-
-    class PostEffectUpdate:
-
-        def __init__(self, scene_renderer):
-            self.posteffects_needed = set()
-            self.scene_renderer = scene_renderer
-
-        def enable(self, post_effect_name):
-            self.posteffects_needed.add(post_effect_name)
-            return self.scene_renderer.attach_posteffect(post_effect_name)
-
-    def attach_posteffect(self, name):
-        if name not in self.post_effects:
-            post_effect = pyrpr.PostEffect()
-            self.post_effects[name] = post_effect
-            pyrpr.ContextCreatePostEffect(self.get_core_context(), name, post_effect)
-            pyrpr.ContextAttachPostEffect(self.get_core_context(), post_effect)
-        return self.post_effects[name]
-
-    def detach_posteffect(self, post_effect):
-        pyrpr.ContextDetachPostEffect(self.get_core_context(), self.post_effects[post_effect])
-        self.post_effects[post_effect].delete()
-        del self.post_effects[post_effect]
-
-    def update_post_effects(self, settings):
-
-        # remove all posteffects
-        # TODO: possible optimization is to leave this for later
-        # and don't delete used effects. BUT post-effects attachments order matters.
-        # this will make this code a bit more complex. Right now I don't see need for extra complexity.
-        for post_effect in list(self.post_effects):
-            self.detach_posteffect(post_effect)
-
-        # Always apply normalization.
-        post_effect_update = self.PostEffectUpdate(self)
-        post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
-
-        # Apply post effects.
-        tone_mapping_applied = self.update_tone_mapping(settings, post_effect_update)
-        white_balance_applied = self.update_white_balance(settings, post_effect_update)
-        gamma_correct_applied = self.update_gamma_correction(settings, post_effect_update)
-
-        # Remove unused post effects (Note - this may not be required due to
-        # the loop at the start of the method that detaches all post effects).
-        for post_effect in list(self.post_effects):
-            if post_effect not in post_effect_update.posteffects_needed:
-                self.detach_posteffect(post_effect)
-
-        # Return true if a frame buffer resolve is required.
-        return tone_mapping_applied or white_balance_applied or gamma_correct_applied
-
     def update_tone_mapping(self, settings, post_effect_update):
 
         tm = settings.tone_mapping
@@ -167,12 +99,11 @@ class SceneRenderer:
 
         if tm.type == 'simplified':
             simple_tonemap = post_effect_update.enable(pyrpr.POST_EFFECT_SIMPLE_TONEMAP)
+            simple_tonemap.set_param_float(b"exposure", tm.simplified.exposure)
+            simple_tonemap.set_param_float(b"contrast", tm.simplified.contrast)
 
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"tonemapping.type",
                                         pyrpr.TONEMAPPING_OPERATOR_NONE)
-
-            pyrpr.PostEffectSetParameter1f(simple_tonemap, b"exposure", tm.simplified.exposure)
-            pyrpr.PostEffectSetParameter1f(simple_tonemap, b"contrast", tm.simplified.contrast)
 
             return True
 
@@ -225,8 +156,8 @@ class SceneRenderer:
             return False
 
         white_balance = post_effect_update.enable(pyrpr.POST_EFFECT_WHITE_BALANCE)
-        pyrpr.PostEffectSetParameter1u(white_balance, b"colorspace", wb.color_space_values[wb.color_space])
-        pyrpr.PostEffectSetParameter1f(white_balance, b"colortemp", wb.color_temperature)
+        white_balance.set_param_int(b"colorspace", wb.color_space_values[wb.color_space])
+        white_balance.set_param_float(b"colortemp", wb.color_temperature)
 
         return True
 
@@ -259,13 +190,15 @@ class SceneRenderer:
         ##iterations = (#user set iterations) * (#user set samples) / #samples
         settings = helpers.get_user_settings()
         numGPUs = helpers.get_used_gpu_count(settings.gpu_states)
-        user_set_samples = rs.get_aa_samples(self.production_render)
+        user_set_samples = settings.samples
         if rs.rendering_limits.enable:
             if 'ITER' == rs.rendering_limits.type:
                 if self.is_production and settings.device_type == 'gpu' and settings.device_type_plus_cpu:
                     samples = 100
                 else:
-                    if numGPUs > user_set_samples:
+                    # if production(final) render force sample count to GPU count for better throughput
+                    # don't force it in viewport render for better interactivity(mGPU sync takes time)
+                    if numGPUs > user_set_samples and self.is_production:
                         samples = numGPUs
                     else:
                         samples = user_set_samples
@@ -304,7 +237,6 @@ class SceneRenderer:
                                           properties.RenderSettings.rendermode_remap[rs.render_mode])
 
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"aasamples", samples)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"aacellsize", rs.get_aa_grid(self.production_render))
 
             if rs.global_illumination.use_clamp_irradiance:
                 pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
@@ -324,17 +256,12 @@ class SceneRenderer:
                                               properties.AntiAliasingSettings.radius_params[rs.aa.filter],
                                               rs.aa.radius)
 
-        with rprblender.render.core_operations(raise_error=True):
-            resolve_needed = self.update_post_effects(rs)
-
         timstamp_operation = time.perf_counter()
         time_local_total += timstamp_operation - timestamp_operation_last
         timestamp_operation_last = timstamp_operation
 
         with rprblender.render.core_operations(raise_error=True):
-            for aov in self.render_layers.aovs.values():
-                aov.clear()
-            aov = None
+            self.render_targets.clear()
 
         for i in itertools.count():
             rendering_limits = rs.rendering_limits
@@ -358,36 +285,9 @@ class SceneRenderer:
                     pyrpr.ContextRenderTile(self.get_core_context(), *render_region)
             self.cache_generated = True
 
-            width, height = render_resolution
-
-            displayed_layer = 'default' if self.production_render else self.render_layers.displayed_layer
-
-            if resolve_needed and displayed_layer == 'default':
-                fb = self.get_core_frame_buffer_resolved()
-                with rprblender.render.core_operations(raise_error=True):
-                    pyrpr.FrameBufferClear(fb)
-                    pyrpr.ContextResolveFrameBuffer(self.get_core_context(), self.get_core_frame_buffer(), fb)
-                im = rprblender.render.render_layers.get_image(width, height, fb)
-            else:
-                im = self.render_layers.get_image(displayed_layer)
-
-            self.log_debug('render_proc - prepare image', render_resolution)
-
-            dummy_render = False
-
-            if dummy_render:  # render simple animated gradient
-                im = np.ones((height, width, 4), dtype=np.float32)
-                t = (time.perf_counter() - time_start) % 1
-                im[:, :, 2] = np.sin(10 * np.pi * (t + np.linspace(0, 1, height, dtype=np.float32)))[:, np.newaxis]
-                im[:, :, 0] = np.linspace(0, 1, height, dtype=np.float32)[:, np.newaxis]
-                im[:, :, 1] = np.linspace(0, 1, width, dtype=np.float32)[np.newaxis, :]
-                im[:, :, 3] = 1
-
-            self.im = im
-            self.im_iteration = i
-            self.log_debug("render_proc done", time.time(), im.shape)
-            self.im_prepared.clear()
             self.im_tile = self.tile_image
+            self.im_iteration = i
+            self.im_prepared.clear()
 
             timstamp_operation = time.perf_counter()
             time_local_total += timstamp_operation - timestamp_operation_last
@@ -413,22 +313,47 @@ class SceneRenderer:
     def get_image_tile(self):
         return self.im_tile
 
-    def get_image(self, pass_name = ''):
-        aov_name = rprblender.render.render_layers.pass_to_aov_name(pass_name)
+    def get_image(self, aov_name='default'):
 
         if aov_name in self.im_prepared:
             return self.im_prepared[aov_name]
 
-        if aov_name == 'default':
-            im = self.im
-        else:
-            im = self.render_layers.get_image(aov_name)
+        with rprblender.render.core_operations(raise_error=True):
+
+            frame_buffer = self.render_targets.get_frame_buffer(aov_name)
+
+            if not frame_buffer:
+                return
+
+            # apply post effects, remaking posteffects chain for each pass separately
+            # RPR will have per-buffer posteffect chains later, but now they are on the context
+            # so need to be reattached separately for every aov
+            post_effect_chain = self.posteffect_chain
+            post_effect_update = post_effect_chain.start_update()
+            # Always apply normalization, aov need this too.
+            post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
+
+            if aov_name == 'default':
+                settings = self.render_settings
+                self.update_tone_mapping(settings, post_effect_update)
+                self.update_white_balance(settings, post_effect_update)
+                self.update_gamma_correction(settings, post_effect_update)
+
+            im = self.render_targets.get_resolved_image(frame_buffer)
+
+            # dummy_render = False
+            #
+            # if dummy_render:  # render simple animated gradient
+            #     im = np.ones((height, width, 4), dtype=np.float32)
+            #     im[:, :, 2] = np.sin(10 * np.pi * (t + np.linspace(0, 1, height, dtype=np.float32)))[:, np.newaxis]
+            #     im[:, :, 0] = np.linspace(0, 1, height, dtype=np.float32)[:, np.newaxis]
+            #     im[:, :, 1] = np.linspace(0, 1, width, dtype=np.float32)[np.newaxis, :]
+            #     im[:, :, 3] = 1
 
         if im is not None:
             self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im)
 
         return self.im_prepared.get(aov_name)
-
 
 class RenderThread(threading.Thread):
 
@@ -447,13 +372,15 @@ class RenderThread(threading.Thread):
             self.renderer.render_proc()
         logging.debug(self, 'run complete', tag='render.scene')
 
-
 class UpdateBlock:
 
-    def __init__(self, value=None, has_value=True, equal=None):
+    def __init__(self, value=None, has_value=True, equal=operator.eq):
         self.value = value
         self.has_value = has_value
         self.equal = equal
+
+    def __str__(self):
+        return "UpdateBlock(value=%s)" % (self.value,)
 
     @call_logger.logged
     def set_value(self, value):
@@ -470,16 +397,17 @@ class UpdateBlock:
 
 
 class UpdateData:
-    aov = None
 
     def __init__(self):
         self.render_region = UpdateBlock(value=None, equal=np.array_equal)
         self.render_resolution = UpdateBlock(has_value=False, equal=np.array_equal)
+        self.aov = UpdateBlock(has_value=False,
+                               equal=lambda old, new: old is not None and old == new)
         self.render_camera = UpdateBlock(has_value=False, equal=lambda old, new: old is not None and old.is_same(new))
 
-    def update_block(self, block, block_value_current, block_value_new, equal=None):
+    def update_block(self, block, block_value_current, block_value_new):
         """ """
-        equal = equal or block.equal
+        equal = block.equal
 
         if block.has_value:
             # if update queued already has same data - skip it
@@ -494,8 +422,6 @@ class UpdateData:
             return
 
         block.set_value(block_value_new)
-
-
 
 
 class SceneRendererThreaded:
@@ -513,6 +439,7 @@ class SceneRendererThreaded:
         self.update_data_lock = threading.Lock()
         self.update_data = UpdateData()
         self.render_resolution = None
+        self.aov = None
         self.render_region = None
         self.render_camera = None
 
@@ -614,24 +541,37 @@ class SceneRendererThreaded:
     def check_updates(self):
         with self.update_data_lock:
             if self.update_data.render_resolution.has_value:
+                logging.debug('resolution changed to ', self.update_data.render_resolution,  tag='render.proc.update')
                 self.render_resolution = self.update_data.render_resolution.pop_value()
-                if self.update_data.aov is not None:
-                    self.scene_renderer.aov_settings = self.update_data.aov
+
+                # this partially duplicates code below for aov, only not if resolution changed there's no
+                # need to partially update aovs - all will be recreated
+                if self.update_data.aov.has_value:
+                    logging.debug('aov changed to ', self.update_data.aov,  tag='render.proc.update')
+                    self.aov = self.update_data.aov.pop_value()
+                    self.scene_renderer.aov_settings = self.aov
+
                 with self.image_lock:
                     self.scene_renderer.update_render_resolution(self.render_resolution)
                 self.need_scene_redraw = True
-            elif self.update_data.aov is not None:
-                if self.scene_renderer.render_layers.is_aov_changed(self.update_data.aov):
-                    self.scene_renderer.render_layers.data_was_changed(self.update_data.aov)
-                    self.need_scene_redraw = True
-                self.update_data.aov = None
+
+            elif self.update_data.aov.has_value:
+                logging.debug('aov changed to ', self.update_data.aov,  tag='render.proc.update')
+                self.aov = self.update_data.aov.pop_value()
+                self.scene_renderer.aov_settings = self.aov
+
+                self.scene_renderer.render_layers.update(self.aov)
+                self.need_scene_redraw = True
+
 
             if self.update_data.render_region.has_value:
+                logging.debug('render_region changed to ', self.update_data.render_region,  tag='render.proc.update')
                 self.render_region = self.update_data.render_region.pop_value()
                 self.scene_renderer.update_render_region(self.render_region)
                 self.need_scene_redraw = True
 
             if self.update_data.render_camera.has_value:
+                logging.debug('render_camera changed to ', self.update_data.render_camera,  tag='render.proc.update')
                 self._set_render_camera(self.update_data.render_camera.pop_value())
                 self.need_scene_redraw = True
 
@@ -659,10 +599,7 @@ class SceneRendererThreaded:
 
     @call_logger.logged
     def update_aov(self, aov):
-        with self.update_data_lock:
-            if self.update_data.aov is not None and self.update_data.aov == aov:
-                return
-            self.update_data.aov = aov
+        self.update_block(self.update_data.aov, self.aov, aov)
 
     def _set_render_camera(self, camera):
         self.render_camera = camera
@@ -680,7 +617,6 @@ class SceneRendererThreaded:
     def update_block(self, block, block_value_current, block_value_new):
         with self.update_data_lock:
             self.update_data.update_block(block, block_value_current, block_value_new)
-
 
     def set_scene_synced(self, scene_synced):
         self.scene_synced = scene_synced

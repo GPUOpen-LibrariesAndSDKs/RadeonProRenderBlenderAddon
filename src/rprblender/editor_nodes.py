@@ -1339,7 +1339,7 @@ class RPRShaderNode_Displacement(RPRNodeType_Shader):
 
     map_in = 'Displacement Map'
     scale_min = bpy.props.FloatProperty(name='Scale Min', default=0)
-    scale_max = bpy.props.FloatProperty(name='Scale Max', default=0)
+    scale_max = bpy.props.FloatProperty(name='Scale Max', default=1.0)
 
     shader_out = 'Displacement'
 

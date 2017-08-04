@@ -9,6 +9,7 @@ from . import logging
 BLENDER_SUPPORTED_AOV = (2, 78, 5)
 BLENDER_SUPPORTED_CUSTOM_DATABLOCK = (2, 78, 5)
 
+
 def is_blender_support_aov():
     return bpy.app.version >= BLENDER_SUPPORTED_AOV
 
@@ -16,6 +17,22 @@ def is_blender_support_aov():
 def is_blender_support_new_image_node():
     return bpy.app.version >= BLENDER_SUPPORTED_CUSTOM_DATABLOCK
 
+
+def is_blender_support_ibl_image():
+    return bpy.app.version >= BLENDER_SUPPORTED_CUSTOM_DATABLOCK
+
+
+def is_older_than_version(version1, version2):
+    if version1[0] == version2[0]:
+        if version1[1] == version2[1]:
+            if version1[2] != version2[2]:
+                return version1[2] < version2[2]
+        else:
+            return version1[1] < version2[1]
+    else:
+        return version1[0] < version2[0]
+
+    return False
 
 def is_newer_than_saved_addon_version(version):
     if bpy.context.scene.rpr.saved_addon_version[0] >= version[0]:
@@ -106,7 +123,7 @@ def check_old_environment_settings():
 
 # convert old scenes (AMDBLENDER-652)
 def check_old_passes_aov_settings():
-    if not is_blender_support_aov:
+    if not is_blender_support_aov():
         return
 
     try:
@@ -177,7 +194,6 @@ def check_old_rpr_image_nodes():
                 continue
 
 
-
 def check_old_rpr_uber2_nodes():
     if is_newer_than_saved_addon_version((1,2,4)):
         return
@@ -208,3 +224,55 @@ def check_old_rpr_uber2_nodes():
                 socket = node.inputs.new('rpr_socket_float_softMin0_softMax1', node.displacement_max)
                 socket.default_value = 1.0
                 socket.enabled = node.displacement
+
+
+# convert old RPR Environment settings image paths to image datablock references
+def check_old_rpr_ibl_images():
+    # skip check for newest saved settings version
+    if is_newer_than_saved_addon_version((1, 2, 5)):
+        return
+
+    logging.debug("check_old_rpr_ibl_images", tag="version.upgrade.environment")
+    if not is_blender_support_ibl_image():
+        return
+
+    logging.debug("bpy.data.worlds:", len(bpy.data.worlds), tag="version.upgrade.environment")
+    for world in bpy.data.worlds:
+        environment = world.rpr_data and world.rpr_data.environment  # type: rprblender.properties.RenderEnvironment
+        if not environment:
+            continue
+
+        fpath = environment.ibl.get('ibl_map', None)
+        if fpath:
+            # fpath_normalized = bpy.path.native_pathsep(bpy.path.abspath(fpath))
+            # found = False
+            # for image_name, image in bpy.data.images.items():
+            #     if fpath_normalized == bpy.path.native_pathsep(bpy.path.abspath(image.filepath_raw)):
+            #         logging.info("Converting ibl ot use image ", image_name, tag="version.upgrade.environment")
+            #         environment.ibl.image = image
+            #         del environment.ibl['ibl_map']
+            #         found = True
+            # if not found:
+            image = load_image(fpath)
+            logging.info("Setting ibl image on", world.name, "from", fpath, "to", image, tag="version.upgrade.environment")
+            environment.ibl.ibl_image = image
+            del environment.ibl['ibl_map']
+
+        fpath = environment.ibl.maps.get('background_map', None)
+        if fpath:
+            image = load_image(fpath)
+            logging.info("Setting background image on ", world.name, "from", fpath, "to", image, tag="version.upgrade.environment")
+            environment.ibl.maps.background_image = image
+            del environment.ibl.maps['background_map']
+
+
+def load_image(fpath):
+    try:
+        image = bpy.data.images.load(fpath, True)
+    except RuntimeError as e:
+        logging.info("Coudn't load image for ", fpath, ", reason: ", e, tag="version.upgrade.environment")
+        image = bpy.data.images.new(fpath, width=1, height=1, float_buffer=True)
+        image.pixels = [1, 0, 1, 1]
+        image.filepath = fpath
+    return image
+

@@ -1,4 +1,5 @@
 import os
+import io
 import math
 import traceback
 import numpy as np
@@ -591,13 +592,12 @@ class Material:
     volume_handle = None
     displacement = None
 
-    def __init__(self, manager, blender_mat=None):
+    def __init__(self, manager):
         self.manager = manager
         self.node_list = []
         self.reroute_list = {}
         self.node_groups_list = {}
-
-        self.parse(blender_mat)
+        self.has_error = False
 
     def __del__(self):
         if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
@@ -615,18 +615,13 @@ class Material:
 
     def create_error_shader(self):
         val = self.create_error_value()
-        if bpy.context.scene.rpr.dev.show_materials_with_errors:
-            shader = EmissiveShader(self)
-        else:
-            shader = DiffuseShader(self)
+        shader = EmissiveShader(self)
         shader.set_color(val)
         return shader
 
     def create_error_value(self):
-        if bpy.context.scene.rpr.dev.show_materials_with_errors:
             return ValueVector(1, 0, 1, 1)
-        else:
-            return ValueVector(0.5, 0.5, 0.5, 1)
+
 
     def parse_cycles_shader_OutputMaterial(self, blender_node):
         socket = self.get_socket(blender_node, 'Surface')
@@ -753,7 +748,7 @@ class Material:
         else:
             logging.warn("Displacement node hasn't map")
 
-        if res.is_vector(): # error value
+        if res and res.is_vector(): # error value
             logging.warn("Displacement map error")
             res = None
         return res, scale_min, scale_max
@@ -835,14 +830,22 @@ class Material:
         # volume socket
         socket = self.get_socket(blender_node, blender_node.volume_in)
         if socket:
-            volume = self.parse_node(socket)
-            self.volume_handle = volume.get_handle()
-            shader = self.prepare_surface_for_volume(shader, volume)
+            if socket.node.bl_idname in ['rpr_shader_node_volume', 'rpr_shader_node_subsurface']:
+                volume = self.parse_node(socket)
+                self.volume_handle = volume.get_handle()
+                shader = self.prepare_surface_for_volume(shader, volume)
+            else:
+                self.set_error('Please connect only RPR Volume or RPR Subsurface node to output volume')
+                return self.create_error_shader()
 
         # displacement socket
         socket = self.get_socket(blender_node, blender_node.displacement_in)
         if socket:
-            self.displacement = self.parse_node(socket)
+            if socket.node.bl_idname == 'rpr_shader_node_displacement':
+                self.displacement = self.parse_node(socket)
+            else:
+                self.set_error('Please connect only RPR Displacement node to output displacement')
+                return self.create_error_shader()
 
         return shader
 
@@ -886,11 +889,12 @@ class Material:
 
     def parse_shader_node_reflection(self, blender_node):
         log_mat('parse_shader_node_refraction...')
-        color = self.get_value(blender_node, blender_node.color_in)
         shader = ReflectionShader(self)
         socket = self.get_socket(blender_node, blender_node.normal_in)
         if socket:
             shader.set_normal(self.parse_node(socket))
+        shader.set_color(self.get_value(blender_node, blender_node.color_in))
+
         return shader
 
     def parse_shader_node_transparent(self, blender_node):
@@ -1214,6 +1218,7 @@ class Material:
 
     def parse_texture_node_image_map(self, blender_node):
         image = self.parse_texture_node_get_image(blender_node)
+
         if not image:
             return self.create_error_value()
 
@@ -1230,9 +1235,6 @@ class Material:
             log_mat("parse_texture_node_get_image : image is empty")
             return None
 
-        if img.channels == 0:
-            log_mat("parse_texture_node_get_image : image '%s' data is empty" % img.name)
-            return None
         return self.parse_image(img)
 
     def parse_image(self, source_image):
@@ -1540,6 +1542,13 @@ class Material:
         node_id = input_node.name + "_" + str(hash(input_node.as_pointer()))
         self.node_groups_list[node_id] = blender_node
 
+    def set_error(self, *args):
+        logging.warn(args, tag='material')
+        self.has_error = True
+
+    def simple(self):
+        self.shader = DiffuseShader(self)
+
     def parse(self, blender_mat):
         if blender_mat is None:
             return
@@ -1548,15 +1557,18 @@ class Material:
         self.node_group_stack = []
         blender_node = self.get_start_node(blender_mat)
         if not blender_node:
-            logging.warn("parse : Can't get output node, return error shader (material: %s)" % blender_mat.name)
+            self.set_error("parse : Can't get output node, return error shader (material: %s)" % blender_mat.name)
             return
 
         try:
-            self.shader = self.parse_node(None, blender_node)
+            self.shader = self.parse_root_node(blender_node)
         except BaseException as e:
-            logging.warn('{}(failed to parse material node "{}")'.format(e, blender_node.name), tag='material')
-            logging.critical(traceback.format_exc())
+            logging.debug(traceback.format_exc(), tag='material')
+            self.set_error('{}(failed to parse material node "{}" (material: {}) )'.format(e, blender_node.name, blender_mat.name))
             self.shader = self.create_error_shader()
+
+    def parse_root_node(self, blender_node):
+        return self.parse_node(None, blender_node)
 
     def get_socket_index(self, sockets_list, socket):
         for i, s in enumerate(sockets_list):

@@ -4,19 +4,16 @@ import functools
 import inspect
 import traceback
 
+from pathlib import Path
+import ctypes
+
 import bpy
-import sys
-import os
+
 import pyrpr
 from pyrpr import ffi
 from enum import IntEnum
 
-from . import logging
-from . import render
-from pathlib import Path
-import ctypes
-from rprblender import config
-
+from rprblender import config, logging, render
 
 class SavedSettings():
     device_type = ''
@@ -24,6 +21,10 @@ class SavedSettings():
     gpu_states_inited = False
     gpu_states = [False, False, False, False, False, False, False, False]
     include_uncertified_devices = False
+
+    device_type_plus_cpu = False
+    samples = 1
+    notify_update_addon = True
 
     initialized = False
 
@@ -37,6 +38,13 @@ class SavedSettings():
             return True
         if cls.include_uncertified_devices != settings.include_uncertified_devices:
             return True
+        if cls.device_type_plus_cpu != settings.device_type_plus_cpu:
+            return True
+        if cls.samples != settings.samples:
+            return True
+        if cls.notify_update_addon != settings.notify_update_addon:
+            return True
+
         assert len(cls.gpu_states) == len(settings.gpu_states)
         res = [i for i in range(len(cls.gpu_states)) if cls.gpu_states[i] != settings.gpu_states[i]]
         if len(res) > 0:
@@ -49,6 +57,11 @@ class SavedSettings():
         cls.gpu_count = settings.gpu_count
         cls.gpu_states_inited = settings.gpu_states_inited
         cls.include_uncertified_devices = settings.include_uncertified_devices
+
+        cls.device_type_plus_cpu = settings.device_type_plus_cpu
+        cls.samples = settings.samples
+        cls.notify_update_addon = settings.notify_update_addon
+
         for i in range(len(cls.gpu_states)):
             cls.gpu_states[i] = settings.gpu_states[i]
 
@@ -325,8 +338,12 @@ class RenderResourcesHelper:
     def is_device_compatible_by_rpr(self, device_id):
         assert self.lib
         path = str(self.renderer_dll_path).encode('utf8')
+
+
         res = self.lib.check_device(path, 'Linux' != platform.system(), device_id,
-                                    {'Windows': Os.WINDOWS, 'Linux': Os.LINUX}[platform.system()])
+                                    {'Windows': Os.WINDOWS, 'Linux': Os.LINUX}[platform.system()],
+                                    str(render.ensure_core_cache_folder()).encode('latin1'))
+
         return Compatibility(res)
 
 
@@ -424,11 +441,13 @@ class CallLogger:
         log_fun = self.log
         @functools.wraps(f)
         def wrapped(*argv, **kwargs):
-            if config.debug:
-                log_fun(f.__name__,
-                        ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)),
-                        ', '.join(name+': '+str(value) for name, value in kwargs.items()),
-                        )
+            if not config.debug:
+                return f(*argv, **kwargs)
+
+            log_fun(f.__name__,
+                    ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)),
+                    ', '.join(name+': '+str(value) for name, value in kwargs.items()),
+                    )
             try:
                 result = f(*argv, **kwargs)
             except:
@@ -461,3 +480,13 @@ def create_core_enum_for_property(prefix, text_suffix):
 
 class subdivision_boundary_prop:
     items, default, remap = create_core_enum_for_property('SUBDIV_BOUNDARY_INTERFOP_TYPE_', " boundary")
+
+
+def print_memory_usage(message):
+    try:
+        import psutil
+    except ImportError:
+        return
+    p = psutil.Process()
+    m = p.memory_info()
+    logging.debug('memory. resident:', m.rss, 'virtual:', m.vms, "(", message, ")", tag='memory')

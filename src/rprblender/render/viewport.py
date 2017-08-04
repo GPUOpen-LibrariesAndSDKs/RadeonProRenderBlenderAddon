@@ -45,12 +45,12 @@ class ViewportRenderer:
 
         self.scene_renderer = None
 
-    def get_image(self, pass_name=''):
+    def get_image(self, pass_name='default'):
         with self.scene_renderer_threaded.image_lock:
             return self.scene_renderer.get_image(pass_name)
 
     @call_logger.logged
-    def start(self, scene, threaded=True):
+    def start(self, scene, threaded=True, is_production=False):
 
         if self.scene_renderer_threaded and self.threaded:
             self.scene_renderer_threaded.stop()
@@ -58,7 +58,9 @@ class ViewportRenderer:
 
         self.threaded = threaded
 
-        self.scene_renderer = rprblender.render.scene.SceneRenderer(scene.rpr.render)
+        self.scene_renderer = rprblender.render.scene.SceneRenderer(
+            rprblender.render.get_render_device(is_production=is_production),
+            scene.rpr.render, is_production=is_production)
         if self.threaded:
             self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
         # pyrpr.ContextSetParameter1f(self.scene_renderer.get_core_context(), b'displaygamma', 2.2)
@@ -75,7 +77,7 @@ class ViewportRenderer:
         with self.scene_renderer_threaded.update_lock:
             self.scene_renderer_threaded.need_scene_redraw = True
 
-            self.scene_synced = sync.SceneSynced(self.scene_renderer.core_context, scene, scene.rpr.render)
+            self.scene_synced = sync.SceneSynced(self.scene_renderer.render_device, scene.rpr.render)
             self.scene_synced.set_render_camera(self.render_camera)
 
             self.scene_synced.make_core_scene()
@@ -132,7 +134,6 @@ class ViewportRenderer:
         with self.scene_renderer_threaded.update_lock:
             self.scene_renderer_threaded.need_scene_redraw = True
 
-            self.scene_synced.blender_scene = scene
             self.scene_synced.settings = scene.rpr.render
             self.clear_scene()
             self.scene_synced.set_render_camera(self.render_camera)
@@ -150,8 +151,8 @@ class ViewportRenderer:
         self.render_aov = rprblender.render.render_layers.extract_settings(aov)
 
     def update_render_aov(self, aov):
-        aov_settings = rprblender.render.render_layers.extract_settings(aov)
-        self.scene_renderer_threaded.update_aov(aov_settings)
+        self.render_aov = rprblender.render.render_layers.extract_settings(aov)
+        self.scene_renderer_threaded.update_aov(self.render_aov)
 
     @call_logger.logged
     def set_render_resolution(self, render_resolution):

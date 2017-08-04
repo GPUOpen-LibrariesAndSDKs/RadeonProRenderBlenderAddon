@@ -571,6 +571,25 @@
         }
       ],
       "docs": null
+    },
+    "rprxShapeGetMaterial": {
+      "name": "rprxShapeGetMaterial",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rprx_context"
+        },
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "material",
+          "type": "rprx_material*"
+        }
+      ],
+      "docs": null
     }
   }
 }

@@ -4,6 +4,7 @@ import inspect
 import ctypes
 
 import pyrprwrap
+import time
 from pyrprwrap import *
 
 import functools
@@ -39,10 +40,10 @@ def wrap_core_log_call(f, log_fun, module_name):
     @functools.wraps(f)
     def wrapped(*argv):
         log_fun(module_name+'::'+f.__name__, ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)))
-        #log_fun(f.__name__, ', '.join(p.name for p in signature.parameters.values()))
-
+        time_begin = time.perf_counter()
         result = f(*argv)
-        log_fun(module_name+'::'+f.__name__, "done")
+        time_end = time.perf_counter()
+        log_fun(module_name+'::'+f.__name__, "done in ", time_end-time_begin)
         return result
     return wrapped
 

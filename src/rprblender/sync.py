@@ -2,18 +2,21 @@ import functools
 import os
 import math
 import sys
+import traceback
+
 import bpy
 import numpy as np
 import pyrpr
 from pyrpr import ffi
 
-from rprblender import logging
+import rprblender
+from rprblender import logging, versions
 from rprblender.core.nodes import log_mat, Material, ShaderType
 from rprblender.export import extract_mesh
 from rprblender.export import get_blender_mesh
-from rprblender.export import getUnitsToMeters
-from rprblender.helpers import CallLogger
+from rprblender.helpers import CallLogger, print_memory_usage
 from rprblender.timing import TimedContext
+import rprblender.core.image
 
 import mathutils
 
@@ -26,7 +29,7 @@ def rotation_env(env, rot):
     mat_rot = np.array(euler.to_matrix(), dtype=np.float32)
     fixup = np.array([[1, 0, 0],
                       [0, 0, 1],
-                      [0, 1, 0]], dtype=np.float32)
+                      [0, 1, 1]], dtype=np.float32)
     matrix = np.identity(4, dtype=np.float32)
     matrix[:3, :3] = np.dot(fixup, mat_rot)
 
@@ -35,11 +38,12 @@ def rotation_env(env, rot):
 
 
 class EnvironmentLight:
-    def __init__(self, scene_synced, name, core_environment_light):
+    def __init__(self, scene_synced, name, core_environment_light, image=None):
         self.core_environment_light = core_environment_light
         self.scene_synced = scene_synced
         self.name = name
         self.attached = False
+        self.image = image
 
     def __del__(self):
         pass
@@ -79,13 +83,15 @@ class EnvironmentLight:
                                      ffi.cast("float *", im.ctypes.data), img)
 
             pyrpr.EnvironmentLightSetImage(self.core_environment_light, img)
+            self.image = img
 
 
 class Background:
-    def __init__(self, scene_synced, name, core_background):
+    def __init__(self, scene_synced, name, core_background, image=None):
         self.core_background = core_background
         self.scene_synced = scene_synced
         self.name = name
+        self.image = image
 
     def __del__(self):
         pass
@@ -244,12 +250,24 @@ call_logger = CallLogger(tag='export.sync.scene')
 
 
 class SceneSynced:
-    def __init__(self, core_context, blender_scene, settings):
-        self.core_context = core_context
-        self.core_uber_rprx_context = None
-        self.core_material_system = None
+
+    @property
+    def core_context(self):
+        return self.render_device.core_context
+
+    @property
+    def core_material_system(self):
+        return self.render_device.core_material_system
+
+    @property
+    def core_uber_rprx_context(self):
+        return self.render_device.core_uber_rprx_context
+
+    def __init__(self, render_device, settings):
+        self.render_device = render_device
+
         self.core_scene = None  # type: pyrpr.Scene
-        self.blender_scene = blender_scene
+
         self.settings = settings
         self.render_camera = None  # type: RenderCamera
 
@@ -262,6 +280,8 @@ class SceneSynced:
 
         self.materialsNodes = {}
         self.activeMaterialKey = None
+
+        self.has_error = False
 
         self._make_core_environment_light_cached = functools.lru_cache(8)(self._make_core_environment_light)
 
@@ -293,12 +313,6 @@ class SceneSynced:
         self.ibls_attached = set()
         self.background = None
 
-        if self.core_uber_rprx_context != None:
-            pyrprx.DeleteContext(self.core_uber_rprx_context)
-            self.core_uber_rprx_context = None
-
-        self.core_material_system = None
-
     def get_core_context(self):
         return self.core_context
 
@@ -328,13 +342,6 @@ class SceneSynced:
         self.core_scene = pyrpr.Scene(self.core_context)
 
         pyrpr.ContextSetScene(self.core_context, self.core_scene)
-
-        self.core_material_system = pyrpr.MaterialSystem()
-        pyrpr.ContextCreateMaterialSystem(self.core_context, 0, self.core_material_system)
-
-        if self.core_uber_rprx_context == None:
-            self.core_uber_rprx_context = pyrprx.Object('rprx_context')
-            pyrprx.CreateContext(self.core_material_system, 0, self.core_uber_rprx_context)
 
         self.reset_scene()
 
@@ -396,7 +403,7 @@ class SceneSynced:
             pyrpr.CameraSetSensorSize(camera, *self.render_camera.sensor_size)
 
             if self.render_camera.dof_enable:
-                fd = self.render_camera.dof_focus_distance * getUnitsToMeters(self.blender_scene)  # convert to meters
+                fd = self.render_camera.dof_focus_distance
 
                 logging.info('camera.dof_f_stop: ', self.render_camera.dof_f_stop)
                 logging.info('camera.dof_blades: ', self.render_camera.dof_blades)
@@ -422,12 +429,29 @@ class SceneSynced:
 
     def environment_light_create_color(self, color):
         im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
-        ibl, image = self._make_core_environment_light_from_image_data(im)
-        return EnvironmentLight(self, '', ibl)
+        return self.environment_light_create_from_core_image(
+            'ibl', self._make_core_image_from_image_data(self.get_core_context(), im))
 
     def environment_light_create(self, ibl_map):
         logging.debug('ibl create', ibl_map, tag='sync')
-        return EnvironmentLight(self, ibl_map, self.make_core_environment_light(ibl_map))
+        return self.environment_light_create_from_core_image(
+            ibl_map, self.get_core_environment_image_for_blender_image(ibl_map))
+
+    def environment_light_create_from_core_light(self, ibl_map, core_light, core_image):
+        return EnvironmentLight(self, ibl_map, core_light, image=core_image)
+
+    def environment_light_create_from_core_image(self, name, core_image):
+        core_light = self._make_core_environment_light_from_core_image(self.get_core_context(), core_image)
+
+        for obj_key in self.portal_lights_meshes:
+            pyrpr.EnvironmentLightAttachPortal(
+                self.get_core_scene(), core_light, self.get_synced_obj(obj_key).core_obj)
+
+        return EnvironmentLight(self, name, core_light, image=core_image)
+
+    def background_create_from_core_image(self, name, core_image):
+        core_light = self._make_core_environment_light_from_core_image(self.get_core_context(), core_image)
+        return Background(self, name, core_light, image=core_image)
 
     def environment_light_create_empty(self):
         logging.debug('environment_light_create_sun_sky', tag='sync')
@@ -445,13 +469,13 @@ class SceneSynced:
 
     def background_create(self, ibl_map):
         logging.debug('background create', ibl_map, tag='sync')
-        ibl_background = self.make_core_environment_light(ibl_map)
-        return Background(self, ibl_map, ibl_background)
+        core_image = self.get_core_environment_image_for_blender_image(ibl_map)
+        return self.background_create_from_core_image(ibl_map, core_image)
 
     def background_create_color(self, color):
         im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
         ibl, image = self._make_core_environment_light_from_image_data(im)
-        return Background(self, '', ibl)
+        return Background(self, '', ibl, image=image)
 
     def background_set(self, background):
         if background:
@@ -464,31 +488,31 @@ class SceneSynced:
     def background_is_enabled(self, background):
         return self.background is background
 
-    def make_core_environment_light(self, image_path):
-        ibl, image = self._make_core_environment_light_cached(image_path)
-        return ibl
+    def _make_core_environment_light(self, image):
+        img = self.get_core_environment_image_for_blender_image(image)
+        ibl = self._make_core_environment_light_from_core_image(self.get_core_context(), img)
+        return ibl, img
 
-    def _make_core_environment_light(self, image_path):
-        image_path = bpy.path.native_pathsep(bpy.path.abspath(image_path))
-        image = None
-        if os.path.isfile(image_path):
-            try:
-                image = bpy.data.images.load(image_path, True)
-            except RuntimeError:
-                raise
-        if image:
-            # PERF: perf. image.pixels access, although image.pixels[:] is faster than just iterating
-            # image.pixels it's still slow. I.e. RNA data is float32 for copying it through python tuple is not very
-            # efficient and Core might have had accepted raw pointer to it!
-            im = self.extract_image(image)
-            if not image.users:
-                bpy.data.images.remove(image)
-        else:
-            logging.error('environment_light:', repr(image_path), 'is not an image')
-            # error image
-            im = np.full((1, 1, 4), (1, 0, 1, 1), dtype=np.float32)
+    def get_core_environment_image_for_blender_image(self, image):
+        """ Environment has an issue that it's flipped the other way then usual textures without a way
+        to use ibl transform to fix it - thus we need a separate method for loading it's image"""
 
-        return self._make_core_environment_light_from_image_data(im)
+        try:
+            if not versions.is_blender_support_ibl_image():
+                # in Blender before 2.79 ibl had filepath, newer use Image reference
+                return rprblender.core.image.create_core_image_from_image_file_via_blender(
+                    self.get_core_context(), image, flipud=False)
+
+            # TODO: RPR(as of 1.272) IBL seems to be flipped vertically and this can't be fixed by IBL transform
+            # - scaling by -1 doesn't work, only rotation is used. So we extract pixels from Blender image
+            # and flip them(again, actuall - they are once flipped inside to match RPR's CreateImageFromFile)
+            img = rprblender.core.image.create_core_image_from_pixels(
+                self.get_core_context(), rprblender.core.image.extract_pixels_from_blender_image(image, flipud=False))
+        except Exception as e:
+            logging.warn("Cant's read environment image: ", image, ", reason:", str(e), tag="sync")
+            img = self._make_core_image_from_image_data(self.get_core_context(),
+                                                        np.full((2, 2, 4), (1, 0, 1, 1,), dtype=np.float32))
+        return img
 
     def extract_image(self, image):
         im = self._extract_image_pixels(image).reshape(image.size[1], image.size[0], 4)
@@ -497,31 +521,33 @@ class SceneSynced:
     def _extract_image_pixels(self, image):
         return np.array(image.pixels[:], dtype=np.float32)
 
-    def _make_core_environment_light_from_image_data(self, im, num_components=4):
+    def _make_core_environment_light_from_image_data(self, im):
         with TimedContext("make_core_envmap"):
             context = self.get_core_context()
-            desc = ffi.new("rpr_image_desc*")
-            desc.image_width = im.shape[1]
-            desc.image_height = im.shape[0]
-            desc.image_depth = 0
-            desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * num_components
-            desc.image_slice_pitch = 0
-
-            logging.debug('make_core_environment_light: (%s, %s)' % (desc.image_width, desc.image_height), tag='sync')
-
-            img = pyrpr.Image()
-            pyrpr.ContextCreateImage(context, (num_components, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
-                                     ffi.cast("float *", im.ctypes.data), img)
-            ibl = pyrpr.Light()
-            pyrpr.ContextCreateEnvironmentLight(context, ibl)
-
-            pyrpr.EnvironmentLightSetImage(ibl, img)
-
-            for obj_key in self.portal_lights_meshes:
-                pyrpr.EnvironmentLightAttachPortal(
-                    self.get_core_scene(), ibl, self.get_synced_obj(obj_key).core_obj)
+            img = self._make_core_image_from_image_data(context, im)
+            ibl = self._make_core_environment_light_from_core_image(context, img)
 
         return ibl, img
+
+    def _make_core_environment_light_from_core_image(self, context, img):
+        ibl = pyrpr.Light()
+        pyrpr.ContextCreateEnvironmentLight(context, ibl)
+        pyrpr.EnvironmentLightSetImage(ibl, img)
+        return ibl
+
+    def _make_core_image_from_image_data(self, context, im):
+        num_components = im.shape[2]
+        desc = ffi.new("rpr_image_desc*")
+        desc.image_width = im.shape[1]
+        desc.image_height = im.shape[0]
+        desc.image_depth = 0
+        desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * num_components
+        desc.image_slice_pitch = 0
+        logging.debug('make_core_environment_light: (%s, %s)' % (desc.image_width, desc.image_height), tag='sync')
+        img = pyrpr.Image()
+        pyrpr.ContextCreateImage(context, (num_components, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
+                                 ffi.cast("float *", im.ctypes.data), img)
+        return img
 
     def add_lamp(self, obj_key, blender_obj):
         logging.debug('add_lamp', obj_key, tag='sync')
@@ -658,7 +684,6 @@ class SceneSynced:
 
     def extract_lamp(self, obj):
         mw = np.array(obj.matrix_world, dtype=np.float32)
-        mw.reshape(4, 4)[..., 3] *= getUnitsToMeters(self.blender_scene)
 
         return dict(
             type='LAMP',
@@ -723,10 +748,6 @@ class SceneSynced:
         target = m.dot([0, 0, -1, 1])[:3]
         up = m.dot([0, 1, 0, 0])[:3]
 
-        scale = getUnitsToMeters(self.blender_scene)
-        origin *= scale
-        target *= scale
-
         return origin, target, up
 
     def vec_normalize(self, d):
@@ -735,8 +756,14 @@ class SceneSynced:
     @call_logger.logged
     def add_material(self, key, blender_mat):
         log_mat("add_material : %s (key: %s)" % (blender_mat, key))
-        rpr_material = Material(self, blender_mat)
+        rpr_material = Material(self)
+        rpr_material.parse(blender_mat)
+
+        log_mat("node_list:", len(rpr_material.node_list), rpr_material.node_list)
+
         self.materialsNodes[key] = rpr_material
+        if rpr_material.has_error:
+            self.has_error = True
 
     @call_logger.logged
     def remove_material(self, key):
@@ -930,6 +957,18 @@ class SceneSynced:
         pyrpr.ShapeSetShadow(self.get_synced_obj(obj_key).core_obj, value)
 
     @call_logger.logged
+    def mesh_set_visibility(self, obj_key, value):
+        pyrpr.ShapeSetVisibility(self.get_synced_obj(obj_key).core_obj, value)
+
+    @call_logger.logged
+    def mesh_set_visibility_in_primary_rays(self, obj_key, value):
+        pyrpr.ShapeSetVisibilityPrimaryOnly(self.get_synced_obj(obj_key).core_obj, value)
+
+    @call_logger.logged
+    def mesh_set_visibility_in_specular(self, obj_key, value):
+        pyrpr.ShapeSetVisibilityInSpecular(self.get_synced_obj(obj_key).core_obj, value)
+
+    @call_logger.logged
     def mesh_set_subdivision(self, obj_key, factor, boundary, crease_weight):
         pyrpr.ShapeSetSubdivisionFactor(self.get_synced_obj(obj_key).core_obj, factor)
         pyrpr.ShapeSetSubdivisionBoundaryInterop(self.get_synced_obj(obj_key).core_obj, boundary)
@@ -937,14 +976,22 @@ class SceneSynced:
 
     @call_logger.logged
     def mesh_attach_portallight(self, obj_key):
+        if obj_key in self.portal_lights_meshes:
+            return
         self.portal_lights_meshes.add(obj_key)
+
         for ibl in self.ibls_attached:
             pyrpr.EnvironmentLightAttachPortal(
                 self.get_core_scene(),
-                ibl.core_environment_light, self.get_synced_obj(obj_key).core_obj)
+                ibl.core_environment_light, self.core_shape(obj_key))
+
+    def core_shape(self, obj_key):
+        return self.get_synced_obj(obj_key).core_obj
 
     @call_logger.logged
     def mesh_detach_portallight(self, obj_key):
+        if obj_key not in self.portal_lights_meshes:
+            return
         self.portal_lights_meshes.discard(obj_key)
         for ibl in self.ibls_attached:
             pyrpr.EnvironmentLightDetachPortal(
@@ -987,12 +1034,6 @@ class SceneSynced:
 
     def add_back_preview(self, is_icon):
         if is_icon:
-            filename = bpy.context.scene.rpr.preview_environment.ibl.maps.background_map
-            if os.path.exists(filename) and os.path.isfile(filename):
-                image = pyrpr.Image()
-                pyrpr.ContextCreateImageFromFile(self.get_core_context(), str(filename).encode('utf8'), image)
-                self.add_synced_obj('temp_image_preview', image)
-                res = pyrpr.SceneSetBackgroundImage(self.get_core_scene(), image);
             return
 
         logging.debug('add_back_preview...')
@@ -1389,9 +1430,8 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
         elif 'ORTHO' == data.type:
             render_camera.type = 'ORTHO'
 
-            scene_scale = getUnitsToMeters(scene)
             # see for example, cycle's blender_camera_init, seems like 32 is the sensor size for viewports
-            extent = data.ortho_scale * zoom * scene_scale
+            extent = data.ortho_scale * zoom
 
             if sensor_fit_horizontal:
                 render_camera.ortho_width = extent
@@ -1399,7 +1439,7 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
             else:
                 render_camera.ortho_width = extent * aspect
                 render_camera.ortho_height = extent
-            render_camera.ortho_depth = data.ortho_scale * zoom / scene_scale
+            render_camera.ortho_depth = data.ortho_scale * zoom
 
             if border is not None:
                 render_camera.ortho_width *= border_size[sensor_side]
@@ -1454,8 +1494,7 @@ def extract_viewport_render_camera(context: bpy.types.Context, settings):
         # see for example, cycle's blender_camera_init, seems like 32 is the sensor size for viewports
         extent_base = context.space_data.region_3d.view_distance * 32.0 / context.space_data.lens
         zoom = 2.0
-        scene_scale = getUnitsToMeters(context.scene)
-        extent = zoom * extent_base * scene_scale
+        extent = zoom * extent_base * 1
 
         if 1 < aspect:
             render_camera.ortho_width = extent
@@ -1463,7 +1502,7 @@ def extract_viewport_render_camera(context: bpy.types.Context, settings):
         else:
             render_camera.ortho_width = extent * aspect
             render_camera.ortho_height = extent
-        render_camera.ortho_depth = zoom * extent_base / scene_scale
+        render_camera.ortho_depth = zoom * extent_base / 1
     else:
         assert False
 

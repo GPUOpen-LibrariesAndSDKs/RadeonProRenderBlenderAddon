@@ -51,9 +51,10 @@ class RPRTreeNode(bpy.types.ShaderNode):
 
     def update(self):
         scene = bpy.context.scene
-        mat = scene.objects.active.active_material
-        if mat and mat.node_tree:
-            mat.node_tree.update_tag()
+        if scene.objects.active:
+            mat = scene.objects.active.active_material
+            if mat and mat.node_tree:
+                mat.node_tree.update_tag()
 
     def get_thumbnail(self):
         return get_node_thumbnail(self)
@@ -87,10 +88,12 @@ class RPRPanel:
     bl_context = "render"
     COMPAT_ENGINES = {'RPR'}
 
+    hide_rpr_ui = False
+
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
-        return rd.engine in cls.COMPAT_ENGINES
+        return rd.engine in cls.COMPAT_ENGINES and not RPRPanel.hide_rpr_ui
 
 
 ########################################################################################################################

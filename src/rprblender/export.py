@@ -15,22 +15,13 @@ import itertools
 import pyrpr
 from pyrpr import ffi
 
-from rprblender import helpers
+from rprblender import helpers, versions
 from rprblender.timing import TimedContext
 from rprblender import config
 from . import logging
 from rprblender.helpers import CallLogger
 
 call_logger = CallLogger(tag='export')
-
-
-def getUnitsToMeters(scene):
-    return 1.0
-    # scale everything
-    # if scene.name == 'preview':
-    #     return 1.0
-    # us = scene.unit_settings
-    # return us.scale_length;
 
 
 class ObjectKey:
@@ -380,10 +371,10 @@ class ObjectsSync:
         # TODO: scale also needs to sync, better remove this dependency from geometry
         # extraction and move it to matrix
         # TODO: cache extracted submesh
-        scale = self.scene_export.getUnitsToMeters()
+
         log_sync('material_indices_used:', sync.material_indices_used)
         for i in sync.material_indices_used:
-            self.scene_synced.add_mesh((key, i), extract_submesh(sync.object_mesh.data, i, scale), sync.matrix)
+            self.scene_synced.add_mesh((key, i), extract_submesh(sync.object_mesh.data, i, 1), sync.matrix)
             sync.materials_assigned[i] = True
         self.object_instances_instantiated_as_mesh_prototype.add(key)
         self.mesh_added_for_prototype[sync.get_prototype_key()] = key
@@ -476,11 +467,11 @@ class ObjectsSync:
 
         mesh_sync = MeshSync(prototype)
         self.object_instances[key] = mesh_sync
-        scale = self.scene_export.getUnitsToMeters()
+
         mat = matrix.copy()
-        mat[0][3] = mat[0][3] * scale
-        mat[1][3] = mat[1][3] * scale
-        mat[2][3] = mat[2][3] * scale
+        mat[0][3] = mat[0][3]
+        mat[1][3] = mat[1][3]
+        mat[2][3] = mat[2][3]
         mesh_sync.set_matrix(mat)
         return mesh_sync
 
@@ -626,6 +617,11 @@ class ObjectsSync:
                 helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
                 object_settings.subdivision_crease_weight,
             )
+
+            #self.scene_synced.mesh_set_visibility((key, i), object_settings.visibility)
+            self.scene_synced.mesh_set_visibility_in_primary_rays((key, i), object_settings.visibility_in_primary_rays)
+            #self.scene_synced.mesh_set_visibility_in_specular((key, i), object_settings.visibility_in_specular)
+
             if object_settings.portallight:
                 self.scene_synced.mesh_attach_portallight((key, i))
             else:
@@ -734,9 +730,6 @@ class SceneExport:
         self.scene_synced = None
         self.environment_exporter.scene_synced = None
 
-    def getUnitsToMeters(self):
-        return getUnitsToMeters(self.scene)
-
     @call_logger.logged
     def to_mesh(self, obj):
         key = get_object_key(obj)
@@ -744,14 +737,13 @@ class SceneExport:
             log_sync("to_mesh: found in cache")
             return self.meshes_extracted[key]
         scene = self.scene
-        scale = getUnitsToMeters(scene)
 
         mesh = get_blender_mesh(scene, obj, preview=self.preview)
         if not mesh:
             log_sync("to_mesh: get_blender_mesh returned None")
             return None
         try:
-            extracted_mesh = extract_mesh(mesh, scale)
+            extracted_mesh = extract_mesh(mesh, 1)
             if not extracted_mesh:
                 return None
             # mesh might not be added because it has not polygons
@@ -1080,22 +1072,19 @@ class SceneExport:
             logging.critical(traceback.format_exc(), tag='export')
             raise
 
-
     def sync_environment_settings(self, env):
+
         if env:
             environment_extracted_settings = self.extract_settings(env, self.get_env_settings_keys())
         else:
             environment_extracted_settings = {
                 'enable': False,
             }
-
         self.set_environment_settings(environment_extracted_settings)
-
 
     def set_environment_settings(self, environment_extracted_settings):
         logging.debug('set_environment_settings: ', environment_extracted_settings, tag='sync')
         self.environment_settings_pre = environment_extracted_settings
-
 
     def _sync(self):
         logging.debug("export.sync")
@@ -1313,11 +1302,11 @@ class SceneExport:
                 'color': tuple,
                 'intensity': None,
                 'use_ibl_map': None,
-                'ibl_map': None,
+                ('ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map'): None,
                 'maps': {
                     'override_background': None,
                     'override_background_type': None,
-                    'background_map': None,
+                    ('background_image' if versions.is_blender_support_ibl_image() else 'background_map'): None,
                     'background_color': tuple,
                 }
             },
@@ -1468,10 +1457,12 @@ class SceneExport:
         yield 'updating materials'
         log_sync("objects_needing_material_update:", objects_sync_frame.objects_needing_material_update)
         for material, objects in objects_sync_frame.objects_needing_material_update.items():
+            yield 'updating materials: %s(%s objects)' % (material.name if material else "<none>", len(objects))
             self.objects_sync.update_material(objects, material)
 
         yield 'adding new duplicators'
         for obj in objects_sync_frame.duplicators_added:
+            yield 'adding new duplicators:'+str(obj)
             for key, dupli in self.iter_dupli_from_duplicator(obj):
                 self.objects_sync.add_instance(get_object_key(obj), key, dupli)
                 self.objects_sync.update_instance_materials(key)
@@ -1516,7 +1507,7 @@ class SceneExport:
 
             if use_ibl_map.get_updated_value():
                 # change map only when it's enabled
-                ibl_map = sync.get('ibl', 'ibl_map')
+                ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
                 ibl_map.use_new_value()
             else:
                 color = sync.get('ibl', 'color')
@@ -1531,7 +1522,7 @@ class SceneExport:
                 override_background_type.use_new_value()
 
                 if override_background_type.get_updated_value() == 'image':
-                    background_map = sync.get('ibl', 'maps', 'background_map')
+                    background_map = sync.get('ibl', 'maps', 'background_image' if versions.is_blender_support_ibl_image() else 'background_map')
                     background_map.use_new_value()
                 else:
                     background_color = sync.get('ibl', 'maps', 'background_color')
@@ -1627,7 +1618,7 @@ class SceneExport:
             return
 
         use_ibl_map = sync.get('ibl', 'use_ibl_map')
-        ibl_map = sync.get('ibl', 'ibl_map')
+        ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
         intensity = sync.get('ibl', 'intensity')
 
         rotation = sync.get('gizmo_rotation')
@@ -1660,7 +1651,7 @@ class SceneExport:
 
         override_background = sync.get('ibl', 'maps', 'override_background')
         override_background_type = sync.get('ibl', 'maps', "override_background_type")
-        background_map = sync.get('ibl', 'maps', 'background_map')
+        background_map = sync.get('ibl', 'maps', 'background_image' if versions.is_blender_support_ibl_image() else 'background_map')
         background_color = sync.get('ibl', 'maps', 'background_color')
 
         if override_background.updated() \

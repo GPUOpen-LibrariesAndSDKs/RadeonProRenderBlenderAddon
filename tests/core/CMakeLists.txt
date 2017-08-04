@@ -24,7 +24,6 @@ add_executable(test_cpu_context_restart test_cpu_context_restart.cpp)
 if (NOT UNIX)
    add_executable(test_multithreading test_multithreading.cpp)
    add_executable(test_many_contexts test_many_contexts.cpp)
-   add_executable(test_cpu_context_restart test_cpu_context_restart.cpp)
 endif ()
 
 if (UNIX)

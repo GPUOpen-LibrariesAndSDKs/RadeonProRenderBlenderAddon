@@ -16,15 +16,27 @@ class _init_data:
     _log_fun = None
 
 
-def init(log_fun):
+def init(log_fun, rprsdk_bin_path):
 
     _module = __import__(__name__)
 
     _init_data._log_fun = log_fun
 
+    if "Windows" == platform.system():
+        lib_name = 'RprSupport64.dll'
+    elif "Linux" == platform.system():
+        lib_name = 'libRprSupport64.so'
+    else:
+        assert False
+
     import __rprx
 
-    pyrprsupportwrap.lib = __rprx.lib
+    try:
+        lib = __rprx.lib
+    except AttributeError:
+        lib = __rprx.ffi.dlopen(str(rprsdk_bin_path/lib_name))
+
+    pyrprsupportwrap.lib = lib
     pyrprsupportwrap.ffi = __rprx.ffi
     global ffi
     ffi = __rprx.ffi

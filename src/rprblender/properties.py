@@ -149,13 +149,14 @@ def aov_enable_change(self, context):
 @rpraddon.register_class
 class RenderPassesAov(bpy.types.PropertyGroup):
     render_passes_items = (('default', "Color (default)", "Color (default) (layer 'Combined')"),
-                           ('world_coordinate', "World Coordinate", "World Coordinate (layer 'Vector')"),
+                           ('depth', "Depth", "Depth (layer 'Z')"),
                            ('uv', "UV", "UV (layer 'UV')"),
-                           ('material_idx', "Material Index", "Material Index (layer 'IndexMA')"),
+                           ('world_coordinate', "World Coordinate", "World Coordinate (layer 'Vector')"),
                            ('geometric_normal', "Geometric Normal", "Geometric Normal (layer 'Emit')"),
                            ('shading_normal', "Shading Normal", "Shading Normal (layer 'Normal')"),
-                           ('depth', "Depth", "Depth (layer 'Z')"),
-                           ('object_id', "Object Id", "Object Id (layer 'IndexOB')"))
+                           ('object_id', "Object Id", "Object Id (layer 'IndexOB')"),
+                           ('material_idx', "Material Index", "Material Index (layer 'IndexMA')"),
+                           )
 
     enable = bpy.props.BoolProperty(
         name="Render Passes (AOV)",
@@ -200,9 +201,12 @@ class RenderEnvironmentMaps(bpy.types.PropertyGroup):
         description="Background override type",
         default='image',
     )
-    background_map = bpy.props.StringProperty(
-        name='Background Map', description='Background Map', subtype='FILE_PATH'
-    )
+    if versions.is_blender_support_ibl_image():
+        background_image = bpy.props.PointerProperty(type=bpy.types.Image)
+    else:
+        background_map = bpy.props.StringProperty(
+            name='Background Map', description='Background Map', subtype='FILE_PATH'
+        )
     background_color = bpy.props.FloatVectorProperty(
         name='Background Color', description="The background override color",
         subtype='COLOR', min=0.0, max=1.0, size=3,
@@ -240,9 +244,13 @@ class RenderEnvironmentIBL(bpy.types.PropertyGroup):
         name="Use Image-Base Lighting Map", description="Use Image-Base Lighting Map",
         default=False,
     )
-    ibl_map = bpy.props.StringProperty(
-        name='Image-Base Lighting Map', description='Image-Base Lighting Map', subtype='FILE_PATH'
-    )
+
+    if versions.is_blender_support_ibl_image():
+        ibl_image = bpy.props.PointerProperty(type=bpy.types.Image)
+    else:
+        ibl_map = bpy.props.StringProperty(
+            name='Image-Base Lighting Map', description='Image-Base Lighting Map', subtype='FILE_PATH'
+        )
 
     maps = bpy.props.PointerProperty(type=RenderEnvironmentMaps)  # type: RenderEnvironmentMaps
 
@@ -589,30 +597,6 @@ class RenderingLimits(bpy.types.PropertyGroup):
 
 ########################################################################################################################
 # Anti Aliasing
-########################################################################################################################
-default_aa_samples = 1
-default_aa_grid = 4
-
-
-def get_aa_samples(self):
-    return self.get('samples', default_aa_samples)
-
-
-def set_aa_samples(self, value):
-    if get_aa_samples(self) != value:
-        bpy.context.scene.rpr.render.render_quality = 'CUSTOM'
-    self['samples'] = value
-
-
-def get_aa_grid(self):
-    return self.get('grid', default_aa_grid)
-
-
-def set_aa_grid(self, value):
-    if get_aa_grid(self) != value:
-        bpy.context.scene.rpr.render.render_quality = 'CUSTOM'
-    self['grid'] = value
-
 
 @rpraddon.register_class
 class AntiAliasingSettings(bpy.types.PropertyGroup):
@@ -626,22 +610,10 @@ class AntiAliasingSettings(bpy.types.PropertyGroup):
     )
 
     radius = bpy.props.FloatProperty(
-        name="Filter width",
-        description="Image Filter kernel width in pixels",
+        name="Filter radius",
+        description="Image Filter kernel radius in pixels",
         min=0.0, max=10.0,
         default=1.5,  # each different filter type might have different default
-    )
-    samples = bpy.props.IntProperty(
-        name="AA Samples", description="AA Samples",
-        min=1, max=32, default=1,
-        set=set_aa_samples,
-        get=get_aa_samples,
-    )
-    grid = bpy.props.IntProperty(
-        name="AA Grid", description="AA Grid",
-        min=1, max=16, default=4,
-        set=set_aa_grid,
-        get=get_aa_grid,
     )
 
     # imagefilter_radius_params
@@ -870,26 +842,15 @@ class DofSettings(bpy.types.PropertyGroup):
 
 def update_render_quality(self, context):
     if self.render_quality == 'HIGH':
-        self.aa['samples'] = 16
-        self.aa['grid'] = 4
         self.global_illumination['max_ray_depth'] = 20
     elif self.render_quality == 'LOW':
-        self.aa['samples'] = 1
-        self.aa['grid'] = 1
         self.global_illumination['max_ray_depth'] = 5
     elif self.render_quality == 'MEDIUM':
-        self.aa['samples'] = 4
-        self.aa['grid'] = 4
         self.global_illumination['max_ray_depth'] = 10
 
 
 class ViewportQuality():
-    fast_aa_samples = 1
-    fast_aa_grid = 1
     fast_max_ray_depth = 5
-
-    normal_aa_samples = 4
-    normal_aa_grid = 4
     normal_max_ray_depth = 10
 
 
@@ -937,7 +898,7 @@ class RenderSettings(bpy.types.PropertyGroup):
                ('NORMAL', "Normal", "Normal"),
                ('FAST', "Fast Render", "Fast render")),
         description="Viewport Quality",
-        default='NORMAL',
+        default='FAST',
     )
 
     ####################################################################################################################
@@ -986,22 +947,6 @@ class RenderSettings(bpy.types.PropertyGroup):
             if self.viewport_quality == 'NORMAL':
                 return ViewportQuality.normal_max_ray_depth
         return self.global_illumination.max_ray_depth
-
-    def get_aa_samples(self, is_production):
-        if not is_production:
-            if self.viewport_quality == 'FAST':
-                return ViewportQuality.fast_aa_samples
-            if self.viewport_quality == 'NORMAL':
-                return ViewportQuality.normal_aa_samples
-        return self.aa.samples
-
-    def get_aa_grid(self, is_production):
-        if not is_production:
-            if self.viewport_quality == 'FAST':
-                return ViewportQuality.fast_aa_grid
-            if self.viewport_quality == 'NORMAL':
-                return ViewportQuality.normal_aa_grid
-        return self.aa.grid
 
 
 ########################################################################################################################
@@ -1057,6 +1002,18 @@ class UserSettings(bpy.types.PropertyGroup):
                                                          )
 
 
+    samples = bpy.props.IntProperty(
+        name="Render Samples", description="The more samples, the less viewport updates for shorter render times.",
+        min=1, soft_max=16, default=1,
+        update=helpers.settings_changed,
+    )
+
+    notify_update_addon = bpy.props.BoolProperty(name='Notify update addon',
+        default=True,
+        update=helpers.settings_changed
+    )
+
+
 ########################################################################################################################
 # Developer Diagnostics
 ########################################################################################################################
@@ -1100,11 +1057,6 @@ class DeveloperSettings(bpy.types.PropertyGroup):
         else:
             return str(Path(rprblender.__file__).parent / '.core_trace')
 
-    show_materials_with_errors = bpy.props.BoolProperty(
-        name="Show errors", description="Show materials with errors",
-        default=False,
-    )
-
     log = bpy.props.BoolProperty(
         name="Enable Error Logging", description="Enable Error Logging",
         default=False,
@@ -1133,10 +1085,21 @@ class DeveloperSettings(bpy.types.PropertyGroup):
 
 @rpraddon.register_class
 class ThumbnailsSettings(bpy.types.PropertyGroup):
+
+    warning = "Enabling thumbnails may cause stability (or performance) issues and would break blender autosaves."
+
+    def enable_change(self, context):
+        if self.enable:
+            bpy.ops.wm.rpr_thumbnail_update_caller_operator()
+            logging.debug('Thumbnails is an experimental feature. ' + self.warning)
+        else:
+            bpy.ops.wm.rpr_thumbnail_update_caller_disable_operator()
+
     enable = bpy.props.BoolProperty(
         name="Enable Thumbnails",
-        description="Enable Thumbnails",
+        description=warning,
         default=False,
+        update=enable_change
     )
 
     use_large_preview = bpy.props.BoolProperty(
@@ -1261,6 +1224,13 @@ class RPRObject(bpy.types.PropertyGroup):
             default=1.0,
             min=0,
         )
+
+        cls.visibility_in_primary_rays = bpy.props.BoolProperty(
+            name="Visibility, In Primary Rays",
+            description="If objects is visible in camera rays",
+            default=True,
+        )
+
 
 
 @rpraddon.register_class

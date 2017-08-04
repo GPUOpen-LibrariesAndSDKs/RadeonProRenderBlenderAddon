@@ -5,6 +5,9 @@ import threading
 from pathlib import Path
 import contextlib
 import traceback
+
+import gc
+
 import rprblender
 from rprblender import config, logging
 
@@ -35,9 +38,6 @@ def log_pyrpr(*argv):
 
 
 def pyrpr_init(bindings_import_path, rprsdk_bin_path):
-    print("####")
-    print(bindings_import_path)
-    print(rprsdk_bin_path)
     if bindings_import_path not in sys.path:
         sys.path.append(bindings_import_path)
     try:
@@ -52,7 +52,7 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
 
         import pyrprx
         pyrprx.lib_wrapped_log_calls = config.pyrprx_log_calls
-        pyrprx.init(log_pyrpr)
+        pyrprx.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
     except:
         logging.critical(traceback.format_exc(), tag='')
@@ -145,7 +145,7 @@ def get_context_creation_flags(is_production):
     return flags
 
 
-def create_context(cache_path, is_production=False) -> pyrpr.Context:
+def create_context(cache_path, flags) -> pyrpr.Context:
     # init trace dump settings
     from rprblender import properties
     properties.init_trace_dump(bpy.context.scene.rpr.dev)
@@ -157,7 +157,7 @@ def create_context(cache_path, is_production=False) -> pyrpr.Context:
 
     assert -1 != tahoe_plugin_i_d
 
-    flags = get_context_creation_flags(is_production)
+
     return pyrpr.Context([tahoe_plugin_i_d], flags, cache_path=str(cache_path))
 
 
@@ -177,9 +177,55 @@ if support_path not in sys.path:
     sys.path.append(support_path)
 
 
+render_devices = {}
+
+
+def get_render_device(is_production=True, persistent=False):
+    import rprblender.render.device
+
+    flags = rprblender.render.get_context_creation_flags(is_production)
+
+    logging.debug("get_render_device(is_production=%s), flags: %s" %(is_production, hex(flags)), tag='render.device')
+
+    if persistent:
+        key = (is_production, flags)
+
+        if key in render_devices:
+            return render_devices[key]
+        render_devices.clear()  # don't keep more than one device(not to multiply memory usage for image cache)
+
+    logging.debug("create new device, not found in cache:", render_devices, tag='render.device')
+    device = rprblender.render.device.RenderDevice(is_production=is_production, context_flags=flags)
+    if persistent:
+        render_devices[key] = device
+    return device
+
+
 def register():
     logging.debug('rpr.render.register')
 
 
 def unregister():
     logging.debug('rpr.render.unregister')
+
+
+def free_render_devices():
+    logging.debug("free_render_devices", tag='render.device')
+    import rprblender.render.device
+    while render_devices:
+        render_device = render_devices.popitem()[1]  # type: rprblender.render.device.RenderDevice
+
+        if config.debug:
+            referrers = gc.get_referrers(render_device)
+            logging.critical("render_device has more than one reference(current frame and something else):")
+            for r in referrers:
+                if r != sys._getframe(0):
+                    logging.critical(r)
+                    try:
+                        logging.critical(r.f_code)
+                        while r.f_back is not None:
+                            r = r.f_back
+                            logging.critical(r.f_code)
+
+                    except AttributeError:pass
+        del render_device

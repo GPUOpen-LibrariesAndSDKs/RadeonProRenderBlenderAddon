@@ -8,7 +8,7 @@ import cffi
 sys.path.append('src')
 import pyrprapi
 
-def export(json_file_name, dependencies, header_file_name, cffi_name, output_name, output_name_make):
+def export(json_file_name, dependencies, header_file_name, cffi_name, output_name, output_name_make, abi_mode):
     ffi = cffi.FFI()
 
     rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
@@ -17,8 +17,8 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     with open('rprapi.h', 'w') as f:
         for dep in dependencies:
-            write_api(str(Path(pyrprapi.__file__).parent / dep), f)
-        write_api(api_desc_fpath, f)
+            write_api(str(Path(pyrprapi.__file__).parent / dep), f, abi_mode)
+        write_api(api_desc_fpath, f, abi_mode)
 
     ffi.cdef(Path('rprapi.h').read_text())
 
@@ -30,8 +30,6 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         platform_folder = 'Linux'
     else:
         assert False
-
-    abi_mode = 'Windows' != platform.system()
 
     if abi_mode:
         ffi.set_source(cffi_name, None)
@@ -81,11 +79,18 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         subprocess.check_call(cmd)
 
 
-def write_api(api_desc_fpath, f):
+def eval_constant(s):
+    if s.endswith('U'):
+        s = s[:-1]
+
+    return eval(s)
+    
+
+def write_api(api_desc_fpath, f, abi_mode):
     api = pyrprapi.load(api_desc_fpath)
     for name, c in api.constants.items():
         print(name)
-        print('#define', name, '...', file=f)
+        print('#define', name, eval_constant(c.value) if abi_mode else '...' , file=f)
     for name, t in api.types.items():
         print(name, t.kind)
         if 'struct' == t.kind:
@@ -102,6 +107,11 @@ def write_api(api_desc_fpath, f):
 
 
 if __name__ == "__main__":
-    export('pyrprapi.json', [], 'RadeonProRender.h', '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py')
+    abi_mode = 'Windows' != platform.system()
+    if '--abi-mode' in sys.argv:
+        abi_mode = True
+        
+                
+    export('pyrprapi.json', [], 'RadeonProRender.h', '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py', abi_mode)
     export('pyrprsupportapi.json', ['pyrprapi.json'],
-           'RprSupport.h', '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py')
+           'RprSupport.h', '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py', abi_mode)
