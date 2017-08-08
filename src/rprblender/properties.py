@@ -896,7 +896,7 @@ class RenderSettings(bpy.types.PropertyGroup):
         name="Viewport Quality",
         items=(('SAME_AS_RENDER', "Same as Render", "Same as render quality"),
                ('NORMAL', "Normal", "Normal"),
-               ('FAST', "Fast Render", "Fast render")),
+               ('FAST', "Fast", "Fast")),
         description="Viewport Quality",
         default='FAST',
     )
@@ -1081,6 +1081,23 @@ class DeveloperSettings(bpy.types.PropertyGroup):
     export_model_file = bpy.props.StringProperty(
         name='Export Model File', description='Export Model File', subtype='FILE_PATH'
     )
+
+    show_error_was_changed = False
+    def show_error_changed(self, context):
+        DeveloperSettings.show_error_was_changed = True
+
+    show_rpr_materials_with_errors = bpy.props.BoolProperty(
+        name = "Show RPR shader errors", description = "Show RPR shader errors (using magenta color)",
+        default = True,
+        update=show_error_changed,
+    )
+
+    show_cycles_materials_with_errors = bpy.props.BoolProperty(
+        name = "Show Cycles shader errors", description = "Show Cycles shader errors (using magenta color)",
+        default = False,
+        update=show_error_changed
+    )
+
 
 
 @rpraddon.register_class

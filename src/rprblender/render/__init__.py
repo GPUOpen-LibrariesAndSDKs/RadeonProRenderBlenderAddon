@@ -228,4 +228,5 @@ def free_render_devices():
                             logging.critical(r.f_code)
 
                     except AttributeError:pass
+            del referrers
         del render_device

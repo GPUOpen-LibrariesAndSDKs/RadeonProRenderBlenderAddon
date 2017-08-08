@@ -959,7 +959,8 @@ class CyclesMaterialConverter(converter.MaterialConverter):
 
         return result_node
 
-    def convert_by_socket(self, cycles_socket):
+
+    def get_convert_func_library(self):
         registered_nodes = {
             'ShaderNodeBsdfDiffuse': self.convert_node_diffuse,
             'ShaderNodeEmission': self.convert_node_emission,
@@ -993,6 +994,10 @@ class CyclesMaterialConverter(converter.MaterialConverter):
             'ShaderNodeRGBCurve': self.convert_node_rgbcurve,
             'ShaderNodeMapping': self.convert_node_mapping,
         }
+        return registered_nodes
+
+    def convert_by_socket(self, cycles_socket):
+        registered_nodes = self.get_convert_func_library()
 
         cycles_node = cycles_socket.node
         name = cycles_node.bl_idname

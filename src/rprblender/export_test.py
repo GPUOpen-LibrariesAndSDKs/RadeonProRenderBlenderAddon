@@ -11,6 +11,7 @@ from rprblender.core.image import extract_pixels_from_blender_image
 from rprblender.testing import SyncFixture, assert_arrays_approx_equal
 from rprblender.timing import TimedContext
 
+
 import numpy as np
 
 
@@ -724,6 +725,7 @@ def test_mesh_update_sync_dupli(export_fixture, sync_fixture):
         log('start edit')
         bpy.ops.object.mode_set(mode='EDIT')
 
+    with sync_fixture:
         log('started edit')
         scene.update()
 

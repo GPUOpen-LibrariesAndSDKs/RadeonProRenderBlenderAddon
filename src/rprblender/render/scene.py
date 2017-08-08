@@ -3,6 +3,7 @@ import operator
 import sys
 import threading
 import time
+import weakref
 
 import numpy as np
 import pyrpr
@@ -79,7 +80,7 @@ class SceneRenderer:
         self.resolution = render_resolution
         self.render_targets = rprblender.render.device.RenderTargets(self.render_device, self.resolution)
         self.render_layers = rprblender.render.render_layers.RenderLayers(
-            self.aov_settings, self.render_targets)
+            self.aov_settings, self.render_targets, self.is_production)
 
         self.render_device.attach_render_target(self.render_targets)
 
@@ -90,6 +91,8 @@ class SceneRenderer:
     @call_logger.logged
     def update_aov(self, aov):
         self.aov_settings = aov
+        if self.render_layers:
+            self.render_layers.update(self.aov_settings)
 
     def update_tone_mapping(self, settings, post_effect_update):
 
@@ -306,13 +309,13 @@ class SceneRenderer:
                        % (time_delta, time_local_total, 100 * time_local_total / time_delta))
         self.log_debug('render_proc log time ok')
 
-
     def log_debug(self, *args):
         logging.debug(*args, tag='render.proc')
 
     def get_image_tile(self):
         return self.im_tile
 
+    @call_logger.logged
     def get_image(self, aov_name='default'):
 
         if aov_name in self.im_prepared:
@@ -320,26 +323,9 @@ class SceneRenderer:
 
         with rprblender.render.core_operations(raise_error=True):
 
-            frame_buffer = self.render_targets.get_frame_buffer(aov_name)
-
-            if not frame_buffer:
+            im = self._get_aov_image(aov_name)
+            if im is None:
                 return
-
-            # apply post effects, remaking posteffects chain for each pass separately
-            # RPR will have per-buffer posteffect chains later, but now they are on the context
-            # so need to be reattached separately for every aov
-            post_effect_chain = self.posteffect_chain
-            post_effect_update = post_effect_chain.start_update()
-            # Always apply normalization, aov need this too.
-            post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
-
-            if aov_name == 'default':
-                settings = self.render_settings
-                self.update_tone_mapping(settings, post_effect_update)
-                self.update_white_balance(settings, post_effect_update)
-                self.update_gamma_correction(settings, post_effect_update)
-
-            im = self.render_targets.get_resolved_image(frame_buffer)
 
             # dummy_render = False
             #
@@ -350,10 +336,91 @@ class SceneRenderer:
             #     im[:, :, 1] = np.linspace(0, 1, width, dtype=np.float32)[np.newaxis, :]
             #     im[:, :, 3] = 1
 
-        if im is not None:
-            self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im)
+            opacity = self._get_aov_image('opacity') if self.render_layers.alpha_combine else None
+
+            self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
 
         return self.im_prepared.get(aov_name)
+
+    @call_logger.logged
+    def iter_images(self):
+        with rprblender.render.core_operations(raise_error=True):
+            opacity = self._get_aov_image('opacity') if self.render_layers.alpha_combine else None
+
+            while True:
+                aov_name = yield
+                if not aov_name:
+                    return
+
+                if aov_name in self.im_prepared:
+                    yield self.im_prepared[aov_name]
+
+                im = self._get_aov_image(aov_name)
+                if im is None:
+                    yield None
+
+                self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
+
+                yield self.im_prepared.get(aov_name)
+
+    def _get_image(self, aov_name, opacity):
+        if not aov_name:
+            return
+
+        if aov_name in self.im_prepared:
+            return self.im_prepared[aov_name]
+
+        im = self._get_aov_image(aov_name)
+        if im is None:
+            return
+
+        self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
+
+        return self.im_prepared.get(aov_name)
+
+    @call_logger.logged
+    def get_images(self):
+
+        class PassesImages:
+            """ Use class to get opacity once fo all passes, also lock render for duration of all image retrieval"""
+
+            def __init__(self, scene_renderer):
+                rprblender.render._lock.acquire()
+
+                self.opacity = scene_renderer._get_aov_image('opacity') \
+                    if scene_renderer.render_layers.alpha_combine else None
+                self.scene_renderer = scene_renderer
+
+            def __del__(self):
+                rprblender.render._lock.release()
+                pass
+
+            def get_image(self, aov_name):
+                return self.scene_renderer._get_image(aov_name, self.opacity)
+
+        return PassesImages(weakref.proxy(self))
+
+    def _get_aov_image(self, aov_name):
+        frame_buffer = self.render_targets.get_frame_buffer(aov_name)
+
+        if not frame_buffer:
+            return
+
+        # apply post effects, remaking posteffects chain for each pass separately
+        # RPR will have per-buffer posteffect chains later, but now they are on the context
+        # so need to be reattached separately for every aov
+        post_effect_chain = self.posteffect_chain
+        post_effect_update = post_effect_chain.start_update()
+        # Always apply normalization, aov need this too.
+        post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
+        if aov_name == 'default':
+            settings = self.render_settings
+            self.update_tone_mapping(settings, post_effect_update)
+            self.update_white_balance(settings, post_effect_update)
+            self.update_gamma_correction(settings, post_effect_update)
+        im = self.render_targets.get_resolved_image(frame_buffer)
+        return im
+
 
 class RenderThread(threading.Thread):
 
@@ -540,29 +607,21 @@ class SceneRendererThreaded:
 
     def check_updates(self):
         with self.update_data_lock:
+
             if self.update_data.render_resolution.has_value:
                 logging.debug('resolution changed to ', self.update_data.render_resolution,  tag='render.proc.update')
                 self.render_resolution = self.update_data.render_resolution.pop_value()
 
                 # this partially duplicates code below for aov, only not if resolution changed there's no
                 # need to partially update aovs - all will be recreated
-                if self.update_data.aov.has_value:
-                    logging.debug('aov changed to ', self.update_data.aov,  tag='render.proc.update')
-                    self.aov = self.update_data.aov.pop_value()
-                    self.scene_renderer.aov_settings = self.aov
-
                 with self.image_lock:
                     self.scene_renderer.update_render_resolution(self.render_resolution)
                 self.need_scene_redraw = True
 
-            elif self.update_data.aov.has_value:
-                logging.debug('aov changed to ', self.update_data.aov,  tag='render.proc.update')
+            if self.update_data.aov.has_value:
                 self.aov = self.update_data.aov.pop_value()
-                self.scene_renderer.aov_settings = self.aov
-
-                self.scene_renderer.render_layers.update(self.aov)
+                self.scene_renderer.update_aov(self.aov)
                 self.need_scene_redraw = True
-
 
             if self.update_data.render_region.has_value:
                 logging.debug('render_region changed to ', self.update_data.render_region,  tag='render.proc.update')

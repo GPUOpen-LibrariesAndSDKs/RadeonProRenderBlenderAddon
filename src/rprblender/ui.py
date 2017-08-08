@@ -773,9 +773,11 @@ class RPRRender_PT_developer(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         dev = context.scene.rpr.dev
-        row = layout.row()
-        row.prop(dev, "trace_dump")
-        row = layout.row()
+        col = layout.column()
+        col.prop(dev, "show_rpr_materials_with_errors")
+        col.prop(dev, "show_cycles_materials_with_errors")
+        col.prop(dev, "trace_dump")
+        row = col.row()
         row.enabled = dev.trace_dump
         row.prop(dev, "trace_dump_folder", text="")
         path = dev.get_trace_dump_folder()
@@ -1145,14 +1147,9 @@ class RPRObject_PT(RPRPanel, Panel):
             self.layout.prop(rpr, "shadows")
             self.layout.prop(rpr, "portallight")
 
-            self.layout .label('Ray Visibility:')
+            visibility_layout = self.layout
+            visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Primary rays:")
 
-            if context.region.width > PANEL_WIDTH_FOR_COLUMN:
-                visibility_layout = self.layout.row()
-            else:
-                visibility_layout = self.layout.column()
-
-            visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Primary")
             subdivision_layout = self.layout.box()
             add_subdivision_properties(subdivision_layout, context.object)
 

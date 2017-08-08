@@ -8,6 +8,7 @@ import time
 import traceback
 import typing
 import math
+import contextlib
 from pathlib import Path
 from typing import List
 
@@ -148,9 +149,6 @@ class ViewportFixture:
         self.stop()
 
 
-import contextlib
-
-
 class FailureReport:
     actual = None  # type: np.ndarray
     expected = None  # type: np.ndarray
@@ -175,7 +173,7 @@ class ExpectedImageNormalizedOnDisk(ExpectedImage):
         if not os.path.isfile(self.path + '.png'):
             return None
         image = bpy.data.images.load(self.path + '.png')
-        return np.flipud(np.array(image.pixels).reshape(image.size[1], image.size[0], 4))[:, :, 0:3]
+        return np.flipud(np.array(image.pixels).reshape(image.size[1], image.size[0], 4))
 
     def __str__(self):
         return "<%s: '%s'>" % (self.__class__, self.path)
@@ -230,7 +228,7 @@ class ExpectedImageOnDisk(ExpectedImage):
         if not os.path.isfile(self.path):
             return None
         image = bpy.data.images.load(self.path)
-        return np.flipud(np.array(image.pixels).reshape(image.size[1], image.size[0], 4))[:, :, 0:3]
+        return np.flipud(np.array(image.pixels).reshape(image.size[1], image.size[0], 4))
 
     def __str__(self):
         return "<%s: '%s'>" % (self.__class__, self.path)
@@ -276,7 +274,7 @@ class RenderImageCheck:
         self.failure_encountered = False
 
     def set_expected(self, expected, scale=None, offset=None, gamma=None, clamp=None, max_avg_dev=None,
-                     max_std_dev=None, aov='default'):
+                     max_std_dev=None, aov='default', use_alpha=False):
         """ Context that checks image on exit by performing full re-export and render of the current scene
 
         :param gamma: displaygamma(rendered pixels a taken to power of 1/gamma)
@@ -289,6 +287,8 @@ class RenderImageCheck:
         if expected is None:
             self.expected = None
             return self
+
+        self.use_alpha = use_alpha
 
         self.gamma = gamma
         self.clamp = clamp
@@ -382,23 +382,24 @@ class RenderImageCheck:
         try:
 
             # donwsample image to emulate AA for better error tolerance
-            im_dowsampled = self.downsample_image(im[:, :, 0:3])
-            rgb = self.expected.get_actual_for_comparison(im_dowsampled)
+            im_dowsampled = self.downsample_image(im[..., :4 if self.use_alpha else 3])
+            actual_for_comparison = self.expected.get_actual_for_comparison(im_dowsampled)
             if self.clamp:
-                rgb = np.clip(rgb, a_min=self.clamp[0], a_max=self.clamp[1])
+                actual_for_comparison = np.clip(actual_for_comparison, a_min=self.clamp[0], a_max=self.clamp[1])
             if self.gamma:
-                rgb = np.power(rgb, 1 / self.gamma)
+                actual_for_comparison = np.power(actual_for_comparison, 1 / self.gamma)
 
             if self.expected.data is not None and not pytest.config.option.render_check_regenerate_expected_image:
-                # rgb = self.downsample_image(rgb)
+                # actual_for_comparison = self.downsample_image(actual_for_comparison)
 
                 if not self.skip_image_comparison:
-                    rprtesting.assert_images_similar(self.expected.data, rgb, max_average_deviation=self.max_avg_dev,
+                    rprtesting.assert_images_similar(self.expected.data[..., :4 if self.use_alpha else 3],
+                                                     actual_for_comparison, max_average_deviation=self.max_avg_dev,
                                                      max_std_dev=self.max_std_dev)
             else:
                 if (pytest.config.option.render_check_generate_missing_expected_image
                     or pytest.config.option.render_check_regenerate_expected_image):
-                    self.expected.create(rgb)
+                    self.expected.create(actual_for_comparison)
                 else:
                     assert False, 'Expected image {} not found'.format(self.expected)
         except:
@@ -411,7 +412,7 @@ class RenderImageCheck:
 
                 failure_report.expected_hdr = self.expected.get_expected_hdr(expected_hdr)
 
-            failure_report.actual = rgb.copy()
+            failure_report.actual = actual_for_comparison.copy()
             failure_report.actual_hdr = im.copy()
             failure_report.exception = traceback.format_exc(chain=True)
             failure_report.stack = traceback.format_stack()
@@ -693,6 +694,33 @@ def test_viewport_sync_resolution_change(viewport_fixture, sync_fixture):
         im = viewport_fixture.viewport_renderer.get_image()
         assert im is not None
         assert im.shape == (320, 240, 4)
+
+
+@pytest.mark.skipif(condition=not pytest.config.option.perf, reason="perf")
+def test_viewport_image_perf(viewport_fixture, sync_fixture):
+    bpy.context.scene.rpr.render.rendering_limits.iterations = 1
+    viewport_fixture.render_resolution = (2048, 2048)
+    passes_aov = get_render_passes_aov(bpy.context)
+    passes_aov.enable = True
+    for i in range(len(passes_aov.passesStates)):
+        passes_aov.passesStates[i] = True
+
+    passes_aov.transparent = True
+
+    def get_images(passes_aov, scene_renderer):
+        images = scene_renderer.get_images()
+        # get every aov image
+        for item in passes_aov.render_passes_items:
+            aov_name = item[0]
+
+            im = images.get_image(aov_name)
+            assert im is not None, aov_name
+
+    with viewport_fixture:
+        viewport_fixture.wait_for_render_complete()
+
+        get_images(passes_aov, viewport_fixture.viewport_renderer.scene_renderer)
+
 
 
 @notquick
@@ -3241,6 +3269,42 @@ class TestShadowcatcher:
             shadowcatcher_obj.rpr_object.shadows = True
 
 
+class TestRenderLayers:
+
+    def test_layer(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request,
+                            material_setup):
+        bpy.context.scene.rpr.render.rendering_limits.type = 'ITER'
+        # emissive/area lights need a bit more iteration to converge
+        bpy.context.scene.rpr.render.rendering_limits.iterations = 50
+
+        lamp_object = bpy.context.scene.objects['Lamp']
+        lamp_object.location = (0.5, 0.0, 2.0)
+
+        # first, make sure shadows are working
+        with render_image_check_fixture.set_expected('render_layers/layer/shadowcaster_expected'):
+            bpy.ops.mesh.primitive_plane_add(radius=1)
+            plane = bpy.context.object
+            plane.location = (0.5, 0.0, 1.5)
+            plane.scale = (0.25,) * 3
+            plane.rotation_euler = (0, 0, 0)
+
+        #bpy.context.scene.render.layers.active.layers_exclude[1] = True
+
+        with render_image_check_fixture.set_expected('render_layers/layer/shadowcaster_in_invisible_layer'):
+            # move shadowcaster to a separate layer
+            bpy.context.object.layers[1] = True
+            bpy.context.object.layers[0] = False
+
+        with render_image_check_fixture.set_expected('render_layers/layer/shadowcaster_expected'):
+            # enable shadowcaster's layer
+            bpy.context.scene.layers[1] = True
+
+        with render_image_check_fixture.set_expected('render_layers/layer/shadowcaster_shadow_but_no_shape'):
+            # disable shadowscaster's primary visibility
+            bpy.context.scene.render.layers.active.layers[1] = False
+
+
+
 class TestPortallight:
 
     def test_simple(self, render_image_check_fixture: RenderImageCheck, tmpdir_factory, request, material_setup):
@@ -4542,7 +4606,6 @@ class TestAov:
         for i, item in enumerate(passes_aov.render_passes_items):
             passes_aov.passesStates[i] = aov_name == item[0]
 
-
         # check that retrieving image immediately doesn't fail
         render_image_check_fixture.viewport_fixture.viewport_renderer.get_image('depth')
 
@@ -4550,6 +4613,52 @@ class TestAov:
                                                      aov=aov_name):
             pass
 
+    def test_transparent(self, material_setup, render_image_check_fixture: RenderImageCheck):
+        generate_uv()
+
+        # make transparent material for mesh
+        bpy.context.object.data.materials.append(bpy.data.materials.new('Material'))
+        tree = material_setup.create_default_node_tree()
+        editor = MaterialEditor(tree)
+        output = OutputNode(material_setup.get_node_tree_output(tree), editor)
+        # create Normal Map node and connect it to Diffuse material Normal input
+        diffuse = editor.create_diffuse_material_node()
+        transparent = editor.create_transparent_material_node()
+        blend = editor.create_blend_material_node()
+
+        diffuse.set_color_value((1.0, 0.5, 0.75, 1))
+        editor.link_nodes(transparent, blend.get_input_socket_by_name('shader1'))
+        editor.link_nodes(diffuse, blend.get_input_socket_by_name('shader2'))
+        blend.set_input_socket_value_by_name('weight', 0.25)
+        editor.link_nodes(blend, output.get_input_shader_socket())
+
+        bpy.ops.mesh.primitive_ico_sphere_add()
+        bpy.context.object.location = (1, 0, -1)
+        bpy.context.object.scale = (1.5,) * 3
+
+        passes_aov = get_render_passes_aov(bpy.context)
+        passes_aov.enable = True
+        passes_aov.transparent = True
+
+        aov_name = 'default'
+
+        # enable only pass under test
+        for i, item in enumerate(passes_aov.render_passes_items):
+            passes_aov.passesStates[i] = aov_name == item[0]
+
+        with render_image_check_fixture.set_expected('aov/transparent/' + aov_name,
+                                                     aov=aov_name, use_alpha=True):
+            pass
+
+        aov_name = 'shading_normal'
+
+        # enable only pass under test
+        for i, item in enumerate(passes_aov.render_passes_items):
+            passes_aov.passesStates[i] = aov_name == item[0]
+
+        with render_image_check_fixture.set_expected('aov/transparent/' + aov_name,
+                                                     aov=aov_name, use_alpha=True):
+            pass
 
 
 class TestPerf:

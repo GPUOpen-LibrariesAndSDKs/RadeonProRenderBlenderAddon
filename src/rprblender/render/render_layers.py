@@ -36,8 +36,12 @@ def extract_settings(aov_settings):
 
 class RenderLayers:
 
-    def __init__(self, aov_settings, render_targets):
+    displayed_layer = None
+
+    def __init__(self, aov_settings, render_targets, is_production=False):
         logging.info('RenderLayers create...')
+
+        self.is_production = is_production
 
         self.render_targets = render_targets
 
@@ -46,51 +50,52 @@ class RenderLayers:
 
         self.init_data(aov_settings)
 
-    def init_data(self, aov_settings):
-        self.enable = aov_settings is not None and aov_settings.enable
+        for p in self.get_needed_passes(aov_settings):
+            self.enable_aov(p)
 
-        # create color fb by by default
-        self.enable_aov('default')
+    def get_needed_passes(self, aov_settings):
+        # always create color fb(needed by RPR)
+        yield 'default'
         if self.alpha_combine:
-            self.enable_aov('opacity')
+            yield 'opacity'
 
-        if not self.enable:
-            self.displayed_layer = 'default'
+        if aov_settings is None or not aov_settings.enable:
             return
 
-        self.displayed_layer = aov_settings.pass_displayed
+        if self.is_production:
+            for i in range(len(aov_settings.passes_names)):
+                state = aov_settings.passes_states[i]
+                name = aov_settings.passes_names[i]
+                if state and name != 'default':
+                    yield name
+        else:
+            if 'default' != self.displayed_layer:
+                yield self.displayed_layer
 
-        for i in range(len(aov_settings.passes_names)):
-            state = aov_settings.passes_states[i]
-            name = aov_settings.passes_names[i]
-            if state or name == self.displayed_layer and name != 'default':
-                self.enable_aov(name)
+
+    def init_data(self, aov_settings):
+        self.displayed_layer = aov_settings.pass_displayed if aov_settings.pass_displayed else 'default'
 
     def update(self, aov_settings):
-        # remove unused
-        for i in range(len(aov_settings.passes_names)):
-            state = aov_settings.passes_states[i]
-            name = aov_settings.passes_names[i]
-            if name == 'default':
-                continue
-            if not state or not aov_settings.enable:
-                self.render_targets.disable_aov(name)
-
-        # create new & set displayed
         self.init_data(aov_settings)
 
-    def prepare_image_by_layer(self, name, im):
+        passes_needed = set(self.get_needed_passes(aov_settings))
+        passes_all = set(aov_settings.passes_names)
+
+        for name in passes_all:
+            if name in passes_needed and not self.render_targets.is_aov_enabled(name):
+                self.render_targets.enable_aov(name)
+            if name not in passes_needed and self.render_targets.is_aov_enabled(name):
+                self.render_targets.disable_aov(name)
+
+    @call_logger.logged
+    def prepare_image_by_layer(self, name, im, opacity):
 
         prepared_im = prepare_image(im)
-        if self.alpha_combine and self.render_targets.is_aov_enabled('opacity'):
-            with rprblender.render.core_operations(raise_error=True):
-                fb_opacity = self.render_targets.get_image('opacity')
-                opacity_im = prepare_image(fb_opacity)
-
-            color = prepared_im[:, :, 0:3]
-            alpha = opacity_im[:, :, 0:1]
-            prepared_im = np.append(color, alpha, axis=2)
-
+        if opacity is not None:
+            prepared_im = prepared_im.copy()
+            alpha = prepare_image(opacity)[:, :, 0]
+            prepared_im[..., 3] = alpha
         return np.ascontiguousarray(prepared_im)
 
     def enable_aov(self, aov_name):
@@ -163,4 +168,4 @@ else:
     )
 
 aov2pass = {aov: pass_ for pass_, aov in pass_and_aov}
-pass2aov = {pass_:aov  for pass_, aov in pass_and_aov}
+pass2aov = {pass_:aov for pass_, aov in pass_and_aov}

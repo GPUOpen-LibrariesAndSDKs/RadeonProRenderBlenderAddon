@@ -147,7 +147,10 @@ class RenderTargets:
     def get_resolved_image(self, fb):
         pyrpr.FrameBufferClear(self.frame_buffer_tonemapped)
         pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, fb, self.frame_buffer_tonemapped)
-        return get_image(*self.render_resolution, self.frame_buffer_tonemapped)
+        return self.get_frame_buffer_image(self.frame_buffer_tonemapped)
+
+    def get_frame_buffer_image(self, fb):
+        return get_image(*self.render_resolution, fb)
 
     def enable_aov(self, aov_name):
         if aov_name in self.aovs:

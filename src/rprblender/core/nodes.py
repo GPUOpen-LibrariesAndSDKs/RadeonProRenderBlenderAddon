@@ -613,15 +613,26 @@ class Material:
     def get_displacement(self):
         return self.displacement
 
+    def is_error_show(self):
+        dev = bpy.context.scene.rpr.dev
+        show_errors = dev.show_rpr_materials_with_errors if self.output_node_was_parsed else dev.show_cycles_materials_with_errors
+        return show_errors
+
     def create_error_shader(self):
         val = self.create_error_value()
-        shader = EmissiveShader(self)
+        if self.is_error_show():
+            shader = EmissiveShader(self)
+        else:
+            shader = DiffuseShader(self)
+
         shader.set_color(val)
         return shader
 
     def create_error_value(self):
+        if self.is_error_show():
             return ValueVector(1, 0, 1, 1)
-
+        else:
+            return ValueVector(0.5, 0.5, 0.5, 1)
 
     def parse_cycles_shader_OutputMaterial(self, blender_node):
         socket = self.get_socket(blender_node, 'Surface')
@@ -1700,8 +1711,16 @@ class Material:
                 socket_out = output_node.inputs[socket_index].links[0].from_socket
                 return self.parse_node(socket_out)
 
-        logging.warn("Error: we haven't implementation for node: " + blender_node.bl_idname)
-        assert False, "Error: we haven't implementation for node: " + blender_node.bl_idname
+        message = "Error: we haven't implementation for node: " + blender_node.bl_idname
+
+        if not self.output_node_was_parsed:
+            converter = rprblender.converter.cycles_converter.CyclesMaterialConverter()
+            cycles_nodes_support = converter.get_convert_func_library()
+            if blender_node.bl_idname in cycles_nodes_support:
+                message = blender_node.bl_idname + " could not be automatically translated, please use 'RPR Converter' panel to convert Cycles material to RPR"
+
+        logging.warn(message)
+        assert False, message
 
     def prepare_surface_for_volume(self, shader, volume):
         log_mat('prepare_surface_for_volume...')

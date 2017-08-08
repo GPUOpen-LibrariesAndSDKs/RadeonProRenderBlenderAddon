@@ -75,7 +75,13 @@ class TestCFFI(unittest.TestCase):
         int_p_p[0] = pyrpr.ffi.cast('int*', 345)
 
 
-def create_simple_quad(context, scene):
+def add_simple_quad(context, scene):
+    mesh = create_simple_quad(context)
+    pyrpr.SceneAttachShape(scene, mesh)
+    return mesh
+
+
+def create_simple_quad(context):
     vertices = np.array([[-2.0, 2.0, 0.0, 0.0, 0.0, +1.0, 0.0, 0.0],
                          [2.0, 2.0, 0.0, 0.0, 0.0, +1.0, 1.0, 0.0],
                          [2.0, -2.0, 0.0, 0.0, 0.0, +1.0, 1.0, 1.0],
@@ -84,8 +90,6 @@ def create_simple_quad(context, scene):
     indices = np.array([3, 2, 1, 0], dtype=np.int32)
 
     mesh = create_mesh_simple(context, vertices, indices)
-
-    pyrpr.SceneAttachShape(scene, mesh)
     return mesh
 
 
@@ -253,7 +257,7 @@ class SimpleRenderFixture:
 class SimpleMaterialRenderFixture(SimpleRenderFixture):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mesh = create_simple_quad(self.context, self.scene)
+        self.mesh = add_simple_quad(self.context, self.scene)
 
 
 @pytest.fixture(scope='function')
@@ -353,7 +357,7 @@ class SimpleRender:
         pyrpr.ContextSetScene(context, scene)
 
         # keep mesh reference so it's not deleted prematurely
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         frame_buffer, camera = create_simple_render_setup(context, scene)
 
@@ -518,7 +522,7 @@ class Test:
         pyrpr.ContextSetScene(context, scene)
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         # test that name is set
         pyrpr.ObjectSetName(mesh._get_handle(), b'hello')
@@ -577,7 +581,7 @@ class Test:
         scene_shape_count = scene_shape_count_ptr[0]
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         # test that name is set
         pyrpr.ObjectSetName(mesh._get_handle(), b'hello')
@@ -614,7 +618,7 @@ class Test:
         scene = self.scene
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         frame_buffer, camera = create_simple_render_setup(context, scene)
 
@@ -623,13 +627,59 @@ class Test:
 
         check_framebuffer_agains_baseline(frame_buffer, 'test_simple')
 
+    def test_instance(self):
+        context = self.context
+
+        scene = self.scene
+
+        # make simple quad scene for the test
+        mesh = create_simple_quad(context)
+        pyrpr.SceneAttachShape(scene, mesh)
+        transform = np.array([
+            [0.25, 0, 0, 0],
+            [0, 1.0, 0, 0],
+            [0, 0, 1.0, 0],
+            [1.0, 0.0, 0, 1],
+        ], dtype=np.float32)
+        pyrpr.ShapeSetTransform(mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+        instance = pyrpr.Shape()
+        pyrpr.ContextCreateInstance(context, mesh, instance)
+        pyrpr.SceneAttachShape(scene, instance)
+        transform = np.array([
+            [0.25, 0, 0, 0],
+            [0, 1.0, 0, 0],
+            [0, 0, 1.0, 0],
+            [-1.0, 0.0, 0, 1],
+        ], dtype=np.float32)
+        pyrpr.ShapeSetTransform(instance, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+
+        frame_buffer, camera = create_simple_render_setup(context, scene)
+
+        pyrpr.FrameBufferClear(frame_buffer)
+        pyrpr.ContextRender(context)
+        check_framebuffer_agains_baseline(frame_buffer, 'test_instance_with_proto')
+
+        print("check visilbility flags on prototype affect prototype shape only")
+        pyrpr.ShapeSetVisibilityPrimaryOnly(mesh, False)
+        pyrpr.FrameBufferClear(frame_buffer)
+        pyrpr.ContextRender(context)
+        check_framebuffer_agains_baseline(frame_buffer, 'test_instance_proto_hidden')
+
+        print("check visilbility flags on instance")
+        pyrpr.ShapeSetVisibilityPrimaryOnly(mesh, True)
+        pyrpr.ShapeSetVisibilityPrimaryOnly(instance, False)
+        pyrpr.FrameBufferClear(frame_buffer)
+        pyrpr.ContextRender(context)
+        check_framebuffer_agains_baseline(frame_buffer, 'test_instance_hidden')
+
     def test_tile(self):
         context = self.context
 
         scene = self.scene
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         frame_buffer, camera = create_simple_render_setup(context, scene, resolution=(640, 480))
 
@@ -653,7 +703,7 @@ class Test:
 
         # make simple quad scene for the test
         pyrpr.SceneClear(scene)
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
 
@@ -676,7 +726,7 @@ class Test:
         scene = fixture.scene
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
         transform = np.array([
             [0.5, 0, 0, 0],
             [0, 1.0, 0, 0],
@@ -708,7 +758,7 @@ class Test:
         scene = self.scene
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         frame_buffer, camera = create_simple_render_setup(context, scene)
 
@@ -799,7 +849,7 @@ class Test:
         scene = self.scene
 
         # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
@@ -899,19 +949,19 @@ class Test:
         idx = 0
         for xi in range(size):
             for yi in range(size):
-        # make simple quad scene for the test
-        mesh = create_simple_quad(context, scene)
+                # make simple quad scene for the test
+                mesh = add_simple_quad(context, scene)
 
                 x, y = (np.array([xi, yi])/(size-1)*0.2-0.1)
 
-        transform = np.array([
+                transform = np.array([
                     [0.075/((size-1)*2), 0, 0, 0],
                     [0, 0.075/((size-1)*2), 0, 0],
                     [0, 0, 1, 0],
                     [x, y, -((x+y)+0.2)*0.2, 1],
-        ], dtype=np.float32)
+                ], dtype=np.float32)
 
-        pyrpr.ShapeSetTransform(mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
+                pyrpr.ShapeSetTransform(mesh, False, pyrpr.ffi.cast('float*', transform.ctypes.data))
 
                 pyrpr.ShapeSetMaterial(mesh, shaders[xi % len(shaders)])
 
@@ -1015,7 +1065,7 @@ class Test:
         fixture = self.render_fixture
         fixture.set_name('test_emissive')
         scene = fixture.scene
-        mesh0 = create_simple_quad(self.context, scene)
+        mesh0 = add_simple_quad(self.context, scene)
         with fixture:
             shader0 = pyrpr.MaterialNode()
             pyrpr.MaterialSystemCreateNode(fixture.matsys, pyrpr.MATERIAL_NODE_EMISSIVE, shader0)
@@ -1030,7 +1080,7 @@ class Test:
         pyrpr.CameraLookAt(camera, 0, 0, 7, 0, 0, 0, 0, 1, 0)
         pyrpr.SceneSetCamera(scene, camera)
 
-        mesh1 = create_simple_quad(self.context, scene)
+        mesh1 = add_simple_quad(self.context, scene)
 
         fixture.scene = scene
         pyrpr.ContextSetScene(fixture.context, scene)
@@ -1054,7 +1104,7 @@ class Test:
 
         pyrpr.ContextSetScene(context, scene)
 
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         camera = pyrpr.Camera()
         pyrpr.ContextCreateCamera(context, camera)
@@ -1104,7 +1154,7 @@ class Test:
 
         pyrpr.ContextSetScene(context, scene)
 
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
@@ -1139,7 +1189,7 @@ class Test:
                                               0, 0, 0, 1])
         pyrpr.SceneAttachLight(scene, light)
 
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         frame_buffer, camera = create_simple_render_setup(context, scene, resolution=(80, 60))
 
@@ -1197,7 +1247,7 @@ class Test:
 
         pyrpr.SceneAttachShape(scene, mesh)
 
-        mesh2 = create_simple_quad(context, scene)
+        mesh2 = add_simple_quad(context, scene)
 
         transform = np.array([
             [0.5, 0, 0, 0],
@@ -1248,7 +1298,7 @@ class Test:
 
         pyrpr.ContextSetScene(context, scene)
 
-        # mesh = create_simple_quad(context, scene)
+        # mesh = add_simple_quad(context, scene)
         #
         # # move object outside of camera
         # transform = np.array([
@@ -1309,7 +1359,7 @@ class Test:
 
         pyrpr.ContextSetScene(context, scene)
 
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
@@ -1383,7 +1433,7 @@ class Test:
 
         pyrpr.ContextSetScene(context, scene)
 
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
 
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
@@ -1481,7 +1531,7 @@ class Test:
 
         pyrpr.ContextSetScene(self.context, self.scene)
 
-        mesh_to_refract = create_simple_quad(self.context, self.scene)
+        mesh_to_refract = add_simple_quad(self.context, self.scene)
         self.mesh_to_refract = mesh_to_refract
 
         transform = np.array([
@@ -1515,7 +1565,7 @@ class Test:
 
         pyrpr.ContextSetScene(self.context, self.scene)
 
-        mesh_to_refract = create_simple_quad(self.context, self.scene)
+        mesh_to_refract = add_simple_quad(self.context, self.scene)
         self.mesh_to_refract = mesh_to_refract
 
         transform = np.array([
@@ -1982,7 +2032,7 @@ class Test:
         scene = self.scene
         pyrpr.ContextSetScene(context, scene)
         pyrpr.SceneAttachLight(scene, light)
-        mesh = create_simple_quad(context, scene)
+        mesh = add_simple_quad(context, scene)
         matsys = pyrpr.MaterialSystem()
         pyrpr.ContextCreateMaterialSystem(context, 0, matsys)
         shader = pyrpr.MaterialNode()
@@ -2041,7 +2091,7 @@ class Test:
 
         pyrpr.SceneAttachLight(self.scene, ibl)
 
-        caster = create_simple_quad(self.context, self.scene)
+        caster = add_simple_quad(self.context, self.scene)
         self.mesh_to_refract = caster
 
         transform = np.array([
@@ -2137,7 +2187,7 @@ class Test:
 
         pyrpr.SceneSetEnvironmentOverride(self.scene, pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND, background)
 
-        caster = create_simple_quad(self.context, self.scene)
+        caster = add_simple_quad(self.context, self.scene)
         self.mesh_to_refract = caster
 
         transform = np.array([
@@ -2269,7 +2319,7 @@ class Test:
 
             fixture.scene = pyrpr.Scene(fixture.context)
             pyrpr.ContextSetScene(fixture.context, fixture.scene)
-            fixture.mesh = create_simple_quad(fixture.context, fixture.scene)
+            fixture.mesh = add_simple_quad(fixture.context, fixture.scene)
             fixture.frame_buffer = None
 
             fixture.frame_buffer, fixture.camera = create_simple_render_setup(
@@ -2312,7 +2362,7 @@ class Test:
     def test_shape_set_transform_validity_check(self, simple_material_render_fixture):
         fixture = self.render_fixture
 
-        mesh = create_simple_quad(self.context, self.scene)
+        mesh = add_simple_quad(self.context, self.scene)
 
         print('check nan raises error')
         transform = np.full((4, 4), float('nan'), dtype=np.float32)

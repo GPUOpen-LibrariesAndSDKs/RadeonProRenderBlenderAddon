@@ -2,6 +2,7 @@
 import platform
 import functools
 import inspect
+import threading
 import traceback
 
 from pathlib import Path
@@ -432,6 +433,8 @@ class CallLogger:
         if log_fun:
             self.log = log_fun
 
+        self.thread_stack = {}
+
     def log(self, *args):
         if logging:
             logging.debug(*args, tag=self.tag)
@@ -444,7 +447,10 @@ class CallLogger:
             if not config.debug:
                 return f(*argv, **kwargs)
 
-            log_fun(f.__name__,
+            call_depth = self.thread_stack.setdefault(threading.get_ident(), 0)
+            self.thread_stack[threading.get_ident()] = call_depth+1
+
+            log_fun('-'*call_depth+'>', f.__name__,
                     ', '.join(p.name+': '+str(value) for p, value in zip(signature.parameters.values(), argv)),
                     ', '.join(name+': '+str(value) for name, value in kwargs.items()),
                     )
@@ -453,8 +459,11 @@ class CallLogger:
             except:
                 logging.critical(traceback.format_exc())
                 raise
-            if config.debug:
-                log_fun(f.__name__, "done -> ", result)
+            finally:
+                self.thread_stack[threading.get_ident()] -= 1
+
+            log_fun('-'*call_depth+'<', f.__name__, "done -> ", result)
+
             return result
         return wrapped
 

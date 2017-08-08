@@ -173,13 +173,13 @@ class RPREngine(bpy.types.RenderEngine):
             #
             #     scene_renderer.update_render_region(region)
 
-
         try:
             if not self.is_preview:
                 self.update_stats('', 'exporting scene...')
             time_export_start = time.perf_counter()
             print_memory_usage("before export")
             scene_exporter = export.SceneExport(scene, scene_synced)
+            scene_exporter.set_render_layer(scene.render.layers[0])
             try:
 
                 # texture compression context param needs to be set before exporting textures
@@ -223,26 +223,8 @@ class RPREngine(bpy.types.RenderEngine):
             finally:
                 print_memory_usage("export done")
 
-                if config.debug:
-                    referrers = gc.get_referrers(scene_exporter)
-                    if 1 != len(referrers):
-                        logging.critical("exporter has more than one reference(current frame and something else):")
-                        for r in referrers:
-                            if r != sys._getframe(0):
-                                logging.critical(r)
-                                try:
-                                    logging.critical(r.f_code)
-                                except AttributeError:
-                                    pass
-                    del referrers
-
-                # delete exported to free up memory before rendering
-                del scene_exporter
-
-                print_memory_usage("exporter deleted")
-
-            scene_renderer_treaded = rprblender.render.scene.SceneRendererThreaded(scene_renderer)
-            scene_renderer_treaded.start_noninteractive()
+            scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(scene_renderer)
+            scene_renderer_threaded.start_noninteractive()
 
             if not self.is_preview:
                 if rprblender.render.render_layers.use_custom_passes:
@@ -252,42 +234,54 @@ class RPREngine(bpy.types.RenderEngine):
             result = self.begin_result(0, 0, render_border_resolution[0], render_border_resolution[1])
             logging.debug("Passes in the result:", tag="render.engine.passes")
             # TODO: render to active layer or render all layers
-            result_render_layer = result.layers[0]
-            for p in result_render_layer.passes:
-                logging.debug("    pass:", p.name, tag="render.engine.passes")
 
             render_failed = False
             try:
-                iteration_displayed = None
-                while True:
-                    render_completed = False
+                for render_layer_index, result_render_layer in enumerate(result.layers):
 
-                    # update render stats few times before displaying intermediate results(long operation in Blender)
-                    for i in range(10):
-                        if not scene_renderer_treaded.is_alive():
-                            render_failed = True
-                            return
-                        if self.test_break():
-                            return
-                        self.update_scene_render_stats(self, scene_renderer, settings.rendering_limits)
-                        if scene_renderer_treaded.render_completed_event.wait(timeout=0.1):
-                            render_completed = True
-                            break
+                    if 0 != render_layer_index:
+                        scene_exporter.set_render_layer(scene.render.layers[render_layer_index])
+                        with scene_renderer_threaded.update_lock:
+                            scene_renderer_threaded.need_scene_redraw = True
+                            self.update_stats("Sync layer:", str(render_layer_index))
+                            scene_exporter.sync()
 
-                    iteration = self.get_rendered_iteration(scene_renderer)
-                    if iteration_displayed != iteration:
-                        self.set_render_to_result(result_render_layer, scene_renderer)
+                    for p in result_render_layer.passes:
+                        logging.debug("    pass:", p.name, tag="render.engine.passes")
 
-                        if not render_completed:
-                            iteration_displayed = iteration
-                            with TimedContext("update_result"):
-                                self.update_result(result)
+                    try:
+                        iteration_displayed = None
+                        while True:
+                            render_completed = False
 
-                    if render_completed:
-                        break
+                            # update render stats few times before displaying intermediate results(long operation in Blender)
+                            for i in range(10):
+                                if not scene_renderer_threaded.is_alive():
+                                    render_failed = True
+                                    return
+                                if self.test_break():
+                                    return
+                                self.update_scene_render_stats(self, scene_renderer, settings.rendering_limits)
+                                if scene_renderer_threaded.render_completed_event.wait(timeout=0.1):
+                                    render_completed = True
+                                    break
+
+                            iteration = self.get_rendered_iteration(scene_renderer)
+                            if iteration_displayed != iteration:
+                                self.set_render_to_result(result_render_layer, scene_renderer)
+
+                                if not render_completed:
+                                    iteration_displayed = iteration
+                                    with TimedContext("update_result"):
+                                        self.update_result(result)
+
+                            if render_completed:
+                                break
+                    finally:
+                        pass
             finally:
-                scene_renderer_treaded.stop()
-                del scene_renderer_treaded
+                scene_renderer_threaded.stop()
+                del scene_renderer_threaded
                 if not render_failed:
                     with TimedContext("end_result"):
                         logging.debug("end_result", tag="render.engine")
@@ -359,16 +353,21 @@ class RPREngine(bpy.types.RenderEngine):
             return scene_renderer.im_iteration
 
     def set_render_to_result(self, result_render_layer, scene_renderer):
-        im = scene_renderer.get_image()
+        images = scene_renderer.get_images()
         with TimedContext("copy image to rect"):
             res = []
             for p in result_render_layer.passes:
                 aov_name = rprblender.render.render_layers.pass_to_aov_name(p.name)
-                if aov_name is None:
-                    width, height = im.shape[1], im.shape[0]
+
+                if aov_name:
+                    pass_image = images.get_image(aov_name)
+                else:
+                    pass_image = None
+
+                if pass_image is None:
                     pass_image = np.ones(height * width * p.channels, dtype=np.float32)
                 else:
-                    pass_image = scene_renderer.get_image(aov_name)
+                    width, height = pass_image.shape[1], pass_image.shape[0]
                     if p.channels != 4:
                         pass_image = pass_image[:, :, 0:p.channels]
 

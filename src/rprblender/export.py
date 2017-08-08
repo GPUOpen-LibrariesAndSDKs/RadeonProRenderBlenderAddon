@@ -379,8 +379,6 @@ class ObjectsSync:
         self.object_instances_instantiated_as_mesh_prototype.add(key)
         self.mesh_added_for_prototype[sync.get_prototype_key()] = key
 
-        self.update_settings(key, sync.object_mesh.blender_obj.rpr_object)
-
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh_prototype(self, key):
         mesh_sync = self.object_instances[key]
@@ -428,7 +426,7 @@ class ObjectsSync:
         return self.instances_added_for_prototype.get(prototype_key, [])
 
     @call_logger.logged
-    def add_instance(self, duplicator_key, key, dupli):
+    def add_instance(self, duplicator_key, key, dupli, duplicator_obj):
         log_sync('dupli:', dupli.object, dupli.object.type, dupli.object.library, dupli.matrix)
 
         sync = self.add_object_instance(key, get_object_key(dupli.object), dupli.object, dupli.matrix)
@@ -445,6 +443,7 @@ class ObjectsSync:
         self.duplicator_for_prototype[sync.get_prototype_key()].add(duplicator_key)
 
         self.instantiate_object_instance_as_mesh(key, sync)
+        self.update_settings(key, sync.object_mesh.blender_obj, duplicator=duplicator_obj)
 
     @call_logger.logged
     def remove_instance(self, key):
@@ -522,7 +521,7 @@ class ObjectsSync:
                 self.update_object_instance_transform(
                     key, self.object_instances[key].get_prototype_key(), dupli.matrix)
             else:
-                self.add_instance(obj_key, key, dupli)
+                self.add_instance(obj_key, key, dupli, obj)
 
     def update_object_data(self, obj_key, obj):
         if obj_key not in self.object_instances:
@@ -603,23 +602,28 @@ class ObjectsSync:
             sync.set_matrix(matrix)
             self.update_instance_transform(key, obj_key, matrix)
 
-    def update_settings(self, key, object_settings):
+    def update_settings(self, key, obj, duplicator=None):
         if key not in self.object_instances:
             return
+        object_settings = obj.rpr_object
         mesh_sync = self.object_instances[key]
         motion_blur = self.scene_export.get_object_motion_blur(mesh_sync)
 
         for i in mesh_sync.materials_assigned:
             self.scene_synced.mesh_set_shadowcatcher((key, i), object_settings.shadowcatcher)
             self.scene_synced.mesh_set_shadows((key, i), object_settings.shadows)
-            self.scene_synced.mesh_set_subdivision(
-                (key, i), object_settings.subdivision,
-                helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
-                object_settings.subdivision_crease_weight,
-            )
+
+            if duplicator is None:
+                self.scene_synced.mesh_set_subdivision(
+                    (key, i), object_settings.subdivision,
+                    helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
+                    object_settings.subdivision_crease_weight,
+                )
 
             #self.scene_synced.mesh_set_visibility((key, i), object_settings.visibility)
-            self.scene_synced.mesh_set_visibility_in_primary_rays((key, i), object_settings.visibility_in_primary_rays)
+            primary = self.scene_export.is_blender_object_visible_in_camera(
+                key, duplicator if duplicator else obj, object_settings)
+            self.scene_synced.mesh_set_visibility_in_primary_rays((key, i), primary)
             #self.scene_synced.mesh_set_visibility_in_specular((key, i), object_settings.visibility_in_specular)
 
             if object_settings.portallight:
@@ -694,6 +698,7 @@ class SceneExport:
         log_sync(self, '__init__')
         self.preview = preview
         self.scene = scene
+        self.render_layer = None
         self.scene_synced = scene_synced
         self.types_geometry = types_geometry
         self.meshes_extracted = {}
@@ -768,6 +773,9 @@ class SceneExport:
             return (mesh_sync.object_mesh.blender_obj.matrix_world,
                     self.get_next_matrix(mesh_sync.object_mesh.blender_obj),
                     scene.rpr.render.motion_blur_geometry_scale * 0.01 * scene.render.fps / 100.0)
+
+    def set_render_layer(self, render_layer):
+        self.render_layer = render_layer
 
     def export(self):
         if self.profile:
@@ -847,7 +855,7 @@ class SceneExport:
         for obj in duplicators:
             for key, dupli in self.iter_dupli_from_duplicator(obj):
                 if self.is_prototype_visible(dupli.object):
-                    self.objects_sync.add_instance(get_object_key(obj), key, dupli)
+                    self.objects_sync.add_instance(get_object_key(obj), key, dupli, obj)
 
         yield "materials"
 
@@ -869,11 +877,13 @@ class SceneExport:
         finally:
             duplicator.dupli_list_clear()
 
+    @call_logger.logged
     def add_lamp(self, obj):
         key = get_object_key(obj)
         self.lamps_added.add(key)
         self.scene_synced.add_lamp(key, obj)
 
+    @call_logger.logged
     def remove_lamp(self, key):
         if key in self.lamps_added:
             self.lamps_added.remove(key)
@@ -887,6 +897,19 @@ class SceneExport:
     def filter_scene_objects_visible(self, objects):
         # NOTE: 'hide_render' for render visibility
         return set(o for o in objects if self.is_scene_object_visible(o))
+
+    @call_logger.logged
+    def is_blender_object_visible_in_camera(self, key, obj, object_settings):
+        if not object_settings.visibility_in_primary_rays:
+            return False
+
+        obj_layers = np.array(obj.layers, dtype=bool)
+        scene_layers = np.array(self.scene.layers, dtype=bool)
+        layers = np.array(self.get_render_layer().layers, dtype=bool)
+
+        return np.any(np.logical_and(
+            np.logical_and(obj_layers, scene_layers),
+            layers))
 
     def is_blender_object_visible_in_viewport(self, obj):
         return not obj.hide and self.is_blender_object_in_included_layer(obj)
@@ -912,11 +935,14 @@ class SceneExport:
     def is_blender_object_in_included_layer(self, obj):
         obj_layers = np.array(obj.layers, dtype=bool)
         scene_layers = np.array(self.scene.layers, dtype=bool)
-        excluded_layers = np.array(self.scene.render.layers.active.layers_exclude, dtype=bool)
+        excluded_layers = np.array(self.get_render_layer().layers_exclude, dtype=bool)
 
         return np.any(np.logical_and(
             np.logical_and(obj_layers, scene_layers),
             np.logical_not(excluded_layers)))
+
+    def get_render_layer(self):
+        return self.render_layer or self.scene.render.layers.active
 
     def get_next_matrix(self, obj):
         parent_movement = Matrix.Identity(4)
@@ -1086,11 +1112,18 @@ class SceneExport:
         logging.debug('set_environment_settings: ', environment_extracted_settings, tag='sync')
         self.environment_settings_pre = environment_extracted_settings
 
+    def sync_dev_flags(self):
+        from rprblender import properties
+        if properties.DeveloperSettings.show_error_was_changed:
+            self.need_scene_reset = True
+            properties.DeveloperSettings.show_error_was_changed = False
+
     def _sync(self):
         logging.debug("export.sync")
 
         self.need_scene_reset = False
 
+        self.sync_dev_flags()
         self.sync_environment()
 
         visible_objects = {get_object_key(obj): obj.type for obj in
@@ -1150,6 +1183,7 @@ class SceneExport:
                 # TODO: handle removal without accessing object data(dereferencing pointer, i.e. obj.type)
                 # test this!
                 continue
+
             if obj_type in self.types_geometry:
                 self.objects_sync.hide_object(obj_key)
                 self.objects_sync.remove_instances_for_prototype(obj_key)
@@ -1159,7 +1193,7 @@ class SceneExport:
 
         with TimedContext("sync_updated_objects"):
             log_sync('bpy.data.objects.is_updated', bpy.data.objects.is_updated)
-            if bpy.data.objects.is_updated:
+            if bpy.data.objects.is_updated or scene_objects_added or objects_just_became_visible:
                 log_sync('scene_objects_added', len(scene_objects_added), scene_objects_added)
                 log_sync('objects_just_became_visible', len(objects_just_became_visible), objects_just_became_visible)
                 for _ in self.sync_updated_objects(set(scene_objects_added) | set(objects_just_became_visible)):
@@ -1404,7 +1438,7 @@ class SceneExport:
                     else:
                         objects_sync_frame.update_object_transform(obj_key, obj)
 
-                    self.objects_sync.update_settings(obj_key, obj.rpr_object)
+                    self.objects_sync.update_settings(obj_key, obj)
 
                     objects_sync_frame.update_object_materials(obj_key, obj)
 
@@ -1464,7 +1498,7 @@ class SceneExport:
         for obj in objects_sync_frame.duplicators_added:
             yield 'adding new duplicators:'+str(obj)
             for key, dupli in self.iter_dupli_from_duplicator(obj):
-                self.objects_sync.add_instance(get_object_key(obj), key, dupli)
+                self.objects_sync.add_instance(get_object_key(obj), key, dupli, obj)
                 self.objects_sync.update_instance_materials(key)
 
         yield 'updating duplicators'
