@@ -225,12 +225,12 @@
     "rprx_context": {
       "name": "rprx_context",
       "kind": "typedef",
-      "type": "void*"
+      "type": "struct _rpr_context*"
     },
     "rprx_material": {
       "name": "rprx_material",
       "kind": "typedef",
-      "type": "void*"
+      "type": "struct _rpr_material*"
     },
     "rprx_material_type": {
       "name": "rprx_material_type",
@@ -323,6 +323,10 @@
         {
           "name": "node",
           "type": "rpr_material_node"
+        },
+        {
+          "name": "out_material",
+          "type": "rprx_material*"
         },
         {
           "name": "out_result",

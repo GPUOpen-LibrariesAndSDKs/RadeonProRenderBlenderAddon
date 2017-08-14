@@ -2,7 +2,7 @@
   "constants": {
     "RPR_API_VERSION": {
       "name": "RPR_API_VERSION",
-      "value": "0x010027300"
+      "value": "0x010027400"
     },
     "RPR_SUCCESS": {
       "name": "RPR_SUCCESS",
@@ -471,6 +471,14 @@
     "RPR_CONTEXT_LAST_ERROR_MESSAGE": {
       "name": "RPR_CONTEXT_LAST_ERROR_MESSAGE",
       "value": "0x137"
+    },
+    "RPR_CONTEXT_MAX_DEPTH_DIFFUSE": {
+      "name": "RPR_CONTEXT_MAX_DEPTH_DIFFUSE",
+      "value": "0x138"
+    },
+    "RPR_CONTEXT_MAX_DEPTH_GLOSSY": {
+      "name": "RPR_CONTEXT_MAX_DEPTH_GLOSSY",
+      "value": "0x139"
     },
     "RPR_CONTEXT_MAX": {
       "name": "RPR_CONTEXT_MAX",
@@ -1224,6 +1232,14 @@
       "name": "RPR_MATERIAL_NODE_UV_PROJECT",
       "value": "0x21"
     },
+    "RPR_MATERIAL_NODE_MICROFACET_BECKMANN": {
+      "name": "RPR_MATERIAL_NODE_MICROFACET_BECKMANN",
+      "value": "0x22"
+    },
+    "RPR_MATERIAL_NODE_PHONG": {
+      "name": "RPR_MATERIAL_NODE_PHONG",
+      "value": "0x23"
+    },
     "RPR_MATERIAL_INPUT_COLOR": {
       "name": "RPR_MATERIAL_INPUT_COLOR",
       "value": "0x0"
@@ -1910,7 +1926,7 @@
     },
     "FR_API_VERSION": {
       "name": "FR_API_VERSION",
-      "value": "0x010027300"
+      "value": "0x010027400"
     },
     "FR_SUCCESS": {
       "name": "FR_SUCCESS",
@@ -2379,6 +2395,14 @@
     "FR_CONTEXT_LAST_ERROR_MESSAGE": {
       "name": "FR_CONTEXT_LAST_ERROR_MESSAGE",
       "value": "0x137"
+    },
+    "FR_CONTEXT_MAX_DEPTH_DIFFUSE": {
+      "name": "FR_CONTEXT_MAX_DEPTH_DIFFUSE",
+      "value": "0x138"
+    },
+    "FR_CONTEXT_MAX_DEPTH_GLOSSY": {
+      "name": "FR_CONTEXT_MAX_DEPTH_GLOSSY",
+      "value": "0x139"
     },
     "FR_CONTEXT_MAX": {
       "name": "FR_CONTEXT_MAX",
@@ -3131,6 +3155,14 @@
     "FR_MATERIAL_NODE_UV_PROJECT": {
       "name": "FR_MATERIAL_NODE_UV_PROJECT",
       "value": "0x21"
+    },
+    "FR_MATERIAL_NODE_MICROFACET_BECKMANN": {
+      "name": "FR_MATERIAL_NODE_MICROFACET_BECKMANN",
+      "value": "0x22"
+    },
+    "FR_MATERIAL_NODE_PHONG": {
+      "name": "FR_MATERIAL_NODE_PHONG",
+      "value": "0x23"
     },
     "FR_MATERIAL_INPUT_COLOR": {
       "name": "FR_MATERIAL_INPUT_COLOR",

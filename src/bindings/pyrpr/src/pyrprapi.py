@@ -1,4 +1,5 @@
 import sys
+import platform
 from pathlib import Path
 from itertools import *
 
@@ -518,6 +519,10 @@ if __name__=='__main__':
 
     rpr_header_rpr_support = '../../../../RadeonProRender/inc/RprSupport.h'
     json_file_name_rpr_support = 'pyrprsupportapi.json'
+
+    if "Windows" == platform.system():
+        rpr_header_rpr = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
+        rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
 
     export(rpr_header_rpr, json_file_name_rpr,
            {
