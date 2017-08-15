@@ -1085,15 +1085,15 @@ class SceneExport:
                 result_settings[key] = settings_value
         return result_settings
 
-    def sync(self):
+    def sync(self,  refresh_render_layers=False):
         log_sync('sync!')
 
         try:
             with TimedContext("sync"):
                 if self.profile:
-                    s = cProfile.runctx("self._sync()", globals(), locals(), sort='cumulative')
+                    s = cProfile.runctx("self._sync(refresh_render_layers=refresh_render_layers)", globals(), locals(), sort='cumulative')
                 else:
-                    self._sync()
+                    self._sync(refresh_render_layers=refresh_render_layers)
         except:
             logging.critical(traceback.format_exc(), tag='export')
             raise
@@ -1118,7 +1118,7 @@ class SceneExport:
             self.need_scene_reset = True
             properties.DeveloperSettings.show_error_was_changed = False
 
-    def _sync(self):
+    def _sync(self, refresh_render_layers=False):
         logging.debug("export.sync")
 
         self.need_scene_reset = False
@@ -1193,10 +1193,10 @@ class SceneExport:
 
         with TimedContext("sync_updated_objects"):
             log_sync('bpy.data.objects.is_updated', bpy.data.objects.is_updated)
-            if bpy.data.objects.is_updated or scene_objects_added or objects_just_became_visible:
+            if bpy.data.objects.is_updated or scene_objects_added or objects_just_became_visible or refresh_render_layers:
                 log_sync('scene_objects_added', len(scene_objects_added), scene_objects_added)
                 log_sync('objects_just_became_visible', len(objects_just_became_visible), objects_just_became_visible)
-                for _ in self.sync_updated_objects(set(scene_objects_added) | set(objects_just_became_visible)):
+                for _ in self.sync_updated_objects(set(scene_objects_added) | set(objects_just_became_visible), refresh_render_layers=refresh_render_layers):
                     pass
 
         if objects_just_became_visible:
@@ -1409,7 +1409,7 @@ class SceneExport:
                 for i in mesh_sync.materials_assigned:
                     self.scene_synced.reset_motion_blur((obj_key, i))
 
-    def sync_updated_objects(self, scene_objects_added):
+    def sync_updated_objects(self, scene_objects_added, refresh_render_layers=False):
         log_sync('sync_updated_objects', scene_objects_added)
 
         objects_sync_frame = ObjectsSyncFrame(self, self.objects_sync)
@@ -1422,7 +1422,7 @@ class SceneExport:
                 if obj.is_duplicator:
                     objects_sync_frame.add_duplicator(obj)
 
-            if obj.is_updated or obj.is_updated_data or obj_key in scene_objects_added:
+            if obj.is_updated or obj.is_updated_data or obj_key in scene_objects_added or refresh_render_layers:
                 log_sync('object to update:', obj, obj.type, get_object_key(obj),
                          obj.is_updated, obj.is_updated_data or (obj.data and obj.data.is_updated))
 

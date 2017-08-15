@@ -244,7 +244,7 @@ class RPREngine(bpy.types.RenderEngine):
                         with scene_renderer_threaded.update_lock:
                             scene_renderer_threaded.need_scene_redraw = True
                             self.update_stats("Sync layer:", str(render_layer_index))
-                            scene_exporter.sync()
+                            scene_exporter.sync(refresh_render_layers=True)
 
                     for p in result_render_layer.passes:
                         logging.debug("    pass:", p.name, tag="render.engine.passes")

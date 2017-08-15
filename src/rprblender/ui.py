@@ -188,34 +188,22 @@ class RPRRender_PT_tonemapping(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         tm = context.scene.rpr.render.tone_mapping
-        col_base = layout.column()
-        col_base.enabled = tm.enable
-        row = col_base.row()
-        row.prop(tm, "type", expand=True)
+        bar = layout.row() if context.region.width > PANEL_WIDTH_FOR_COLUMN else layout.column()
+        bar.enabled = tm.enable
+        bar.prop(tm, "type", expand=True)
+        col1, col2, is_row = create_ui_autosize_column(context, layout, True)
 
         if tm.type == 'simplified':
-            row = col_base.row()
-            col = row.column()
-            col.prop(tm.simplified, "exposure")
-            col = row.column()
-            col.prop(tm.simplified, "contrast")
-
+            col1.prop(tm.simplified, "exposure")
+            col2.prop(tm.simplified, "contrast")
         elif tm.type == 'linear':
-            row = col_base.row()
-            col = row.column()
-            col.prop(tm.linear, "iso")
-            col.prop(tm.linear, "f_stop")
-            col = row.column()
-            col.prop(tm.linear, "shutter_speed")
-
+            col1.prop(tm.linear, "iso")
+            col1.prop(tm.linear, "f_stop")
+            col2.prop(tm.linear, "shutter_speed")
         elif tm.type == 'non_linear':
-            row = col_base.row()
-            col = row.column()
-            col.prop(tm.nonlinear, "burn")
-            col = row.column(align=True)
-            col.alignment = 'EXPAND'
-            col.prop(tm.nonlinear, "prescale")
-            col.prop(tm.nonlinear, "postscale")
+            col1.prop(tm.nonlinear, "burn")
+            col2.prop(tm.nonlinear, "prescale")
+            col2.prop(tm.nonlinear, "postscale")
 
 
 @rpraddon.register_class
