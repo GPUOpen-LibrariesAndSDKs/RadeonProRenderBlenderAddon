@@ -196,15 +196,12 @@ class SceneRenderer:
         user_set_samples = settings.samples
         if rs.rendering_limits.enable:
             if 'ITER' == rs.rendering_limits.type:
-                if self.is_production and settings.device_type == 'gpu' and settings.device_type_plus_cpu:
-                    samples = 100
+                # if production(final) render force sample count to GPU count for better throughput
+                # don't force it in viewport render for better interactivity(mGPU sync takes time)
+                if numGPUs > user_set_samples and self.is_production:
+                    samples = numGPUs
                 else:
-                    # if production(final) render force sample count to GPU count for better throughput
-                    # don't force it in viewport render for better interactivity(mGPU sync takes time)
-                    if numGPUs > user_set_samples and self.is_production:
-                        samples = numGPUs
-                    else:
-                        samples = user_set_samples
+                    samples = user_set_samples
 
                 self.used_iterations = int(rs.rendering_limits.iterations * user_set_samples / samples)
                 self.iteration_divider = user_set_samples / samples
