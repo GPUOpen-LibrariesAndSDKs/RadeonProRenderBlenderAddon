@@ -183,6 +183,10 @@ class FrameBuffer(Object):
 
     core_type_name = 'rpr_framebuffer'
 
+class Composite(Object):
+
+    core_type_name = 'rpr_composite'
+
 class MaterialSystem(Object):
 
     core_type_name = 'rpr_material_system'

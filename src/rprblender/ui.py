@@ -1143,7 +1143,7 @@ class RPRObject_PT(RPRPanel, Panel):
     def draw(self, context):
         if context.object.type in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META'):
             rpr = context.object.rpr_object
-            #self.layout.prop(rpr, "shadowcatcher")
+            self.layout.prop(rpr, "shadowcatcher")
             self.layout.prop(rpr, "shadows")
             self.layout.prop(rpr, "portallight")
 

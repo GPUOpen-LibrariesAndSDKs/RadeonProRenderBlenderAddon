@@ -84,7 +84,8 @@ for name, t in api.functions.items():
         args_defaults.append(argdefault)
 
         replace_arg = False
-        if any(name.startswith(prefix) for prefix in ['rprCreateContext', 'rprContext', 'rprFrameBuffer', 'rprScene',
+        if any(name.startswith(prefix) for prefix in ['rprCreateContext', 'rprContext', 'rprFrameBuffer',
+                                                      'rprComposite', 'rprScene',
                                                       'rprObject', 'rprShape', 'rprCamera', 'rprMesh',
                                                       'rprMaterialSystem', 'rprMaterialNode',
                                                       'rprLight', 'rprPointLight', 'rprSpotLight',
@@ -94,7 +95,7 @@ for name, t in api.functions.items():
                                                       'rprIESLight',
                                                       'rprImage']):
 
-            if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_scene',
+            if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_composite', 'rpr_scene',
                                                  'rpr_shape', 'rpr_camera',
                                                  'rpr_material_system', 'rpr_material_node',
                                                  'rpr_light',

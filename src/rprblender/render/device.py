@@ -267,6 +267,10 @@ def convert_name_to_rpr_aov(name):
         return pyrpr.AOV_DEPTH
     elif name == 'object_id':
         return pyrpr.AOV_OBJECT_ID
+    elif name == 'shadow_catcher':
+        return pyrpr.AOV_SHADOW_CATCHER
+    elif name == 'background':
+        return pyrpr.AOV_BACKGROUND
     assert False
 
 

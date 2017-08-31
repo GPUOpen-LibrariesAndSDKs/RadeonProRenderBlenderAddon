@@ -65,6 +65,13 @@ class ViewportRenderer:
             self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
         # pyrpr.ContextSetParameter1f(self.scene_renderer.get_core_context(), b'displaygamma', 2.2)
 
+        # searching for shadow catcher in scene
+        for obj in scene.objects:
+            is_shadowcatcher = obj.rpr_object.shadowcatcher
+            if is_shadowcatcher:
+                self.scene_renderer.has_shadowcatcher = True
+                break
+
         self.scene_renderer_threaded.set_aov(self.render_aov)
         self.scene_renderer_threaded.set_render_resolution(self.render_resolution)
         self.scene_renderer_threaded.set_render_region(self.render_region)
