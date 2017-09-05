@@ -95,6 +95,13 @@ class SelectIESLightData(bpy.types.Operator, ExportHelper):
         context.lamp.rpr_lamp.ies_file_name = self.filepath
         return {'FINISHED'}
 
+def draw_ies_light_select(self, lamp):
+    row = self.layout.row()
+    row.label('IES Data File:')
+    row = self.layout.row(align=True)
+    row.alignment = 'EXPAND'
+    row.prop(lamp.rpr_lamp, "ies_file_name", text='')
+    row.operator('rpr.op_select_ies_light_data', text='', icon='FILESEL')
 
 def draw_lamp_settings(self, context):
     if context.scene.render.engine == 'RPR':
@@ -110,18 +117,14 @@ def draw_lamp_settings(self, context):
             else:
                 self.layout.prop(lamp, "size", text='Width')
                 self.layout.prop(lamp, "size_y", text='Height')
+
+            draw_ies_light_select(self, lamp)
         elif 'SPOT' == lamp.type:
             self.layout.prop(lamp, "spot_size", text='Angle')
             self.layout.prop(lamp, "spot_blend", text='Blend')
 
         if lamp.type in ['POINT']:
-            row = self.layout.row()
-            row.label('IES Data File:')
-            row = self.layout.row(align=True)
-            row.alignment = 'EXPAND'
-            row.prop(lamp.rpr_lamp, "ies_file_name", text='')
-            row.operator('rpr.op_select_ies_light_data', text='', icon='FILESEL')
-
+            draw_ies_light_select(self, lamp)
 
 ########################################################################################################################
 # Render panel

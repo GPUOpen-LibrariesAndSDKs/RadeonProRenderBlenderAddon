@@ -603,9 +603,17 @@ class SceneSynced:
         data = blender_obj.data  # type: bpy.types.Lamp
         radiant_power = np.array(blender_obj.data.color) * blender_obj.data.rpr_lamp.intensity
         if 'AREA' == data.type:
-            light = self._lamp_make_area(data)
+            if not blender_obj.data.rpr_lamp.ies_file_name:
 
-            self.area_light_shaders[obj_key] = light.shader
+                light = self._lamp_make_area(data)
+                self.area_light_shaders[obj_key] = light.shader
+            else:
+                core_light = pyrpr.Light()
+                pyrpr.ContextCreateIESLight(self.get_core_context(), core_light)
+                light = IESLight(core_light)
+                file_name = str(blender_obj.data.rpr_lamp.ies_file_name).encode('latin1')
+                light.load_data(file_name)
+
             light.set_power(radiant_power)
             light.set_transform(transform)
         elif 'SPOT' == data.type:
