@@ -181,7 +181,7 @@ def export(rpr_header, json_file_name, prefixes, castxml):
 
     import sys
 
-    subprocess.check_call([castxml, '-E', '-dD', rpr_header, '-o', 'rprapi.pp'])
+    subprocess.check_call([castxml, '-E', '-dD', '-ObjC++', rpr_header, '-o', 'rprapi.pp'])
     subprocess.check_call([castxml, '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
 
     t = xml.etree.ElementTree.parse('rprapi.xml')
@@ -514,10 +514,10 @@ if __name__=='__main__':
 
     castxml = sys.argv[1]
 
-    rpr_header_rpr = '../../../../RadeonProRender/inc/RadeonProRender.h'
+    rpr_header_rpr = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender.h'
     json_file_name_rpr = 'pyrprapi.json'
 
-    rpr_header_rpr_support = '../../../../RadeonProRender/inc/RprSupport.h'
+    rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
     json_file_name_rpr_support = 'pyrprsupportapi.json'
 
     if "Windows" == platform.system():
