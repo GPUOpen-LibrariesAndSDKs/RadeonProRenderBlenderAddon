@@ -30,3 +30,4 @@ build_output/
 /Installer/PluginInstaller/Generated/AddOn.wxs
 /Installer/PluginInstaller/Generated/MatLibrary.wxs
 /output
+/dist
