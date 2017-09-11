@@ -2,7 +2,7 @@
   "constants": {
     "RPR_API_VERSION": {
       "name": "RPR_API_VERSION",
-      "value": "0x010027400"
+      "value": "0x010027500"
     },
     "RPR_SUCCESS": {
       "name": "RPR_SUCCESS",
@@ -480,9 +480,13 @@
       "name": "RPR_CONTEXT_MAX_DEPTH_GLOSSY",
       "value": "0x139"
     },
+    "RPR_CONTEXT_OOC_CACHE_PATH": {
+      "name": "RPR_CONTEXT_OOC_CACHE_PATH",
+      "value": "0x13a"
+    },
     "RPR_CONTEXT_MAX": {
       "name": "RPR_CONTEXT_MAX",
-      "value": "0x138"
+      "value": "0x13b"
     },
     "RPR_CAMERA_TRANSFORM": {
       "name": "RPR_CAMERA_TRANSFORM",
@@ -1926,7 +1930,7 @@
     },
     "FR_API_VERSION": {
       "name": "FR_API_VERSION",
-      "value": "0x010027400"
+      "value": "0x010027500"
     },
     "FR_SUCCESS": {
       "name": "FR_SUCCESS",
@@ -2404,9 +2408,13 @@
       "name": "FR_CONTEXT_MAX_DEPTH_GLOSSY",
       "value": "0x139"
     },
+    "FR_CONTEXT_OOC_CACHE_PATH": {
+      "name": "FR_CONTEXT_OOC_CACHE_PATH",
+      "value": "0x13a"
+    },
     "FR_CONTEXT_MAX": {
       "name": "FR_CONTEXT_MAX",
-      "value": "0x138"
+      "value": "0x13b"
     },
     "FR_CAMERA_TRANSFORM": {
       "name": "FR_CAMERA_TRANSFORM",

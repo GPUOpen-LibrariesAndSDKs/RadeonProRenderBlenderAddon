@@ -83,7 +83,7 @@ if 'pyrpr' not in sys.modules:
         if "Windows" == platform.system():
             bin_folder = 'Win/bin'
         elif "Linux" == platform.system():
-            bin_folder = 'Linux/lib'
+            bin_folder = 'Linux-Ubuntu/lib'
         else:
             assert False
 
