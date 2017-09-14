@@ -137,6 +137,12 @@ class RPREngine(bpy.types.RenderEngine):
             render_device = rprblender.render.get_render_device(is_production=True, persistent=True)
             scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)  #
 
+        # determine if scene has a shadow catcher
+        for obj in scene.objects:
+            if obj.rpr_object.shadowcatcher:
+                scene_renderer.has_shadowcatcher = True
+                break
+
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
 
         scene_renderer.production_render = True

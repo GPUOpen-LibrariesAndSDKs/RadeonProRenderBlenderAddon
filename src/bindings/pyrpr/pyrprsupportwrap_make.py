@@ -90,7 +90,7 @@ for name, t in api.functions.items():
 
         replace_arg = False
         if all((prefix not in name) for prefix in 'InstanceGetBaseShape ObjectDelete ObjectSetName RegisterPlugin'.split()):
-            if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_scene',
+            if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_composite', 'rpr_scene',
                                                  'rpr_shape', 'rpr_camera',
                                                  'rpr_material_system', 'rpr_material_node',
                                                  'rpr_light',

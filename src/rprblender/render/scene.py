@@ -8,6 +8,8 @@ import weakref
 import numpy as np
 import pyrpr
 
+from pyrpr import ffi
+
 import rprblender.render
 import rprblender.render
 import rprblender.render.render_layers
@@ -52,6 +54,7 @@ class SceneRenderer:
         self.production_render = False
         self.aov_settings = None
         self.tile_image = None
+        self.has_shadowcatcher = False
 
         self.is_production = is_production
         self.used_iterations = 1
@@ -81,6 +84,11 @@ class SceneRenderer:
         self.render_targets = rprblender.render.device.RenderTargets(self.render_device, self.resolution)
         self.render_layers = rprblender.render.render_layers.RenderLayers(
             self.aov_settings, self.render_targets, self.is_production)
+
+        if self.has_shadowcatcher:
+            self.render_layers.enable_aov('opacity')
+            self.render_layers.enable_aov('background')
+            self.render_layers.enable_aov('shadow_catcher')
 
         self.render_device.attach_render_target(self.render_targets)
 
@@ -320,7 +328,12 @@ class SceneRenderer:
 
         with rprblender.render.core_operations(raise_error=True):
 
-            im = self._get_aov_image(aov_name)
+            if self.has_shadowcatcher:
+                im = self._get_shadow_catcher_image()
+                aov_name = 'sc'
+            else:
+                im = self._get_aov_image(aov_name)
+
             if im is None:
                 return
 
@@ -367,7 +380,11 @@ class SceneRenderer:
         if aov_name in self.im_prepared:
             return self.im_prepared[aov_name]
 
-        im = self._get_aov_image(aov_name)
+        if self.has_shadowcatcher:
+            im = self._get_shadow_catcher_image()
+            aov_name = 'sc'
+        else:
+            im = self._get_aov_image(aov_name)
         if im is None:
             return
 
@@ -418,6 +435,107 @@ class SceneRenderer:
         im = self.render_targets.get_resolved_image(frame_buffer)
         return im
 
+    def _get_shadow_catcher_image(self):
+        post_effect_chain = self.posteffect_chain
+        post_effect_update = post_effect_chain.start_update()
+        # Always apply normalization, aov need this too.
+        post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
+
+        image = self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
+        return image
+
+    def get_shadowcatcher_framebuffer(self):
+        # Frame buffer for shadow catcher
+        desc = ffi.new("rpr_framebuffer_desc*")
+        width, height = self.render_targets.render_resolution
+        desc.fb_width, desc.fb_height = width, height
+
+        fmt = (4, pyrpr.COMPONENT_TYPE_FLOAT32)
+        render_buffer = pyrpr.FrameBuffer()
+        pyrpr.ContextCreateFrameBuffer(self.get_core_context(), fmt, desc, render_buffer)
+
+        # Background composite
+        composite_background = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
+                                     composite_background)
+        pyrpr.CompositeSetInputFb(composite_background, b'framebuffer.input',
+                                  self.render_targets.get_frame_buffer('background'))
+
+        composite_background_normalize = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
+                                     composite_background_normalize)
+        pyrpr.CompositeSetInputC(composite_background_normalize, b'normalize.color',
+                                 composite_background)
+
+        # Color composite
+        composite_color = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
+                                     composite_color)
+        pyrpr.CompositeSetInputFb(composite_color, b'framebuffer.input',
+                                  self.render_targets.get_frame_buffer('default'))
+
+        composite_color_normalize = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
+                                     composite_color_normalize)
+        pyrpr.CompositeSetInputC(composite_color_normalize, b'normalize.color',
+                                 composite_color)
+
+        # Opacity composite
+        composite_opacity = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
+                                     composite_opacity)
+        pyrpr.CompositeSetInputFb(composite_opacity, b'framebuffer.input',
+                                  self.render_targets.get_frame_buffer('opacity'))
+
+        composite_opacity_normalize = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
+                                     composite_opacity_normalize)
+        pyrpr.CompositeSetInputC(composite_opacity_normalize, b'normalize.color',
+                                 composite_opacity)
+
+        # Combine color and background buffers using COMPOSITE_LERP_VALUE
+        composite_lerp1 = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_LERP_VALUE,
+                                     composite_lerp1)
+        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.color0', composite_background_normalize)
+        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.color1', composite_color_normalize)
+        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.weight', composite_opacity_normalize)
+
+        # Constant composites
+        composite_one = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_CONSTANT,
+                                     composite_one)
+        pyrpr.CompositeSetInput4f(composite_one, b'constant.input', 1.0, 0.0, 0.0, 0.0)
+
+        composite_zero = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_CONSTANT,
+                                     composite_zero)
+        pyrpr.CompositeSetInput4f(composite_zero, b'constant.input', 0.0, 0.0, 0.0, 1.0)
+
+        # Composite shadow catcher
+        composite_shadowcatcher = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
+                                     composite_shadowcatcher)
+        pyrpr.CompositeSetInputFb(composite_shadowcatcher, b'framebuffer.input',
+                                  self.render_targets.get_frame_buffer('shadow_catcher'))
+
+        composite_shadowcatcher_normalize = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
+                                     composite_shadowcatcher_normalize)
+        pyrpr.CompositeSetInputC(composite_shadowcatcher_normalize, b'normalize.color', composite_shadowcatcher)
+        pyrpr.CompositeSetInputC(composite_shadowcatcher_normalize, b'normalize.shadowcatcher', composite_one)
+
+        # comboine lerp1 and shadow catcher normalize composite objects
+        composite_lerp2 = pyrpr.Composite()
+        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_LERP_VALUE,
+                                     composite_lerp2)
+        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.color0', composite_lerp1)
+        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.color1', composite_zero)
+        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.weight', composite_shadowcatcher_normalize)
+
+        pyrpr.CompositeCompute(composite_lerp2, render_buffer)
+        pyrpr.FrameBufferSaveToFile(render_buffer, b'sc.png')
+        return render_buffer
 
 class RenderThread(threading.Thread):
 
