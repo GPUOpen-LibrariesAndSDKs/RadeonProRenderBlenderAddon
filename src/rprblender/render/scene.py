@@ -534,7 +534,6 @@ class SceneRenderer:
         pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.weight', composite_shadowcatcher_normalize)
 
         pyrpr.CompositeCompute(composite_lerp2, render_buffer)
-        pyrpr.FrameBufferSaveToFile(render_buffer, b'sc.png')
         return render_buffer
 
 class RenderThread(threading.Thread):
