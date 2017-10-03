@@ -601,7 +601,9 @@ class Material:
 
     def __del__(self):
         if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
-            pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
+            # RPRBLND-53. Function below crashes on Windows 10, when working with Uber2 material
+            # temporary disabled until it will be fixed in core
+            #pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
             self.shader.rprx_context = None
 
     def get_handle(self):
