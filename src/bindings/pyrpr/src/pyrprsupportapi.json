@@ -225,12 +225,12 @@
     "rprx_context": {
       "name": "rprx_context",
       "kind": "typedef",
-      "type": "struct _rpr_context*"
+      "type": "struct _rprxcontext*"
     },
     "rprx_material": {
       "name": "rprx_material",
       "kind": "typedef",
-      "type": "struct _rpr_material*"
+      "type": "struct _rprxmaterial*"
     },
     "rprx_material_type": {
       "name": "rprx_material_type",
