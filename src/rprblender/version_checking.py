@@ -140,7 +140,7 @@ class RPRRender_PT_Update(RPRPanel, bpy.types.Panel):
         split = split.split()
         col2 = split.column(align=True)
 
-        col1.label('New Version availible:')
+        col1.label('New Version available:')
         if must_update:
             col2.label('Critical update', icon='ERROR')
         else:
