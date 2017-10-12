@@ -718,7 +718,7 @@ class SceneExport:
             'ibl': {
                 'color': (0, 0, 0),
                 'intensity': 1.0,
-                'use_ibl_map': False,
+                'type': 'COLOR',
                 'maps': {
                     'override_background': False,
                 }
@@ -1335,7 +1335,7 @@ class SceneExport:
             'ibl': {
                 'color': tuple,
                 'intensity': None,
-                'use_ibl_map': None,
+                'type': None,
                 ('ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map'): None,
                 'maps': {
                     'override_background': None,
@@ -1536,10 +1536,10 @@ class SceneExport:
         if type.get_updated_value() == 'IBL':
             sync.get('ibl', 'intensity').use_new_value()
 
-            use_ibl_map = sync.get('ibl', 'use_ibl_map')
-            use_ibl_map.use_new_value()
+            ibl_type = sync.get('ibl', 'type')
+            ibl_type.use_new_value()
 
-            if use_ibl_map.get_updated_value():
+            if ibl_type.get_updated_value() == 'IBL':
                 # change map only when it's enabled
                 ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
                 ibl_map.use_new_value()
@@ -1651,26 +1651,26 @@ class SceneExport:
             self.sun_and_sky_sync(attach_sun_sky, sync)
             return
 
-        use_ibl_map = sync.get('ibl', 'use_ibl_map')
+        use_ibl_map = sync.get('ibl', 'type')
         ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
         intensity = sync.get('ibl', 'intensity')
 
         rotation = sync.get('gizmo_rotation')
 
-        if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value()):
+        if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'IBL'):
             self.environment_exporter.ibl_detach()
             self.environment_exporter.ibl = self.scene_synced.environment_light_create(ibl_map.get_updated_value())
             ibl_needs_attach = True
 
         color = sync.get('ibl', 'color')
-        if color.updated() or (use_ibl_map.updated() and not use_ibl_map.get_updated_value()):
+        if color.updated() or (use_ibl_map.updated() and not use_ibl_map.get_updated_value() == 'COLOR'):
             self.environment_exporter.ibl_detach()
             self.environment_exporter.ibl = \
                 self.scene_synced.environment_light_create_color(color.get_updated_value())
             ibl_needs_attach = True
         else:
             if use_ibl_map.updated():
-                if use_ibl_map.get_updated_value():
+                if use_ibl_map.get_updated_value() == 'IBL':
                     ibl_needs_attach = True
                 else:
                     self.environment_exporter.ibl_detach()

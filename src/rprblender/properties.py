@@ -240,9 +240,13 @@ class RenderEnvironmentIBL(bpy.types.PropertyGroup):
         description="Intensity",
         min=0.0, default=1.0,
     )
-    use_ibl_map = bpy.props.BoolProperty(
-        name="Use Image-Base Lighting Map", description="Use Image-Base Lighting Map",
-        default=False,
+    type = bpy.props.EnumProperty(
+        name="IBL Type",
+        items=(('COLOR', "Color", "Use solid color for lighting"),
+               ('IBL', "IBL Map", "Use IBL Map for lighting"),
+               ),
+        description="IBL Type",
+        default='COLOR',
     )
 
     if versions.is_blender_support_ibl_image():

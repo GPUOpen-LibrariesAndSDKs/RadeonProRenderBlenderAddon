@@ -342,7 +342,7 @@ class OpGpuList(bpy.types.Operator):
 
 @rpraddon.register_class
 class RPRRender_PT_completion_criteria(RPRPanel, Panel):
-    bl_label = "RPR Completion Criteria"
+    bl_label = "RPR Sampling"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -354,7 +354,7 @@ class RPRRender_PT_completion_criteria(RPRPanel, Panel):
         )
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.rendering_limits, "enable", text="")
+        pass
 
     def draw(self, context):
         layout = self.layout
@@ -374,6 +374,17 @@ class RPRRender_PT_completion_criteria(RPRPanel, Panel):
         elif 'ITER' == limits.type:
             row = col.row()
             row.prop(limits, "iterations")
+
+        rpr_aa = context.scene.rpr.render.aa
+        col1, col2, is_row = create_ui_autosize_column(context, layout)
+        col1.label('Anti-Aliasing:')
+        col1.prop(rpr_aa, "filter", text='')
+        if is_row:
+            col1.alignment = 'EXPAND'
+            col1.prop(rpr_aa, "radius", slider=True, text='Radius')
+        else:
+            col2.label('')
+            col2.prop(rpr_aa, "radius", slider=True, text='Radius')
 
 
 @rpraddon.register_class
@@ -401,16 +412,18 @@ class RPRRender_PT_environment(RPRPanel, Panel):
     def draw_maps(self, col, maps):
         col.prop(maps, "override_background")
         row = col.row()
-        row.prop(maps, "override_background_type", expand=True)
 
-        if maps.override_background_type == "image":
-            if versions.is_blender_support_ibl_image():
-                col.template_ID(maps, "background_image", open="image.open")
+        if maps.override_background:
+            row.prop(maps, "override_background_type", expand=True)
+
+            if maps.override_background_type == "image":
+                if versions.is_blender_support_ibl_image():
+                    col.template_ID(maps, "background_image", open="image.open")
+                else:
+                    col.prop(maps, "background_map", text='')
             else:
-                col.prop(maps, "background_map", text='')
-        else:
-            row = col.row()
-            row.prop(maps, "background_color")
+                row = col.row()
+                row.prop(maps, "background_color")
 
     def draw_header(self, context):
         self.layout.prop(context.scene.world.rpr_data.environment, "enable", text="")
@@ -426,16 +439,20 @@ class RPRRender_PT_environment(RPRPanel, Panel):
         if env.type == 'IBL':
             box = col.box()
             row = box.row()
-            row.prop(env.ibl, "color")
+            row.prop(env.ibl, 'type', expand=True)
+            row = box.row()
+
+            if env.ibl.type == 'COLOR':
+                row.prop(env.ibl, "color")
+            else:
+                col.prop(env.ibl, "us_ibl_map", text='')
+                if versions.is_blender_support_ibl_image():
+                    row.template_ID(env.ibl, "ibl_image", open="image.open")
+                else:
+                    row.prop(env.ibl, "ibl_map", text='')
+
             row = box.row()
             row.prop(env.ibl, "intensity")
-
-            col = box.column()
-            col.prop(env.ibl, "use_ibl_map")
-            if versions.is_blender_support_ibl_image():
-                col.template_ID(env.ibl, "ibl_image", open="image.open")
-            else:
-                col.prop(env.ibl, "ibl_map", text='')
 
             self.draw_maps(col, env.ibl.maps)
 
@@ -522,6 +539,9 @@ class RPRRender_PT_environment(RPRPanel, Panel):
             row.operator("rpr.op_create_environment_gizmo", icon='ZOOMIN', text="").rotation = env.gizmo_rotation
         col2.prop(env, 'gizmo_rotation')
 
+        layout.separator()
+        layout.prop(get_render_passes_aov(context), "transparent", text="Transparent Background")
+
 
 @rpraddon.register_class
 class OpCreateEnvironmentGizmo(bpy.types.Operator):
@@ -583,7 +603,7 @@ class OpGetTimeNow(bpy.types.Operator):
 
 @rpraddon.register_class
 class RPRRender_PT_quality_and_type(RPRPanel, Panel):
-    bl_label = "RPR Quality/Type"
+    bl_label = "RPR Mode/Quality"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -592,13 +612,31 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
         split = layout.split(percentage=0.45)
         row = split.column()
         row.label('Render Mode:')
-        row.label('Render Quality:')
         row.label('Viewport Quality:')
 
         row = split.column()
         row.prop(rpr, "render_mode", text='')
-        row.prop(rpr, "render_quality", text='')
         row.prop(rpr, "viewport_quality", text='')
+
+        layout.separator()
+        rpr_gi = rpr.global_illumination
+
+        row = layout.row()
+        split = row.split(percentage=0.66)
+        row1 = split.row()
+        row1.enabled = rpr_gi.use_clamp_irradiance
+        row1.prop(rpr_gi, "clamp_irradiance")
+
+        row = layout.row()
+        col = row.column(align=True)
+        col.prop(rpr_gi, "max_ray_depth", slider=True)
+
+        row = split.column()
+
+        row.prop(rpr_gi, "use_clamp_irradiance")
+
+        layout.separator()
+
         self.layout.prop(rpr, "texturecompression")
 
 
@@ -623,6 +661,7 @@ class RPRRender_PT_layers(RPRPanel, Panel):
 @rpraddon.register_class
 class RPRRender_PT_passes_aov(RPRPanel, Panel):
     bl_label = "RPR Passes & AOVs"
+    bl_context = "render_layer"
 
     if is_blender_support_aov():
         bl_context = "render_layer"
@@ -677,8 +716,13 @@ def draw_camera_settings(camera, layout):
 
 @rpraddon.register_class
 class RPRRender_PT_camera_settings(RPRPanel, Panel):
-    bl_label = "RPR Camera Settings"
+    bl_label = "RPR Camera Type"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_context = 'data'
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and super().poll(context)
 
     def draw_header(self, context):
         self.layout.prop(context.scene.rpr.render.camera, "override_camera_settings", text='')
@@ -697,10 +741,6 @@ class RPRRender_PT_settings(RPRPanel, Panel):
     bl_label = "RPR Stamp Settings"
     bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        return 'Windows' == platform.system() and super().poll(context)
-
     def draw_header(self, context):
         self.layout.prop(context.scene.rpr, "use_render_stamp", text='')
 
@@ -711,50 +751,6 @@ class RPRRender_PT_settings(RPRPanel, Panel):
         row.enabled = rpr.use_render_stamp
         row.label("Render Stamp:")
         row.prop(rpr, "render_stamp", text="")
-
-
-@rpraddon.register_class
-class RPRRender_PT_global_illumination(RPRPanel, Panel):
-    bl_label = "RPR Global Illumination"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        rpr = context.scene.rpr.render.global_illumination
-
-        row = layout.row()
-        split = row.split(percentage=0.66)
-        row1 = split.row()
-        row1.enabled = rpr.use_clamp_irradiance
-        row1.prop(rpr, "clamp_irradiance")
-
-        row = layout.row()
-        col = row.column(align=True)
-        col.prop(rpr, "max_ray_depth", slider=True)
-
-        row = split.column()
-
-        row.prop(rpr, "use_clamp_irradiance")
-
-
-@rpraddon.register_class
-class RPRRender_PT_global_anti_aliasing(RPRPanel, Panel):
-    bl_label = "RPR Anti Aliasing"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        rpr = context.scene.rpr.render.aa
-        col1, col2, is_row = create_ui_autosize_column(context, layout)
-        col1.label('Filter:')
-        col1.prop(rpr, "filter", text='')
-        if is_row:
-            col1.alignment = 'EXPAND'
-            col1.prop(rpr, "radius", slider=True, text='Radius')
-        else:
-            col2.label('')
-            col2.prop(rpr, "radius", slider=True, text='Radius')
-
 
 @rpraddon.register_class
 class RPRRender_PT_developer(RPRPanel, Panel):
@@ -1135,11 +1131,11 @@ class RPRObject_PT(RPRPanel, Panel):
         if context.object.type in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META'):
             rpr = context.object.rpr_object
             self.layout.prop(rpr, "shadowcatcher")
-            self.layout.prop(rpr, "shadows")
+            self.layout.prop(rpr, "shadows", text="Casts shadows")
             self.layout.prop(rpr, "portallight")
 
             visibility_layout = self.layout
-            visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Primary rays:")
+            visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Camera visibility:")
 
             subdivision_layout = self.layout.box()
             add_subdivision_properties(subdivision_layout, context.object)
