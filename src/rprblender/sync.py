@@ -295,6 +295,11 @@ class SceneSynced:
     @call_logger.logged
     def destroy(self):
 
+        # Delete material nodes BEFORE deleting shapes
+        # deleting materials uses imlicitly shapes object
+        # so shapes must exists during deleting material nodes
+        self.materialsNodes = {}
+
         for shape in self.meshes:
             pyrpr.SceneDetachShape(self.core_scene, shape)
             shape.delete()
@@ -307,7 +312,6 @@ class SceneSynced:
         self.core_render_camera = None
         self.lamps = {}
         self.area_light_shaders = {}
-        self.materialsNodes = {}
         self._make_core_environment_light_cached = None
 
         self.ibls_attached = set()
