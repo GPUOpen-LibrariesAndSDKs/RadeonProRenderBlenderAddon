@@ -1663,7 +1663,7 @@ class SceneExport:
             ibl_needs_attach = True
 
         color = sync.get('ibl', 'color')
-        if color.updated() or (use_ibl_map.updated() and not use_ibl_map.get_updated_value() == 'COLOR'):
+        if color.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'COLOR'):
             self.environment_exporter.ibl_detach()
             self.environment_exporter.ibl = \
                 self.scene_synced.environment_light_create_color(color.get_updated_value())
