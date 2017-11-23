@@ -2,7 +2,7 @@
   "constants": {
     "RPR_API_VERSION": {
       "name": "RPR_API_VERSION",
-      "value": "0x010028200"
+      "value": "0x010028300"
     },
     "RPR_SUCCESS": {
       "name": "RPR_SUCCESS",
@@ -191,6 +191,10 @@
     "RPR_CREATION_FLAGS_ENABLE_GPU7": {
       "name": "RPR_CREATION_FLAGS_ENABLE_GPU7",
       "value": "(1 << 9)"
+    },
+    "RPR_CREATION_FLAGS_ENABLE_METAL": {
+      "name": "RPR_CREATION_FLAGS_ENABLE_METAL",
+      "value": "(1 << 10)"
     },
     "RPR_FILTER_BOX": {
       "name": "RPR_FILTER_BOX",
@@ -482,11 +486,19 @@
     },
     "RPR_CONTEXT_OOC_CACHE_PATH": {
       "name": "RPR_CONTEXT_OOC_CACHE_PATH",
-      "value": "0x13a"
+      "value": "0x13A"
+    },
+    "RPR_CONTEXT_MAX_DEPTH_REFRACTION": {
+      "name": "RPR_CONTEXT_MAX_DEPTH_REFRACTION",
+      "value": "0x13B"
+    },
+    "RPR_CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION": {
+      "name": "RPR_CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION",
+      "value": "0x13C"
     },
     "RPR_CONTEXT_MAX": {
       "name": "RPR_CONTEXT_MAX",
-      "value": "0x13b"
+      "value": "0x13D"
     },
     "RPR_CAMERA_TRANSFORM": {
       "name": "RPR_CAMERA_TRANSFORM",
@@ -588,6 +600,14 @@
       "name": "RPR_IMAGE_WRAP",
       "value": "0x305"
     },
+    "RPR_BUFFER_DESC": {
+      "name": "RPR_BUFFER_DESC",
+      "value": "0x350"
+    },
+    "RPR_BUFFER_DATA": {
+      "name": "RPR_BUFFER_DATA",
+      "value": "0x351"
+    },
     "RPR_IMAGE_FILTER_NEAREST": {
       "name": "RPR_IMAGE_FILTER_NEAREST",
       "value": "(1 << 0)"
@@ -688,6 +708,14 @@
       "name": "RPR_SHAPE_MATERIALS_PER_FACE",
       "value": "0x415"
     },
+    "RPR_SHAPE_SCALE_MOTION": {
+      "name": "RPR_SHAPE_SCALE_MOTION",
+      "value": "0x416"
+    },
+    "RPR_SHAPE_HETERO_VOLUME": {
+      "name": "RPR_SHAPE_HETERO_VOLUME",
+      "value": "0x417"
+    },
     "RPR_MESH_POLYGON_COUNT": {
       "name": "RPR_MESH_POLYGON_COUNT",
       "value": "0x501"
@@ -776,6 +804,10 @@
       "name": "RPR_MESH_UV2_INDEX_STRIDE",
       "value": "0x517"
     },
+    "RPR_MESH_UV_DIM": {
+      "name": "RPR_MESH_UV_DIM",
+      "value": "0x518"
+    },
     "RPR_SCENE_SHAPE_COUNT": {
       "name": "RPR_SCENE_SHAPE_COUNT",
       "value": "0x701"
@@ -819,6 +851,14 @@
     "RPR_SCENE_AABB": {
       "name": "RPR_SCENE_AABB",
       "value": "0x70D"
+    },
+    "RPR_SCENE_HETEROVOLUME_LIST": {
+      "name": "RPR_SCENE_HETEROVOLUME_LIST",
+      "value": "0x70E"
+    },
+    "RPR_SCENE_HETEROVOLUME_COUNT": {
+      "name": "RPR_SCENE_HETEROVOLUME_COUNT",
+      "value": "0x70F"
     },
     "RPR_LIGHT_TYPE": {
       "name": "RPR_LIGHT_TYPE",
@@ -967,6 +1007,14 @@
     "RPR_COMPONENT_TYPE_FLOAT32": {
       "name": "RPR_COMPONENT_TYPE_FLOAT32",
       "value": "0x3"
+    },
+    "RPR_BUFFER_ELEMENT_TYPE_INT32": {
+      "name": "RPR_BUFFER_ELEMENT_TYPE_INT32",
+      "value": "0x1"
+    },
+    "RPR_BUFFER_ELEMENT_TYPE_FLOAT32": {
+      "name": "RPR_BUFFER_ELEMENT_TYPE_FLOAT32",
+      "value": "0x2"
     },
     "RPR_RENDER_MODE_GLOBAL_ILLUMINATION": {
       "name": "RPR_RENDER_MODE_GLOBAL_ILLUMINATION",
@@ -1243,6 +1291,10 @@
     "RPR_MATERIAL_NODE_PHONG": {
       "name": "RPR_MATERIAL_NODE_PHONG",
       "value": "0x23"
+    },
+    "RPR_MATERIAL_NODE_BUFFER_SAMPLER": {
+      "name": "RPR_MATERIAL_NODE_BUFFER_SAMPLER",
+      "value": "0x24"
     },
     "RPR_MATERIAL_INPUT_COLOR": {
       "name": "RPR_MATERIAL_INPUT_COLOR",
@@ -1724,9 +1776,17 @@
       "name": "RPR_AOV_VELOCITY",
       "value": "0x0d"
     },
+    "RPR_AOV_DIRECT_ILLUMINATION": {
+      "name": "RPR_AOV_DIRECT_ILLUMINATION",
+      "value": "0x0e"
+    },
+    "RPR_AOV_INDIRECT_ILLUMINATION": {
+      "name": "RPR_AOV_INDIRECT_ILLUMINATION",
+      "value": "0x0f"
+    },
     "RPR_AOV_MAX": {
       "name": "RPR_AOV_MAX",
-      "value": "0x0e"
+      "value": "0x10"
     },
     "RPR_POST_EFFECT_TONE_MAP": {
       "name": "RPR_POST_EFFECT_TONE_MAP",
@@ -1779,6 +1839,10 @@
     "RPR_MATERIAL_NODE_INPUT_TYPE_IMAGE": {
       "name": "RPR_MATERIAL_NODE_INPUT_TYPE_IMAGE",
       "value": "0x4"
+    },
+    "RPR_MATERIAL_NODE_INPUT_TYPE_BUFFER": {
+      "name": "RPR_MATERIAL_NODE_INPUT_TYPE_BUFFER",
+      "value": "0x5"
     },
     "RPR_SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER": {
       "name": "RPR_SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER",
@@ -1920,6 +1984,58 @@
       "name": "RPR_COMPOSITE_CONSTANT",
       "value": "0xd"
     },
+    "RPR_HETEROVOLUME_SIZE_X": {
+      "name": "RPR_HETEROVOLUME_SIZE_X",
+      "value": "0x730"
+    },
+    "RPR_HETEROVOLUME_SIZE_Y": {
+      "name": "RPR_HETEROVOLUME_SIZE_Y",
+      "value": "0x731"
+    },
+    "RPR_HETEROVOLUME_SIZE_Z": {
+      "name": "RPR_HETEROVOLUME_SIZE_Z",
+      "value": "0x732"
+    },
+    "RPR_HETEROVOLUME_DATA": {
+      "name": "RPR_HETEROVOLUME_DATA",
+      "value": "0x733"
+    },
+    "RPR_HETEROVOLUME_DATA_SIZEBYTE": {
+      "name": "RPR_HETEROVOLUME_DATA_SIZEBYTE",
+      "value": "0x734"
+    },
+    "RPR_HETEROVOLUME_TRANSFORM": {
+      "name": "RPR_HETEROVOLUME_TRANSFORM",
+      "value": "0x735"
+    },
+    "RPR_HETEROVOLUME_INDICES": {
+      "name": "RPR_HETEROVOLUME_INDICES",
+      "value": "0x736"
+    },
+    "RPR_HETEROVOLUME_INDICES_NUMBER": {
+      "name": "RPR_HETEROVOLUME_INDICES_NUMBER",
+      "value": "0x737"
+    },
+    "RPR_HETEROVOLUME_INDICES_TOPOLOGY": {
+      "name": "RPR_HETEROVOLUME_INDICES_TOPOLOGY",
+      "value": "0x738"
+    },
+    "RPR_HETEROVOLUME_INDICES_TOPOLOGY_I_U64": {
+      "name": "RPR_HETEROVOLUME_INDICES_TOPOLOGY_I_U64",
+      "value": "0x750"
+    },
+    "RPR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_U32": {
+      "name": "RPR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_U32",
+      "value": "0x751"
+    },
+    "RPR_HETEROVOLUME_INDICES_TOPOLOGY_I_S64": {
+      "name": "RPR_HETEROVOLUME_INDICES_TOPOLOGY_I_S64",
+      "value": "0x752"
+    },
+    "RPR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_S32": {
+      "name": "RPR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_S32",
+      "value": "0x753"
+    },
     "RPR_FALSE": {
       "name": "RPR_FALSE",
       "value": "0"
@@ -1930,7 +2046,7 @@
     },
     "FR_API_VERSION": {
       "name": "FR_API_VERSION",
-      "value": "0x010028200"
+      "value": "0x010028300"
     },
     "FR_SUCCESS": {
       "name": "FR_SUCCESS",
@@ -2119,6 +2235,10 @@
     "FR_CREATION_FLAGS_ENABLE_GPU7": {
       "name": "FR_CREATION_FLAGS_ENABLE_GPU7",
       "value": "(1 << 9)"
+    },
+    "FR_CREATION_FLAGS_ENABLE_METAL": {
+      "name": "FR_CREATION_FLAGS_ENABLE_METAL",
+      "value": "(1 << 10)"
     },
     "FR_FILTER_BOX": {
       "name": "FR_FILTER_BOX",
@@ -2410,11 +2530,19 @@
     },
     "FR_CONTEXT_OOC_CACHE_PATH": {
       "name": "FR_CONTEXT_OOC_CACHE_PATH",
-      "value": "0x13a"
+      "value": "0x13A"
+    },
+    "FR_CONTEXT_MAX_DEPTH_REFRACTION": {
+      "name": "FR_CONTEXT_MAX_DEPTH_REFRACTION",
+      "value": "0x13B"
+    },
+    "FR_CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION": {
+      "name": "FR_CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION",
+      "value": "0x13C"
     },
     "FR_CONTEXT_MAX": {
       "name": "FR_CONTEXT_MAX",
-      "value": "0x13b"
+      "value": "0x13D"
     },
     "FR_CAMERA_TRANSFORM": {
       "name": "FR_CAMERA_TRANSFORM",
@@ -2516,6 +2644,14 @@
       "name": "FR_IMAGE_WRAP",
       "value": "0x305"
     },
+    "FR_BUFFER_DESC": {
+      "name": "FR_BUFFER_DESC",
+      "value": "0x350"
+    },
+    "FR_BUFFER_DATA": {
+      "name": "FR_BUFFER_DATA",
+      "value": "0x351"
+    },
     "FR_IMAGE_FILTER_NEAREST": {
       "name": "FR_IMAGE_FILTER_NEAREST",
       "value": "(1 << 0)"
@@ -2616,6 +2752,14 @@
       "name": "FR_SHAPE_MATERIALS_PER_FACE",
       "value": "0x415"
     },
+    "FR_SHAPE_SCALE_MOTION": {
+      "name": "FR_SHAPE_SCALE_MOTION",
+      "value": "0x416"
+    },
+    "FR_SHAPE_HETERO_VOLUME": {
+      "name": "FR_SHAPE_HETERO_VOLUME",
+      "value": "0x417"
+    },
     "FR_MESH_POLYGON_COUNT": {
       "name": "FR_MESH_POLYGON_COUNT",
       "value": "0x501"
@@ -2704,6 +2848,10 @@
       "name": "FR_MESH_UV2_INDEX_STRIDE",
       "value": "0x517"
     },
+    "FR_MESH_UV_DIM": {
+      "name": "FR_MESH_UV_DIM",
+      "value": "0x518"
+    },
     "FR_SCENE_SHAPE_COUNT": {
       "name": "FR_SCENE_SHAPE_COUNT",
       "value": "0x701"
@@ -2747,6 +2895,14 @@
     "FR_SCENE_AABB": {
       "name": "FR_SCENE_AABB",
       "value": "0x70D"
+    },
+    "FR_SCENE_HETEROVOLUME_LIST": {
+      "name": "FR_SCENE_HETEROVOLUME_LIST",
+      "value": "0x70E"
+    },
+    "FR_SCENE_HETEROVOLUME_COUNT": {
+      "name": "FR_SCENE_HETEROVOLUME_COUNT",
+      "value": "0x70F"
     },
     "FR_LIGHT_TYPE": {
       "name": "FR_LIGHT_TYPE",
@@ -2895,6 +3051,14 @@
     "FR_COMPONENT_TYPE_FLOAT32": {
       "name": "FR_COMPONENT_TYPE_FLOAT32",
       "value": "0x3"
+    },
+    "FR_BUFFER_ELEMENT_TYPE_INT32": {
+      "name": "FR_BUFFER_ELEMENT_TYPE_INT32",
+      "value": "0x1"
+    },
+    "FR_BUFFER_ELEMENT_TYPE_FLOAT32": {
+      "name": "FR_BUFFER_ELEMENT_TYPE_FLOAT32",
+      "value": "0x2"
     },
     "FR_RENDER_MODE_GLOBAL_ILLUMINATION": {
       "name": "FR_RENDER_MODE_GLOBAL_ILLUMINATION",
@@ -3171,6 +3335,10 @@
     "FR_MATERIAL_NODE_PHONG": {
       "name": "FR_MATERIAL_NODE_PHONG",
       "value": "0x23"
+    },
+    "FR_MATERIAL_NODE_BUFFER_SAMPLER": {
+      "name": "FR_MATERIAL_NODE_BUFFER_SAMPLER",
+      "value": "0x24"
     },
     "FR_MATERIAL_INPUT_COLOR": {
       "name": "FR_MATERIAL_INPUT_COLOR",
@@ -3652,9 +3820,17 @@
       "name": "FR_AOV_VELOCITY",
       "value": "0x0d"
     },
+    "FR_AOV_DIRECT_ILLUMINATION": {
+      "name": "FR_AOV_DIRECT_ILLUMINATION",
+      "value": "0x0e"
+    },
+    "FR_AOV_INDIRECT_ILLUMINATION": {
+      "name": "FR_AOV_INDIRECT_ILLUMINATION",
+      "value": "0x0f"
+    },
     "FR_AOV_MAX": {
       "name": "FR_AOV_MAX",
-      "value": "0x0e"
+      "value": "0x10"
     },
     "FR_POST_EFFECT_TONE_MAP": {
       "name": "FR_POST_EFFECT_TONE_MAP",
@@ -3707,6 +3883,10 @@
     "FR_MATERIAL_NODE_INPUT_TYPE_IMAGE": {
       "name": "FR_MATERIAL_NODE_INPUT_TYPE_IMAGE",
       "value": "0x4"
+    },
+    "FR_MATERIAL_NODE_INPUT_TYPE_BUFFER": {
+      "name": "FR_MATERIAL_NODE_INPUT_TYPE_BUFFER",
+      "value": "0x5"
     },
     "FR_SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER": {
       "name": "FR_SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER",
@@ -3847,6 +4027,58 @@
     "FR_COMPOSITE_CONSTANT": {
       "name": "FR_COMPOSITE_CONSTANT",
       "value": "0xd"
+    },
+    "FR_HETEROVOLUME_SIZE_X": {
+      "name": "FR_HETEROVOLUME_SIZE_X",
+      "value": "0x730"
+    },
+    "FR_HETEROVOLUME_SIZE_Y": {
+      "name": "FR_HETEROVOLUME_SIZE_Y",
+      "value": "0x731"
+    },
+    "FR_HETEROVOLUME_SIZE_Z": {
+      "name": "FR_HETEROVOLUME_SIZE_Z",
+      "value": "0x732"
+    },
+    "FR_HETEROVOLUME_DATA": {
+      "name": "FR_HETEROVOLUME_DATA",
+      "value": "0x733"
+    },
+    "FR_HETEROVOLUME_DATA_SIZEBYTE": {
+      "name": "FR_HETEROVOLUME_DATA_SIZEBYTE",
+      "value": "0x734"
+    },
+    "FR_HETEROVOLUME_TRANSFORM": {
+      "name": "FR_HETEROVOLUME_TRANSFORM",
+      "value": "0x735"
+    },
+    "FR_HETEROVOLUME_INDICES": {
+      "name": "FR_HETEROVOLUME_INDICES",
+      "value": "0x736"
+    },
+    "FR_HETEROVOLUME_INDICES_NUMBER": {
+      "name": "FR_HETEROVOLUME_INDICES_NUMBER",
+      "value": "0x737"
+    },
+    "FR_HETEROVOLUME_INDICES_TOPOLOGY": {
+      "name": "FR_HETEROVOLUME_INDICES_TOPOLOGY",
+      "value": "0x738"
+    },
+    "FR_HETEROVOLUME_INDICES_TOPOLOGY_I_U64": {
+      "name": "FR_HETEROVOLUME_INDICES_TOPOLOGY_I_U64",
+      "value": "0x750"
+    },
+    "FR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_U32": {
+      "name": "FR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_U32",
+      "value": "0x751"
+    },
+    "FR_HETEROVOLUME_INDICES_TOPOLOGY_I_S64": {
+      "name": "FR_HETEROVOLUME_INDICES_TOPOLOGY_I_S64",
+      "value": "0x752"
+    },
+    "FR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_S32": {
+      "name": "FR_HETEROVOLUME_INDICES_TOPOLOGY_XYZ_S32",
+      "value": "0x753"
     },
     "FR_FALSE": {
       "name": "FR_FALSE",
@@ -4055,6 +4287,21 @@
       "kind": "typedef",
       "type": "rpr_uint"
     },
+    "rpr_buffer": {
+      "name": "rpr_buffer",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rpr_buffer_element_type": {
+      "name": "rpr_buffer_element_type",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
+    "rpr_buffer_info": {
+      "name": "rpr_buffer_info",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
     "rpr_camera": {
       "name": "rpr_camera",
       "kind": "typedef",
@@ -4137,6 +4384,16 @@
     },
     "rpr_framebuffer_info": {
       "name": "rpr_framebuffer_info",
+      "kind": "typedef",
+      "type": "rpr_uint"
+    },
+    "rpr_hetero_volume": {
+      "name": "rpr_hetero_volume",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rpr_hetero_volume_indices_topology": {
+      "name": "rpr_hetero_volume_indices_topology",
       "kind": "typedef",
       "type": "rpr_uint"
     },
@@ -4320,6 +4577,24 @@
       "kind": "typedef",
       "type": "struct _rpr_render_statistics"
     },
+    "_rpr_buffer_desc": {
+      "name": "_rpr_buffer_desc",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "nb_element",
+          "type": "rpr_uint"
+        },
+        {
+          "name": "element_type",
+          "type": "rpr_buffer_element_type"
+        },
+        {
+          "name": "element_channel_size",
+          "type": "rpr_uint"
+        }
+      ]
+    },
     "_rpr_image_format": {
       "name": "_rpr_image_format",
       "kind": "struct",
@@ -4348,6 +4623,21 @@
       "name": "fr_bitfield",
       "kind": "typedef",
       "type": "rpr_bitfield"
+    },
+    "fr_buffer": {
+      "name": "fr_buffer",
+      "kind": "typedef",
+      "type": "rpr_buffer"
+    },
+    "fr_buffer_element_type": {
+      "name": "fr_buffer_element_type",
+      "kind": "typedef",
+      "type": "rpr_buffer_element_type"
+    },
+    "fr_buffer_info": {
+      "name": "fr_buffer_info",
+      "kind": "typedef",
+      "type": "rpr_buffer_info"
     },
     "fr_camera": {
       "name": "fr_camera",
@@ -4433,6 +4723,16 @@
       "name": "fr_framebuffer_info",
       "kind": "typedef",
       "type": "rpr_framebuffer_info"
+    },
+    "fr_hetero_volume": {
+      "name": "fr_hetero_volume",
+      "kind": "typedef",
+      "type": "rpr_hetero_volume"
+    },
+    "fr_hetero_volume_indices_topology": {
+      "name": "fr_hetero_volume_indices_topology",
+      "kind": "typedef",
+      "type": "rpr_hetero_volume_indices_topology"
     },
     "fr_image": {
       "name": "fr_image",
@@ -4619,6 +4919,11 @@
       "kind": "typedef",
       "type": "struct _rpr_render_statistics"
     },
+    "_fr_buffer_desc": {
+      "name": "_fr_buffer_desc",
+      "kind": "typedef",
+      "type": "struct _rpr_buffer_desc"
+    },
     "_fr_image_format": {
       "name": "_fr_image_format",
       "kind": "typedef",
@@ -4666,6 +4971,11 @@
       "kind": "typedef",
       "type": "rpr_render_statistics"
     },
+    "rpr_buffer_desc": {
+      "name": "rpr_buffer_desc",
+      "kind": "typedef",
+      "type": "struct _rpr_buffer_desc"
+    },
     "rpr_image_format": {
       "name": "rpr_image_format",
       "kind": "typedef",
@@ -4675,6 +4985,11 @@
       "name": "_fr_ies_image_desc",
       "kind": "typedef",
       "type": "struct _rpr_ies_image_desc"
+    },
+    "fr_buffer_desc": {
+      "name": "fr_buffer_desc",
+      "kind": "typedef",
+      "type": "rpr_buffer_desc"
     },
     "fr_image_format": {
       "name": "fr_image_format",
@@ -5208,6 +5523,29 @@
       ],
       "docs": null
     },
+    "frContextCreateBuffer": {
+      "name": "frContextCreateBuffer",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "fr_context"
+        },
+        {
+          "name": "buffer_desc",
+          "type": "fr_buffer_desc const*"
+        },
+        {
+          "name": "data",
+          "type": "void const*"
+        },
+        {
+          "name": "out_buffer",
+          "type": "fr_buffer*"
+        }
+      ],
+      "docs": null
+    },
     "frContextCreateCamera": {
       "name": "frContextCreateCamera",
       "restype": "fr_int",
@@ -5291,6 +5629,57 @@
         {
           "name": "out_fb",
           "type": "fr_framebuffer*"
+        }
+      ],
+      "docs": null
+    },
+    "frContextCreateHeteroVolume": {
+      "name": "frContextCreateHeteroVolume",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "fr_context"
+        },
+        {
+          "name": "out_heteroVolume",
+          "type": "fr_hetero_volume*"
+        },
+        {
+          "name": "gridSizeX",
+          "type": "size_t"
+        },
+        {
+          "name": "gridSizeY",
+          "type": "size_t"
+        },
+        {
+          "name": "gridSizeZ",
+          "type": "size_t"
+        },
+        {
+          "name": "indicesList",
+          "type": "void*"
+        },
+        {
+          "name": "numberOfIndices",
+          "type": "size_t"
+        },
+        {
+          "name": "indicesListTopology",
+          "type": "fr_hetero_volume_indices_topology"
+        },
+        {
+          "name": "gridData",
+          "type": "void*"
+        },
+        {
+          "name": "gridDataSizeByte",
+          "type": "size_t"
+        },
+        {
+          "name": "gridDataTopology___unused",
+          "type": "fr_uint"
         }
       ],
       "docs": null
@@ -5568,6 +5957,109 @@
         {
           "name": "num_faces",
           "type": "size_t"
+        },
+        {
+          "name": "out_mesh",
+          "type": "fr_shape*"
+        }
+      ],
+      "docs": null
+    },
+    "frContextCreateMeshEx2": {
+      "name": "frContextCreateMeshEx2",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "fr_context"
+        },
+        {
+          "name": "vertices",
+          "type": "fr_float const*"
+        },
+        {
+          "name": "num_vertices",
+          "type": "size_t"
+        },
+        {
+          "name": "vertex_stride",
+          "type": "fr_int"
+        },
+        {
+          "name": "normals",
+          "type": "fr_float const*"
+        },
+        {
+          "name": "num_normals",
+          "type": "size_t"
+        },
+        {
+          "name": "normal_stride",
+          "type": "fr_int"
+        },
+        {
+          "name": "perVertexFlag",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "num_perVertexFlags",
+          "type": "size_t"
+        },
+        {
+          "name": "perVertexFlag_stride",
+          "type": "fr_int"
+        },
+        {
+          "name": "numberOfTexCoordLayers",
+          "type": "fr_int"
+        },
+        {
+          "name": "texcoords",
+          "type": "fr_float const**"
+        },
+        {
+          "name": "num_texcoords",
+          "type": "size_t const*"
+        },
+        {
+          "name": "texcoord_stride",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "vertex_indices",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "vidx_stride",
+          "type": "fr_int"
+        },
+        {
+          "name": "normal_indices",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "nidx_stride",
+          "type": "fr_int"
+        },
+        {
+          "name": "texcoord_indices",
+          "type": "fr_int const**"
+        },
+        {
+          "name": "tidx_stride",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "num_face_vertices",
+          "type": "fr_int const*"
+        },
+        {
+          "name": "num_faces",
+          "type": "size_t"
+        },
+        {
+          "name": "mesh_properties",
+          "type": "fr_mesh_info const*"
         },
         {
           "name": "out_mesh",
@@ -6216,6 +6708,25 @@
       ],
       "docs": null
     },
+    "frHeteroVolumeSetTransform": {
+      "name": "frHeteroVolumeSetTransform",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "out_heteroVolume",
+          "type": "fr_hetero_volume"
+        },
+        {
+          "name": "transpose",
+          "type": "fr_bool"
+        },
+        {
+          "name": "transform",
+          "type": "fr_float const*"
+        }
+      ],
+      "docs": null
+    },
     "frIESLightSetImageFromFile": {
       "name": "frIESLightSetImageFromFile",
       "restype": "fr_int",
@@ -6457,6 +6968,25 @@
         {
           "name": "out_size",
           "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "frMaterialNodeSetInputBufferData": {
+      "name": "frMaterialNodeSetInputBufferData",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "in_node",
+          "type": "fr_material_node"
+        },
+        {
+          "name": "in_input",
+          "type": "fr_char const*"
+        },
+        {
+          "name": "buffer",
+          "type": "fr_buffer"
         }
       ],
       "docs": null
@@ -6824,6 +7354,21 @@
       ],
       "docs": null
     },
+    "frSceneAttachHeteroVolume": {
+      "name": "frSceneAttachHeteroVolume",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "scene",
+          "type": "fr_scene"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "fr_hetero_volume"
+        }
+      ],
+      "docs": null
+    },
     "frSceneAttachLight": {
       "name": "frSceneAttachLight",
       "restype": "fr_int",
@@ -6861,6 +7406,21 @@
         {
           "name": "scene",
           "type": "fr_scene"
+        }
+      ],
+      "docs": null
+    },
+    "frSceneDetachHeteroVolume": {
+      "name": "frSceneDetachHeteroVolume",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "scene",
+          "type": "fr_scene"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "fr_hetero_volume"
         }
       ],
       "docs": null
@@ -7108,6 +7668,21 @@
       ],
       "docs": null
     },
+    "frShapeSetHeteroVolume": {
+      "name": "frShapeSetHeteroVolume",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "fr_shape"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "fr_hetero_volume"
+        }
+      ],
+      "docs": null
+    },
     "frShapeSetLinearMotion": {
       "name": "frShapeSetLinearMotion",
       "restype": "fr_int",
@@ -7180,6 +7755,29 @@
         {
           "name": "objectGroupID",
           "type": "fr_uint"
+        }
+      ],
+      "docs": null
+    },
+    "frShapeSetScaleMotion": {
+      "name": "frShapeSetScaleMotion",
+      "restype": "fr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "fr_shape"
+        },
+        {
+          "name": "x",
+          "type": "fr_float"
+        },
+        {
+          "name": "y",
+          "type": "fr_float"
+        },
+        {
+          "name": "z",
+          "type": "fr_float"
         }
       ],
       "docs": null
@@ -8290,6 +8888,48 @@
         ]
       ]
     },
+    "rprContextCreateBuffer": {
+      "name": "rprContextCreateBuffer",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rpr_context"
+        },
+        {
+          "name": "buffer_desc",
+          "type": "rpr_buffer_desc const*"
+        },
+        {
+          "name": "data",
+          "type": "void const*"
+        },
+        {
+          "name": "out_buffer",
+          "type": "rpr_buffer*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprContextCreateBuffer(rpr_context context, rpr_buffer_desc const * buffer_desc, void const * data, rpr_buffer * out_buffer);\n",
+        [
+          "/** @brief Create a buffer from memory data\n",
+          " *\n",
+          " *  Buffers are used as arbitrary input for other nodes\n",
+          " *\n",
+          " *      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          " *      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          " *      RPR_ERROR_UNSUPPORTED_IMAGE_FORMAT\n",
+          " *      RPR_ERROR_INVALID_PARAMETER\n",
+          " *\n",
+          " *  @param  context     The context to create image\n",
+          " *  @param  buffer_desc Buffer layout description\n",
+          " *  @param  data        Image data in system memory, can be NULL in which case the memory is allocated\n",
+          " *  @param  out_buffer  Pointer to buffer object\n",
+          " *  @return             RPR_SUCCESS in case of success, error code otherwise\n",
+          " */\n"
+        ]
+      ]
+    },
     "rprContextCreateCamera": {
       "name": "rprContextCreateCamera",
       "restype": "rpr_int",
@@ -8450,6 +9090,72 @@
           " *  @param  status   Pointer to framebuffer object\n",
           " *  @return          RPR_SUCCESS in case of success, error code otherwise\n",
           " */\n"
+        ]
+      ]
+    },
+    "rprContextCreateHeteroVolume": {
+      "name": "rprContextCreateHeteroVolume",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rpr_context"
+        },
+        {
+          "name": "out_heteroVolume",
+          "type": "rpr_hetero_volume*"
+        },
+        {
+          "name": "gridSizeX",
+          "type": "size_t"
+        },
+        {
+          "name": "gridSizeY",
+          "type": "size_t"
+        },
+        {
+          "name": "gridSizeZ",
+          "type": "size_t"
+        },
+        {
+          "name": "indicesList",
+          "type": "void*"
+        },
+        {
+          "name": "numberOfIndices",
+          "type": "size_t"
+        },
+        {
+          "name": "indicesListTopology",
+          "type": "rpr_hetero_volume_indices_topology"
+        },
+        {
+          "name": "gridData",
+          "type": "void*"
+        },
+        {
+          "name": "gridDataSizeByte",
+          "type": "size_t"
+        },
+        {
+          "name": "gridDataTopology___unused",
+          "type": "rpr_uint"
+        }
+      ],
+      "docs": [
+        "rpr_int rprContextCreateHeteroVolume(rpr_context context, rpr_hetero_volume * out_heteroVolume, size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ, void * indicesList, size_t numberOfIndices, rpr_hetero_volume_indices_topology indicesListTopology, void * gridData, size_t gridDataSizeByte, rpr_uint gridDataTopology___unused);\n",
+        [
+          "/** @brief Create post effect\n",
+          "*\n",
+          "*  Create analytic point light represented by a point in space.\n",
+          "*  Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*\n",
+          "*  @param  context The context to create a light for\n",
+          "*  @param  status  RPR_SUCCESS in case of success, error code otherwise\n",
+          "*  @return         Light object\n",
+          "*/\n"
         ]
       ]
     },
@@ -8857,6 +9563,117 @@
       ],
       "docs": [
         "rpr_int rprContextCreateMeshEx(rpr_context context, rpr_float const * vertices, size_t num_vertices, rpr_int vertex_stride, rpr_float const * normals, size_t num_normals, rpr_int normal_stride, rpr_int const * perVertexFlag, size_t num_perVertexFlags, rpr_int perVertexFlag_stride, rpr_int numberOfTexCoordLayers, rpr_float const ** texcoords, size_t const * num_texcoords, rpr_int const * texcoord_stride, rpr_int const * vertex_indices, rpr_int vidx_stride, rpr_int const * normal_indices, rpr_int nidx_stride, rpr_int const ** texcoord_indices, rpr_int const * tidx_stride, rpr_int const * num_face_vertices, size_t num_faces, rpr_shape * out_mesh);\n",
+        [
+          "/*  @brief Create a mesh\n",
+          " *\n",
+          " *  @return                     RPR_SUCCESS in case of success, error code otherwise\t\n",
+          "\t*/\n"
+        ]
+      ]
+    },
+    "rprContextCreateMeshEx2": {
+      "name": "rprContextCreateMeshEx2",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rpr_context"
+        },
+        {
+          "name": "vertices",
+          "type": "rpr_float const*"
+        },
+        {
+          "name": "num_vertices",
+          "type": "size_t"
+        },
+        {
+          "name": "vertex_stride",
+          "type": "rpr_int"
+        },
+        {
+          "name": "normals",
+          "type": "rpr_float const*"
+        },
+        {
+          "name": "num_normals",
+          "type": "size_t"
+        },
+        {
+          "name": "normal_stride",
+          "type": "rpr_int"
+        },
+        {
+          "name": "perVertexFlag",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "num_perVertexFlags",
+          "type": "size_t"
+        },
+        {
+          "name": "perVertexFlag_stride",
+          "type": "rpr_int"
+        },
+        {
+          "name": "numberOfTexCoordLayers",
+          "type": "rpr_int"
+        },
+        {
+          "name": "texcoords",
+          "type": "rpr_float const**"
+        },
+        {
+          "name": "num_texcoords",
+          "type": "size_t const*"
+        },
+        {
+          "name": "texcoord_stride",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "vertex_indices",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "vidx_stride",
+          "type": "rpr_int"
+        },
+        {
+          "name": "normal_indices",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "nidx_stride",
+          "type": "rpr_int"
+        },
+        {
+          "name": "texcoord_indices",
+          "type": "rpr_int const**"
+        },
+        {
+          "name": "tidx_stride",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "num_face_vertices",
+          "type": "rpr_int const*"
+        },
+        {
+          "name": "num_faces",
+          "type": "size_t"
+        },
+        {
+          "name": "mesh_properties",
+          "type": "rpr_mesh_info const*"
+        },
+        {
+          "name": "out_mesh",
+          "type": "rpr_shape*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprContextCreateMeshEx2(rpr_context context, rpr_float const * vertices, size_t num_vertices, rpr_int vertex_stride, rpr_float const * normals, size_t num_normals, rpr_int normal_stride, rpr_int const * perVertexFlag, size_t num_perVertexFlags, rpr_int perVertexFlag_stride, rpr_int numberOfTexCoordLayers, rpr_float const ** texcoords, size_t const * num_texcoords, rpr_int const * texcoord_stride, rpr_int const * vertex_indices, rpr_int vidx_stride, rpr_int const * normal_indices, rpr_int nidx_stride, rpr_int const ** texcoord_indices, rpr_int const * tidx_stride, rpr_int const * num_face_vertices, size_t num_faces, rpr_mesh_info const * mesh_properties, rpr_shape * out_mesh);\n",
         [
           "/*  @brief Create a mesh\n",
           " *\n",
@@ -10095,6 +10912,40 @@
         ]
       ]
     },
+    "rprHeteroVolumeSetTransform": {
+      "name": "rprHeteroVolumeSetTransform",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "out_heteroVolume",
+          "type": "rpr_hetero_volume"
+        },
+        {
+          "name": "transpose",
+          "type": "rpr_bool"
+        },
+        {
+          "name": "transform",
+          "type": "rpr_float const*"
+        }
+      ],
+      "docs": [
+        "rpr_int rprHeteroVolumeSetTransform(rpr_hetero_volume out_heteroVolume, rpr_bool transpose, rpr_float const * transform);\n",
+        [
+          "/** @brief Create post effect\n",
+          "*\n",
+          "*  Create analytic point light represented by a point in space.\n",
+          "*  Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*\n",
+          "*  @param  context The context to create a light for\n",
+          "*  @param  status  RPR_SUCCESS in case of success, error code otherwise\n",
+          "*  @return         Light object\n",
+          "*/\n"
+        ]
+      ]
+    },
     "rprIESLightSetImageFromFile": {
       "name": "rprIESLightSetImageFromFile",
       "restype": "rpr_int",
@@ -10482,6 +11333,36 @@
       ],
       "docs": [
         "rpr_int rprMaterialNodeGetInputInfo(rpr_material_node in_node, rpr_int in_input_idx, rpr_material_node_input_info in_info, size_t in_size, void * in_data, size_t * out_size);\n",
+        [
+          "/** @brief Set image input value\n",
+          "*\n",
+          "*   Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*\n",
+          "*/\n"
+        ]
+      ]
+    },
+    "rprMaterialNodeSetInputBufferData": {
+      "name": "rprMaterialNodeSetInputBufferData",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "in_node",
+          "type": "rpr_material_node"
+        },
+        {
+          "name": "in_input",
+          "type": "rpr_char const*"
+        },
+        {
+          "name": "buffer",
+          "type": "rpr_buffer"
+        }
+      ],
+      "docs": [
+        "rpr_int rprMaterialNodeSetInputBufferData(rpr_material_node in_node, rpr_char const * in_input, rpr_buffer buffer);\n",
         [
           "/** @brief Set image input value\n",
           "*\n",
@@ -11082,6 +11963,33 @@
         ]
       ]
     },
+    "rprSceneAttachHeteroVolume": {
+      "name": "rprSceneAttachHeteroVolume",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "scene",
+          "type": "rpr_scene"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "rpr_hetero_volume"
+        }
+      ],
+      "docs": [
+        "rpr_int rprSceneAttachHeteroVolume(rpr_scene scene, rpr_hetero_volume heteroVolume);\n",
+        [
+          "/** @brief Attach a heteroVolume to the scene\n",
+          " *\n",
+          " *  A scene is essentially a collection of shapes, lights and volume regions.\n",
+          " *\n",
+          " *  @param  scene  The scene to attach\n",
+          " *  @param  heteroVolume  The heteroVolume to attach\n",
+          " *  @return        RPR_SUCCESS in case of success, error code otherwise\n",
+          " */\n"
+        ]
+      ]
+    },
     "rprSceneAttachLight": {
       "name": "rprSceneAttachLight",
       "restype": "rpr_int",
@@ -11153,6 +12061,32 @@
           " *  A scene is essentially a collection of shapes, lights and volume regions.\n",
           " *\n",
           " *  @param  scene   The scene to clear\n",
+          " *  @return         RPR_SUCCESS in case of success, error code otherwise\n",
+          " */\n"
+        ]
+      ]
+    },
+    "rprSceneDetachHeteroVolume": {
+      "name": "rprSceneDetachHeteroVolume",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "scene",
+          "type": "rpr_scene"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "rpr_hetero_volume"
+        }
+      ],
+      "docs": [
+        "rpr_int rprSceneDetachHeteroVolume(rpr_scene scene, rpr_hetero_volume heteroVolume);\n",
+        [
+          "/** @brief Detach a heteroVolume from the scene\n",
+          " *\n",
+          " *  A scene is essentially a collection of shapes, lights and volume regions.\n",
+          " *\n",
+          " *  @param  scene   The scene to dettach from\n",
           " *  @return         RPR_SUCCESS in case of success, error code otherwise\n",
           " */\n"
         ]
@@ -11566,6 +12500,36 @@
         ]
       ]
     },
+    "rprShapeSetHeteroVolume": {
+      "name": "rprShapeSetHeteroVolume",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "heteroVolume",
+          "type": "rpr_hetero_volume"
+        }
+      ],
+      "docs": [
+        "rpr_int rprShapeSetHeteroVolume(rpr_shape shape, rpr_hetero_volume heteroVolume);\n",
+        [
+          "/** @brief Create post effect\n",
+          "*\n",
+          "*  Create analytic point light represented by a point in space.\n",
+          "*  Possible error codes:\n",
+          "*      RPR_ERROR_OUT_OF_VIDEO_MEMORY\n",
+          "*      RPR_ERROR_OUT_OF_SYSTEM_MEMORY\n",
+          "*\n",
+          "*  @param  context The context to create a light for\n",
+          "*  @param  status  RPR_SUCCESS in case of success, error code otherwise\n",
+          "*  @return         Light object\n",
+          "*/\n"
+        ]
+      ]
+    },
     "rprShapeSetLinearMotion": {
       "name": "rprShapeSetLinearMotion",
       "restype": "rpr_int",
@@ -11680,6 +12644,42 @@
           "*  @param  objectGroupID  The ID\n",
           "*  @return             RPR_SUCCESS in case of success, error code otherwise\n",
           "*/\n"
+        ]
+      ]
+    },
+    "rprShapeSetScaleMotion": {
+      "name": "rprShapeSetScaleMotion",
+      "restype": "rpr_int",
+      "args": [
+        {
+          "name": "shape",
+          "type": "rpr_shape"
+        },
+        {
+          "name": "x",
+          "type": "rpr_float"
+        },
+        {
+          "name": "y",
+          "type": "rpr_float"
+        },
+        {
+          "name": "z",
+          "type": "rpr_float"
+        }
+      ],
+      "docs": [
+        "rpr_int rprShapeSetScaleMotion(rpr_shape shape, rpr_float x, rpr_float y, rpr_float z);\n",
+        [
+          "/** @brief Set angular linear motion\n",
+          " *\n",
+          " *  @param  shape       The shape to set linear motion for\n",
+          " *  @param  x           X component of the rotation axis\n",
+          " *  @param  y           Y component of the rotation axis\n",
+          " *  @param  z           Z component of the rotation axis\n",
+          " *  @param  w           W rotation angle in radians\n",
+          " *  @return             RPR_SUCCESS in case of success, error code otherwise\n",
+          " */\n"
         ]
       ]
     },
