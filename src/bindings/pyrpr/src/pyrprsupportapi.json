@@ -222,15 +222,25 @@
     }
   },
   "types": {
-    "rprx_context": {
-      "name": "rprx_context",
-      "kind": "typedef",
-      "type": "struct _rprxcontext*"
+    "_rprxcontext": {
+      "name": "_rprxcontext",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "padding",
+          "type": "rpr_int"
+        }
+      ]
     },
-    "rprx_material": {
-      "name": "rprx_material",
-      "kind": "typedef",
-      "type": "struct _rprxmaterial*"
+    "_rprxmaterial": {
+      "name": "_rprxmaterial",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "padding",
+          "type": "rpr_int"
+        }
+      ]
     },
     "rprx_material_type": {
       "name": "rprx_material_type",
@@ -241,6 +251,16 @@
       "name": "rprx_parameter",
       "kind": "typedef",
       "type": "rpr_uint"
+    },
+    "rprx_context": {
+      "name": "rprx_context",
+      "kind": "typedef",
+      "type": "struct _rprxcontext*"
+    },
+    "rprx_material": {
+      "name": "rprx_material",
+      "kind": "typedef",
+      "type": "struct _rprxmaterial*"
     }
   },
   "functions": {
