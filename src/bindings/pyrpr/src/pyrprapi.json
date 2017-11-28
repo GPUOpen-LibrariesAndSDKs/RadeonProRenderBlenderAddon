@@ -2,7 +2,7 @@
   "constants": {
     "RPR_API_VERSION": {
       "name": "RPR_API_VERSION",
-      "value": "0x010028300"
+      "value": "0x010028400"
     },
     "RPR_SUCCESS": {
       "name": "RPR_SUCCESS",
@@ -2046,7 +2046,7 @@
     },
     "FR_API_VERSION": {
       "name": "FR_API_VERSION",
-      "value": "0x010028300"
+      "value": "0x010028400"
     },
     "FR_SUCCESS": {
       "name": "FR_SUCCESS",
