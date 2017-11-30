@@ -74,7 +74,7 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
     if "Windows" == platform.system():
         # preload OpenImage dll so we don't have to add PATH
         ctypes.CDLL(str(rprsdk_bin_path / 'OpenImageIO_RPR.dll'))
-        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll']
+        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll', 'RadeonImageFilters64.dll']
     elif "Linux" == platform.system():
         lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so']
     else:

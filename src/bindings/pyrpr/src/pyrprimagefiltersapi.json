@@ -1,0 +1,1148 @@
+{
+  "constants": {
+    "RIF_API_VERSION": {
+      "name": "RIF_API_VERSION",
+      "value": "1"
+    },
+    "RIF_SUCCESS": {
+      "name": "RIF_SUCCESS",
+      "value": "0"
+    },
+    "RIF_ERROR_COMPUTE_API_NOT_SUPPORTED": {
+      "name": "RIF_ERROR_COMPUTE_API_NOT_SUPPORTED",
+      "value": "-1"
+    },
+    "RIF_ERROR_OUT_OF_SYSTEM_MEMORY": {
+      "name": "RIF_ERROR_OUT_OF_SYSTEM_MEMORY",
+      "value": "-2"
+    },
+    "RIF_ERROR_OUT_OF_VIDEO_MEMORY": {
+      "name": "RIF_ERROR_OUT_OF_VIDEO_MEMORY",
+      "value": "-3"
+    },
+    "RIF_ERROR_INVALID_IMAGE": {
+      "name": "RIF_ERROR_INVALID_IMAGE",
+      "value": "-6"
+    },
+    "RIF_ERROR_UNSUPPORTED_IMAGE_FORMAT": {
+      "name": "RIF_ERROR_UNSUPPORTED_IMAGE_FORMAT",
+      "value": "-8"
+    },
+    "RIF_ERROR_INVALID_GL_TEXTURE": {
+      "name": "RIF_ERROR_INVALID_GL_TEXTURE",
+      "value": "-9"
+    },
+    "RIF_ERROR_INVALID_CL_IMAGE": {
+      "name": "RIF_ERROR_INVALID_CL_IMAGE",
+      "value": "-10"
+    },
+    "RIF_ERROR_INVALID_OBJECT": {
+      "name": "RIF_ERROR_INVALID_OBJECT",
+      "value": "-11"
+    },
+    "RIF_ERROR_INVALID_PARAMETER": {
+      "name": "RIF_ERROR_INVALID_PARAMETER",
+      "value": "-12"
+    },
+    "RIF_ERROR_INVALID_TAG": {
+      "name": "RIF_ERROR_INVALID_TAG",
+      "value": "-13"
+    },
+    "RIF_ERROR_INVALID_CONTEXT": {
+      "name": "RIF_ERROR_INVALID_CONTEXT",
+      "value": "-15"
+    },
+    "RIF_ERROR_INVALID_QUEUE": {
+      "name": "RIF_ERROR_INVALID_QUEUE",
+      "value": "-16"
+    },
+    "RIF_ERROR_INVALID_FILTER": {
+      "name": "RIF_ERROR_INVALID_FILTER",
+      "value": "-17"
+    },
+    "RIF_ERROR_INVALID_FILTER_ARGUMENT_NAME": {
+      "name": "RIF_ERROR_INVALID_FILTER_ARGUMENT_NAME",
+      "value": "-18"
+    },
+    "RIF_ERROR_UNIMPLEMENTED": {
+      "name": "RIF_ERROR_UNIMPLEMENTED",
+      "value": "-19"
+    },
+    "RIF_ERROR_INVALID_API_VERSION": {
+      "name": "RIF_ERROR_INVALID_API_VERSION",
+      "value": "-20"
+    },
+    "RIF_ERROR_INTERNAL_ERROR": {
+      "name": "RIF_ERROR_INTERNAL_ERROR",
+      "value": "-21"
+    },
+    "RIF_ERROR_IO_ERROR": {
+      "name": "RIF_ERROR_IO_ERROR",
+      "value": "-22"
+    },
+    "RIF_ERROR_INVALID_PARAMETER_TYPE": {
+      "name": "RIF_ERROR_INVALID_PARAMETER_TYPE",
+      "value": "-23"
+    },
+    "RIF_ERROR_UNSUPPORTED": {
+      "name": "RIF_ERROR_UNSUPPORTED",
+      "value": "-24"
+    },
+    "RIF_PARAMETER_TYPE_FLOAT": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT",
+      "value": "0x1"
+    },
+    "RIF_PARAMETER_TYPE_FLOAT2": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT2",
+      "value": "0x2"
+    },
+    "RIF_PARAMETER_TYPE_FLOAT3": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT3",
+      "value": "0x3"
+    },
+    "RIF_PARAMETER_TYPE_FLOAT4": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT4",
+      "value": "0x4"
+    },
+    "RIF_PARAMETER_TYPE_IMAGE": {
+      "name": "RIF_PARAMETER_TYPE_IMAGE",
+      "value": "0x5"
+    },
+    "RIF_PARAMETER_TYPE_STRING": {
+      "name": "RIF_PARAMETER_TYPE_STRING",
+      "value": "0x6"
+    },
+    "RIF_PARAMETER_TYPE_UINT": {
+      "name": "RIF_PARAMETER_TYPE_UINT",
+      "value": "0x8"
+    },
+    "RIF_PARAMETER_TYPE_UINT2": {
+      "name": "RIF_PARAMETER_TYPE_UINT2",
+      "value": "0x9"
+    },
+    "RIF_PARAMETER_TYPE_FLOAT_ARRAY": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT_ARRAY",
+      "value": "0xA"
+    },
+    "RIF_PARAMETER_TYPE_UINT_ARRAY": {
+      "name": "RIF_PARAMETER_TYPE_UINT_ARRAY",
+      "value": "0xB"
+    },
+    "RIF_PARAMETER_TYPE_IMAGE_ARRAY": {
+      "name": "RIF_PARAMETER_TYPE_IMAGE_ARRAY",
+      "value": "0xC"
+    },
+    "RIF_IMAGE_TYPE_1D": {
+      "name": "RIF_IMAGE_TYPE_1D",
+      "value": "0x1"
+    },
+    "RIF_IMAGE_TYPE_2D": {
+      "name": "RIF_IMAGE_TYPE_2D",
+      "value": "0x2"
+    },
+    "RIF_IMAGE_TYPE_3D": {
+      "name": "RIF_IMAGE_TYPE_3D",
+      "value": "0x3"
+    },
+    "RIF_PROCESSOR_GPU": {
+      "name": "RIF_PROCESSOR_GPU",
+      "value": "0"
+    },
+    "RIF_PROCESSOR_CPU": {
+      "name": "RIF_PROCESSOR_CPU",
+      "value": "1"
+    },
+    "RIF_BACKEND_API_OPENCL": {
+      "name": "RIF_BACKEND_API_OPENCL",
+      "value": "0"
+    },
+    "RIF_BACKEND_API_DX11": {
+      "name": "RIF_BACKEND_API_DX11",
+      "value": "1"
+    },
+    "RIF_BACKEND_API_HOST": {
+      "name": "RIF_BACKEND_API_HOST",
+      "value": "2"
+    },
+    "RIF_CONTEXT_MAX": {
+      "name": "RIF_CONTEXT_MAX",
+      "value": "0x131"
+    },
+    "RIF_IMAGE_DESC": {
+      "name": "RIF_IMAGE_DESC",
+      "value": "0x301"
+    },
+    "RIF_IMAGE_DATA_SIZEBYTE": {
+      "name": "RIF_IMAGE_DATA_SIZEBYTE",
+      "value": "0x302"
+    },
+    "RIF_COMPONENT_TYPE_UINT8": {
+      "name": "RIF_COMPONENT_TYPE_UINT8",
+      "value": "0x1"
+    },
+    "RIF_COMPONENT_TYPE_FLOAT16": {
+      "name": "RIF_COMPONENT_TYPE_FLOAT16",
+      "value": "0x2"
+    },
+    "RIF_COMPONENT_TYPE_FLOAT32": {
+      "name": "RIF_COMPONENT_TYPE_FLOAT32",
+      "value": "0x3"
+    },
+    "RIF_IMAGE_MAP_READ": {
+      "name": "RIF_IMAGE_MAP_READ",
+      "value": "0x1"
+    },
+    "RIF_IMAGE_MAP_WRITE": {
+      "name": "RIF_IMAGE_MAP_WRITE",
+      "value": "0x2"
+    },
+    "RIF_IMAGE_FILTER_COLOR_SPACE": {
+      "name": "RIF_IMAGE_FILTER_COLOR_SPACE",
+      "value": "0x1"
+    },
+    "RIF_IMAGE_FILTER_NORMALIZATION": {
+      "name": "RIF_IMAGE_FILTER_NORMALIZATION",
+      "value": "0x2"
+    },
+    "RIF_IMAGE_FILTER_GAMMA_CORRECTION": {
+      "name": "RIF_IMAGE_FILTER_GAMMA_CORRECTION",
+      "value": "0x3"
+    },
+    "RIF_IMAGE_FILTER_RESAMPLE": {
+      "name": "RIF_IMAGE_FILTER_RESAMPLE",
+      "value": "0x4"
+    },
+    "RIF_IMAGE_FILTER_GAUSSIAN_BLUR": {
+      "name": "RIF_IMAGE_FILTER_GAUSSIAN_BLUR",
+      "value": "0x5"
+    },
+    "RIF_IMAGE_FILTER_FILMIC_TONEMAP": {
+      "name": "RIF_IMAGE_FILTER_FILMIC_TONEMAP",
+      "value": "0x6"
+    },
+    "RIF_IMAGE_FILTER_REINHARD02_TONEMAP": {
+      "name": "RIF_IMAGE_FILTER_REINHARD02_TONEMAP",
+      "value": "0x7"
+    },
+    "RIF_IMAGE_FILTER_EXPONENTIAL_TONEMAP": {
+      "name": "RIF_IMAGE_FILTER_EXPONENTIAL_TONEMAP",
+      "value": "0x8"
+    },
+    "RIF_IMAGE_FILTER_LINEAR_TONEMAP": {
+      "name": "RIF_IMAGE_FILTER_LINEAR_TONEMAP",
+      "value": "0x9"
+    },
+    "RIF_IMAGE_FILTER_DRAGO_TONEMAP": {
+      "name": "RIF_IMAGE_FILTER_DRAGO_TONEMAP",
+      "value": "0xA"
+    },
+    "RIF_IMAGE_FILTER_BILATERAL_DENOISE": {
+      "name": "RIF_IMAGE_FILTER_BILATERAL_DENOISE",
+      "value": "0xB"
+    },
+    "RIF_IMAGE_FILTER_LWR_DENOISE": {
+      "name": "RIF_IMAGE_FILTER_LWR_DENOISE",
+      "value": "0xC"
+    },
+    "RIF_IMAGE_FILTER_EAW_DENOISE": {
+      "name": "RIF_IMAGE_FILTER_EAW_DENOISE",
+      "value": "0xD"
+    },
+    "RIF_IMAGE_FILTER_SOBEL": {
+      "name": "RIF_IMAGE_FILTER_SOBEL",
+      "value": "0xE"
+    },
+    "RIF_IMAGE_FILTER_WEIGHTED_SUM": {
+      "name": "RIF_IMAGE_FILTER_WEIGHTED_SUM",
+      "value": "0xF"
+    },
+    "RIF_IMAGE_FILTER_MULT": {
+      "name": "RIF_IMAGE_FILTER_MULT",
+      "value": "0x10"
+    },
+    "RIF_IMAGE_INTERPOLATION_NEAREST_SUM": {
+      "name": "RIF_IMAGE_INTERPOLATION_NEAREST_SUM",
+      "value": "0x0"
+    },
+    "RIF_IMAGE_INTERPOLATION_BILINEAR": {
+      "name": "RIF_IMAGE_INTERPOLATION_BILINEAR",
+      "value": "0x1"
+    },
+    "RIF_IMAGE_INTERPOLATION_BICUBIC": {
+      "name": "RIF_IMAGE_INTERPOLATION_BICUBIC",
+      "value": "0x2"
+    },
+    "RIF_IMAGE_INTERPOLATION_LANCROS": {
+      "name": "RIF_IMAGE_INTERPOLATION_LANCROS",
+      "value": "0x3"
+    },
+    "RIF_IMAGE_FILTER_TYPE": {
+      "name": "RIF_IMAGE_FILTER_TYPE",
+      "value": "0x0"
+    },
+    "RIF_IMAGE_FILTER_PARAMETER_COUNT": {
+      "name": "RIF_IMAGE_FILTER_PARAMETER_COUNT",
+      "value": "0x1"
+    },
+    "RIF_PARAMETER_NAME_STRING": {
+      "name": "RIF_PARAMETER_NAME_STRING",
+      "value": "0x1202"
+    },
+    "RIF_PARAMETER_TYPE": {
+      "name": "RIF_PARAMETER_TYPE",
+      "value": "0x1203"
+    },
+    "RIF_PARAMETER_DESCRIPTION": {
+      "name": "RIF_PARAMETER_DESCRIPTION",
+      "value": "0x1204"
+    },
+    "RIF_PARAMETER_VALUE": {
+      "name": "RIF_PARAMETER_VALUE",
+      "value": "0x1205"
+    },
+    "RIF_IMAGE_FILTER_WHITE_BALANCE_COLOR_SPACE": {
+      "name": "RIF_IMAGE_FILTER_WHITE_BALANCE_COLOR_SPACE",
+      "value": "0x1"
+    },
+    "RIF_IMAGE_FILTER_WHITE_BALANCE_COLOR_TEMPERATURE": {
+      "name": "RIF_IMAGE_FILTER_WHITE_BALANCE_COLOR_TEMPERATURE",
+      "value": "0x2"
+    },
+    "RIF_COLOR_SPACE_SRGB": {
+      "name": "RIF_COLOR_SPACE_SRGB",
+      "value": "0x1"
+    },
+    "RIF_COLOR_SPACE_ADOBE_RGB": {
+      "name": "RIF_COLOR_SPACE_ADOBE_RGB",
+      "value": "0x2"
+    },
+    "RIF_COLOR_SPACE_REC2020": {
+      "name": "RIF_COLOR_SPACE_REC2020",
+      "value": "0x3"
+    },
+    "RIF_COLOR_SPACE_DCIP3": {
+      "name": "RIF_COLOR_SPACE_DCIP3",
+      "value": "0x4"
+    },
+    "RIF_FALSE": {
+      "name": "RIF_FALSE",
+      "value": "0"
+    },
+    "RIF_TRUE": {
+      "name": "RIF_TRUE",
+      "value": "1"
+    }
+  },
+  "types": {
+    "rif_bool": {
+      "name": "rif_bool",
+      "kind": "typedef",
+      "type": "int"
+    },
+    "rif_char": {
+      "name": "rif_char",
+      "kind": "typedef",
+      "type": "char"
+    },
+    "rif_double": {
+      "name": "rif_double",
+      "kind": "typedef",
+      "type": "double"
+    },
+    "rif_float": {
+      "name": "rif_float",
+      "kind": "typedef",
+      "type": "float"
+    },
+    "rif_int": {
+      "name": "rif_int",
+      "kind": "typedef",
+      "type": "int"
+    },
+    "rif_long": {
+      "name": "rif_long",
+      "kind": "typedef",
+      "type": "long int"
+    },
+    "rif_longlong": {
+      "name": "rif_longlong",
+      "kind": "typedef",
+      "type": "long long int"
+    },
+    "rif_short": {
+      "name": "rif_short",
+      "kind": "typedef",
+      "type": "short int"
+    },
+    "rif_uchar": {
+      "name": "rif_uchar",
+      "kind": "typedef",
+      "type": "unsigned char"
+    },
+    "rif_uint": {
+      "name": "rif_uint",
+      "kind": "typedef",
+      "type": "unsigned int"
+    },
+    "rif_ulong": {
+      "name": "rif_ulong",
+      "kind": "typedef",
+      "type": "long unsigned int"
+    },
+    "rif_ushort": {
+      "name": "rif_ushort",
+      "kind": "typedef",
+      "type": "short unsigned int"
+    },
+    "_rif_render_statistics": {
+      "name": "_rif_render_statistics",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "gpumem_usage",
+          "type": "rif_longlong"
+        },
+        {
+          "name": "gpumem_total",
+          "type": "rif_longlong"
+        },
+        {
+          "name": "gpumem_max_allocation",
+          "type": "rif_longlong"
+        }
+      ]
+    },
+    "rif_backend_api_type": {
+      "name": "rif_backend_api_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_bitfield": {
+      "name": "rif_bitfield",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_channel_order": {
+      "name": "rif_channel_order",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_channel_type": {
+      "name": "rif_channel_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_color_space": {
+      "name": "rif_color_space",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_command_queue": {
+      "name": "rif_command_queue",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rif_component_type": {
+      "name": "rif_component_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_context": {
+      "name": "rif_context",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rif_context_info": {
+      "name": "rif_context_info",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_environment_override": {
+      "name": "rif_environment_override",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_image": {
+      "name": "rif_image",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rif_image_filter": {
+      "name": "rif_image_filter",
+      "kind": "typedef",
+      "type": "void*"
+    },
+    "rif_image_filter_info": {
+      "name": "rif_image_filter_info",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_image_filter_type": {
+      "name": "rif_image_filter_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_image_info": {
+      "name": "rif_image_info",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_image_map_type": {
+      "name": "rif_image_map_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_image_type": {
+      "name": "rif_image_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_interpolation_operator": {
+      "name": "rif_interpolation_operator",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_parameter_info": {
+      "name": "rif_parameter_info",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_parameter_type": {
+      "name": "rif_parameter_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_processor_type": {
+      "name": "rif_processor_type",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "rif_tonemapping_operator": {
+      "name": "rif_tonemapping_operator",
+      "kind": "typedef",
+      "type": "rif_uint"
+    },
+    "_rif_image_desc": {
+      "name": "_rif_image_desc",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "image_width",
+          "type": "rif_uint"
+        },
+        {
+          "name": "image_height",
+          "type": "rif_uint"
+        },
+        {
+          "name": "image_depth",
+          "type": "rif_uint"
+        },
+        {
+          "name": "image_row_pitch",
+          "type": "rif_uint"
+        },
+        {
+          "name": "image_slice_pitch",
+          "type": "rif_uint"
+        },
+        {
+          "name": "num_components",
+          "type": "rif_uint"
+        },
+        {
+          "name": "type",
+          "type": "rif_component_type"
+        }
+      ]
+    },
+    "rif_creation_flags": {
+      "name": "rif_creation_flags",
+      "kind": "typedef",
+      "type": "rif_bitfield"
+    },
+    "rif_render_statistics": {
+      "name": "rif_render_statistics",
+      "kind": "typedef",
+      "type": "struct _rif_render_statistics"
+    },
+    "rif_image_desc": {
+      "name": "rif_image_desc",
+      "kind": "typedef",
+      "type": "struct _rif_image_desc"
+    }
+  },
+  "functions": {
+    "rifCommandQueueAttachImageFilter": {
+      "name": "rifCommandQueueAttachImageFilter",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "command_queue",
+          "type": "rif_command_queue"
+        },
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "input_image",
+          "type": "rif_image"
+        },
+        {
+          "name": "output_image",
+          "type": "rif_image"
+        }
+      ],
+      "docs": null
+    },
+    "rifCommandQueueDetachImageFilter": {
+      "name": "rifCommandQueueDetachImageFilter",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "command_queue",
+          "type": "rif_command_queue"
+        },
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextCreateCommandQueue": {
+      "name": "rifContextCreateCommandQueue",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "command_queue",
+          "type": "rif_command_queue*"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextCreateImage": {
+      "name": "rifContextCreateImage",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "image_desc",
+          "type": "rif_image_desc const*"
+        },
+        {
+          "name": "data",
+          "type": "void const*"
+        },
+        {
+          "name": "out_image",
+          "type": "rif_image*"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextCreateImageFilter": {
+      "name": "rifContextCreateImageFilter",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "type",
+          "type": "rif_image_filter_type"
+        },
+        {
+          "name": "out_effect",
+          "type": "rif_image_filter*"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextCreateImageFromOpenClMemory": {
+      "name": "rifContextCreateImageFromOpenClMemory",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "image_desc",
+          "type": "rif_image_desc const*"
+        },
+        {
+          "name": "mem",
+          "type": "void*"
+        },
+        {
+          "name": "isImage",
+          "type": "bool"
+        },
+        {
+          "name": "out_image",
+          "type": "rif_image*"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextExecuteCommandQueue": {
+      "name": "rifContextExecuteCommandQueue",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "command_queue",
+          "type": "rif_command_queue"
+        },
+        {
+          "name": "executionFinishedCallbackFunction",
+          "type": "void*"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        }
+      ],
+      "docs": null
+    },
+    "rifContextGetDeviceInfo": {
+      "name": "rifContextGetDeviceInfo",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "context",
+          "type": "rif_context"
+        },
+        {
+          "name": "processor_type",
+          "type": "rif_processor_type*"
+        },
+        {
+          "name": "name",
+          "type": "rif_char*"
+        },
+        {
+          "name": "sizeOfName",
+          "type": "rif_int"
+        },
+        {
+          "name": "vendor",
+          "type": "rif_char*"
+        },
+        {
+          "name": "sizeOfVendor",
+          "type": "rif_int"
+        }
+      ],
+      "docs": null
+    },
+    "rifCreateContext": {
+      "name": "rifCreateContext",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "api_version",
+          "type": "rif_int"
+        },
+        {
+          "name": "backend_api_type",
+          "type": "rif_backend_api_type"
+        },
+        {
+          "name": "proctype",
+          "type": "rif_processor_type"
+        },
+        {
+          "name": "device_id",
+          "type": "rif_int"
+        },
+        {
+          "name": "cache_path",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "out_context",
+          "type": "rif_context*"
+        }
+      ],
+      "docs": null
+    },
+    "rifCreateContextFromOpenClContext": {
+      "name": "rifCreateContextFromOpenClContext",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "api_version",
+          "type": "rif_int"
+        },
+        {
+          "name": "context",
+          "type": "void*"
+        },
+        {
+          "name": "device",
+          "type": "void*"
+        },
+        {
+          "name": "queue",
+          "type": "void*"
+        },
+        {
+          "name": "cache_path",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "out_context",
+          "type": "rif_context*"
+        }
+      ],
+      "docs": null
+    },
+    "rifGetDeviceCount": {
+      "name": "rifGetDeviceCount",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "backend_api_type",
+          "type": "rif_backend_api_type"
+        },
+        {
+          "name": "proctype",
+          "type": "rif_processor_type"
+        },
+        {
+          "name": "deviceCount",
+          "type": "rif_int*"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterGetInfo": {
+      "name": "rifImageFilterGetInfo",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "filter_info",
+          "type": "rif_image_filter_info"
+        },
+        {
+          "name": "size",
+          "type": "size_t"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        },
+        {
+          "name": "size_ret",
+          "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter1f": {
+      "name": "rifImageFilterSetParameter1f",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "x",
+          "type": "rif_float"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter1u": {
+      "name": "rifImageFilterSetParameter1u",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "x",
+          "type": "rif_uint"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter2u": {
+      "name": "rifImageFilterSetParameter2u",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "x",
+          "type": "rif_uint"
+        },
+        {
+          "name": "y",
+          "type": "rif_uint"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter3f": {
+      "name": "rifImageFilterSetParameter3f",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "x",
+          "type": "rif_float"
+        },
+        {
+          "name": "y",
+          "type": "rif_float"
+        },
+        {
+          "name": "z",
+          "type": "rif_float"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter4f": {
+      "name": "rifImageFilterSetParameter4f",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "x",
+          "type": "rif_float"
+        },
+        {
+          "name": "y",
+          "type": "rif_float"
+        },
+        {
+          "name": "z",
+          "type": "rif_float"
+        },
+        {
+          "name": "w",
+          "type": "rif_float"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameterFloatArray": {
+      "name": "rifImageFilterSetParameterFloatArray",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "arr",
+          "type": "rif_float*"
+        },
+        {
+          "name": "num",
+          "type": "rif_uint"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameterImage": {
+      "name": "rifImageFilterSetParameterImage",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "img",
+          "type": "rif_image"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameterImageArray": {
+      "name": "rifImageFilterSetParameterImageArray",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "arr",
+          "type": "rif_image*"
+        },
+        {
+          "name": "num",
+          "type": "rif_uint"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageGetInfo": {
+      "name": "rifImageGetInfo",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image",
+          "type": "rif_image"
+        },
+        {
+          "name": "image_info",
+          "type": "rif_image_info"
+        },
+        {
+          "name": "size",
+          "type": "size_t"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        },
+        {
+          "name": "size_ret",
+          "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageMap": {
+      "name": "rifImageMap",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image",
+          "type": "rif_image"
+        },
+        {
+          "name": "map_type",
+          "type": "rif_image_map_type"
+        },
+        {
+          "name": "data",
+          "type": "void**"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageUnmap": {
+      "name": "rifImageUnmap",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image",
+          "type": "rif_image"
+        },
+        {
+          "name": "ptr",
+          "type": "void*"
+        }
+      ],
+      "docs": null
+    },
+    "rifObjectDelete": {
+      "name": "rifObjectDelete",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "obj",
+          "type": "void*"
+        }
+      ],
+      "docs": null
+    },
+    "rifParameterGetInfo": {
+      "name": "rifParameterGetInfo",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "paramIdx",
+          "type": "rif_uint"
+        },
+        {
+          "name": "param_info",
+          "type": "rif_parameter_info"
+        },
+        {
+          "name": "size",
+          "type": "size_t"
+        },
+        {
+          "name": "data",
+          "type": "void*"
+        },
+        {
+          "name": "size_ret",
+          "type": "size_t*"
+        }
+      ],
+      "docs": null
+    }
+  }
+}

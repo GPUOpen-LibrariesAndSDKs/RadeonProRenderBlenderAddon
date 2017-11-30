@@ -143,6 +143,11 @@ class RPREngine(bpy.types.RenderEngine):
                 scene_renderer.has_shadowcatcher = True
                 break
 
+        scene_renderer.denoiser = settings.denoiser.enable
+
+        if settings.denoiser.enable:
+            scene_renderer.filter_type = settings.denoiser.filter_type_values[settings.denoiser.filter_type]
+
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
 
         scene_renderer.production_render = True

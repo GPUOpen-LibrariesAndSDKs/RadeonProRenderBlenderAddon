@@ -54,6 +54,13 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         pyrprx.lib_wrapped_log_calls = config.pyrprx_log_calls
         pyrprx.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
+        import pyrprimagefilters
+        pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
+        pyrprimagefilters.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
+
+        import pyrpropencl
+        pyrpropencl.init()
+
     except:
         logging.critical(traceback.format_exc(), tag='')
         return False
