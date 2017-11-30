@@ -832,6 +832,31 @@ class CameraSettings(bpy.types.PropertyGroup, RPRCameraSettings):
         default=False,
     )
 
+@rpraddon.register_class
+class DenoiserSettings(bpy.types.PropertyGroup):
+    enable = bpy.props.BoolProperty(
+        description="Enable RPR Denoiser",
+        default=False,
+    )
+
+    filter_type = bpy.props.EnumProperty(
+        name = "RPR Filter Type",
+        items=(("bilateral", "Bilateral", "Bilateral", 0),
+               #("lwr", "Local Weighted Regression", "lwr", 1),
+               ),#("eaw", "Edge Avoiding Wavelets", "eaw", 2)),
+        description="Filter type",
+        default='bilateral'
+    )
+
+    radius = bpy.props.IntProperty(
+        name="Radius", description="Radius",
+        min = 1, max = 50, default = 10
+    )
+
+    import pyrprimagefilters
+    filter_type_values = dict([("bilateral", pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE),
+                               ("lwr", pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE),
+                               ("eaw", pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE)])
 
 ########################################################################################################################
 # Depth of Field
@@ -871,6 +896,7 @@ class RenderSettings(bpy.types.PropertyGroup):
     gamma_correction = bpy.props.PointerProperty(type=GammaCorrectionSettings)  # type: GammaCorrectionSettings
     camera = bpy.props.PointerProperty(type=CameraSettings)  # type: CameraSettings
     dof = bpy.props.PointerProperty(type=DofSettings)  # type: DofSettings
+    denoiser = bpy.props.PointerProperty(type=DenoiserSettings) # type: DenoiserSettings
 
     render_mode, rendermode_remap = create_core_enum_property(
         None,

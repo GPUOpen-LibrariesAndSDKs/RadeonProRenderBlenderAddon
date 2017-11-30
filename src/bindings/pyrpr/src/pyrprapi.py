@@ -307,6 +307,39 @@ def export(rpr_header, json_file_name, prefixes, castxml):
                 else:
                     self.depth = 0
 
+    class Callback(Type):
+        def __init__(self, type):
+            super().__init__('~~function~~')
+            self.function_type = type
+
+        def __repr__(self):
+            return 'pointer to function ' + repr(types.get(self.function_type, self.function_type))
+
+        def get_name_for_typedef(self):
+            assert self.function_type in types
+            ret_type = types[self.function_type].get_name_for_typedef()
+            ret_type = ret_type[:-1]
+            return ret_type
+
+        def get_name_for_var_decl(self):
+            assert self.function_type in types
+            return types[self.function_type].get_name_for_typedef()
+
+        def generate_cdecl(self):
+            # assert self.pointer_type in types, self.pointer_type
+            # return 'HELLO-generate_cdecl for' + self.pointer_type
+            return None
+
+        def calculate_depth(self):
+            if self.depth is None:
+                assert self.function_type
+                if self.function_type in types:
+                    anc = types[self.function_type]
+                    calculate_depth(anc)
+                    self.depth = anc.depth + 1
+                else:
+                    self.depth = 0
+
     class CvQualifiedType(Type):
 
         def __init__(self, type, const):
@@ -387,6 +420,10 @@ def export(rpr_header, json_file_name, prefixes, castxml):
 
     types = {c.get('id'): Type(c.get('name')) for c in root.findall('FundamentalType')}
 
+    for c in root.findall('FunctionType'):
+        for arg in c.findall('Argument'):
+            types[c.get('id')] = Callback(arg.get('type'))
+
     for c in root.findall('PointerType'):
         types[c.get('id')] = Pointer(c.get('type'))
 
@@ -426,6 +463,16 @@ def export(rpr_header, json_file_name, prefixes, castxml):
     functions = []
     for c in root.findall('Function'):
         name = c.get('name')
+
+        for arg in c.findall('Argument'):
+            nname = arg.get('name')
+            ttype = arg.get('type')
+            typename = types[ttype]
+
+            #FunctionDesc(self.name,
+            #             types[self.returns].get_name_for_typedef(),
+            #             [ArgDesc(arg[0], arg[1].get_name_for_typedef(), arg[2]) for arg in self.args])
+
         args = [(arg.get('name'), types[arg.get('type')], arg.get('default')) for arg in c.findall('Argument')]
 
         functions.append(Function(name, c.get('returns'), args))
@@ -520,9 +567,17 @@ if __name__=='__main__':
     rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
     json_file_name_rpr_support = 'pyrprsupportapi.json'
 
+    rpr_header_image_filters = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonImageFilters_cl.h'
+    json_file_name_image_filters = 'pyrprimagefiltersapi.json'
+
+    rpr_header_rpr_opencl = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender_CL.h'
+    json_file_name_rpr_opencl = 'pyrpropenclapi.json'
+
     if "Windows" == platform.system():
         rpr_header_rpr = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
         rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
+        rpr_header_image_filters = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonImageFilters_cl.h'
+        rpr_header_rpr_opencl = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender_CL.h'
 
     export(rpr_header_rpr, json_file_name_rpr,
            {
@@ -536,5 +591,19 @@ if __name__=='__main__':
                'type': ['rprx_', '_rprx'],
                'function': ['rprx'],
                'constant': ['RPRX_']
+           },
+           castxml)
+    export(rpr_header_image_filters, json_file_name_image_filters,
+           {
+               'type': ['rif_', '_rif'],
+               'function': ['rif'],
+               'constant': ['RIF_']
+           },
+           castxml)
+    export(rpr_header_rpr_opencl, json_file_name_rpr_opencl,
+           {
+               'type': ['rpr_cl_', 'fr_cl_'],
+               'function': ['rpr_cl'],
+               'constant': ['RPR_CL_', 'FR_CL_']
            },
            castxml)

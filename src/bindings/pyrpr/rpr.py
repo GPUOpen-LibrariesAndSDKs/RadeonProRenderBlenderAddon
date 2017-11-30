@@ -22,7 +22,7 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RprSupport64']
+    lib_names = ['RadeonProRender64', 'RprSupport64', 'RadeonImageFilters64']
     if "Windows" == platform.system():
         platform_folder = 'Win'
     elif "Linux" == platform.system():
@@ -102,6 +102,9 @@ def write_api(api_desc_fpath, f, abi_mode):
             print('typedef ', t.type, name, ';', file=f)
     for name, t in api.functions.items():
         if 'rprxGetLog' == name:continue
+        if 'rifContextExecuteCommandQueue' == name:
+            print('rif_int rifContextExecuteCommandQueue(rif_context context, rif_command_queue command_queue, void *executeFinishedCallbackFunction(void* userdata), void* data);', file=f)
+            continue
         print(name, [(arg.name, arg.type) for arg in t.args])
         print(t.restype, name, '(' + ', '.join(arg.type + ' ' + arg.name for arg in t.args) + ');', file=f)
 
@@ -113,5 +116,12 @@ if __name__ == "__main__":
         
                 
     export('pyrprapi.json', [], 'RadeonProRender.h', '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py', abi_mode)
+
     export('pyrprsupportapi.json', ['pyrprapi.json'],
            'RprSupport.h', '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py', abi_mode)
+
+    export('pyrprimagefiltersapi.json', [], 'RadeonImageFilters_cl.h',
+           '__imagefilters', 'pyrprimagefilterswrap.py', 'pyrprimagefilterswrap_make.py', abi_mode)
+
+    export('pyrpropenclapi.json', ['pyrprapi.json'],
+           'RadeonProRender_CL.h', '__rprcl', 'pyrpropenclwrap.py', 'pyrpropenclwrap_make.py', abi_mode)

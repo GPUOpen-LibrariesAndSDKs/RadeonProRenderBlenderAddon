@@ -10,6 +10,8 @@ import rprblender.render.device
 from rprblender.helpers import CallLogger
 from . import logging
 
+import pyrprimagefilters
+
 call_logger = CallLogger(tag='render')
 
 
@@ -50,12 +52,21 @@ class RenderLayers:
 
         self.init_data(aov_settings)
 
+        self.use_denoiser = False
+        self.filter_type = pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE
+
         for p in self.get_needed_passes(aov_settings):
             self.enable_aov(p)
 
     def get_needed_passes(self, aov_settings):
         # always create color fb(needed by RPR)
         yield 'default'
+
+        if self.use_denoiser:
+            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
+                yield 'geometric_normal'
+                yield 'world_coordinate'
+
         if self.alpha_combine:
             yield 'opacity'
 

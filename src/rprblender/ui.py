@@ -657,7 +657,6 @@ class RPRRender_PT_layers(RPRPanel, Panel):
         col = split.column()
         col.prop(scene.render.layers.active, "layers", text="Layer")
 
-
 @rpraddon.register_class
 class RPRRender_PT_passes_aov(RPRPanel, Panel):
     bl_label = "RPR Passes & AOVs"
@@ -705,6 +704,27 @@ class RPRRender_PT_passes_aov(RPRPanel, Panel):
             col = col2 if i >= count else col1
             col.prop(passes, 'passesStates', index=i, text=set[1])
 
+@rpraddon.register_class
+class RPRRender_PT_Denoiser(RPRPanel, Panel):
+    bl_label = "RPR Denoiser"
+    bl_context = "render_layer"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.rpr.render.denoiser, "enable", text='')
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.rpr.render.denoiser
+        col = layout.column()
+        col.enabled = settings.enable
+
+        row = col.row()
+        row.prop(settings, "filter_type")
+
+        import pyrprimagefilters
+        if settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
+            col.prop(settings, "radius")
 
 def draw_camera_settings(camera, layout):
     layout.prop(camera, "panorama_type")
