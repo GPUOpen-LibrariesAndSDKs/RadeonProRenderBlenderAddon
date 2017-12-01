@@ -1253,7 +1253,6 @@ class Material:
 
         # COATING
         coating_weight = self.get_value(blender_node, blender_node.coating_weight)
-        print(coating_weight, coating_weight == nul_value_vector)
         if coating_weight != nul_value_vector:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
                                 coating_weight)
