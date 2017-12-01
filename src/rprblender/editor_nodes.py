@@ -622,6 +622,47 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
                 col = row.column()
                 add_subdivision_properties(col, active_object)
 
+########################################################################################################################
+# PBR node
+########################################################################################################################
+@rpraddon.register_class
+class RPRShaderNode_PBR(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_pbr'
+    bl_label = 'RPR PBR'
+    bl_width_min = 300
+
+    base_color = 'Base Color'
+    roughness = 'Roughness'
+    metalness = 'Metalness'
+
+    coating_weight = 'Coating Weight'
+    coating_roughness = 'Coating Roughness'
+    normal_in = 'Normal'
+
+    emissive_color = 'Emission Color'
+    emissive_intensity = 'Emission Intensity'
+    transparency = 'Transparency'
+    
+    def init(self, context):
+        super(RPRShaderNode_PBR, self).init()
+
+        self.inputs.new('rpr_socket_color', self.base_color).default_value = (0.5, 0.5, 0.5, 1.0)
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.roughness).default_value = 0.25
+
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.metalness).default_value = 0.0
+
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.0
+
+        self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_factor', self.emissive_intensity).default_value = 0.0
+        
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency).default_value = 0.0
+        
+        self.inputs.new('rpr_socket_link', self.normal_in)
+        
+    def draw_buttons(self, context, layout):
+        pass
 
 ########################################################################################################################
 # Arithmetics nodes

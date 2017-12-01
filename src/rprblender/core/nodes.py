@@ -130,6 +130,13 @@ class ValueVector(Value):
         self.z = z
         self.w = w
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        else:
+            return self.x == other.x and self.y == other.y \
+                and self.z == other.z and self.w == other.w
+
     def __str__(self):
         return "<ValueVector: %s>" % ((self.x, self.y, self.z, self.w),)
 
@@ -1198,6 +1205,77 @@ class Material:
 
         return shader
 
+    def parse_shader_node_pbr(self, blender_node):
+        log_mat('parse_shader_node_pbr...')
+
+        shader = UberShader2(self)
+
+        nul_value_vector = ValueVector(0,0,0,0)
+        one_vector = ValueVector(1.0, 1.0, 1.0, 1.0)
+
+        # DIFFUSE:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR,
+                                  self.get_value(blender_node, blender_node.base_color))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT,
+                              one_vector)
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS,
+                                  self.get_value(blender_node, blender_node.roughness))
+        
+        # REFLECTION:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_COLOR,
+                              self.get_value(blender_node, blender_node.base_color))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT,
+                              one_vector)
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS,
+                              self.get_value(blender_node, blender_node.roughness))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE, 1)
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS,
+                              self.get_value(blender_node, blender_node.metalness))
+    
+        # REFRACTION:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT,
+                                  nul_value_vector)
+
+        # SSS
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
+                                  nul_value_vector)
+
+        # EMISSION
+        emissive_intensity = self.get_value(blender_node, blender_node.emissive_intensity)
+        if emissive_intensity != nul_value_vector:
+            emissive_color = self.get_value(blender_node, blender_node.emissive_color)
+            val = self.mul_value(emissive_color, emissive_intensity)
+
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, one_vector)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, nul_value_vector)
+
+        # COATING
+        coating_weight = self.get_value(blender_node, blender_node.coating_weight)
+        print(coating_weight, coating_weight == nul_value_vector)
+        if coating_weight != nul_value_vector:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
+                                coating_weight)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS,
+                                self.get_value(blender_node, blender_node.coating_roughness))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
+                              one_vector)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
+                              nul_value_vector)
+
+        # OPACITY
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_TRANSPARENCY,
+                                  self.get_value(blender_node, blender_node.transparency))
+
+        # NORMAL
+        normal_socket = self.get_socket(blender_node, blender_node.normal_in)
+        if normal_socket is not None:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_NORMAL, self.parse_node(normal_socket))
+
+        return shader
+
 
     def parse_input_node_constant(self, blender_node):
         log_mat('parse_input_node_constant...')
@@ -1610,6 +1688,7 @@ class Material:
             'rpr_shader_node_ward': self.parse_shader_node_ward,
             'rpr_shader_node_uber': self.parse_shader_node_uber,
             'rpr_shader_node_uber2': self.parse_shader_node_uber2,
+            'rpr_shader_node_pbr': self.parse_shader_node_pbr,
 
             'rpr_texture_node_image_map': self.parse_texture_node_image_map,
             'rpr_mapping_node': self.parse_mapping_node,
