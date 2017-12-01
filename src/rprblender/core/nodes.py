@@ -228,10 +228,9 @@ class Node:
         else:
             # attach rprx shader output to some material's input
             # note: there's no call to rprxShapeDetachMaterial
-            pyrprx.xMaterialAttachMaterial(rpr_node.rprx_context, self.get_handle(), name,
-                                           rpr_node.get_handle() if rpr_node.get_handle() else None)
-
-
+            assert rpr_node.get_handle()
+            pyrprx.xMaterialAttachMaterial(rpr_node.rprx_context, self.get_handle(), name, rpr_node.get_handle())
+            pyrprx.xMaterialCommit(rpr_node.rprx_context, rpr_node.get_handle())
 
     def set_node_rprx(self, parameter, rpr_node):
         pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
