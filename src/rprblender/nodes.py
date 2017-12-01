@@ -854,6 +854,7 @@ node_categories = [
         NodeItem("rpr_shader_node_blend"),
         NodeItem("rpr_shader_node_diffuse_refraction"),
         NodeItem("rpr_shader_node_oren_nayar"),
+        NodeItem("rpr_shader_node_pbr"),
         NodeItem("rpr_shader_node_refraction"),
         NodeItem("rpr_shader_node_reflection"),
         NodeItem("rpr_shader_node_transparent"),
