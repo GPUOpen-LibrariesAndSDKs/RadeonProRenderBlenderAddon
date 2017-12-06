@@ -22,12 +22,13 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RprSupport64', 'RadeonImageFilters64']
+    lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64']
+
     if "Windows" == platform.system():
         platform_folder = 'Win'
     elif "Linux" == platform.system():
         assert 'Ubuntu-16.04' in platform.platform()
-        platform_folder = 'Linux'
+        platform_folder = 'Linux/Ubuntu'
     else:
         assert False
 
@@ -39,8 +40,8 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
                        #include <""" + header_file_name + """>
                        """,
                        libraries=lib_names,
-                       include_dirs=[str(rprsdk_path / platform_folder / 'inc')],
-                       library_dirs=[str(rprsdk_path / platform_folder / 'lib' )],
+                       include_dirs=[str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc')],
+                       library_dirs=[str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' )],
                        source_extension='.cpp',
                        )
 
