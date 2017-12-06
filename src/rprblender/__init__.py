@@ -14,6 +14,7 @@ bl_info = {
 }
 
 import bpy
+import sys
 
 from . import logging
 logging.debug("loading addon");
@@ -119,7 +120,13 @@ def on_scene_update_post(scene):
     # for regular render(non-viewport which has its view_update) to optimize scene export -
     # make it iterative and not to re-export the whole scene every F12
     # print('on_scene_update_post', scene)
-    from . import ui
+    try:
+        from . import ui
+    except:
+        print("import ui failed")
+        # TN: Any issues with DLLs seem to show up here.  Uncomment for a quick
+        # exit while debugging
+        # sys.exit(0)
 
     # switch space.tree_type when we changed render engine
     if prev_engine != scene.render.engine and scene.render.engine == 'RPR':
