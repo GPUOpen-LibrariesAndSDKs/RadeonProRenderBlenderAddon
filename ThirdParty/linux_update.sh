@@ -1,7 +1,8 @@
+#!/bin/bash
 
-set ThirdPartyDir="../../RadeonProRenderThirdPartyComponents"
+ThirdPartyDir="../../RadeonProRenderThirdPartyComponents"
 
-IF exist $ThirdPartyDir ( 
+if [ -d "$ThirdPartyDir" ]; then
     echo Updating $ThirdPartyDir
 
     rm -rf AxfPackage
@@ -19,6 +20,6 @@ IF exist $ThirdPartyDir (
 
     cp -r $ThirdPartyDir/* .
 
-) ELSE ( 
+else
     echo Cannot update as %ThirdPartyDir% missing
-)
+fi
