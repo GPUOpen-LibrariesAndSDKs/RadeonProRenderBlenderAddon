@@ -3,6 +3,8 @@ import platform
 import traceback
 import inspect
 import ctypes
+import os
+import sys
 
 import pyrprimagefilterswrap
 from pyrprimagefilterswrap import *
@@ -17,15 +19,18 @@ class _init_data:
 
 
 def init(log_fun, rprsdk_bin_path):
-
     _module = __import__(__name__)
 
     _init_data._log_fun = log_fun
 
+    lib_platform = ""
+    rel_path = "../../../RadeonProImageProcessing"
     if "Windows" == platform.system():
         lib_name = 'RadeonImageFilters64.dll'
+        lib_platform = "Win/lib"
     elif "Linux" == platform.system():
         lib_name = 'RadeonImageFilters64.so'
+        lib_platform = "Linux/Ubuntu/lib64"
     else:
         assert False
 
@@ -34,7 +39,7 @@ def init(log_fun, rprsdk_bin_path):
     try:
         lib = __imagefilters.lib
     except AttributeError:
-        lib = __imagefilters.ffi.dlopen(str(rprsdk_bin_path/lib_name))
+        lib = __imagefilters.ffi.dlopen(str(rprsdk_bin_path / rel_path / lib_platform / lib_name))
 
     pyrprimagefilterswrap.lib = lib
     pyrprimagefilterswrap.ffi = __imagefilters.ffi
