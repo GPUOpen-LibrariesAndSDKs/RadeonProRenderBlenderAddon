@@ -29,7 +29,7 @@ def init(log_fun, rprsdk_bin_path):
         lib_name = 'RadeonImageFilters64.dll'
         lib_platform = "Win/lib"
     elif "Linux" == platform.system():
-        lib_name = 'RadeonImageFilters64.so'
+        lib_name = 'libRadeonImageFilters64.so'
         lib_platform = "Linux/Ubuntu/lib64"
     else:
         assert False
