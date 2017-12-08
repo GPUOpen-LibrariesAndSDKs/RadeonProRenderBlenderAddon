@@ -850,7 +850,7 @@ class DenoiserSettings(bpy.types.PropertyGroup):
 
     radius = bpy.props.IntProperty(
         name="Radius", description="Radius",
-        min = 1, max = 50, default = 10
+        min = 1, max = 50, default = 5
     )
 
     import pyrprimagefilters
