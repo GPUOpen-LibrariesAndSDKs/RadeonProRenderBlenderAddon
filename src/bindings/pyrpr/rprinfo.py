@@ -5,9 +5,12 @@ import os
 
 from pathlib import Path
 
-rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK/Win')
-
-rprsdk_bin_path = rprsdk_path / 'bin'
+if sys.platform == 'linux':
+    rprsdk_path = Path("../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu")
+    rprsdk_bin_path = rprsdk_path / 'lib'
+else:
+    rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK/Win')
+    rprsdk_bin_path = rprsdk_path / 'bin'
 
 sys.path.append('.build')
 sys.path.append('src')
@@ -38,7 +41,10 @@ if not os.path.isdir(".rprtrace"):
 pyrpr.ContextSetParameterString(ffi.NULL, b"tracingfolder", os.path.abspath(".rprtrace").encode('latin1'));
 pyrpr.ContextSetParameter1u(ffi.NULL, b"tracing", True);
 
-tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "Tahoe64.dll").encode('utf8'))
+if sys.platform == 'linux':
+    tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "libTahoe64.so").encode('utf8'))
+else:
+    tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "Tahoe64.dll").encode('utf8'))
 
 assert -1 != tahoePluginID
 

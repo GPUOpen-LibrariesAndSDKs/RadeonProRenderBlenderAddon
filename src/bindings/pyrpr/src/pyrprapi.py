@@ -567,7 +567,7 @@ if __name__=='__main__':
     rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
     json_file_name_rpr_support = 'pyrprsupportapi.json'
 
-    rpr_header_image_filters = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonImageFilters_cl.h'
+    rpr_header_image_filters = '../../../../ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include/RadeonImageFilters_cl.h'
     json_file_name_image_filters = 'pyrprimagefiltersapi.json'
 
     rpr_header_rpr_opencl = '../../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender_CL.h'
