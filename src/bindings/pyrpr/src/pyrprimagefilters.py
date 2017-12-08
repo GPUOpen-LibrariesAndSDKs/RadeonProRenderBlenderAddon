@@ -69,11 +69,18 @@ class Object:
         self._reset_handle()
 
     def __del__(self):
-        self.delete()
+        try:
+            self.delete()
+        except:
+            _init_data._log_fun('EXCEPTION:', traceback.format_exc())
+            raise
 
     def delete(self):
         if self._handle_ptr and self._get_handle():
-            ObjectDelete(self._get_handle())
+            if lib_wrapped_log_calls:
+                assert _init_data._log_fun
+                _init_data._log_fun('delete: ', self)
+            del self._handle_ptr
             self._reset_handle()
 
     def _reset_handle(self):
@@ -84,12 +91,10 @@ class Object:
 
 class ArrayObject:
     def __init__(self, core_type_name, init_data):
-        self.ffi_type_name = (core_type_name if core_type_name is not None else self.core_type_name)
-        self._handle_ptr = ffi.new(self.ffi_type_name, init_data)
+        self._handle_ptr = ffi.new(core_type_name, init_data)
 
     def __del__(self):
-        if self._handle_ptr:
-            ObjectDelete(self._handle_ptr[0])
+        del self._handle_ptr
 
 class RifContext(Object):
     core_type_name = 'rif_context'

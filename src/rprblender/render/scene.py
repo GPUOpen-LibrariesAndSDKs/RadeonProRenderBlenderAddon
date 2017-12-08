@@ -61,6 +61,7 @@ class SceneRenderer:
         self.has_shadowcatcher = False
         self.denoiser = False
         self.filter_type = None
+        self.is_filter_attached = False
 
         self.is_production = is_production
         self.used_iterations = 1
@@ -68,6 +69,12 @@ class SceneRenderer:
 
     @call_logger.logged
     def __del__(self):
+        if self.is_filter_attached:
+            pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                                                                         self.rif_image_filter)
+            pyrprimagefilters.ObjectDelete(self.rif_image_filter._get_handle())
+            pyrprimagefilters.ObjectDelete(self.rif_output_image._get_handle())
+
         self.render_layers = None
         if self.render_targets is not None:
             self.render_device.detach_render_target(self.render_targets)
@@ -96,6 +103,8 @@ class SceneRenderer:
             self.render_layers.enable_aov('background')
             self.render_layers.enable_aov('shadow_catcher')
 
+        self.render_device.attach_render_target(self.render_targets)
+
         if self.denoiser:
             self.render_layers.use_denoiser = True
             if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
@@ -103,7 +112,81 @@ class SceneRenderer:
                 self.render_layers.enable_aov('world_coordinate')
                 self.render_layers.filter_type = self.filter_type
 
-        self.render_device.attach_render_target(self.render_targets)
+                if self.is_filter_attached:
+                    pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                                                                    self.rif_image_filter)
+                    pyrprimagefilters.ObjectDelete(self.rif_image_filter._get_handle())
+                    pyrprimagefilters.ObjectDelete(self.rif_output_image._get_handle())
+                    pyrprimagefilters.ObjectDelete(self.geometric_normal_rif_image._get_handle())
+                    pyrprimagefilters.ObjectDelete(self.world_coordinate_rif_image._get_handle())
+                    pyrprimagefilters.ObjectDelete(self.input_rif_image._get_handle())
+
+                # Create resolved color frame buffer
+                desc = ffi.new("rpr_framebuffer_desc*")
+                width, height = self.render_targets.render_resolution
+                desc.fb_width, desc.fb_height = width, height
+
+                fmt = (4, pyrpr.COMPONENT_TYPE_FLOAT32)
+                self.resolved_frame_buffer = pyrpr.FrameBuffer()
+                pyrpr.ContextCreateFrameBuffer(self.get_core_context(), fmt, desc, self.resolved_frame_buffer)
+                pyrpr.FrameBufferClear(self.resolved_frame_buffer)
+
+                # Create output image
+                self.rif_output_image = pyrprimagefilters.RifImage()
+                rif_image_desc = pyrprimagefilters.ffi.new("rif_image_desc*")
+                image_size = pyrprimagefilters.ffi.new("size_t*")
+
+                self.input_rif_image = self._get_rif_image_from_rpr_frame_buffer(self.resolved_frame_buffer)
+                rif_result = pyrprimagefilters.ImageGetInfo(self.input_rif_image, pyrprimagefilters.IMAGE_DESC,
+                                                            sys.getsizeof(rif_image_desc),
+                                                            rif_image_desc, image_size)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                rif_result = pyrprimagefilters.ContextCreateImage(self.render_device.rif_context, rif_image_desc,
+                                                                  pyrprimagefilters.ffi.NULL,
+                                                                  self.rif_output_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                self.rif_image_filter = pyrprimagefilters.RifImageFilter()
+
+                # Create bilateral image filter
+                rif_result = pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
+                                                                        pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE,
+                                                                        self.rif_image_filter)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                self.geometric_normal_rif_image = self._get_rif_image_from_rpr_frame_buffer(
+                    self.render_targets.get_frame_buffer('geometric_normal'))
+                self.world_coordinate_rif_image = self._get_rif_image_from_rpr_frame_buffer(
+                    self.render_targets.get_frame_buffer('world_coordinate'))
+
+                self.input_rif_array = pyrprimagefilters.ArrayObject("rif_image[]", [self.input_rif_image._handle_ptr[0],
+                                                                                self.geometric_normal_rif_image._handle_ptr[0],
+                                                                                self.world_coordinate_rif_image._handle_ptr[0]])
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImageArray(self.rif_image_filter, b"inputs",
+                                                                                 self.input_rif_array, 3)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                self.sigmas = pyrprimagefilters.ffi.new("float[]", [0.8, 10.0, 10.0])
+                rif_result = pyrprimagefilters.ImageFilterSetParameterFloatArray(self.rif_image_filter, b"sigmas",
+                                                                                 self.sigmas, 3)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+
+                self.denoiser_radius = self.render_settings.denoiser.radius
+                rif_result = pyrprimagefilters.ImageFilterSetParameter1u(self.rif_image_filter, b"radius",
+                                                                            self.denoiser_radius)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                rif_result = pyrprimagefilters.ImageFilterSetParameter1u(self.rif_image_filter, b"inputsNum", 3)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+
+                rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
+                                                                             self.rif_image_filter, self.input_rif_image,
+                                                                             self.rif_output_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
+                self.is_filter_attached = True
 
     @call_logger.logged
     def update_render_region(self, render_region):
@@ -318,6 +401,7 @@ class SceneRenderer:
             yield False
 
             self.log_debug('render_proc inner loop iteration wait')
+
         self.log_debug('render_proc loops completed')
 
         self.log_debug('render_proc calc time:')
@@ -447,7 +531,9 @@ class SceneRenderer:
 
         im = self.render_targets.get_resolved_image(frame_buffer)
         if self.denoiser:
-            im = self._get_filtered_image(self.filter_type, frame_buffer)
+            im_den = self._get_filtered_image(frame_buffer)
+            return im_den
+
         return im
 
     def _get_shadow_catcher_image(self):
@@ -459,76 +545,36 @@ class SceneRenderer:
         image = self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
         return image
 
-    def _get_filtered_image(self, filter_type, frame_buffer):
-        # Create output image
-        rif_output_image = pyrprimagefilters.RifImage()
-        rif_image_desc = pyrprimagefilters.ffi.new("rif_image_desc*")
-        image_size = pyrprimagefilters.ffi.new("size_t*")
+    def _get_filtered_image(self, frame_buffer):
 
-        input_rif_image = self._get_rif_image_from_rpr_frame_buffer(frame_buffer)
+        if self.denoiser_radius != self.render_settings.denoiser.radius:
+            self.denoiser_radius = self.render_settings.denoiser.radius
+            rif_result = pyrprimagefilters.ImageFilterSetParameter1u(self.rif_image_filter, b"radius",
+                                                                 self.denoiser_radius)
+            assert rif_result == pyrprimagefilters.SUCCESS
 
-        pyrprimagefilters.ImageGetInfo(input_rif_image, pyrprimagefilters.IMAGE_DESC, sys.getsizeof(rif_image_desc),
-                                       rif_image_desc, image_size)
-        pyrprimagefilters.ContextCreateImage(self.render_device.rif_context, rif_image_desc, pyrprimagefilters.ffi.NULL,
-                                             rif_output_image)
+        pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, frame_buffer, self.resolved_frame_buffer)
 
-        rif_image_filter = pyrprimagefilters.RifImageFilter()
+        rif_result = pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
+                                                pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL)
+        assert rif_result == pyrprimagefilters.SUCCESS
 
-        # Create bilateral image filter
-        if filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
-            pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
-                                                       pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE,
-                                                       rif_image_filter)
-
-            geometric_normal_rif_image = self._get_rif_image_from_rpr_frame_buffer(
-                self.render_targets.get_frame_buffer('geometric_normal'))
-            world_coordinate_rif_image = self._get_rif_image_from_rpr_frame_buffer(
-                self.render_targets.get_frame_buffer('world_coordinate'))
-
-            input_rif_array = pyrprimagefilters.ArrayObject("rif_image[]", [input_rif_image._handle_ptr[0],
-                                                                            geometric_normal_rif_image._handle_ptr[0],
-                                                                            world_coordinate_rif_image._handle_ptr[0]])
-
-            pyrprimagefilters.ImageFilterSetParameterImageArray(rif_image_filter, b"inputs",
-                                                                input_rif_array, 3)
-
-            sigmas = np.empty(3, dtype=float)
-            sigmas.itemset(0, 0.3)
-            sigmas.itemset(1, 0.01)
-            sigmas.itemset(2, 0.01)
-            pyrprimagefilters.ImageFilterSetParameterFloatArray(rif_image_filter, b"sigmas",
-                           pyrprimagefilters.ffi.cast("float*", sigmas.ctypes.data), 3)
-
-            pyrprimagefilters.ImageFilterSetParameter1u(rif_image_filter, b"radius",
-                                                        self.render_settings.denoiser.radius)
-
-            pyrprimagefilters.ImageFilterSetParameter1u(rif_image_filter, b"inputsNum", 3)
-
-            pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
-                                                        rif_image_filter, input_rif_image, rif_output_image)
-
-        pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
-                                              pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL)
+        # Store results in float array to form final image
+        mapped_data = pyrprimagefilters.ffi.new("void**")
+        rif_result = pyrprimagefilters.ImageMap(self.rif_output_image, pyrprimagefilters.IMAGE_MAP_READ, mapped_data)
+        assert rif_result == pyrprimagefilters.SUCCESS
 
         width, height = self.render_targets.render_resolution
 
-        mapped_data = pyrprimagefilters.ffi.new("void**")
-
-        # Store results in float array to form final image
-        pyrprimagefilters.ImageMap(rif_output_image, pyrprimagefilters.IMAGE_MAP_READ,
-                                   mapped_data)
         float_data = pyrprimagefilters.ffi.cast("float*", mapped_data[0])
 
         buffer_size = width*height*4*4
-
         float_out_buffer = pyrprimagefilters.ffi.buffer(float_data, buffer_size)
 
         output = np.frombuffer(float_out_buffer, dtype=np.float32).reshape(height, width, 4)
 
-        pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
-                                                        rif_image_filter)
-
-        pyrprimagefilters.ImageUnmap(rif_output_image, mapped_data[0])
+        rif_result = pyrprimagefilters.ImageUnmap(self.rif_output_image, mapped_data[0])
+        assert rif_result == pyrprimagefilters.SUCCESS
 
         return output
 
@@ -546,7 +592,7 @@ class SceneRenderer:
         rif_image_desc.num_components = 4
         rif_image_desc.image_row_pitch = 0
         rif_image_desc.image_slice_pitch = 0
-        rif_image_desc.type = pyrpr.COMPONENT_TYPE_FLOAT32
+        rif_image_desc.type = pyrprimagefilters.COMPONENT_TYPE_FLOAT32
 
         clmem = pyrpropencl.ffi.new("rpr_cl_mem*")
         pyrpr.FrameBufferGetInfo(rpr_frame_buffer, pyrpropencl.MEM_OBJECT,
