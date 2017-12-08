@@ -35,7 +35,6 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         assert False
 
     inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc')]
-    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str("C:\dev/repo/git/osrpr/RadeonProRenderBlenderAddon/ThirdParty/RadeonProImageProcessing/Win/inc")]
     lib_dir = [str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' )]
     for d in inc_dir:
         if not os.path.isfile:
