@@ -2,48 +2,52 @@
 
 set -e
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
+
 RPR_SDK="ThirdParty/RadeonProRender SDK/Linux-Ubuntu"
 IMAGE_FILTER_DIR="ThirdParty/RadeonProImageProcessing/Linux/Ubuntu"
 IMAGE_FILTER_LIBNAME="libRadeonImageFilters64.so"
 
-function pre_init()
+function init()
 {
-	# Python scipts waiting, that all dynamic dependecies will be at RadeonSDK directory.
-	# It is not well, as in future RPR can have more dynamic deps and they can be suitied in different
-	# directories
-	
-	if [ ! -f "$RPR_SDK/lib/$IMAGE_FILTER_LIBNAME" ];
-	then
-		cp "$IMAGE_FILTER_DIR/lib64/$IMAGE_FILTER_LIBNAME" "$RPR_SDK/lib/$IMAGE_FILTER_LIBNAME"
+	if [ ! -x "$BLENDER_EXE" ]; then
+		echo "Could not find blender application. Please, specify BLENDER_EXE environment variable"
+		exit 1
 	fi
+
+	if [[ ! "$WORK_DIR" || ! -d "$WORK_DIR" ]]; then
+		echo "Could not create work dir $WORK_DIR"
+		exit 2
+	fi
+
+	# link rpr libs to workdir
+	for f in "$DIR/$RPR_SDK/lib/"*.so; do
+		ln -s "$f" "$WORK_DIR/"
+	done
+	# link imageprocessing lib to workdir
+	ln -s "$DIR/$IMAGE_FILTER_DIR/lib64/$IMAGE_FILTER_LIBNAME" "$WORK_DIR/"
+
+	# link helper to workdir
+	ln -s "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
 }
 
+# deletes the work directory
+function cleanup {      
+	rm -rf "$WORK_DIR"
+}
 
-if [ -x "$BLENDER_EXE" ]; then
+# register the cleanup function to be called on the EXIT signal
+trap cleanup EXIT
 
-	pre_init
-	
-	rm -rf dist/
-	mkdir dist
-	cp -r "ThirdParty/RadeonProRender SDK/Linux-Ubuntu/lib" dist/
-	cp ./RPRBlenderHelper/.build/libRPRBlenderHelper.so dist/lib
+function main() 
+{
+	init
 
-	ln -s dist/lib distlib 
-
-	CDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-	DIST_LIB="$CDIR/distlib"
-
-	export LD_LIBRARY_PATH="$DIST_LIB:$LD_LIBRARY_PATH"
+	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
 	python3 tests/commandline/run_blender.py "$BLENDER_EXE" tests/commandline/test_rpr.py
 
-#	rm distlib
+}
 
-	exit
-
-else
-
-	echo "Could not file blender application"
-
-fi
-
+main
