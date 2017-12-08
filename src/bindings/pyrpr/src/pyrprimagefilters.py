@@ -39,7 +39,10 @@ def init(log_fun, rprsdk_bin_path):
     try:
         lib = __imagefilters.lib
     except AttributeError:
-        lib = __imagefilters.ffi.dlopen(str(rprsdk_bin_path / rel_path / lib_platform / lib_name))
+        lib_path = str(rprsdk_bin_path / lib_name )
+        if not os.path.isfile(lib_path):
+            lib_path = str(rprsdk_bin_path / rel_path / lib_platform / lib_name ) 
+        lib = __imagefilters.ffi.dlopen(lib_path)
 
     pyrprimagefilterswrap.lib = lib
     pyrprimagefilterswrap.ffi = __imagefilters.ffi
