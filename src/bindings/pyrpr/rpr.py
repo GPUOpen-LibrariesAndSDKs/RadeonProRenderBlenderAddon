@@ -1,6 +1,8 @@
 #!python3
 import platform
 import sys
+import os
+
 from pathlib import Path
 
 import cffi
@@ -32,6 +34,18 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     else:
         assert False
 
+    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc')]
+    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str("C:\dev/repo/git/osrpr/RadeonProRenderBlenderAddon/ThirdParty/RadeonProImageProcessing/Win/inc")]
+    lib_dir = [str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' )]
+    for d in inc_dir:
+        if not os.path.isfile:
+            print("Bad include path: '%s'" % d)
+            assert False
+    for d in lib_dir:
+        if not os.path.isfile:
+            print("Bad lib path: '%s'" % d)
+            assert False
+
     if abi_mode:
         ffi.set_source(cffi_name, None)
     else:
@@ -40,8 +54,8 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
                        #include <""" + header_file_name + """>
                        """,
                        libraries=lib_names,
-                       include_dirs=[str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc')],
-                       library_dirs=[str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' )],
+                       include_dirs=inc_dir,
+                       library_dirs=lib_dir,
                        source_extension='.cpp',
                        )
 
