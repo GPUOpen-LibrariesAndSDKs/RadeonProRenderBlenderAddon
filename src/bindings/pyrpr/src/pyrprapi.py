@@ -576,7 +576,7 @@ if __name__=='__main__':
     if "Windows" == platform.system():
         rpr_header_rpr = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
         rpr_header_rpr_support = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
-        rpr_header_image_filters = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonImageFilters_cl.h'
+        rpr_header_image_filters = '../../../../ThirdParty/RadeonProImageProcessing/Win/inc/RadeonImageFilters_cl.h'
         rpr_header_rpr_opencl = '../../../../ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender_CL.h'
 
     export(rpr_header_rpr, json_file_name_rpr,

@@ -542,6 +542,10 @@ class SceneRenderer:
         # Always apply normalization, aov need this too.
         post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
 
+        if self.denoiser:
+            image_den = self._get_filtered_image(self.get_shadowcatcher_framebuffer())
+            return image_den
+
         image = self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
         return image
 
