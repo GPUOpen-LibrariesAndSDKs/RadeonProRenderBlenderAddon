@@ -445,7 +445,6 @@ class RPRRender_PT_environment(RPRPanel, Panel):
             if env.ibl.type == 'COLOR':
                 row.prop(env.ibl, "color")
             else:
-                col.prop(env.ibl, "use_ibl_map", text='')
                 if versions.is_blender_support_ibl_image():
                     row.template_ID(env.ibl, "ibl_image", open="image.open")
                 else:

@@ -31,3 +31,4 @@ build_output/
 /Installer/PluginInstaller/Generated/MatLibrary.wxs
 /output
 /dist
+.DS_Store

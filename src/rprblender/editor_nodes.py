@@ -311,7 +311,7 @@ class OBJECT_OT_Button(bpy.types.Operator):
 @rpraddon.register_class
 class RPRShaderNode_Uber(RPRNodeType_Shader):
     bl_idname = 'rpr_shader_node_uber'
-    bl_label = 'RPR Uber'
+    bl_label = 'RPR Uber (deprecated)'
     bl_width_min = 190
 
     diffuse_color_in = 'Diffuse Color'
@@ -404,7 +404,7 @@ class RPRShaderNode_Uber(RPRNodeType_Shader):
 @rpraddon.register_class
 class RPRShaderNode_Uber2(RPRNodeType_Shader):
     bl_idname = 'rpr_shader_node_uber2'
-    bl_label = 'RPR Uber2'
+    bl_label = 'RPR Uber'
     bl_width_min = 300
 
     diffuse_color = 'Diffuse Color'
@@ -428,8 +428,7 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
     coating_weight = 'Coating Weight'
     coating_roughness = 'Coating Roughness'
     coating_fresnel_ior = 'Coating Fresnel IOR'
-    coating_fresnel_metalness = 'Coating Fresnel Metalness'
-
+    
     emissive_color = 'Emissive Color'
     emissive_intensity = 'Emissive Intensity'
     emissive_weight = 'Emissive Weight'
@@ -475,12 +474,7 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         self.inputs[self.coating_color].enabled = self.coating
         self.inputs[self.coating_weight].enabled = self.coating
         self.inputs[self.coating_roughness].enabled = self.coating
-        self.inputs[self.coating_fresnel_ior].enabled = self.coating and not self.coating_fresnel_metal_material
-        self.inputs[self.coating_fresnel_metalness].enabled = self.coating and self.coating_fresnel_metal_material
-
-    def coating_fresnel_metal_material_changed(self, context):
-        self.inputs[self.coating_fresnel_ior].enabled = not self.coating_fresnel_metal_material
-        self.inputs[self.coating_fresnel_metalness].enabled = self.coating_fresnel_metal_material
+        self.inputs[self.coating_fresnel_ior].enabled = self.coating
 
     def emissive_changed(self, context):
         self.inputs[self.emissive_color].enabled = self.emissive
@@ -519,7 +513,6 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
     refraction_thin_surface = bpy.props.BoolProperty(name='Refraction Thin Surface')
 
     coating = bpy.props.BoolProperty(name='Coating', update=coating_changed)
-    coating_fresnel_metal_material = bpy.props.BoolProperty(name='Reflection Fresnel Metal Material', update=coating_fresnel_metal_material_changed)
 
     emissive = bpy.props.BoolProperty(name='Emissive', update=emissive_changed)
     emissive_double_sided = bpy.props.BoolProperty(name='Emissive Double Sided')
@@ -537,11 +530,11 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
         self.inputs.new('rpr_socket_color', self.diffuse_color).default_value = (0.644, 0.644, 0.644, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_roughness).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_roughness).default_value = 0.5
 
         self.inputs.new('rpr_socket_color', self.reflection_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_roughness).default_value = 0.25
         self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.reflection_anisotropy).default_value = 0.0
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_anisotropy_rotation).default_value = 0.0
         self.inputs.new('rpr_socket_float_softMin0_softMax2', self.reflection_fresnel_ior).default_value = 1.5
@@ -549,14 +542,13 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
         self.inputs.new('rpr_socket_color', self.refraction_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_roughness).default_value = 0.1
         self.inputs.new('rpr_socket_float_softMin0_softMax2', self.refraction_ior).default_value = 1.5
 
         self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.01
         self.inputs.new('rpr_socket_float_softMin0_softMax2', self.coating_fresnel_ior).default_value = 1.5
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_fresnel_metalness).default_value = 1.0
 
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_factor', self.emissive_intensity)
@@ -600,9 +592,7 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
             row.prop(self, 'refraction_thin_surface', toggle=False)
 
         row.prop(self, 'coating', toggle=True)
-        if self.coating:
-            row.prop(self, 'coating_fresnel_metal_material', toggle=False)
-
+        
         row.prop(self, 'emissive', toggle=True)
         if self.emissive:
             row.prop(self, 'emissive_double_sided', toggle=False)
