@@ -1103,20 +1103,11 @@ class Material:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS,
                                 self.get_value(blender_node, blender_node.coating_roughness))
 
-            is_metal_material = blender_node.coating_fresnel_metal_material
-
-            if is_metal_material:
-                # metallic material:
-                shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_METALNESS,
-                                    self.get_value(blender_node, blender_node.coating_fresnel_metalness))
-                shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE,
-                                    pyrprx.UBER_MATERIAL_COATING_MODE_METALNESS)
-            else:
-                # PBR material:
-                shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_IOR,
-                                    self.get_value(blender_node, blender_node.coating_fresnel_ior))
-                shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE,
-                                    pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
+            # PBR material:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_IOR,
+                                self.get_value(blender_node, blender_node.coating_fresnel_ior))
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE,
+                                pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
                                   nul_value_vector)
