@@ -2,15 +2,15 @@
 # 1 "<built-in>" 1
 # 1 "<built-in>" 3
 #define __castxml__ 1000
-#define __castxml_clang_major__ 5
-#define __castxml_clang_minor__ 0
-#define __castxml_clang_patchlevel__ 0
+#define __castxml_clang_major__ 3
+#define __castxml_clang_minor__ 8
+#define __castxml_clang_patchlevel__ 1
 #define __llvm__ 1
 #define __clang__ 1
-#define __clang_major__ 5
-#define __clang_minor__ 0
-#define __clang_patchlevel__ 0
-#define __clang_version__ "5.0.0 (tags/RELEASE_500/final)"
+#define __clang_major__ 3
+#define __clang_minor__ 8
+#define __clang_patchlevel__ 1
+#define __clang_version__ "3.8.1 (tags/RELEASE_381/final)"
 #define __ATOMIC_RELAXED 0
 #define __ATOMIC_CONSUME 1
 #define __ATOMIC_ACQUIRE 2
@@ -18,21 +18,19 @@
 #define __ATOMIC_ACQ_REL 4
 #define __ATOMIC_SEQ_CST 5
 #define __PRAGMA_REDEFINE_EXTNAME 1
-#define __VERSION__ "4.2.1 Compatible Clang 5.0.0 (tags/RELEASE_500/final)"
+#define __VERSION__ "4.2.1 Compatible Clang 3.8.1 (tags/RELEASE_381/final)"
 #define IBOutlet __attribute__((iboutlet))
 #define IBOutletCollection(ClassName) __attribute__((iboutletcollection(ClassName)))
 #define IBAction void)__attribute__((ibaction)
 #define IBInspectable 
 #define IB_DESIGNABLE 
-#define __OBJC_BOOL_IS_BOOL 0
 #define __cpp_rtti 199711
-#define __cpp_exceptions 199711
 #define __cpp_unicode_characters 200704
 #define __cpp_raw_strings 200710
 #define __cpp_unicode_literals 200710
 #define __cpp_user_defined_literals 200809
 #define __cpp_lambdas 200907
-#define __cpp_constexpr 201304
+#define __cpp_constexpr 200704
 #define __cpp_range_based_for 200907
 #define __cpp_static_assert 200410
 #define __cpp_decltype 200707
@@ -42,18 +40,9 @@
 #define __cpp_initializer_lists 200806
 #define __cpp_delegating_constructors 200604
 #define __cpp_nsdmi 200809
-#define __cpp_inheriting_constructors 201511
+#define __cpp_inheriting_constructors 200802
 #define __cpp_ref_qualifiers 200710
 #define __cpp_alias_templates 200704
-#define __cpp_threadsafe_static_init 200806
-#define __cpp_binary_literals 201304
-#define __cpp_digit_separators 201309
-#define __cpp_init_captures 201304
-#define __cpp_generic_lambdas 201304
-#define __cpp_decltype_auto 201304
-#define __cpp_return_type_deduction 201304
-#define __cpp_aggregate_nsdmi 201304
-#define __cpp_variable_templates 201304
 #define __CONSTANT_CFSTRINGS__ 1
 #define OBJC_NEW_PROPERTIES 1
 #define __DEPRECATED 1
@@ -305,16 +294,6 @@
 #define __UINT_FAST64_FMTX__ "llX"
 #define __USER_LABEL_PREFIX__ 
 #define __FINITE_MATH_ONLY__ 0
-#define __CLANG_ATOMIC_BOOL_LOCK_FREE 2
-#define __CLANG_ATOMIC_CHAR_LOCK_FREE 2
-#define __CLANG_ATOMIC_CHAR16_T_LOCK_FREE 2
-#define __CLANG_ATOMIC_CHAR32_T_LOCK_FREE 2
-#define __CLANG_ATOMIC_WCHAR_T_LOCK_FREE 2
-#define __CLANG_ATOMIC_SHORT_LOCK_FREE 2
-#define __CLANG_ATOMIC_INT_LOCK_FREE 2
-#define __CLANG_ATOMIC_LONG_LOCK_FREE 2
-#define __CLANG_ATOMIC_LLONG_LOCK_FREE 2
-#define __CLANG_ATOMIC_POINTER_LOCK_FREE 2
 #define __NO_INLINE__ 1
 #define __PIC__ 2
 #define __pic__ 2
@@ -347,13 +326,10 @@
 #define _WIN32 1
 #define _WIN64 1
 #define _CPPRTTI 1
-#define _CPPUNWIND 1
 #define __BOOL_DEFINED 1
-#define _MSC_VER 1900
-#define _MSC_FULL_VER 190024215
+#define _MSC_VER 1800
+#define _MSC_FULL_VER 180000000
 #define _MSC_BUILD 1
-#define _HAS_CHAR16_T_LANGUAGE_SUPPORT 1
-#define _MSVC_LANG 201402L
 #define _MSC_EXTENSIONS 1
 #define _RVALUE_REFERENCES_V2_SUPPORTED 1
 #define _RVALUE_REFERENCES_SUPPORTED 1
@@ -362,8 +338,7 @@
 #define _M_X64 100
 #define _M_AMD64 100
 #define __STDC_HOSTED__ 1
-#define __cplusplus 201402L
-#define __STDCPP_DEFAULT_NEW_ALIGNMENT__ 8ULL
+#define __cplusplus 201103L
 #define __STDC_UTF_16__ 1
 #define __STDC_UTF_32__ 1
 #define __OBJC__ 1
@@ -2050,8 +2025,8 @@ extern "C" {
 # 2970 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\sal.h" 2 3
 # 45 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\vcruntime.h" 2 3
 
-# 1 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\vadefs.h" 1 3
-# 30 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\vadefs.h" 3
+# 1 "D:\\Install\\castxml/share/castxml/clang\\include\\vadefs.h" 1 3
+# 30 "D:\\Install\\castxml/share/castxml/clang\\include\\vadefs.h" 3
 #define __clang_vadefs_h 
 
 
@@ -2146,8 +2121,8 @@ extern "C" {
 
 
 #pragma pack(pop)
-# 33 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\vadefs.h" 2 3
-# 52 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\vadefs.h" 3
+# 33 "D:\\Install\\castxml/share/castxml/clang\\include\\vadefs.h" 2 3
+# 52 "D:\\Install\\castxml/share/castxml/clang\\include\\vadefs.h" 3
 #undef __crt_va_start
 #define __crt_va_start(ap,param) __builtin_va_start(ap, param)
 
@@ -2225,9 +2200,9 @@ extern "C" {
 #define _VCRT_RESTRICT __declspec(restrict)
 
 
-#define _VCRT_ALLOCATOR __declspec(allocator)
 
 
+#define _VCRT_ALLOCATOR 
 
 
 
@@ -2339,16 +2314,16 @@ extern uintptr_t __security_cookie;
 #pragma pack(pop)
 # 9 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\crtdefs.h" 2 3
 
-# 1 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 1 3
-# 10 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 1 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 1 3
+# 10 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 # 1 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\vcruntime.h" 1 3
-# 10 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 2 3
+# 10 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 2 3
 
 
 #pragma pack(push, 8)
-# 12 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 12 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
  extern "C" {
-# 27 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 27 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _ACRTIMP 
 
 
@@ -2357,7 +2332,7 @@ extern uintptr_t __security_cookie;
 
 
 #define _ACRTIMP_ALT _ACRTIMP
-# 43 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 43 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _DCRTIMP 
 
 
@@ -2369,8 +2344,16 @@ extern uintptr_t __security_cookie;
 
 
 
-#define _CRTALLOCATOR __declspec(allocator)
-# 64 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+
+
+#define _CRTALLOCATOR 
+
+
+
+
+
+
+
 #define _CRT_JIT_INTRINSIC 
 
 
@@ -2379,7 +2362,7 @@ extern uintptr_t __security_cookie;
 
 
 #define _CRT_GUARDOVERFLOW 
-# 83 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 83 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _WConst_return _CONST_RETURN
 
 
@@ -2406,7 +2389,7 @@ extern uintptr_t __security_cookie;
 
 
 #define __crt_typefix(ctype) 
-# 119 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 119 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 extern "C++"
 {
     template<bool _Enable, typename _Ty>
@@ -2422,7 +2405,7 @@ extern "C++"
 
 
     typedef bool __crt_bool;
-# 142 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 142 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _ARGMAX 100
 #define _TRUNCATE ((size_t)-1)
 #define _CRT_INT_MAX 2147483647
@@ -2433,11 +2416,11 @@ extern "C++"
 
 
 #define _STATIC_ASSERT(expr) typedef char __static_assert_t[(expr) != 0]
-# 175 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 175 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_FUNCTIONS_REQUIRED 1
-# 184 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 184 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_UNUSED(x) (void)x
-# 207 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 207 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_USE_WINAPI_FAMILY_DESKTOP_APP 
 
 
@@ -2449,24 +2432,24 @@ extern "C++"
 
 
 #define _CRT_BUILD_DESKTOP_APP 1
-# 247 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 247 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
  void __cdecl _invalid_parameter_noinfo(void);
          __declspec(noreturn) void __cdecl _invalid_parameter_noinfo_noreturn(void);
 
 __declspec(noreturn)
          void __cdecl _invoke_watson(
-               wchar_t const*,
-               wchar_t const*,
-               wchar_t const*,
-               unsigned int,
-               uintptr_t);
-# 274 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+               wchar_t const* _Expression,
+               wchar_t const* _FunctionName,
+               wchar_t const* _FileName,
+               unsigned int _LineNo,
+               uintptr_t _Reserved);
+# 274 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_INVALID_PARAMETER(expr) ::_invalid_parameter_noinfo_noreturn()
-# 286 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 286 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_INTERNAL_NONSTDC_NAMES ( ( defined _CRT_DECLARE_NONSTDC_NAMES && _CRT_DECLARE_NONSTDC_NAMES) || (!defined _CRT_DECLARE_NONSTDC_NAMES && !__STDC__ ) )
-# 300 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 300 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_NONSTDC_DEPRECATE(_NewName) _CRT_DEPRECATE_TEXT( "The POSIX name for this item is deprecated. Instead, use the ISO C " "and C++ conformant name: " #_NewName ". See online help for details.")
-# 321 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 321 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _PGLOBAL 
 
 
@@ -2476,25 +2459,25 @@ __declspec(noreturn)
 
 
 #define _AGLOBAL 
-# 367 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 367 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __STDC_SECURE_LIB__ 200411L
 #define __GOT_SECURE_LIB__ __STDC_SECURE_LIB__
 
 
 #define __STDC_WANT_SECURE_LIB__ 1
-# 391 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 391 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_INSECURE_DEPRECATE_GLOBALS(replacement) _CRT_INSECURE_DEPRECATE(replacement)
-# 400 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 400 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _SECURECRT_FILL_BUFFER_PATTERN 0xFE
-# 410 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 410 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_OBSOLETE(_NewItem) _CRT_DEPRECATE_TEXT( "This function or variable has been superceded by newer library " "or operating system functionality. Consider using " #_NewItem " " "instead. See online help for details.")
-# 419 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 419 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 0
-# 429 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 429 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT 0
-# 438 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 438 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES 1
-# 449 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 449 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_MEMORY 0
 
 
@@ -2504,9 +2487,9 @@ __declspec(noreturn)
 
 
 #define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES_MEMORY 0
-# 466 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 466 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define _CRT_SECURE_CPP_NOTHROW throw()
-# 476 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 476 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 typedef int errno_t;
 typedef unsigned short wint_t;
 typedef unsigned short wctype_t;
@@ -2535,7 +2518,7 @@ typedef struct _Mbstatet
 } _Mbstatet;
 
 typedef _Mbstatet mbstate_t;
-# 517 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 517 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
         typedef __time64_t time_t;
 
 
@@ -2547,31 +2530,31 @@ typedef _Mbstatet mbstate_t;
 
 
  typedef size_t rsize_t;
-# 541 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 541 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_0(_ReturnType,_FuncName,_DstType,_Dst) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size]) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Dst, _Size); } }
-# 552 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 552 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1(_ReturnType,_FuncName,_DstType,_Dst,_TType1,_TArg1) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Dst, _Size, _TArg1); } }
-# 563 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 563 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2(_ReturnType,_FuncName,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Dst, _Size, _TArg1, _TArg2); } }
-# 574 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 574 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_3(_ReturnType,_FuncName,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2,_TType3,_TArg3) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Dst, _Size, _TArg1, _TArg2, _TArg3); } }
-# 585 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 585 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_4(_ReturnType,_FuncName,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2,_TType3,_TArg3,_TType4,_TArg4) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3, _TType4 _TArg4) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Dst, _Size, _TArg1, _TArg2, _TArg3, _TArg4); } }
-# 596 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 596 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_1(_ReturnType,_FuncName,_HType1,_HArg1,_DstType,_Dst,_TType1,_TArg1) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _DstType (&_Dst)[_Size], _TType1 _TArg1) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_HArg1, _Dst, _Size, _TArg1); } }
-# 607 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 607 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_2(_ReturnType,_FuncName,_HType1,_HArg1,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_HArg1, _Dst, _Size, _TArg1, _TArg2); } }
-# 618 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 618 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_3(_ReturnType,_FuncName,_HType1,_HArg1,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2,_TType3,_TArg3) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2, _TType3 _TArg3) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_HArg1, _Dst, _Size, _TArg1, _TArg2, _TArg3); } }
-# 629 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 629 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_2_0(_ReturnType,_FuncName,_HType1,_HArg1,_HType2,_HArg2,_DstType,_Dst) extern "C++" { template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_HType1 _HArg1, _HType2 _HArg2, _DstType (&_Dst)[_Size]) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_HArg1, _HArg2, _Dst, _Size); } }
-# 640 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 640 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_1_ARGLIST(_ReturnType,_FuncName,_VFuncName,_DstType,_Dst,_TType1,_TArg1) extern "C++" { __pragma(warning(push)); __pragma(warning(disable: 4793)); template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1, ...) _CRT_SECURE_CPP_NOTHROW { va_list _ArgList; __crt_va_start(_ArgList, _TArg1); return _VFuncName(_Dst, _Size, _TArg1, _ArgList); } __pragma(warning(pop)); }
-# 656 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 656 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_2_ARGLIST(_ReturnType,_FuncName,_VFuncName,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2) extern "C++" { __pragma(warning(push)); __pragma(warning(disable: 4793)); template <size_t _Size> inline _ReturnType __CRTDECL _FuncName(_DstType (&_Dst)[_Size], _TType1 _TArg1, _TType2 _TArg2, ...) _CRT_SECURE_CPP_NOTHROW { va_list _ArgList; __crt_va_start(_ArgList, _TArg2); return _VFuncName(_Dst, _Size, _TArg1, _TArg2, _ArgList); } __pragma(warning(pop)); }
-# 672 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 672 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_SECURE_FUNC_SPLITPATH(_ReturnType,_FuncName,_DstType,_Src) extern "C++" { template <size_t _DriveSize, size_t _DirSize, size_t _NameSize, size_t _ExtSize> inline _ReturnType __CRTDECL _FuncName( _In_z_ _DstType const* _Src, _Post_z_ _DstType (&_Drive)[_DriveSize], _Post_z_ _DstType (&_Dir)[_DirSize], _Post_z_ _DstType (&_Name)[_NameSize], _Post_z_ _DstType (&_Ext)[_ExtSize] ) _CRT_SECURE_CPP_NOTHROW { return _FuncName(_Src, _Drive, _DriveSize, _Dir, _DirSize, _Name, _NameSize, _Ext, _ExtSize); } }
-# 709 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 709 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(_ReturnType,_ReturnPolicy,_DeclSpec,_FuncName,_SalAttributeDst,_DstType,_Dst) __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0_EX(_ReturnType, _ReturnPolicy, _DeclSpec, _FuncName, _FuncName##_s, _SalAttributeDst, _DstType, _Dst)
 
 
@@ -2635,7 +2618,7 @@ typedef _Mbstatet mbstate_t;
 
 
 #define __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE(_DeclSpec,_FuncName,_SalAttributeDst,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2,_TType3,_TArg3) __DEFINE_CPP_OVERLOAD_STANDARD_NFUNC_0_3_SIZE_EX(_DeclSpec, _FuncName, _FuncName##_s, _DstType, _SalAttributeDst, _DstType, _Dst, _TType1, _TArg1, _TType2, _TArg2, _TType3, _TArg3)
-# 1782 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 1782 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #define __RETURN_POLICY_SAME(_FunctionCall) 
 #define __RETURN_POLICY_DST(_FunctionCall) 
 #define __RETURN_POLICY_VOID(_FunctionCall) 
@@ -2779,9 +2762,9 @@ typedef _Mbstatet mbstate_t;
 
 
 #define __DEFINE_CPP_OVERLOAD_INLINE_NFUNC_0_3_EX(_ReturnType,_ReturnPolicy,_FuncName,_SecureFuncName,_SecureDstType,_SalAttributeDst,_DstType,_Dst,_TType1,_TArg1,_TType2,_TArg2,_TType3,_TArg3) 
-# 1976 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 1976 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 }
-# 1976 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.14393.0\\ucrt\\corecrt.h" 3
+# 1976 "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.15063.0\\ucrt\\corecrt.h" 3
 #pragma pack(pop)
 # 10 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\crtdefs.h" 2 3
 # 25 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\crtdefs.h" 3
@@ -2812,7 +2795,7 @@ typedef _Mbstatet mbstate_t;
 
 #define _NOEXCEPT noexcept
 #define _NOEXCEPT_OP(x) noexcept(x)
-# 50 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\yvals.h" 3
+# 56 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\yvals.h" 3
 #define _HAS_CXX17 0
 # 66 "C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\include\\yvals.h" 3
 #define _HAS_AUTO_PTR_ETC 1
@@ -3120,8 +3103,8 @@ typedef unsigned long _Uint32t;
 
 
 
-# 1 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\stddef.h" 1 3
-# 35 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\stddef.h" 3
+# 1 "D:\\Install\\castxml/share/castxml/clang\\include\\stddef.h" 1 3
+# 35 "D:\\Install\\castxml/share/castxml/clang\\include\\stddef.h" 3
 #define __STDDEF_H 
 
 #define __need_ptrdiff_t 
@@ -3152,7 +3135,7 @@ typedef long long int ptrdiff_t;
 typedef long long unsigned int size_t;
 
 #undef __need_size_t
-# 93 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\stddef.h" 3
+# 93 "D:\\Install\\castxml/share/castxml/clang\\include\\stddef.h" 3
 #undef __need_wchar_t
 
 
@@ -3179,13 +3162,13 @@ using ::std::nullptr_t;
 
 
 
-# 1 "C:\\dev\\tools\\castxml/share/castxml/clang\\include/__stddef_max_align_t.h" 1 3
-# 27 "C:\\dev\\tools\\castxml/share/castxml/clang\\include/__stddef_max_align_t.h" 3
+# 1 "D:\\Install\\castxml/share/castxml/clang\\include/__stddef_max_align_t.h" 1 3
+# 27 "D:\\Install\\castxml/share/castxml/clang\\include/__stddef_max_align_t.h" 3
 #define __CLANG_MAX_ALIGN_T_DEFINED 
 
 
 typedef double max_align_t;
-# 119 "C:\\dev\\tools\\castxml/share/castxml/clang\\include\\stddef.h" 2 3
+# 119 "D:\\Install\\castxml/share/castxml/clang\\include\\stddef.h" 2 3
 
 #define offsetof(t,d) __builtin_offsetof(t, d)
 #undef __need_STDDEF_H_misc
