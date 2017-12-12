@@ -80,11 +80,7 @@ class Object:
 
     def delete(self):
         if self._handle_ptr and self._get_handle():
-            if lib_wrapped_log_calls:
-                assert _init_data._log_fun
-                _init_data._log_fun('delete: ', self)
             del self._handle_ptr
-            self._reset_handle()
 
     def _reset_handle(self):
         self._handle_ptr = ffi.new(self.ffi_type_name, ffi.NULL)

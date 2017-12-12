@@ -66,6 +66,14 @@ class RenderLayers:
             if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
                 yield 'geometric_normal'
                 yield 'world_coordinate'
+                yield 'object_id'
+
+            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE or \
+                            self.filter_type == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE:
+                yield 'geometric_normal'
+                yield 'depth'
+                yield 'object_id'
+                yield 'world_coordinate'
 
         if self.alpha_combine:
             yield 'opacity'

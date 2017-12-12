@@ -132,6 +132,10 @@
       "name": "RIF_PARAMETER_TYPE_IMAGE_ARRAY",
       "value": "0xC"
     },
+    "RIF_PARAMETER_TYPE_FLOAT16": {
+      "name": "RIF_PARAMETER_TYPE_FLOAT16",
+      "value": "0xD"
+    },
     "RIF_IMAGE_TYPE_1D": {
       "name": "RIF_IMAGE_TYPE_1D",
       "value": "0x1"
@@ -248,6 +252,10 @@
       "name": "RIF_IMAGE_FILTER_EAW_DENOISE",
       "value": "0xD"
     },
+    "RIF_IMAGE_FILTER_MLAA": {
+      "name": "RIF_IMAGE_FILTER_MLAA",
+      "value": "0x11"
+    },
     "RIF_IMAGE_FILTER_SOBEL": {
       "name": "RIF_IMAGE_FILTER_SOBEL",
       "value": "0xE"
@@ -259,6 +267,18 @@
     "RIF_IMAGE_FILTER_MULT": {
       "name": "RIF_IMAGE_FILTER_MULT",
       "value": "0x10"
+    },
+    "RIF_IMAGE_FILTER_MOTION_BUFFER": {
+      "name": "RIF_IMAGE_FILTER_MOTION_BUFFER",
+      "value": "0x12"
+    },
+    "RIF_IMAGE_FILTER_TEMPORAL_ACCUMULATOR": {
+      "name": "RIF_IMAGE_FILTER_TEMPORAL_ACCUMULATOR",
+      "value": "0x13"
+    },
+    "RIF_IMAGE_FILTER_SHADOW_CATCHER": {
+      "name": "RIF_IMAGE_FILTER_SHADOW_CATCHER",
+      "value": "0x14"
     },
     "RIF_IMAGE_INTERPOLATION_NEAREST_SUM": {
       "name": "RIF_IMAGE_INTERPOLATION_NEAREST_SUM",
@@ -283,6 +303,10 @@
     "RIF_IMAGE_FILTER_PARAMETER_COUNT": {
       "name": "RIF_IMAGE_FILTER_PARAMETER_COUNT",
       "value": "0x1"
+    },
+    "RIF_IMAGE_FILTER_DESCRIPTION": {
+      "name": "RIF_IMAGE_FILTER_DESCRIPTION",
+      "value": "0x2"
     },
     "RIF_PARAMETER_NAME_STRING": {
       "name": "RIF_PARAMETER_NAME_STRING",
@@ -514,11 +538,6 @@
     },
     "rif_processor_type": {
       "name": "rif_processor_type",
-      "kind": "typedef",
-      "type": "rif_uint"
-    },
-    "rif_tonemapping_operator": {
-      "name": "rif_tonemapping_operator",
       "kind": "typedef",
       "type": "rif_uint"
     },
@@ -853,6 +872,25 @@
         {
           "name": "size_ret",
           "type": "size_t*"
+        }
+      ],
+      "docs": null
+    },
+    "rifImageFilterSetParameter16f": {
+      "name": "rifImageFilterSetParameter16f",
+      "restype": "rif_int",
+      "args": [
+        {
+          "name": "image_filter",
+          "type": "rif_image_filter"
+        },
+        {
+          "name": "name",
+          "type": "rif_char const*"
+        },
+        {
+          "name": "val",
+          "type": "rif_float*"
         }
       ],
       "docs": null
