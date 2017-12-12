@@ -842,15 +842,57 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     filter_type = bpy.props.EnumProperty(
         name = "RPR Filter Type",
         items=(("bilateral", "Bilateral", "Bilateral", 0),
-               #("lwr", "Local Weighted Regression", "lwr", 1),
-               ),#("eaw", "Edge Avoiding Wavelets", "eaw", 2)),
+               ("lwr", "Local Weighted Regression", "lwr", 1),
+               ("eaw", "Edge Avoiding Wavelets", "eaw", 2)),
         description="Filter type",
-        default='bilateral'
+        default='eaw'
     )
 
+    # bilateral props
     radius = bpy.props.IntProperty(
         name="Radius", description="Radius",
-        min = 1, max = 50, default = 5
+        min = 1, max = 50, default = 1
+    )
+    p_sigma = bpy.props.FloatProperty(
+        name="Color Sigma", description="Threshold for detecting position differences",
+        min = 0.0, max = 1.0, default = .1
+    )
+
+    # EAW props
+    color_sigma = bpy.props.FloatProperty(
+        name="Color Sigma", description="Threshold for detecting color differences",
+        min = 0.0, max = 1.0, default = .1
+    )
+
+    normal_sigma = bpy.props.FloatProperty(
+        name="Normal Sigma", description="Threshold for detecting normal differences",
+        min = 0.0, max = 1.0, default = .1
+    )
+
+    depth_sigma = bpy.props.FloatProperty(
+        name="Depth Sigma", description="Threshold for detecting z depth differences",
+        min = 0.0, max = 1.0, default = .1
+    )
+
+    trans_sigma = bpy.props.FloatProperty(
+        name="ID Sigma", description="Threshold for detecting Object ID differences",
+        min = 0.0, max = 1.0, default = .1
+    )
+
+    # LWR props
+    samples = bpy.props.IntProperty(
+        name="Samples", description="Number of samples used, more will give better results while being longer",
+        min = 1, soft_max = 10, max = 100, default = 4
+    )
+
+    half_window = bpy.props.IntProperty(
+        name="Filter radius", description="The radius of pixels to sample from",
+        min = 1, soft_max = 10, max = 100, default = 4
+    )
+
+    bandwidth = bpy.props.FloatProperty(
+        name="Bandwidth", description="Bandwidth of the filter, a samller value gives less noise, but may filter image detail",
+        min = 0.0, max = 1.0, default = .1
     )
 
     import pyrprimagefilters

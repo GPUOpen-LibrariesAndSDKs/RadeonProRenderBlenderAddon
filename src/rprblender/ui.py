@@ -724,6 +724,21 @@ class RPRRender_PT_Denoiser(RPRPanel, Panel):
         import pyrprimagefilters
         if settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
             col.prop(settings, "radius")
+            col.prop(settings, 'color_sigma', slider=True)
+            col.prop(settings, 'normal_sigma', slider=True)
+            col.prop(settings, 'p_sigma', slider=True)
+            col.prop(settings, 'trans_sigma', slider=True)
+        elif settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE:
+            col.prop(settings, 'color_sigma', slider=True)
+            col.prop(settings, 'normal_sigma', slider=True)
+            col.prop(settings, 'depth_sigma', slider=True)
+            col.prop(settings, 'trans_sigma', slider=True)
+        elif settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE:
+            col.prop(settings, 'samples', slider=True)
+            col.prop(settings, 'half_window', slider=True)
+            col.prop(settings, 'bandwidth', slider=True)
+            
+
 
 def draw_camera_settings(camera, layout):
     layout.prop(camera, "panorama_type")
