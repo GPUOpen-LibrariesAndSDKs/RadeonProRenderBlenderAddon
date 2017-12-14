@@ -32,3 +32,8 @@ build_output/
 /output
 /dist
 .DS_Store
+
+*.sdf
+*.v12.suo
+
+

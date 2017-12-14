@@ -2,4 +2,4 @@
 !.gitignore
 !README.md
 !win_update.cmd
-!linux_update.sh
+!unix_update.sh
