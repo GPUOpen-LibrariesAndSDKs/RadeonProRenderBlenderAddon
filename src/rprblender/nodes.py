@@ -859,7 +859,7 @@ node_categories = [
         NodeItem("rpr_shader_node_reflection"),
         NodeItem("rpr_shader_node_transparent"),
         NodeItem("rpr_shader_node_ward"),
-        NodeItem("rpr_shader_node_uber"),
+        NodeItem("rpr_shader_node_uber2"),
         NodeItem("rpr_shader_node_subsurface"),
         NodeItem("rpr_shader_node_volume"),
         NodeItem("rpr_shader_node_displacement"),
