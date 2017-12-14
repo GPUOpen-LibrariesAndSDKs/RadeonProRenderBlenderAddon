@@ -20,6 +20,12 @@ IF exist %ThirdPartyDir% (
 
     xcopy /S /Y /I %ThirdPartyDir%\* .
 
+    echo ===============================================================
+    pushd %ThirdPartyDir% 
+    git remote update
+    git status -uno
+    popd
+	
 ) ELSE ( 
     echo Cannot update as %ThirdPartyDir% missing
 )

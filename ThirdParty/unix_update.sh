@@ -20,6 +20,12 @@ if [ -d "$ThirdPartyDir" ]; then
 
     cp -r $ThirdPartyDir/* .
 
+    echo ===============================================================
+    pushd $ThirdPartyDir 
+    git remote update
+    git status -uno
+    popd
+	
 else
-    echo Cannot update as %ThirdPartyDir% missing
+    echo Cannot update as $ThirdPartyDir missing
 fi
