@@ -23,6 +23,9 @@ rprblender.log
 
 # RPR
 tahoe.log
+src/bindings/pyrpr/src/*.json,
+src/bindings/pyrpr/src/*.pp,
+src/bindings/pyrpr/src/*.xml
 
 # installer stuff
 /system
