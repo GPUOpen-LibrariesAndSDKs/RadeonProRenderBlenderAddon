@@ -9,6 +9,7 @@ IF exist %ThirdPartyDir% (
     rd /S /Q 'Expat 2.1.0'
     rd /S /Q OpenCL
     rd /S /Q OpenColorIO
+    rd /S /Q 'RadeonProImageProcessing'
     rd /S /Q 'RadeonProRender SDK'
     rd /S /Q RadeonProRender-GLTF
     rd /S /Q ffmpeg
@@ -18,7 +19,19 @@ IF exist %ThirdPartyDir% (
     rd /S /Q oiio-mac
     rd /S /Q synColor
 
-    xcopy /S /Y /I %ThirdPartyDir%\* .
+    xcopy /S /Y /I %ThirdPartyDir%\AxfPackage\* AxfPackage
+    xcopy /S /Y /I "%ThirdPartyDir%\Expat 2.1.0"* "Expat 2.1.0"
+    xcopy /S /Y /I %ThirdPartyDir%\OpenCL\* "OpenCL"
+    xcopy /S /Y /I %ThirdPartyDir%\OpenColorIO\* OpenColorIO
+    xcopy /S /Y /I %ThirdPartyDir%\RadeonProImageProcessing\* RadeonProImageProcessing
+    xcopy /S /Y /I "%ThirdPartyDir%\RadeonProRender SDK\*" "RadeonProRender SDK"
+    xcopy /S /Y /I %ThirdPartyDir%\RadeonProRender-GLTF\* "RadeonProRender-GLTF"
+    xcopy /S /Y /I %ThirdPartyDir%\ffmpeg\* ffmpeg
+    xcopy /S /Y /I %ThirdPartyDir%\glew\* glew
+    xcopy /S /Y /I %ThirdPartyDir%\json\* json
+    xcopy /S /Y /I %ThirdPartyDir%\oiio\* oiio
+    xcopy /S /Y /I %ThirdPartyDir%\oiio-mac\* oiio-mac
+    xcopy /S /Y /I %ThirdPartyDir%\synColor\* synColor
 
     echo ===============================================================
     pushd %ThirdPartyDir% 
