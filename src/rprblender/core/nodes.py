@@ -1231,13 +1231,13 @@ class Material:
                                   nul_value_vector)
 
         # EMISSION
-        emissive_intensity = self.get_value(blender_node, blender_node.emissive_intensity)
-        if emissive_intensity != nul_value_vector:
-            emissive_color = self.get_value(blender_node, blender_node.emissive_color)
-            val = self.mul_value(emissive_color, emissive_intensity)
-
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, one_vector)
+        emissive_weight = self.get_value(blender_node, blender_node.emissive_weight)
+        if emissive_weight != nul_value_vector:
+            emissive_color = self.mul_value(self.get_value(blender_node, blender_node.emissive_color),
+                                            self.get_value(blender_node, blender_node.emissive_intensity))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emissive_color)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, emissive_weight)
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE, pyrprx.UBER_MATERIAL_EMISSION_MODE_SINGLESIDED)
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, nul_value_vector)
 
