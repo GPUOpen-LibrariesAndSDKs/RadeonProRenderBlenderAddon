@@ -629,8 +629,10 @@ class RPRShaderNode_PBR(RPRNodeType_Shader):
     coating_roughness = 'Coating Roughness'
     normal_in = 'Normal'
 
-    emissive_color = 'Emission Color'
-    emissive_intensity = 'Emission Intensity'
+    emissive_color = 'Emissive Color'
+    emissive_intensity = 'Emissive Intensity'
+    emissive_weight = 'Emissive Weight'
+
     transparency = 'Transparency'
     
     def init(self, context):
@@ -645,7 +647,8 @@ class RPRShaderNode_PBR(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.0
 
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_factor', self.emissive_intensity).default_value = 0.0
+        self.inputs.new('rpr_socket_factor', self.emissive_intensity).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 0.0
         
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency).default_value = 0.0
         
