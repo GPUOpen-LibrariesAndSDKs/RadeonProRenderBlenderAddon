@@ -84,16 +84,20 @@ class SceneRenderer:
                                                                 self.denoise_image_filter)
                 pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                 self.mlaa_image_filter)
+                #pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                #                                                self.normalized_depth_filter)
 
                 pyrprimagefilters.ObjectDelete(self.variance_image_filter._get_handle())
                 pyrprimagefilters.ObjectDelete(self.denoise_image_filter._get_handle())
                 pyrprimagefilters.ObjectDelete(self.mlaa_image_filter._get_handle())
+                #pyrprimagefilters.ObjectDelete(self.normalized_depth_filter._get_handle())
 
                 pyrprimagefilters.ObjectDelete(self.variance_output_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.denoise_output_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.rif_output_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.geometric_normal_rif_image._get_handle())
-                pyrprimagefilters.ObjectDelete(self.depth_rif_image._get_handle())
+                #pyrprimagefilters.ObjectDelete(self.depth_rif_image._get_handle())
+                pyrprimagefilters.ObjectDelete(self.normalized_depth_rif_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.object_id_rif_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.world_p_image._get_handle())
 
@@ -102,16 +106,19 @@ class SceneRenderer:
                                                                 self.variance_image_filter)
                 pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                 self.normal_var_image_filter)
-                #pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
-                #                                                self.depth_var_image_filter)
+                pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                                                                self.depth_var_image_filter)
                 pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                 self.object_id_var_image_filter)
                 pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                 self.denoise_image_filter)
+                pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                                                                self.normalized_depth_filter)
                 
                 pyrprimagefilters.ObjectDelete(self.variance_image_filter._get_handle())
                 pyrprimagefilters.ObjectDelete(self.normal_var_image_filter._get_handle())
-                #pyrprimagefilters.ObjectDelete(self.depth_var_image_filter._get_handle())
+                pyrprimagefilters.ObjectDelete(self.depth_var_image_filter._get_handle())
+                pyrprimagefilters.ObjectDelete(self.normalized_depth_rif_image._get_handle())
                 pyrprimagefilters.ObjectDelete(self.object_id_var_image_filter._get_handle())
                 pyrprimagefilters.ObjectDelete(self.denoise_image_filter._get_handle())
 
@@ -277,10 +284,13 @@ class SceneRenderer:
                                                                     self.denoise_image_filter)
                     pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                     self.mlaa_image_filter)
+                    #pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                    #                                                self.normalized_depth_filter)
                     
                     pyrprimagefilters.ObjectDelete(self.variance_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.denoise_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.mlaa_image_filter._get_handle())
+                    #pyrprimagefilters.ObjectDelete(self.normalized_depth_filter._get_handle())
 
                 # Create resolved color frame buffer
                 desc = ffi.new("rpr_framebuffer_desc*")
@@ -296,6 +306,7 @@ class SceneRenderer:
                 self.rif_output_image = pyrprimagefilters.RifImage()
                 self.variance_output_image = pyrprimagefilters.RifImage()
                 self.denoise_output_image = pyrprimagefilters.RifImage()
+                self.normalized_depth_rif_image = pyrprimagefilters.RifImage()
                 rif_image_desc = pyrprimagefilters.ffi.new("rif_image_desc*")
                 image_size = pyrprimagefilters.ffi.new("size_t*")
 
@@ -319,6 +330,11 @@ class SceneRenderer:
                                                                    pyrprimagefilters.ffi.NULL,
                                                                    self.denoise_output_image)
                 assert rif_result == pyrprimagefilters.SUCCESS
+
+                #rif_result = pyrprimagefilters.ContextCreateImage(self.render_device.rif_context, rif_image_desc,
+                #                                                  pyrprimagefilters.ffi.NULL,
+                #                                                  self.normalized_depth_rif_image)
+                #assert rif_result == pyrprimagefilters.SUCCESS
 
                 # create variance image filter
                 self.variance_image_filter = pyrprimagefilters.RifImageFilter()
@@ -363,16 +379,28 @@ class SceneRenderer:
                                                                         self.denoise_image_filter)
                 assert rif_result == pyrprimagefilters.SUCCESS
 
-                self.depth_rif_image = self._get_rif_image_from_rpr_frame_buffer(
-                    self.render_targets.get_frame_buffer('depth'))
+                #self.depth_rif_image = self._get_rif_image_from_rpr_frame_buffer(
+                #    self.render_targets.get_frame_buffer('depth'))
+
+                # Make depth rif image normalized
+                #self.normalized_depth_filter = pyrprimagefilters.RifImageFilter()
+                #rif_result = pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
+                #                                                        pyrprimagefilters.IMAGE_FILTER_NORMALIZATION,
+                #                                                        self.normalized_depth_filter)
+                #assert rif_result == pyrprimagefilters.SUCCESS
+
+                #rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
+                #                                                             self.normalized_depth_filter,
+                #                                                             self.depth_rif_image, self.normalized_depth_rif_image)
+                #assert rif_result == pyrprimagefilters.SUCCESS
 
                 rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"normalsImg",
                                                                                  self.geometric_normal_rif_image)
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 #rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"depthImg",
-                #                                                                 self.depth_rif_image)
-                #assert rif_result == pyrprimagefilters.SUCCESS
+                #                                                                 self.normalized_depth_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
                 rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"transImg",
                                                                                  self.object_id_rif_image)
@@ -394,12 +422,12 @@ class SceneRenderer:
 
                 self.depth_sigma = self.render_settings.denoiser.depth_sigma
                 rif_result = pyrprimagefilters.ImageFilterSetParameter1f(self.denoise_image_filter, b"depthSigma",
-                                                                            self.normal_sigma)
+                                                                            self.depth_sigma)
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 self.trans_sigma = self.render_settings.denoiser.trans_sigma
                 rif_result = pyrprimagefilters.ImageFilterSetParameter1f(self.denoise_image_filter, b"transSigma",
-                                                                            self.normal_sigma)
+                                                                            self.trans_sigma)
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
@@ -420,8 +448,8 @@ class SceneRenderer:
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 #rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.mlaa_image_filter, b"depthImg",
-                #                                                                  self.depth_rif_image)
-                #assert rif_result == pyrprimagefilters.SUCCESS
+                #                                                                  self.normalized_depth_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
                 rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.mlaa_image_filter, b"meshIDImg",
                                                                                   self.object_id_rif_image)
@@ -466,12 +494,15 @@ class SceneRenderer:
                     
                     pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
                                                                     self.denoise_image_filter)
+                    pyrprimagefilters.CommandQueueDetachImageFilter(self.render_device.rif_command_queue,
+                                                                    self.normalized_depth_filter)
                     
                     pyrprimagefilters.ObjectDelete(self.variance_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.normal_var_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.depth_var_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.object_id_var_image_filter._get_handle())
                     pyrprimagefilters.ObjectDelete(self.denoise_image_filter._get_handle())
+                    pyrprimagefilters.ObjectDelete(self.normalized_depth_rif_image._get_handle())
                     
                 # Create resolved color frame buffer
                 desc = ffi.new("rpr_framebuffer_desc*")
@@ -492,6 +523,7 @@ class SceneRenderer:
                 self.depth_var_output_image = pyrprimagefilters.RifImage()
                 self.object_id_var_output_image = pyrprimagefilters.RifImage()
                 self.object_id_output_image = pyrprimagefilters.RifImage()
+                self.normalized_depth_rif_image = pyrprimagefilters.RifImage()
                 rif_image_desc = pyrprimagefilters.ffi.new("rif_image_desc*")
                 image_size = pyrprimagefilters.ffi.new("size_t*")
 
@@ -536,6 +568,11 @@ class SceneRenderer:
                 rif_result = pyrprimagefilters.ContextCreateImage(self.render_device.rif_context, rif_image_desc,
                                                                    pyrprimagefilters.ffi.NULL,
                                                                    self.object_id_output_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                rif_result = pyrprimagefilters.ContextCreateImage(self.render_device.rif_context, rif_image_desc,
+                                                                  pyrprimagefilters.ffi.NULL,
+                                                                  self.normalized_depth_rif_image)
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 # create variance image filter
@@ -605,32 +642,46 @@ class SceneRenderer:
 
                 # TODO disable when depth fixed
                 # create depth variance image filter
-                # self.depth_var_image_filter = pyrprimagefilters.RifImageFilter()
+                self.depth_var_image_filter = pyrprimagefilters.RifImageFilter()
 
-                # rif_result = pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
-                #                                                         pyrprimagefilters.IMAGE_FILTER_TEMPORAL_ACCUMULATOR,
-                #                                                         self.depth_var_image_filter)
-                # assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
+                                                                        pyrprimagefilters.IMAGE_FILTER_TEMPORAL_ACCUMULATOR,
+                                                                        self.depth_var_image_filter)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
-                # rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"positionsImg",
-                #                                                                   self.world_p_image)
-                # assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"positionsImg",
+                                                                                  self.world_p_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
-                # rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"normalsImg",
-                #                                                                   self.geometric_normal_rif_image)
-                # assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"normalsImg",
+                                                                                  self.geometric_normal_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
-                # rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"meshIdsImg",
-                #                                                                  self.object_id_rif_image)
-                # assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"meshIdsImg",
+                                                                                 self.object_id_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
-                # rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"outVarianceImg",
-                #                                                                   self.depth_var_output_image)
-                # assert rif_result == pyrprimagefilters.SUCCESS
-                # rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
-                #                                                               self.depth_var_image_filter, self.depth_rif_image,
-                #                                                               self.rif_output_image)
-                # assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.depth_var_image_filter, b"outVarianceImg",
+                                                                                  self.depth_var_output_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                # Make depth rif image normalized
+                self.normalized_depth_filter = pyrprimagefilters.RifImageFilter()
+                rif_result = pyrprimagefilters.ContextCreateImageFilter(self.render_device.rif_context,
+                                                                        pyrprimagefilters.IMAGE_FILTER_NORMALIZATION,
+                                                                        self.normalized_depth_filter)
+                assert rif_result == pyrprimagefilters.SUCCESS
+
+                rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
+                                                                             self.normalized_depth_filter,
+                                                                             self.depth_rif_image,
+                                                                             self.normalized_depth_rif_image)
+
+                assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.CommandQueueAttachImageFilter(self.render_device.rif_command_queue,
+                                                                              self.depth_var_image_filter, self.normalized_depth_rif_image,
+                                                                              self.normalized_depth_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
                 # create object id variance image filter
                 self.object_id_var_image_filter = pyrprimagefilters.RifImageFilter()
@@ -680,12 +731,12 @@ class SceneRenderer:
                 assert rif_result == pyrprimagefilters.SUCCESS
 
                 # disable depth for now
-                #rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"depthImg",
-                #                                                                 self.depth_rif_image)
-                #assert rif_result == pyrprimagefilters.SUCCESS
-                #rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"vDepthImg",
-                #                                                                 self.depth_rif_image)
-                #assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"depthImg",
+                                                                                 self.normalized_depth_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
+                rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"vDepthImg",
+                                                                                 self.normalized_depth_rif_image)
+                assert rif_result == pyrprimagefilters.SUCCESS
 
                 rif_result = pyrprimagefilters.ImageFilterSetParameterImage(self.denoise_image_filter, b"transImg",
                                                                                  self.object_id_output_image)
@@ -1059,6 +1110,11 @@ class SceneRenderer:
 
         im = self.render_targets.get_resolved_image(frame_buffer)
         if self.denoiser:
+            if self.is_production and (self.filter_type == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE or \
+                            self.filter_type == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE):
+                if aov_name != 'default':
+                    return im
+
             im_den = self._get_filtered_image(frame_buffer)
             return im_den
 
