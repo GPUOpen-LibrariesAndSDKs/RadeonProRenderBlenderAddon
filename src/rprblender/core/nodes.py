@@ -1218,7 +1218,8 @@ class Material:
                               one_vector)
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS,
                               self.get_value(blender_node, blender_node.roughness))
-        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE, 1)
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
+                            pyrprx.UBER_MATERIAL_REFLECTION_MODE_METALNESS)
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS,
                               self.get_value(blender_node, blender_node.metalness))
     
