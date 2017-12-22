@@ -164,6 +164,11 @@ class SceneRenderer:
 
         if self.denoiser:
             self.render_layers.use_denoiser = True
+
+            # Create separate filtered image buffer
+            width, height = self.render_targets.render_resolution
+            self.filtered_image = np.empty((height, width, 4), dtype=np.float32)
+
             if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
                 self.render_layers.enable_aov('geometric_normal')
                 self.render_layers.enable_aov('world_coordinate')
@@ -1109,12 +1114,7 @@ class SceneRenderer:
             self.update_gamma_correction(settings, post_effect_update)
 
         im = self.render_targets.get_resolved_image(frame_buffer)
-        if self.denoiser:
-            if self.is_production and (self.filter_type == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE or \
-                            self.filter_type == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE):
-                if aov_name != 'default':
-                    return im
-
+        if self.denoiser and aov_name == 'default':
             im_den = self._get_filtered_image(frame_buffer)
             return im_den
 
@@ -1164,7 +1164,8 @@ class SceneRenderer:
         rif_result = pyrprimagefilters.ImageUnmap(self.rif_output_image, mapped_data[0])
         assert rif_result == pyrprimagefilters.SUCCESS
 
-        return output
+        np.copyto(self.filtered_image, output)
+        return self.filtered_image
 
     def _get_rif_image_from_rpr_frame_buffer(self, rpr_frame_buffer):
         if not rpr_frame_buffer:
