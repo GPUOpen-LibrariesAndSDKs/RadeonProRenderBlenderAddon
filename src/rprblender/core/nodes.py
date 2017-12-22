@@ -1249,7 +1249,7 @@ class Material:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS,
                                 self.get_value(blender_node, blender_node.coating_roughness))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
-                              one_vector)
+                              coating_weight)
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
                               nul_value_vector)
