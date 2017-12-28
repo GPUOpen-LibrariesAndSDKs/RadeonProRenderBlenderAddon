@@ -75,6 +75,7 @@ class RPREngine(bpy.types.RenderEngine):
         logging.debug(self, "__init__")
         self.im = None
         self.texture = None
+        self.prev_sc = False
 
     @call_logger.logged
     def __del__(self):
@@ -511,6 +512,22 @@ class RPREngine(bpy.types.RenderEngine):
             logging.debug("pass:", viewport_renderer.render_aov.pass_displayed,
                           get_render_passes_aov(bpy.context).pass_displayed,
                           tag='render.viewport.draw')
+
+            self.is_shadowcatcher = False
+            for obj in context.scene.objects:
+                if obj.rpr_object.shadowcatcher:
+                    self.is_shadowcatcher = True
+                    viewport_renderer.scene_renderer.render_layers.enable_aov('opacity')
+                    viewport_renderer.scene_renderer.render_layers.enable_aov('background')
+                    viewport_renderer.scene_renderer.render_layers.enable_aov('shadow_catcher')
+                    break
+
+            viewport_renderer.scene_renderer.has_shadowcatcher = self.is_shadowcatcher
+
+            if self.prev_sc != self.is_shadowcatcher:
+                self.prev_sc = self.is_shadowcatcher
+                viewport_renderer.scene_reset(context.scene)
+
             im = viewport_renderer.get_image(viewport_renderer.render_aov.pass_displayed)
             if im is not None:
                 logging.debug("pass image retrieved", tag='render.viewport.draw')
