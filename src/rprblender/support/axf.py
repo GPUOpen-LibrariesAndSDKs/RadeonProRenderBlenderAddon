@@ -7,6 +7,8 @@ import ctypes
 
 if 'Linux' == platform.system():
     pass
+elif 'Darwin' == platform.system():
+    pass
 else:
     import ctypes.wintypes
 

@@ -8,6 +8,9 @@ from pathlib import Path
 if sys.platform == 'linux':
     rprsdk_path = Path("../../../ThirdParty/RadeonProRender SDK/Linux-Ubuntu")
     rprsdk_bin_path = rprsdk_path / 'lib'
+elif sys.platform == 'darwin':
+    rprsdk_path = Path("../../../ThirdParty/RadeonProRender SDK/Mac")
+    rprsdk_bin_path = rprsdk_path / 'lib'
 else:
     rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK/Win')
     rprsdk_bin_path = rprsdk_path / 'bin'
@@ -43,6 +46,8 @@ pyrpr.ContextSetParameter1u(ffi.NULL, b"tracing", True);
 
 if sys.platform == 'linux':
     tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "libTahoe64.so").encode('utf8'))
+elif sys.platform == 'darwin':
+    tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "libTahoe64.dylib").encode('utf8'))
 else:
     tahoePluginID = pyrpr.RegisterPlugin(str(rprsdk_bin_path / "Tahoe64.dll").encode('utf8'))
 

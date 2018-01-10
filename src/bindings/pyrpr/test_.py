@@ -23,6 +23,8 @@ if "Windows" == platform.system():
 elif "Linux" == platform.system():
     assert 'Ubuntu-16.04' in platform.platform()
     bin_folder = 'Linux/lib'
+elif "Darwin" == platform.system():
+    bin_folder = 'Mac/lib'
 else:
     assert False
 
@@ -41,6 +43,8 @@ if 'Windows' == platform.system():
     tahoe_name = 'Tahoe64.dll'
 elif 'Linux' == platform.system():
     tahoe_name = 'libTahoe64.so'
+elif 'Darwin' == platform.system():
+    tahoe_name = 'libTahoe64.dylib'
 else:
     assert False, platform.system()
 

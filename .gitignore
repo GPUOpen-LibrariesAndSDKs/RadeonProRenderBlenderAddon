@@ -42,4 +42,7 @@ build_output/
 *.sdf
 *.v12.suo
 
+#
+*.bak
+*.opensdf
 

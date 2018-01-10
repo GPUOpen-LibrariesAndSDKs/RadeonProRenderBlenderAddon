@@ -15,6 +15,8 @@ import viewportdraw
 
 if sys.platform == 'linux':
     gl = ctypes.cdll.LoadLibrary('libGL.so')
+elif sys.platform == 'darwin':
+    gl = ctypes.cdll.LoadLibrary('libGL.dylib')
 else:
     gl = ctypes.windll.opengl32
 
@@ -32,6 +34,8 @@ def draw_image(im, viewport_size, tile=(1, 1)):
     viewportdraw.draw_image_texture(texture, viewport_size, tile)
 
 if 'Linux' == platform.system():
+    pass
+elif 'Darwin' == platform.system():
     pass
 else:
     from ctypes import windll

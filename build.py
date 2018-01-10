@@ -9,8 +9,10 @@ import shutil
 
 
 arch = platform.architecture()
+uname = platform.uname()
 
-assert '64bit' == arch[0] and (('Windows' in arch[1]) or ('ELF' in arch[1])), arch
+
+assert '64bit' == arch[0] and (('Windows' in uname[0]) or ('ELF' in uname[0]) or ('Darwin' in uname[0])), arch
 
 pyrpr_path = Path('src/bindings/pyrpr')
 

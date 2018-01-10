@@ -304,6 +304,9 @@ class RenderResourcesHelper:
         if 'Windows' == platform.system():
             yield str(Path(__file__).parent / 'RPRBlenderHelper.dll')
             yield str(Path(__file__).parents[2] / 'RPRBlenderHelper/.build/Release/RPRBlenderHelper.dll')
+        elif 'Darwin' == platform.system():
+            yield str(Path(__file__).parent / 'libRPRBlenderHelper.dylib')
+            yield str(Path(__file__).parents[2] / 'RPRBlenderHelper/.build/libRPRBlenderHelper.dylib')
         else:
             yield str(Path(__file__).parent / 'libRPRBlenderHelper.so')
             yield str(Path(__file__).parents[2] / 'RPRBlenderHelper/.build/libRPRBlenderHelper.so')
@@ -341,8 +344,8 @@ class RenderResourcesHelper:
         path = str(self.renderer_dll_path).encode('utf8')
 
 
-        res = self.lib.check_device(path, 'Linux' != platform.system(), device_id,
-                                    {'Windows': Os.WINDOWS, 'Linux': Os.LINUX}[platform.system()],
+        res = self.lib.check_device(path, 'Windows' == platform.system(), device_id,
+                                    {'Windows': Os.WINDOWS, 'Linux': Os.LINUX, 'Darwin': Os.MACOS}[platform.system()],
                                     str(render.ensure_core_cache_folder()).encode('latin1'))
 
         return Compatibility(res)
