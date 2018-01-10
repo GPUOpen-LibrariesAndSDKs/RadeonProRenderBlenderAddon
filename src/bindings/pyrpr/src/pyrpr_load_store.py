@@ -28,5 +28,7 @@ def get_library_path(rpr_sdk_bin_path):
         return str(rpr_sdk_bin_path / 'RprLoadStore64.dll')
     elif os == "Linux":
         return str(rpr_sdk_bin_path / 'libRprLoadStore64.so')
+    elif os == "Darwin":
+        return str(rpr_sdk_bin_path / 'libRprLoadStore64.dylib')
     else:
         assert False

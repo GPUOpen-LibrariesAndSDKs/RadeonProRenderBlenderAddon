@@ -31,6 +31,8 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     elif "Linux" == platform.system():
         assert 'Ubuntu-16.04' in platform.platform()
         platform_folder = 'Linux/Ubuntu'
+    elif "Darwin" == platform.system():
+        platform_folder = 'Mac'
     else:
         assert False
 
@@ -81,7 +83,6 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         for path in (Path(_cffi_backend.__file__).parent / '.libs_cffi_backend').iterdir():
             if '.so' in path.suffixes:
                 # copy library needed for cffi backend
-                # ffi_lib = '/usr/local/lib/python3.5/dist-packages/.libs_cffi_backend/libffi-72499c49.so.6.0.4'
                 ffi_lib = str(path)
                 shutil.copy(ffi_lib, str(build_dir))
 
@@ -92,6 +93,12 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         print(' '.join(cmd))
         subprocess.check_call(cmd)
 
+    if 'Darwin' == platform.system():
+        for path in (Path(_cffi_backend.__file__).parent).iterdir():
+            if '.so' in path.suffixes and "cffi" in str(path):
+                # copy library needed for cffi backend
+                ffi_lib = str(path)
+                shutil.copy(ffi_lib, str(build_dir))
 
 def eval_constant(s):
     if s.endswith('U'):

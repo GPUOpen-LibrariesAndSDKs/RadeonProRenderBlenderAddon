@@ -31,6 +31,9 @@ def init(log_fun, rprsdk_bin_path):
     elif "Linux" == platform.system():
         lib_name = 'libRadeonImageFilters64.so'
         lib_platform = "Linux/Ubuntu/lib64"
+    elif "Darwin" == platform.system():
+        lib_name = 'libRadeonImageFilters64.dylib'
+        lib_platform = "Mac/lib"
     else:
         assert False
 

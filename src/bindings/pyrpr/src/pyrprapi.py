@@ -561,23 +561,31 @@ if __name__=='__main__':
 
     castxml = sys.argv[1]
 
+    # RPR
     rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender.h'
     json_file_name_rpr = 'src/bindings/pyrpr/src/pyrprapi.json'
 
     rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
     json_file_name_rpr_support = 'src/bindings/pyrpr/src/pyrprsupportapi.json'
 
+    rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender_CL.h'
+    json_file_name_rpr_opencl = 'src/bindings/pyrpr/src/pyrpropenclapi.json'
+
+    # ImageProcessing
     rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include/RadeonImageFilters_cl.h'
     json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
 
-    rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender_CL.h'
-    json_file_name_rpr_opencl = 'src/bindings/pyrpr/src/pyrpropenclapi.json'
+    if "Darwin" == platform.system():
+        rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender.h'
+        rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Mac/inc/RprSupport.h'
+        rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender_CL.h'
+        rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Mac/inc/RadeonImageFilters_cl.h'
 
     if "Windows" == platform.system():
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
-        rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Win/inc/RadeonImageFilters_cl.h'
         rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender_CL.h'
+        rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Win/inc/RadeonImageFilters_cl.h'
 
     export(rpr_header_rpr, json_file_name_rpr,
            {

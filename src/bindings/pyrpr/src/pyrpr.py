@@ -83,6 +83,8 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
     elif "Linux" == platform.system():
         lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so', 'libRadeonImageFilters64.so']
         lib_platform = "Linux/Ubuntu/lib64"
+    elif "Darwin" == platform.system():
+        lib_names = ['libRadeonProRender64.dylib', 'libRprSupport64.dylib','libRadeonImageFilters64.dylib']
     else:
         assert False
 

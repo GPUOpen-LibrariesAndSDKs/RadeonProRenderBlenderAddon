@@ -12,6 +12,9 @@ GL_FLOAT = 0x1406
 
 if sys.platform == 'linux':
     gl = cdll.LoadLibrary('libGL.so')
+elif sys.platform == 'darwin':
+    # ToDo: fix this reference
+    gl = cdll.LoadLibrary('/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib')
 else:
     gl = ctypes.windll.opengl32
 

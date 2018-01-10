@@ -85,12 +85,20 @@ if 'pyrpr' not in sys.modules:
         # try loading pyrpr from source
         src = get_package_root_dir().parent
         project_root = src.parent
-        rprsdk_path = str(project_root / 'ThirdParty/RadeonProRender SDK')
+        
+        # load the shared lib from a common path where the
+        # dependent libs have been remapped
+        if "Darwin" == platform.system():
+            rprsdk_path = "/Users/Shared/RadeonProRender"
+        else:
+            rprsdk_path = str(project_root / 'ThirdParty/RadeonProRender SDK')
 
         if "Windows" == platform.system():
             bin_folder = 'Win/bin'
         elif "Linux" == platform.system():
             bin_folder = 'Linux-Ubuntu/lib'
+        elif "Darwin" == platform.system():
+            bin_folder = 'lib'
         else:
             assert False
 
@@ -173,6 +181,8 @@ def get_core_render_plugin_path():
         lib_name = 'Tahoe64.dll'
     elif 'Linux' == platform.system():
         lib_name = 'libTahoe64.so'
+    elif 'Darwin' == platform.system():
+        lib_name = 'libTahoe64.dylib'
     else:
         assert False, platform.system()
     tahoe_path = str(rprsdk_bin_path / lib_name)

@@ -147,6 +147,9 @@ class RPRMaterialLibrary:
                 matlib_path = Path(matlib_installed.read_text())
                 return str(matlib_path)
 
+        elif 'Darwin' == platform.system():
+            return "/Users/Shared/RadeonProRender/Blender/matlib/"
+
         return ""
 
     # Get the category enumeration.

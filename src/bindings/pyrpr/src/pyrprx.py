@@ -26,6 +26,8 @@ def init(log_fun, rprsdk_bin_path):
         lib_name = 'RprSupport64.dll'
     elif "Linux" == platform.system():
         lib_name = 'libRprSupport64.so'
+    elif "Darwin" == platform.system():
+        lib_name = 'libRprSupport64.dylib'
     else:
         assert False
 
