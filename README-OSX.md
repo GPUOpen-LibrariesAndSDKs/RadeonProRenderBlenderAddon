@@ -9,6 +9,7 @@ Prerequisites:
 - Install Homebrew first and then the prerequisites by executing the following:
 	- ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 	- /usr/local/bin/brew install homebrew/science/openimageio # Need 1.7
+		- We built this library by hand so this step may not be needed any more
 	- /usr/local/bin/brew install glew
 	- /usr/local/bin/brew install castxml
 
@@ -33,11 +34,36 @@ NOTES:
 	- cd ThirdParty
 	- ./unix_update.sh
 	- cd ..
+
+	NOTE: the two repositories are disconnected but must be kept in sync.
+
 2. castxml will be required as the Python bindings are rebuilt everytime.
 
 ### Running
 To run the local build, use:
 	- ./run_blender_with_rpr_osx.sh
+
+If  you have installed Blender using the .dmg package then there is a good chance that running Blender will pick
+up the installed addon rather than the one with your local changes.  It is best to uninstall the addon or rename
+the directory of the installed addon to ensure that you get the version under development. Here are some notes:
+- the installed addon is located at ~/Library/Application Support/Blender/scripts/addons/rprblender
+- rename this directory so that it does not get in the way of using the local code
+
+If you need the material library in your local testing then install the addon using the .dmg and then do the 
+renaming in the above step.  The material library is located at:
+	- /Users/Shared/RadeonProRender/Blender/matlib
+
+If you try to run a build and it exits almost right away then there is a good chance that the addon source
+has been updated for a new Core but the Third Party components has not.  A mismatched version number can
+cause this.  In this case, go through the steps to sync the ThirdParty repo and copy into the ThirdParty
+directory on the addon source.
+
+### Debugging
+
+During development, changes can be introduced which cause the addon not to start up.  This often produces
+continuous error messages on a timed event which makes figuring out what happened difficult.  Search
+for the text "Any issues with DLLs seem to show up here." and uncomment the exit line below as this will
+cause the addon to stop and show the error right away.
 
 ### Technical Notes:
 1. The Blender OSX build puts the required dynamic libraries into /Users/Shared/RadeonProRender/lib. This
