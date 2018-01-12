@@ -43,7 +43,7 @@ NOTES:
 To run the local build, use:
 	- ./run_blender_with_rpr_osx.sh
 
-If  you have installed Blender using the .dmg package then there is a good chance that running Blender will pick
+If  you have run the .dmg based installer then there is a good chance that running Blender will pick
 up the installed addon rather than the one with your local changes.  It is best to uninstall the addon or rename
 the directory of the installed addon to ensure that you get the version under development. Here are some notes:
 - the installed addon is located at ~/Library/Application Support/Blender/scripts/addons/rprblender
