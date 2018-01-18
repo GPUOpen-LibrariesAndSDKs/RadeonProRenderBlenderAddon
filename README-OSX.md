@@ -40,6 +40,12 @@ NOTES:
 2. castxml will be required as the Python bindings are rebuilt everytime.
 
 ### Running
+
+Ensure that the BLENDER_EXE environment variable is set.  For example, add the following to
+your ~/.profile with the correct path to the Blender executable:
+
+    export BLENDER_EXE="/Users/amd/Downloads/blender-2.78c-OSX_10.6-x86_64/blender.app/Contents/MacOS/blender"
+
 To run the local build, use:
 	- ./run_blender_with_rpr_osx.sh
 
@@ -65,6 +71,22 @@ continuous error messages on a timed event which makes figuring out what happene
 for the text "Any issues with DLLs seem to show up here." and uncomment the exit line below as this will
 cause the addon to stop and show the error right away.
 
+Blender can be started up under a debugger by using the following command:
+
+./run_blender_with_rpr_osx.sh lldb
+
+Cut and paste the prompt that shows how to run Blender under the debugger.
+
 ### Technical Notes:
 1. The Blender OSX build puts the required dynamic libraries into /Users/Shared/RadeonProRender/lib. This
 path is shared with the Maya RadeonProRender OSX plugin.
+
+2. Searching within the directories with grep can be made easier with the following bash function:
+
+blgrep() {
+    grep -r $1 * --exclude-dir .build --exclude-dir ThirdParty --exclude-dir dist
+}
+
+You can place this into your ~/.profile and then invoke searches such as: blgrep ObjectDelete  when in the top level directory of the plugin.
+
+
