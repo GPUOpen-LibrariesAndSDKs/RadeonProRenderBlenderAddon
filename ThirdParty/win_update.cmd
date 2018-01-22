@@ -20,7 +20,7 @@ IF exist %ThirdPartyDir% (
     rd /S /Q synColor
 
     xcopy /S /Y /I %ThirdPartyDir%\AxfPackage\* AxfPackage
-    xcopy /S /Y /I "%ThirdPartyDir%\Expat 2.1.0"* "Expat 2.1.0"
+    xcopy /S /Y /I "%ThirdPartyDir%\Expat 2.1.0\*" "Expat 2.1.0"
     xcopy /S /Y /I %ThirdPartyDir%\OpenCL\* "OpenCL"
     xcopy /S /Y /I %ThirdPartyDir%\OpenColorIO\* OpenColorIO
     xcopy /S /Y /I %ThirdPartyDir%\RadeonProImageProcessing\* RadeonProImageProcessing
