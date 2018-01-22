@@ -5,13 +5,17 @@ import subprocess
 
 time_start = time.time()
 
-debugger = sys.argv[3]
+debugger = None
+# Only the OSX run script sets the debugger from the command
+# line currently
+if len(sys.argv) >= 4:
+	debugger = sys.argv[3]
 
 if not debugger:
 	subprocess.check_call([sys.argv[1], 
     		#'--factory-startup', 
     		'-noaudio', 
-		"--window-geometry","200","600","1280","960",
+		"--window-geometry","200","600","1920","1080",
     		'--python', 
 		sys.argv[2]]) 
 else:
