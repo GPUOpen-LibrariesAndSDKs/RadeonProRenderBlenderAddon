@@ -933,7 +933,12 @@ class SceneRenderer:
                 pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
                                               sys.float_info.max);
 
+
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", rs.get_max_ray_depth(self.production_render))
+
+            # Convert milimeters to meters
+            ray_epsilon = rs.global_illumination.ray_epsilon / 1000;
+            pyrpr.ContextSetParameter1f(self.get_core_context(), b"raycastepsilon", ray_epsilon)
 
             pyrpr.ContextSetParameter1u(self.get_core_context(),
                                           b"imagefilter.type",
