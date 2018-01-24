@@ -631,7 +631,6 @@ class AntiAliasingSettings(bpy.types.PropertyGroup):
 ########################################################################################################################
 default_gi_max_ray_depth = 8
 
-
 def get_gi_max_ray_depth(self):
     return self.get('max_ray_depth', default_gi_max_ray_depth)
 
@@ -669,6 +668,10 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
         set=set_gi_max_ray_depth,
         get=get_gi_max_ray_depth,
     )
+    ray_epsilon = bpy.props.FloatProperty(
+        name="Ray cast epsilon", description="Ray cast epsilon",
+        min=0.0, max=2.0,
+        default=0.02)
 
 
 ########################################################################################################################

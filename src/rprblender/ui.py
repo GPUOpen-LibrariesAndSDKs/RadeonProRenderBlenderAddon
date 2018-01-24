@@ -630,6 +630,10 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
         col = row.column(align=True)
         col.prop(rpr_gi, "max_ray_depth", slider=True)
 
+        row = layout.row()
+        col = row.column(align=True)
+        col.prop(rpr_gi, "ray_epsilon", slider=True)
+
         row = split.column()
 
         row.prop(rpr_gi, "use_clamp_irradiance")
