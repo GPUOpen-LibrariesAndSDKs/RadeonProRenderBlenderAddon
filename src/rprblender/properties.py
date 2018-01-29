@@ -89,10 +89,6 @@ def create_core_enum_property(cls, prefix, name, description, text_suffix="", de
 ########################################################################################################################
 def states_change(self, context):
     if rprblender.render.render_layers.use_custom_passes:
-        # 2.79 uses new api for render passes, where RenderEngine implements `update_render_passes`
-        # method where it should register all passes used. That's enough to have those passes in the
-        # compositor node and in the render result
-        # see https://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.79/Add-ons
         update_render_passes(context)
         return
 
@@ -120,12 +116,25 @@ def states_change(self, context):
         if name == 'object_id':
             context.scene.render.layers.active.use_pass_object_index = self.passesStates[i]
 
-
 def update_render_passes(context):
-    scene = context.scene
-    rd = scene.render
-    rl = rd.layers.active
-    rl.update_render_passes()
+    # 2.79 uses new api for render passes, where RenderEngine implements `update_render_passes`
+    # method where it should register all passes used. That's enough to have those passes in the
+    # compositor node and in the render result
+    # see https://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.79/Add-ons
+    # Also this will be working when use_nodes=True in current scene 
+    # and we have to disable all use_passes from 2.78.
+    layer = context.scene.render.layers.active
+    layer.use_pass_combined = False
+    layer.use_pass_color = False
+    layer.use_pass_vector = False
+    layer.use_pass_uv = False
+    layer.use_pass_material_index = False
+    layer.use_pass_emit = False
+    layer.use_pass_normal = False
+    layer.use_pass_z = False
+    layer.use_pass_object_index = False
+
+    layer.update_render_passes()
 
 
 def aov_enable_change(self, context):

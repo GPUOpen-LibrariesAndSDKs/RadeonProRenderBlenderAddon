@@ -157,7 +157,7 @@ use_custom_passes = (2, 78, 5) <= bpy.app.version
 
 if use_custom_passes:
     pass2info.update({
-        'Z': (1, "Z", 'VALUE'),
+        'Depth': (1, "Z", 'VALUE'),
     })
 
     pass_and_aov.extend(
@@ -167,7 +167,7 @@ if use_custom_passes:
             ('World Coordinate', 'world_coordinate'),
             ('Geometric Normal', 'geometric_normal'),
             ('Shading Normal', 'shading_normal'),
-            ('Z', 'depth'),
+            ('Depth', 'depth'),
         ]
     )
 else:
