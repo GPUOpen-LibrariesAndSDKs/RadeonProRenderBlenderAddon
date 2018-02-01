@@ -564,8 +564,8 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency_value).default_value = 0.0
         self.inputs.new('rpr_socket_link', self.normal_in)
         self.inputs.new('rpr_socket_color', self.displacement_map).default_value = (0.0, 0.0, 0.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.displacement_min).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.displacement_max).default_value = 1.0
+        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.displacement_min).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.displacement_max).default_value = 1.0
 
         self.reflection_changed(context)
         self.refraction_changed(context)
@@ -1372,8 +1372,8 @@ class RPRShaderNode_Displacement(RPRNodeType_Shader):
     bl_width_min = 200
 
     map_in = 'Displacement Map'
-    scale_min = bpy.props.FloatProperty(name='Scale Min', default=0)
-    scale_max = bpy.props.FloatProperty(name='Scale Max', default=1.0)
+    scale_min = bpy.props.FloatProperty(name='Scale Min', min=-1.0, max=1.0, default=0.0)
+    scale_max = bpy.props.FloatProperty(name='Scale Max', min=-1.0, max=1.0, default=1.0)
 
     shader_out = 'Displacement'
 
@@ -1384,8 +1384,8 @@ class RPRShaderNode_Displacement(RPRNodeType_Shader):
     def draw_buttons(self, context, layout):
         from rprblender.ui import add_subdivision_properties
         add_subdivision_properties(layout, bpy.context.active_object)
-        layout.prop(self, 'scale_min')
-        layout.prop(self, 'scale_max')
+        layout.prop(self, 'scale_min', slider=True)
+        layout.prop(self, 'scale_max', slider=True)
 
 
 ########################################################################################################################
