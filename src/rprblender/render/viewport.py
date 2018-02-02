@@ -72,8 +72,8 @@ class ViewportRenderer:
                 self.scene_renderer.has_shadowcatcher = True
                 break
 
-        self.scene_renderer.denoiser = bpy.context.scene.rpr.render.denoiser.enable
-        if self.scene_renderer.denoiser:
+        self.scene_renderer.has_denoiser = bpy.context.scene.rpr.render.denoiser.enable
+        if self.scene_renderer.has_denoiser:
             filter_type_value = bpy.context.scene.rpr.render.denoiser.filter_type
             self.scene_renderer.filter_type = bpy.context.scene.rpr.render.denoiser.filter_type_values[filter_type_value]
 
