@@ -11,6 +11,7 @@ import pyrprimagefilters
 import rprblender.render
 from rprblender import config, logging, images
 from rprblender.helpers import CallLogger
+from rprblender.helpers import isMetalOn
 
 import sys
 
@@ -212,12 +213,18 @@ class RenderDevice:
 
     # rif context used for denoising
     def create_rif_context(self):
+        
+        # TODO : Temporary turn off until metal support for image processing is completed
+        if isMetalOn():
+            return
+        
         creation_flags = pyrpr.ffi.new("rpr_creation_flags*", 0)
         pyrpr.ContextGetInfo(self.core_context, pyrpr.CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags),
                              creation_flags, pyrpr.ffi.NULL)
 
         self.rif_context = pyrprimagefilters.RifContext()
 
+        # Todo : remove this when image filters supports metal
         if creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_CPU:
             pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_OPENCL,
                                             pyrprimagefilters.PROCESSOR_CPU, 0, pyrprimagefilters.ffi.NULL,

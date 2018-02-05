@@ -20,7 +20,12 @@ if not debugger:
 		sys.argv[2]]) 
 else:
 	print("Debugger: %s" % debugger)
-	print("Use the folowing: run -noaudio --window-geometry 200 600 1280 960 --python %s" % sys.argv[2])
-	subprocess.check_call([debugger,sys.argv[1]])
+	subprocess.check_call([debugger,sys.argv[1],
+		'--', 
+    		#'--factory-startup', 
+    		'-noaudio', 
+		"--window-geometry","200","600","1920","1080",
+    		'--python', 
+		sys.argv[2]])
                            
 print('done in', time.time()-time_start)

@@ -3,9 +3,13 @@
 The Radeon ProRender Blender addon is a Python wrapper around a C++ core and
 has some specific requirements.
 
-Prerequisites:
---------------
+### Prerequisites:
+
+- The High Sierra OS 10.13.3 or later is required
+    - We only use the Metal code path for this addon and this is the reason for this requirement
 - Install Xcode
+    - SDKROOT should be set in your .profile:
+        - export SDKROOT="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk"
 - Install Homebrew first and then the prerequisites by executing the following:
 	- ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 	- /usr/local/bin/brew install homebrew/science/openimageio # Need 1.7
@@ -75,7 +79,7 @@ Blender can be started up under a debugger by using the following command:
 
 ./run_blender_with_rpr_osx.sh lldb
 
-Cut and paste the prompt that shows how to run Blender under the debugger.
+The startup arguments for Blender are passed to lldb so type "run" and hit return to start the debugger.
 
 ### Technical Notes:
 1. The Blender OSX build puts the required dynamic libraries into /Users/Shared/RadeonProRender/lib. This

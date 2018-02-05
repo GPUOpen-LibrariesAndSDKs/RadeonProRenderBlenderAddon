@@ -154,6 +154,13 @@ def get_context_creation_flags(is_production):
     else:
         flags = helpers.render_resources_helper.get_used_devices_flags()
         assert flags != 0
+        # Keeping this mode for testing
+        useGpuOcl = 'USE_GPU_OCL' in os.environ
+        if useGpuOcl:
+            logging.info("Enabling OCL GPU rendering")
+        elif 'Darwin' == platform.system():
+            flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
+            logging.info("Enabling Metal GPU rendering")
         if (settings.device_type_plus_cpu) and (is_production):
             flags |= pyrpr.CREATION_FLAGS_ENABLE_CPU
             logging.info('Using GPU+CPU')
