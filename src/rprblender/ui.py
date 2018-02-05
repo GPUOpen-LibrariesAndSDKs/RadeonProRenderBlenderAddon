@@ -1200,8 +1200,8 @@ class OpAddMaterialNodeTree(bpy.types.Operator):
         context.material.use_nodes = True
         tree = context.material.node_tree
         tree.nodes.clear()
-        shader = tree.nodes.new("rpr_shader_node_diffuse")
-        shader.location = 300, 400
+        shader = tree.nodes.new("rpr_shader_node_uber2")
+        shader.location = 150, 400
         matOut = tree.nodes.new(shader_node_output_name)
         matOut.location = 550, 400
         tree.links.new(shader.outputs[0], matOut.inputs[0])
