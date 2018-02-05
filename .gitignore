@@ -45,4 +45,7 @@ build_output/
 #
 *.bak
 *.opensdf
+*.suo
+*.user
+*.ipch
 
