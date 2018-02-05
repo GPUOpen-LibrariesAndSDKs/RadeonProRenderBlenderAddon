@@ -22,17 +22,30 @@ endif()
 
 set(RPR_SDK_PATH "${CMAKE_SOURCE_DIR}/../ThirdParty/RadeonProRender SDK")
 
-if (${APPLE})
-    set (RPRTOOL "${RPR_SDK_PATH}/Mac/RprTools.cpp")
-elseif(${WIN32})
-    set (RPRTOOL "${RPR_SDK_PATH}/Win/RprTools.cpp")
-else()
-    set (RPRTOOL "${RPR_SDK_PATH}/Linux-Ubuntu/RprTools.cpp")
-endif()
-
 if (NOT EXISTS "${RPR_SDK_PATH}")
     message(FATAL_ERROR "No RPR SDK at RPR_SDK_PATH=${RPR_SDK_PATH}")
 endif() 
+
+if (${APPLE})
+    set (RPR_SDK_PATH_OS ${RPR_SDK_PATH}/Mac)
+elseif(${WIN32})
+    set (RPR_SDK_PATH_OS ${RPR_SDK_PATH}/Win)
+else()
+    set (RPR_SDK_PATH_OS ${RPR_SDK_PATH}/Linux-Ubuntu)
+endif()
+
+if (NOT EXISTS "${RPR_SDK_PATH_OS}")
+    message(FATAL_ERROR "No RPR SDK at RPR_SDK_PATH_OS =${RPR_SDK_PATH_OS}")
+endif() 
+
+if (${APPLE})
+    set (RPRTOOL "${RPR_SDK_PATH_OS}/RprTools.cpp")
+elseif(${WIN32})
+    set (RPRTOOL "${RPR_SDK_PATH_OS}/RprTools.cpp")
+else()
+    set (RPRTOOL "${RPR_SDK_PATH_OS}/RprTools.cpp")
+endif()
+
 
 set(src
     RPRBlenderHelper/RPRBlenderHelper.cpp
@@ -44,12 +57,12 @@ set(src
 
 if(WIN32)
     list(APPEND src RPRBlenderHelper/dllmain.cpp)
-    set(RPR64LIB "${RPR_SDK_PATH}/Win/lib/RadeonProRender64.lib")
+    set(RPR64LIB "${RPR_SDK_PATH_OS}/lib/RadeonProRender64.lib")
 else()
     if (${APPLE})
-	set(RPR64LIB "${RPR_SDK_PATH}/Mac/lib/libRadeonProRender64.dylib")
+	set(RPR64LIB "${RPR_SDK_PATH_OS}/lib/libRadeonProRender64.dylib")
     else()
-	set(RPR64LIB "${RPR_SDK_PATH}/Linux-Ubuntu/lib/libRadeonProRender64.so")
+	set(RPR64LIB "${RPR_SDK_PATH_OS}/lib/libRadeonProRender64.so")
     endif()
 endif()
 
@@ -59,8 +72,8 @@ add_definitions(-DBLENDER_PLUGIN)
 
 target_link_libraries(RPRBlenderHelper "${RPR64LIB}")
 target_include_directories(RPRBlenderHelper PRIVATE 
-	"${RPR_SDK_PATH}/Win"
-	"${RPR_SDK_PATH}/Win/inc"
+	"${RPR_SDK_PATH_OS}"
+	"${RPR_SDK_PATH_OS}/inc"
     )
 
 

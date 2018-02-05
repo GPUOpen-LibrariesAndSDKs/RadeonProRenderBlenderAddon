@@ -9,6 +9,7 @@ from rprblender import logging
 from rprblender import sync, export
 import rprblender.render.render_layers
 from rprblender.helpers import CallLogger
+from rprblender.helpers import isMetalOn
 
 import pyrpr
 
@@ -72,7 +73,11 @@ class ViewportRenderer:
                 self.scene_renderer.has_shadowcatcher = True
                 break
 
-        self.scene_renderer.has_denoiser = bpy.context.scene.rpr.render.denoiser.enable
+        # TODO : Temporary turn off until metal support for image processing is completed
+        if isMetalOn():
+            self.scene_renderer.has_denoiser = False
+        else:
+            self.scene_renderer.has_denoiser = bpy.context.scene.rpr.render.denoiser.enable
         if self.scene_renderer.has_denoiser:
             filter_type_value = bpy.context.scene.rpr.render.denoiser.filter_type
             self.scene_renderer.filter_type = bpy.context.scene.rpr.render.denoiser.filter_type_values[filter_type_value]

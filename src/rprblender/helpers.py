@@ -1,4 +1,6 @@
 #!python3
+
+import os
 import platform
 import functools
 import inspect
@@ -131,6 +133,11 @@ class Os(IntEnum):   # sync with RprTools.h
     LINUX = 1
     MACOS = 2
 
+def isMetalOn():
+    if 'Darwin' == platform.system():
+        useGpuOcl = 'USE_GPU_OCL' in os.environ
+        return not useGpuOcl
+    return False
 
 #@rpraddon.register_class
 class RenderResourcesHelper:
@@ -148,7 +155,12 @@ class RenderResourcesHelper:
                 ]
 
         res = data[device_id]
-        return res[0], res[1]
+ 
+        flags = res[0]
+        if isMetalOn():
+            flags = flags | pyrpr.CREATION_FLAGS_ENABLE_METAL
+        
+        return flags, res[1]
 
     def is_device_compatible(self, device_id):
         compatibility = self.is_device_compatible_by_rpr(device_id)
@@ -343,10 +355,14 @@ class RenderResourcesHelper:
         assert self.lib
         path = str(self.renderer_dll_path).encode('utf8')
 
+        additionalflags = 0
+        if isMetalOn():
+            additionalflags = additionalflags | pyrpr.CREATION_FLAGS_ENABLE_METAL
 
         res = self.lib.check_device(path, 'Windows' == platform.system(), device_id,
                                     {'Windows': Os.WINDOWS, 'Linux': Os.LINUX, 'Darwin': Os.MACOS}[platform.system()],
-                                    str(render.ensure_core_cache_folder()).encode('latin1'))
+                                    str(render.ensure_core_cache_folder()).encode('latin1'),
+                                    additionalflags )
 
         return Compatibility(res)
 

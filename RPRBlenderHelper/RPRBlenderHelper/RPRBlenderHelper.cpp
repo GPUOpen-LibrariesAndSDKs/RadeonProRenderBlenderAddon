@@ -341,7 +341,7 @@ extern "C" EXPORT bool check_driver(const char * deviceName)
 #endif
 }
 
-extern "C" EXPORT RPR_TOOLS_COMPATIBILITY check_device(const rpr_char* rendererDLL, bool doWhiteListTest, RPR_TOOLS_DEVICE device, RPR_TOOLS_OS os, const char* cachePath)
+extern "C" EXPORT RPR_TOOLS_COMPATIBILITY check_device(const rpr_char* rendererDLL, bool doWhiteListTest, RPR_TOOLS_DEVICE device, RPR_TOOLS_OS os, const char* cachePath, rpr_creation_flags additionalflags)
 {
-    return  rprIsDeviceCompatible(rendererDLL, device, cachePath, doWhiteListTest, os);
+    return  rprIsDeviceCompatible(rendererDLL, device, cachePath, doWhiteListTest, os, additionalflags);
 }
