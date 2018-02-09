@@ -73,12 +73,14 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
     _init_data._log_fun = log_fun
 
     image_lib_names = []
-    alternate_relative_paths = ["../../../RadeonProImageProcessing"]
+    alternate_relative_paths = ["../../../RadeonProImageProcessing", "../../../RadeonProRender-GLTF"]
     lib_platform = ""
     if "Windows" == platform.system():
         # preload OpenImage dll so we don't have to add PATH
         ctypes.CDLL(str(rprsdk_bin_path / 'OpenImageIO_RPR.dll'))
-        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll','RadeonImageFilters64.dll']
+
+        # FreeImage.dll preload
+        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll','RadeonImageFilters64.dll', 'FreeImage.dll', 'ProRenderGLTF.dll']
         lib_platform = "Win/lib"
     elif "Linux" == platform.system():
         lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so', 'libRadeonImageFilters64.so']

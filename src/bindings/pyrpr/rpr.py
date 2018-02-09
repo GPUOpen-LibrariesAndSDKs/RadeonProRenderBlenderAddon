@@ -24,7 +24,7 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64']
+    lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64', 'ProRenderGLTF']
 
     if "Windows" == platform.system():
         platform_folder = 'Win'
@@ -36,8 +36,10 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     else:
         assert False
 
-    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc')]
-    lib_dir = [str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' )]
+    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc'),
+               str(rprsdk_path / "../RadeonProRender-GLTF/" / platform_folder / 'inc')]
+    lib_dir = [str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' ),
+               str(rprsdk_path / "../RadeonProRender-GLTF/" / platform_folder / 'lib')]
     for d in inc_dir:
         if not os.path.isfile:
             print("Bad include path: '%s'" % d)
@@ -146,3 +148,7 @@ if __name__ == "__main__":
 
     export('pyrpropenclapi.json', ['pyrprapi.json'],
            'RadeonProRender_CL.h', '__rprcl', 'pyrpropenclwrap.py', 'pyrpropenclwrap_make.py', abi_mode)
+
+    if platform.system() != "Darwin":  # TODO : GLTF
+        export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'],
+               'ProRenderGLTF.h', '__gltf', 'gltfwrap.py', 'pyrprgltfwrap_make.py', abi_mode)
