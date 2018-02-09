@@ -163,7 +163,7 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
 
             col1.prop(settings, "samples", slider=True)
             row = col1.row()
-            row.enabled = gpu_enable
+            row.enabled = False if "Darwin" == platform.system() else gpu_enable # TODO : fix
             row.prop(settings, "device_type_plus_cpu")
 
             if not is_row:
