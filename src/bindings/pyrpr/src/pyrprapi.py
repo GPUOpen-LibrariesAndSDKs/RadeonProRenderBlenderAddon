@@ -181,8 +181,17 @@ def export(rpr_header, json_file_name, prefixes, castxml):
 
     import sys
 
-    subprocess.check_call([castxml, '-E', '-dD', '-ObjC++', rpr_header, '-o', 'rprapi.pp'])
-    subprocess.check_call([castxml, '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
+    if "Windows" == platform.system():
+        subprocess.check_call([castxml, '-I', 'ThirdParty/RadeonProRender SDK/Win/inc', '-E', '-dD', '-x' , 'c++', rpr_header, '-o', 'rprapi.pp'])        
+        subprocess.check_call([castxml, '-I', 'ThirdParty/RadeonProRender SDK/Win/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
+
+    if "Linux" == platform.system():
+        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc', '-E', '-dD', '-x', 'c++', rpr_header, '-o', 'rprapi.pp'])
+        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
+
+    if "Darwin" == platform.system():
+        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Mac/inc', '-E', '-dD', '-x', 'c++', rpr_header, '-o', 'rprapi.pp'])
+        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Mac/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
 
     t = xml.etree.ElementTree.parse('rprapi.xml')
 
@@ -575,6 +584,10 @@ if __name__=='__main__':
     rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include/RadeonImageFilters_cl.h'
     json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
 
+    # GLTF
+    rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc/ProRenderGLTF.h'
+    json_file_name_gltf = 'src/bindings/pyrpr/src/pyrprgltfapi.json'
+
     if "Darwin" == platform.system():
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender.h'
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Mac/inc/RprSupport.h'
@@ -586,6 +599,7 @@ if __name__=='__main__':
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
         rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender_CL.h'
         rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Win/inc/RadeonImageFilters_cl.h'
+        rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
 
     export(rpr_header_rpr, json_file_name_rpr,
            {
@@ -615,3 +629,12 @@ if __name__=='__main__':
                'constant': ['RPR_CL_', 'FR_CL_']
            },
            castxml)
+
+    if platform.system() != "Darwin": # TODO : GLTF
+        export(rpr_header_gltf, json_file_name_gltf,
+               {
+                   'type': [],
+                   'function': ['rprExport'],
+                   'constant': []
+               },
+               castxml)

@@ -865,9 +865,76 @@ def export_rpr_model(context, filepath):
 
     return {'FINISHED'}
 
+@rpraddon.register_class
+class OpExportGLTFModel(Operator, ExportHelper):
+    bl_idname = "rpr.export_gltf"
+    bl_label = "Export GLTF"
+    filename_ext = ".gltf"
+
+    filter_glob = bpy.props.StringProperty(
+        default="*.gltf",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
+
+    def execute(self, context):
+        return export_gltf_model(self.filepath)
+
+def export_gltf_model(filepath):
+    
+    if platform.system() == "Darwin":  # TODO : GLTF
+        logging.info("GLTF is not implemented on this platform.")
+        return
+
+    import pyrprgltf
+    from rprblender import sync, export
+    import rprblender.render.scene
+
+    render_device = rprblender.render.get_render_device()
+    context = render_device.core_context
+    material_system = render_device.core_material_system
+    uber_context = pyrprgltf.Object('rprx_context', render_device.core_uber_rprx_context)
+
+    count = len(bpy.data.scenes)
+
+    scene = bpy.context.scene
+    settings = scene.rpr.render
+    scene_synced = sync.SceneSynced(render_device, settings)
+
+    render_resolution = (640, 480)
+
+    render_camera = sync.RenderCamera()
+    sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings, scene,
+                                                   border=None)
+
+    scene_synced.set_render_camera(render_camera)
+
+    with rprblender.render.core_operations(raise_error=True):
+        scene_synced.make_core_scene()
+    try:
+        scene_exporter = export.SceneExport(scene, scene_synced, ['MESH', 'CURVE'])
+        scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)
+        scene_exporter.export()
+        rpr_scene = scene_synced.get_core_scene()
+
+        rpr_scene_array = pyrprgltf.ArrayObject("rpr_scene[]", [rpr_scene._handle_ptr[0]])
+
+        file_name = bytes(filepath, encoding="latin1")
+        pyrprgltf.ExportToGLTF(file_name, context, material_system, uber_context, 
+                           rpr_scene_array._handle_ptr, 1)
+    except:
+        logging.error("Export failed with an exception")
+    finally:
+        del scene_exporter
+        scene_synced.destroy()
+        del scene_synced
+
+    return {'FINISHED'}
+
 
 def add_rpr_export_menu_item(self, context):
     self.layout.operator(OpExportRPRModel.bl_idname, text="Radeon ProRender (.rpr)")
+    self.layout.operator(OpExportGLTFModel.bl_idname, text="GLTF (.gltf)")
 
 
 links = (('main_site', "Main Site",         "http://pro.radeon.com/en-us/software/prorender/"),

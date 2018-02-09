@@ -8,6 +8,9 @@ WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
 RPR_SDK="ThirdParty/RadeonProRender SDK/Linux-Ubuntu"
 IMAGE_FILTER_DIR="ThirdParty/RadeonProImageProcessing/Linux/Ubuntu"
 IMAGE_FILTER_LIBNAME="libRadeonImageFilters64.so"
+GLTF_DIR="ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/lib"
+GLTF_LIBNAME="libProRenderGLTF.so"
+
 
 function init()
 {
@@ -27,6 +30,9 @@ function init()
 	done
 	# link imageprocessing lib to workdir
 	ln -s "$DIR/$IMAGE_FILTER_DIR/lib64/$IMAGE_FILTER_LIBNAME" "$WORK_DIR/"
+
+	# link gltf lib to workdir
+	ln -s "$DIR/$GLTF_DIR/$GLTF_LIBNAME" "$WORK_DIR/"
 
 	# link helper to workdir
 	ln -s "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
