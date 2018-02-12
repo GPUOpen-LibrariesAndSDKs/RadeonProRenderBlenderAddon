@@ -23,6 +23,9 @@
 
     sudo apt-get install libopenimageio1.6
 
+- FreeImage
+    sudo apt-get install libfreeimage-dev
+
 ### Build Requirements
 
 	sudo apt-get install  \
