@@ -1281,7 +1281,8 @@ class Material:
         log_mat('parse_node_normalmap...')
         node = NormalMapNode(self)
         socket = self.get_socket(blender_node, blender_node.map_in)
-        assert socket
+        if not socket:
+            return Value()
         node.set_map(self.parse_node(socket))
         node.set_value(b'bumpscale', self.get_value(blender_node, blender_node.scale_in))
         return ValueNode(node)
@@ -1290,7 +1291,9 @@ class Material:
         log_mat('parse_node_bumpmap...')
         node = BumpMapNode(self)
         socket = self.get_socket(blender_node, blender_node.map_in)
-        assert socket
+        if not socket:
+            return Value()
+
         node.set_map(self.parse_node(socket))
         node.set_bumpscale(self.get_value(blender_node, blender_node.scale_in))
         return ValueNode(node)
