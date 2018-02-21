@@ -150,6 +150,20 @@ class CyclesMaterialConverter(converter.MaterialConverter):
         self.convert_value_from_socket(socket_normal, diffuse, diffuse.node.normal_in, self.vec3_to_vec4)
         return diffuse
 
+    def convert_node_principled(self, params):
+        cycles_node = params.node
+        pbr = self.material_editor.create_pbr_material_node()
+        pbr.node.location = self.get_new_loacation(cycles_node)
+        self.convert_value(cycles_node, 'Base Color', pbr, pbr.node.base_color)
+        self.convert_value(cycles_node, 'Roughness', pbr, pbr.node.roughness)
+        self.convert_value(cycles_node, 'Metallic', pbr, pbr.node.metalness)
+        self.convert_value(cycles_node, 'Clearcoat', pbr, pbr.node.coating_weight)
+        self.convert_value(cycles_node, 'Clearcoat Roughness', pbr, pbr.node.coating_roughness)
+        self.convert_value(cycles_node, 'Transmission', pbr, pbr.node.transparency)
+        socket_normal = self.get_socket(cycles_node, 'Normal')
+        self.convert_value_from_socket(socket_normal, pbr, pbr.node.normal_in, self.vec3_to_vec4)
+        return pbr
+
     def convert_node_emission(self, params):
         cycles_node = params.node
         emissive = self.material_editor.create_emissive_material_node()
@@ -993,6 +1007,7 @@ class CyclesMaterialConverter(converter.MaterialConverter):
             'ShaderNodeBsdfTranslucent': self.convert_node_translucent,
             'ShaderNodeRGBCurve': self.convert_node_rgbcurve,
             'ShaderNodeMapping': self.convert_node_mapping,
+            'ShaderNodeBsdfPrincipled': self.convert_node_principled,
         }
         return registered_nodes
 
