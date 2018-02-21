@@ -139,6 +139,9 @@ class MaterialEditor:
     def create_uber_material_node2(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_uber2'), self)
 
+    def create_pbr_material_node(self):
+        return Material(self.tree.nodes.new(type='rpr_shader_node_pbr'), self)
+
     def create_reflection_material_node(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_reflection'), self)
 
