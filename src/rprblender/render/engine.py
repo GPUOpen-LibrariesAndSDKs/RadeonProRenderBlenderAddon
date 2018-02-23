@@ -20,7 +20,7 @@ import rprblender.render.viewport
 from rprblender import rpraddon, logging, config, sync, export
 from rprblender.helpers import CallLogger, print_memory_usage
 from rprblender.timing import TimedContext
-from rprblender.versions import get_render_passes_aov
+import rprblender.versions as versions
 
 call_logger = CallLogger(tag='render.engine')
 
@@ -39,7 +39,7 @@ class RenderViewport(bpy.types.Operator):
 def start_viewport_rendering(context):
     viewport_renderer = rprblender.render.viewport.ViewportRenderer()
     logging.debug('start: {},{}'.format(context.region.width, context.region.height), tag='render.viewport')
-    viewport_renderer.set_render_aov(get_render_passes_aov(bpy.context))
+    viewport_renderer.set_render_aov(versions.get_render_passes_aov(bpy.context))
     viewport_renderer.set_render_resolution((context.region.width, context.region.height))
 
     #viewport_renderer.set_render_resolution((context.region.width, context.region.height))
@@ -164,8 +164,8 @@ class RPREngine(bpy.types.RenderEngine):
 
         scene_synced.set_render_camera(render_camera)
 
-        passes_aov = bpy.context.scene.rpr.preview_aov if self.is_preview else get_render_passes_aov(bpy.context)
-        aov_settings = rprblender.render.render_layers.extract_settings(passes_aov)
+        passes_aov_list, active_index = bpy.context.scene.rpr.preview_aov if self.is_preview else versions.get_render_passes_aov_list(bpy.context)
+        aov_settings = rprblender.render.render_layers.extract_settings_list(passes_aov_list, active_index)
 
         with rprblender.render.core_operations(raise_error=True):
             scene_synced.make_core_scene()
@@ -238,10 +238,9 @@ class RPREngine(bpy.types.RenderEngine):
             scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(scene_renderer)
             scene_renderer_threaded.start_noninteractive()
 
-            if not self.is_preview:
-                if rprblender.render.render_layers.use_custom_passes:
-                    # Blender 2.79
-                    self.add_passes(aov_settings)
+            
+            if not self.is_preview and versions.is_blender_support_aov():
+                self.add_passes(passes_aov_list)
 
             result = self.begin_result(0, 0, render_border_resolution[0], render_border_resolution[1])
             logging.debug("Passes in the result:", tag="render.engine.passes")
@@ -395,6 +394,7 @@ class RPREngine(bpy.types.RenderEngine):
             logging.debug("result_render_layer.passes.foreach_set:", len(res), tag="render.engine")
             result_render_layer.passes.foreach_set("rect", np.concatenate(res))
 
+
     def report_render_error(self, error_type, message):
         self.update_stats("ERROR", "Check log for details")
         self.report({'INFO'}, 'ERROR: Check log for details')
@@ -495,7 +495,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.view_draw_get_image_timestamp = time_view_draw_start
             logging.debug("get_image", tag='render.viewport.draw')
 
-            viewport_renderer.update_render_aov(get_render_passes_aov(bpy.context))
+            viewport_renderer.update_render_aov(versions.get_render_passes_aov(bpy.context))
             viewport_renderer.update_render_resolution(render_resolution)
 
             region = self.get_view_render_region(context)
@@ -510,7 +510,7 @@ class RPREngine(bpy.types.RenderEngine):
                 sync.extract_viewport_render_camera(context, viewport_renderer.scene_renderer.render_settings))
 
             logging.debug("pass:", viewport_renderer.render_aov.pass_displayed,
-                          get_render_passes_aov(bpy.context).pass_displayed,
+                          versions.get_render_passes_aov(bpy.context).pass_displayed,
                           tag='render.viewport.draw')
 
             self.is_shadowcatcher = False
@@ -582,56 +582,25 @@ class RPREngine(bpy.types.RenderEngine):
                     [context.space_data.render_border_min_x, context.space_data.render_border_max_x],
                     [context.space_data.render_border_min_y, context.space_data.render_border_max_y]]
 
-    def update_script_node(self, node=None):  # Compile shader script node
-        pass
 
-    def update_render_passes(self, scene, srl):
-        logging.debug("update_render_passes", tag="render.engine.passes")
-
-        # explicintly register pass for it shows up in the Render Layers compositor node
-        self._register_pass(scene, srl, 'Combined')
-
-        render_settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render  # type: rprblender.properties.RenderSettings
-        passes_aov = bpy.context.scene.rpr.preview_aov if self.is_preview else get_render_passes_aov(bpy.context)
-
-        aov_settings = rprblender.render.render_layers.extract_settings(passes_aov)
-        for pass_name in self.enumerate_passes(aov_settings):
-            self._register_pass(scene, srl, pass_name)
-
-    def _register_pass(self, scene, srl, pass_name):
-        pass_info = rprblender.render.render_layers.pass2info[pass_name]
-        logging.debug("    register_pass", pass_name, pass_info, tag="render.engine.passes")
-        self.register_pass(scene, srl, pass_name, *pass_info)
-
-    def add_passes(self, aov_settings):
-
-        # not calling add_path on 'Combined' - it's already there and when adding it
-        # somehow Blender doesn't show rendered image after renderer ended when Combined
-        # is selected in the Image editor. Switching to another pass and back shows it, though
-
+    def add_passes(self, passes_aov_list):
         logging.debug("add_passes", tag="render.engine.passes")
-        for pass_name in self.enumerate_passes(aov_settings):
-            pass_info = rprblender.render.render_layers.pass2info[pass_name]
-            channels, chan_id = pass_info[0], pass_info[1]
-            logging.debug("    add_pass", pass_name, pass_info, tag="render.engine.passes")
-            self.add_pass(pass_name,     channels, chan_id)
+        for layer_name, passes_aov in passes_aov_list:
+            if not passes_aov.enable:
+                continue
 
-    def enumerate_passes(self, aov_settings):
-        # TODO: seems like we need to add_pass always, register_pass is for something else?
+            for i, passes_item in enumerate(passes_aov.render_passes_items):
+                if not passes_aov.passesStates[i]:
+                    continue
 
-        passes = set()
+                # not calling add_pass on 'Combined' (it's already there) and on 'Depth' (it's added by use_pass_z=True)
+                aov_name = passes_item[0]
+                if aov_name == 'default' or aov_name == 'depth':
+                    continue
 
-        # leave out Combined from enumeration, see add_passes comment - calling add_pass
-        # for Combined doesn't work well(in blender-2.78.0-git.528ae88-windows64)
-        # passes.add('Combined')
+                pass_name = rprblender.render.render_layers.aov2pass[aov_name]
+                pass_info = rprblender.render.render_layers.pass2info[pass_name]
+                channels, chan_id = pass_info[0], pass_info[1]
 
-        if aov_settings.enable:
-            for i, pass_name in enumerate(aov_settings.passes_names):
-
-                # skip enumerating Combined pass, adding it breaks appering it in the resulting Render Layer
-                # AMDBLENDER-777
-                if pass_name != 'default':
-                    if aov_settings.passes_states[i]:
-                        logging.debug("add pass:", pass_name, tag="render.engine.passes")
-                        passes.add(rprblender.render.render_layers.aov2pass[pass_name])
-        return passes
+                logging.debug("    add_pass", pass_name, pass_info, "layer=%s" % layer_name, tag="render.engine.passes")
+                self.add_pass(pass_name, channels, chan_id, layer_name)
