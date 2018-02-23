@@ -834,6 +834,17 @@ class RPRCameraSettings:
         description="Use stereo camera",
         default=False,
     )
+    motion_blur = bpy.props.BoolProperty(
+        name="Motion Blur",
+        description="Enable Motion Blur",
+        default=True
+    )
+    motion_blur_exposure = bpy.props.FloatProperty(
+        name="Exposure",
+        description="Motion Blur Exposure",
+        min=0, 
+        default=1.0
+    )
 
 
 @rpraddon.register_class
@@ -937,6 +948,36 @@ class ViewportQuality():
     normal_max_ray_depth = 10
 
 
+def update_motion_blur_exposure(self, context):
+    selected = []
+    if self.motion_blur_exposure_apply == 'ACTIVE':
+        if context.scene != None and context.scene.camera != None:
+            selected = [context.scene.camera]
+    elif self.motion_blur_exposure_apply == 'SELECTED':
+        selected = context.selected_editable_objects
+    else:
+        selected = context.editable_objects
+
+    for obj in selected:
+        if obj.type != 'CAMERA':
+            continue
+        obj.data.rpr_camera.motion_blur = True
+        obj.data.rpr_camera.motion_blur_exposure = self.motion_blur_exposure
+
+
+def update_motion_blur_scale(self, context):
+    if self.motion_blur_scale_apply == 'SELECTED':
+        selected = context.selected_editable_objects
+    else:
+        selected = context.editable_objects
+
+    for obj in selected:
+        if obj.type not in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META'):
+            continue
+        obj.rpr_object.motion_blur = True
+        obj.rpr_object.motion_blur_scale = self.motion_blur_scale
+
+
 @rpraddon.register_class
 class RenderSettings(bpy.types.PropertyGroup):
     if not versions.is_blender_support_aov():
@@ -992,36 +1033,36 @@ class RenderSettings(bpy.types.PropertyGroup):
         name="Motion Blur", description="Enable Motion Blur",
         default=False,
     )
-    motion_blur_type = bpy.props.EnumProperty(
-        name="Motion Blur Type",
-        items=(('GEOMETRY', "Geometry", "Geometry"),
-               ('IMAGE', "Image", "Image")),
-        description="Motion Blur Type",
-        default='GEOMETRY',
+
+    motion_blur_exposure_apply = bpy.props.EnumProperty(
+        name="Apply exposure",
+        items=(('ACTIVE', "Active Camera", "Active Camera on scene"),
+               ('SELECTED', "Selected Camera(s)", "Selected Camera(s) (self explanatory)"),
+               ('ALL', "Entire scene", "Entire scene (autoselects all cameras)")),
+        description="Apply exposure to camera(s)",
+        default='ACTIVE',
     )
-    motion_blur_geometry_exposure = bpy.props.FloatProperty(
-        name="Exposure", description="Exposure",
-        min=0, default=1.0,
+
+    motion_blur_exposure = bpy.props.FloatProperty(
+        name="Exposure", description="Motion Blur Exposure for camera(s)",
+        min=0,
+        default=1.0,
+        update=update_motion_blur_exposure
     )
-    motion_blur_geometry_scale = bpy.props.FloatProperty(
-        name="Scale", description="Scale",
-        min=0, default=100.0,
+
+    motion_blur_scale_apply = bpy.props.EnumProperty(
+        name="Apply scale",
+        items=(('SELECTED', "Selected Object(s)", "Selected Object(s) (self explanatory)"),
+               ('ALL', "Entire scene", "Entire scene (autoselects all objects)")),
+        description="Apply scale to object(s)",
+        default='SELECTED'
     )
-    motion_blur_image_exposure = bpy.props.FloatProperty(
-        name="Exposure", description="Exposure",
-        min=0, default=1.0,
-    )
-    motion_blur_image_scale = bpy.props.FloatProperty(
-        name="Scale", description="Scale",
-        min=0, default=100.0,
-    )
-    motion_blur_image_frame_start = bpy.props.IntProperty(
-        name="Frame Start", description="Frame Start",
-        min=0, default=0, subtype='TIME'
-    )
-    motion_blur_image_frame_stop = bpy.props.IntProperty(
-        name="Frame Stop", description="Frame Stop",
-        min=0, default=0, subtype='TIME'
+
+    motion_blur_scale = bpy.props.FloatProperty(
+        name="Scale", description="Motion Blur Scale for object(s)",
+        min=0,
+        default=1.0,
+        update=update_motion_blur_scale
     )
 
     def get_max_ray_depth(self, is_production):
@@ -1332,6 +1373,18 @@ class RPRObject(bpy.types.PropertyGroup):
             default=True,
         )
 
+        cls.motion_blur = bpy.props.BoolProperty(
+            name="Motion Blur",
+            description="Enable Motion Blur",
+            default=True,
+        )
+
+        cls.motion_blur_scale = bpy.props.FloatProperty(
+            name="Scale",
+            description="Motion Blur Scale",
+            default=1.0,
+            min=0,
+        )
 
 
 @rpraddon.register_class
