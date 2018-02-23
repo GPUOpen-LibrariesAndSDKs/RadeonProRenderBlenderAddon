@@ -88,43 +88,45 @@ def create_core_enum_property(cls, prefix, name, description, text_suffix="", de
 # Passes AOV
 ########################################################################################################################
 def states_change(self, context):
-    if rprblender.render.render_layers.use_custom_passes:
-        update_render_passes(context)
+    layer = context.scene.render.layers.active
+
+    if versions.is_blender_support_aov():
+        # here we have to change only use_pass_z which adds/remove 'Depth' pass to render layer
+        # other passes will be added through add_pass() function in RenderEngine
+        depth_ind = [x[0] for x in self.render_passes_items].index('depth')
+        layer.use_pass_z = self.passesStates[depth_ind] 
         return
 
     # TODO: remove this when 2.78 is deprecated
     logging.warn("Using old Blender", bpy.app.version_string, "?")
+    layer.use_pass_combined = True
+    layer.use_pass_color = False
     for i in range(len(self.render_passes_items)):
         name = self.render_passes_items[i][0]
-        context.scene.render.layers.active.use_pass_combined = True
-        context.scene.render.layers.active.use_pass_color = False
-
         if name == 'default':
-            context.scene.render.layers.active.use_pass_combined = self.passesStates[i]
-        if name == 'world_coordinate':
-            context.scene.render.layers.active.use_pass_vector = self.passesStates[i]
-        if name == 'uv':
-            context.scene.render.layers.active.use_pass_uv = self.passesStates[i]
-        if name == 'material_idx':
-            context.scene.render.layers.active.use_pass_material_index = self.passesStates[i]
-        if name == 'geometric_normal':
-            context.scene.render.layers.active.use_pass_emit = self.passesStates[i]
-        if name == 'shading_normal':
-            context.scene.render.layers.active.use_pass_normal = self.passesStates[i]
-        if name == 'depth':
-            context.scene.render.layers.active.use_pass_z = self.passesStates[i]
-        if name == 'object_id':
-            context.scene.render.layers.active.use_pass_object_index = self.passesStates[i]
+            layer.use_pass_combined = self.passesStates[i]
+        elif name == 'world_coordinate':
+            layer.use_pass_vector = self.passesStates[i]
+        elif name == 'uv':
+            layer.use_pass_uv = self.passesStates[i]
+        elif name == 'material_idx':
+            layer.use_pass_material_index = self.passesStates[i]
+        elif name == 'geometric_normal':
+            layer.use_pass_emit = self.passesStates[i]
+        elif name == 'shading_normal':
+            layer.use_pass_normal = self.passesStates[i]
+        elif name == 'depth':
+            layer.use_pass_z = self.passesStates[i]
+        elif name == 'object_id':
+            layer.use_pass_object_index = self.passesStates[i]
 
-def update_render_passes(context):
-    # 2.79 uses new api for render passes, where RenderEngine implements `update_render_passes`
-    # method where it should register all passes used. That's enough to have those passes in the
-    # compositor node and in the render result
-    # see https://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.79/Add-ons
-    # Also this will be working when use_nodes=True in current scene 
-    # and we have to disable all use_passes from 2.78.
+
+def aov_enable_change(self, context):
+    if self.enable:
+        states_change(self, context)
+        return
+
     layer = context.scene.render.layers.active
-    layer.use_pass_combined = False
     layer.use_pass_color = False
     layer.use_pass_vector = False
     layer.use_pass_uv = False
@@ -133,26 +135,6 @@ def update_render_passes(context):
     layer.use_pass_normal = False
     layer.use_pass_z = False
     layer.use_pass_object_index = False
-
-    layer.update_render_passes()
-
-
-def aov_enable_change(self, context):
-    if rprblender.render.render_layers.use_custom_passes:
-        update_render_passes(context)
-    else:
-        layer = context.scene.render.layers.active
-        layer.use_pass_color = False
-        layer.use_pass_vector = False
-        layer.use_pass_uv = False
-        layer.use_pass_material_index = False
-        layer.use_pass_emit = False
-        layer.use_pass_normal = False
-        layer.use_pass_z = False
-        layer.use_pass_object_index = False
-
-        if self.enable:
-            states_change(self, context)
 
 
 @rpraddon.register_class
@@ -184,6 +166,8 @@ class RenderPassesAov(bpy.types.PropertyGroup):
         description="Passes states",
         size=len(render_passes_items),
         update=states_change,
+        # enable Depth pass by default because it is enabled in Blender by default
+        default=(False, True, False, False, False, False, False, False),
     )
 
     transparent = bpy.props.BoolProperty(

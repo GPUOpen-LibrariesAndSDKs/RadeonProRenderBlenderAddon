@@ -9,6 +9,7 @@ import rprblender.render
 import rprblender.render.device
 from rprblender.helpers import CallLogger
 from . import logging
+import rprblender.versions as versions
 
 import pyrprimagefilters
 
@@ -19,14 +20,29 @@ def prepare_image(fb_image):
     return np.flipud(fb_image)
 
 
-def extract_settings(aov_settings):
+def extract_settings(passes_aov):
     """ copy aov settings from Blender data"""
+
+    return extract_settings_list([("", passes_aov)], 0)
+
+
+def extract_settings_list(passes_aov_list, active_index):
+    active_aov = passes_aov_list[active_index][1]
+
+    # unify passes states from all layers
+    unified_states = [False] * len(active_aov.passesStates)
+    for p in passes_aov_list:
+        if not p[1].enable:
+            continue
+        for i, val in enumerate(p[1].passesStates):
+            unified_states[i] |= val
+                          
     class Settings:
-        enable = aov_settings.enable
-        pass_displayed = aov_settings.pass_displayed
-        passes_states = list(aov_settings.passesStates)
-        passes_names = [item[0] for item in aov_settings.render_passes_items]
-        transparent = aov_settings.transparent
+        enable = active_aov.enable
+        pass_displayed = active_aov.pass_displayed
+        passes_states = unified_states
+        passes_names = [item[0] for item in active_aov.render_passes_items]
+        transparent = active_aov.transparent
 
         def __eq__(self, other):
             """ used in interactive(viewport) render to check if aov needs reset"""
@@ -152,10 +168,7 @@ pass_and_aov = [
     ('UV', 'uv'),
 ]
 
-# Blender 2.79
-use_custom_passes = (2, 78, 5) <= bpy.app.version
-
-if use_custom_passes:
+if versions.is_blender_support_aov():
     pass2info.update({
         'Depth': (1, "Z", 'VALUE'),
     })

@@ -170,6 +170,13 @@ def get_render_passes_aov(context):
         return context.scene.rpr.render.passes_aov
 
 
+def get_render_passes_aov_list(context):
+    if is_blender_support_aov():
+        return [(layer.name, layer.rpr_data.passes_aov) for layer in context.scene.render.layers], context.scene.render.layers.active_index
+    else:
+        return [("", context.scene.rpr.render.passes_aov)], 0
+
+
 # convert old RPR Image nodes (AMDBLENDER-696)
 def check_old_rpr_image_nodes():
     if not is_blender_support_new_image_node():
