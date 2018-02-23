@@ -607,7 +607,7 @@ class ObjectsSync:
             return
         object_settings = obj.rpr_object
         mesh_sync = self.object_instances[key]
-        motion_blur = self.scene_export.get_object_motion_blur(mesh_sync)
+        motion_blur = self.scene_export.get_object_motion_blur(mesh_sync, object_settings)
 
         for i in mesh_sync.materials_assigned:
             self.scene_synced.mesh_set_shadowcatcher((key, i), object_settings.shadowcatcher)
@@ -704,7 +704,7 @@ class SceneExport:
         self.meshes_extracted = {}
         self.lamps_added = set()
         self.visible_objects = set()
-        self.next_matrices = {}
+        self.prev_matrices = {}
         self.profile = False
         self.motion_blur_frame = -1
 
@@ -762,17 +762,14 @@ class SceneExport:
         if obj_key in self.meshes_extracted:
             del self.meshes_extracted[obj_key]
 
-    def get_object_motion_blur(self, mesh_sync: 'MeshSync'):
-        scene = self.scene
-        if scene.rpr.render.motion_blur and \
-                scene.rpr.render.motion_blur_type == 'GEOMETRY' and \
-                scene.camera != None:
-            if self.motion_blur_frame != scene.frame_current:
-                self.motion_blur_frame = scene.frame_current
-                self.next_matrices = {}
+    def get_object_motion_blur(self, mesh_sync: 'MeshSync', object_settings):
+        if self.scene.rpr.render.motion_blur and object_settings.motion_blur and (self.scene.camera != None):
+            if self.motion_blur_frame != self.scene.frame_current:
+                self.motion_blur_frame = self.scene.frame_current
+                self.prev_matrices = {}
             return (mesh_sync.object_mesh.blender_obj.matrix_world,
-                    self.get_next_matrix(mesh_sync.object_mesh.blender_obj),
-                    scene.rpr.render.motion_blur_geometry_scale * 0.01 * scene.render.fps / 100.0)
+                    self.get_prev_matrix(mesh_sync.object_mesh.blender_obj),
+                    object_settings.motion_blur_scale)
 
     def set_render_layer(self, render_layer):
         self.render_layer = render_layer
@@ -944,14 +941,15 @@ class SceneExport:
     def get_render_layer(self):
         return self.render_layer or self.scene.render.layers.active
 
-    def get_next_matrix(self, obj):
+    def get_prev_matrix(self, obj):
         parent_movement = Matrix.Identity(4)
         if obj.parent != None:
-            parent_movement = self.get_next_matrix(obj.parent) * obj.parent.matrix_world.inverted()
+            parent_movement = self.get_prev_matrix(obj.parent) * obj.parent.matrix_world.inverted()
 
         id = get_object_key(obj)
         matrix = obj.matrix_world.copy()
-        if self.next_matrices.get(id) == None:
+        frame_num = self.scene.frame_current - 1
+        if self.prev_matrices.get(id) == None:
             if obj.animation_data is not None and obj.animation_data.action is not None:
                 obj_curves = obj.animation_data.action.fcurves
                 logging.debug("rotation type", obj.rotation_mode)
@@ -966,15 +964,15 @@ class SceneExport:
                     z_curve = obj_curves.find('rotation_quaternion', index=3)
 
                     if w_curve:
-                        w = w_curve.evaluate(self.scene.frame_current + 1)
+                        w = w_curve.evaluate(frame_num)
                     if x_curve:
-                        x = x_curve.evaluate(self.scene.frame_current + 1)
+                        x = x_curve.evaluate(frame_num)
                     if y_curve:
-                        y = y_curve.evaluate(self.scene.frame_current + 1)
+                        y = y_curve.evaluate(frame_num)
                     if z_curve:
-                        z = z_curve.evaluate(self.scene.frame_current + 1)
+                        z = z_curve.evaluate(frame_num)
 
-                    # if no axis then just get axis from current frame
+                    # if no axis then just get axis from offset frame
                     if not x_curve and not y_curve and not z_curve:
                         x = obj.rotation_quaternion[1]
                         y = obj.rotation_quaternion[2]
@@ -989,15 +987,15 @@ class SceneExport:
                     z_curve = obj_curves.find('rotation_axis_angle', index=3)
 
                     if w_curve:
-                        w = w_curve.evaluate(self.scene.frame_current + 1)
+                        w = w_curve.evaluate(frame_num)
                     if x_curve:
-                        x = x_curve.evaluate(self.scene.frame_current + 1)
+                        x = x_curve.evaluate(frame_num)
                     if y_curve:
-                        y = y_curve.evaluate(self.scene.frame_current + 1)
+                        y = y_curve.evaluate(frame_num)
                     if z_curve:
-                        z = z_curve.evaluate(self.scene.frame_current + 1)
+                        z = z_curve.evaluate(frame_num)
 
-                    # if no axis then just get axis from current frame
+                    # if no axis then just get axis from offset frame
                     if not x_curve and not y_curve and not z_curve:
                         x = obj.rotation_axis_angle[1]
                         y = obj.rotation_axis_angle[2]
@@ -1009,11 +1007,11 @@ class SceneExport:
                     y_curve = obj_curves.find('rotation_euler', index=1)
                     z_curve = obj_curves.find('rotation_euler', index=2)
                     if x_curve:
-                        x = x_curve.evaluate(self.scene.frame_current + 1)
+                        x = x_curve.evaluate(frame_num)
                     if y_curve:
-                        y = y_curve.evaluate(self.scene.frame_current + 1)
+                        y = y_curve.evaluate(frame_num)
                     if z_curve:
-                        z = z_curve.evaluate(self.scene.frame_current + 1)
+                        z = z_curve.evaluate(frame_num)
                     logging.debug("rotation values", x, y, z)
                     matrix = Euler((x, y, z), 'XYZ').to_matrix().to_4x4()
 
@@ -1022,17 +1020,17 @@ class SceneExport:
                 scale = mathutils.Vector()
                 curve = obj_curves.find('scale', 0)
                 if curve:
-                    scale.x = curve.evaluate(self.scene.frame_current + 1)
+                    scale.x = curve.evaluate(frame_num)
                 else:
                     scale.x = obj.scale[0]
                 curve = obj_curves.find('scale', 1)
                 if curve:
-                    scale.y = curve.evaluate(self.scene.frame_current + 1)
+                    scale.y = curve.evaluate(frame_num)
                 else:
                     scale.y = obj.scale[1]
                 curve = obj_curves.find('scale', 2)
                 if curve:
-                    scale.z = curve.evaluate(self.scene.frame_current + 1)
+                    scale.z = curve.evaluate(frame_num)
                 else:
                     scale.z = obj.scale[2]
 
@@ -1044,23 +1042,23 @@ class SceneExport:
 
                 curve = obj_curves.find('location', 0)
                 if curve:
-                    matrix[0][3] = curve.evaluate(self.scene.frame_current + 1)
+                    matrix[0][3] = curve.evaluate(frame_num)
                     logging.debug("locationX", matrix[0][3])
                 else:
                     matrix[0][3] = obj.matrix_world[0][3]
                 curve = obj_curves.find('location', 1)
                 if curve:
-                    matrix[1][3] = curve.evaluate(self.scene.frame_current + 1)
+                    matrix[1][3] = curve.evaluate(frame_num)
                     logging.debug("locationY", matrix[1][3])
                 else:
                     matrix[1][3] = obj.matrix_world[1][3]
                 curve = obj_curves.find('location', 2)
                 if curve:
-                    matrix[2][3] = curve.evaluate(self.scene.frame_current + 1)
+                    matrix[2][3] = curve.evaluate(frame_num)
                     logging.debug("locationZ", matrix[2][3])
                 else:
                     matrix[2][3] = obj.matrix_world[2][3]
-            self.next_matrices[id] = parent_movement * matrix
+            self.prev_matrices[id] = parent_movement * matrix
         # How to check frame calculation. We don't use this simple way to get next matrix beacouse we don't want to move current frame
         # logging.debug("was matrix", obj.matrix_world)
         # logging.debug("now matrix", matrix)
@@ -1069,7 +1067,7 @@ class SceneExport:
         # logging.debug("test matrix", matrix2)
         # self.scene.frame_set(self.scene.frame_current - 1)
 
-        return self.next_matrices[id]
+        return self.prev_matrices[id]
 
     def extract_settings(self, settings, settings_keys):
         result_settings = {}
@@ -1401,7 +1399,7 @@ class SceneExport:
             if not self.objects_sync.is_object_instantiated_as_mesh_prototype(obj_key):
                 continue
             mesh_sync = self.objects_sync.object_instances[obj_key]
-            motion_blur = self.get_object_motion_blur(mesh_sync)
+            motion_blur = self.get_object_motion_blur(mesh_sync, obj.rpr_object)
             if motion_blur is not None:
                 for i in mesh_sync.materials_assigned:
                     self.scene_synced.set_motion_blur((obj_key, i), *motion_blur)

@@ -295,8 +295,10 @@ class RPRRender_PT_motion_blur(RPRPanel, Panel):
         col = layout.column()
         col.enabled = settings.motion_blur
         col1, col2, is_row = create_ui_autosize_column(context, col)
-        col1.prop(settings, "motion_blur_geometry_exposure")
-        col2.prop(settings, "motion_blur_geometry_scale")
+        col1.prop(settings, "motion_blur_exposure_apply", text="")
+        col1.prop(settings, "motion_blur_exposure")
+        col2.prop(settings, "motion_blur_scale_apply", text="")
+        col2.prop(settings, "motion_blur_scale")
 
 
 @rpraddon.register_class
@@ -1245,6 +1247,30 @@ class RPRObject_PT(RPRPanel, Panel):
             subdivision_layout = self.layout.box()
             add_subdivision_properties(subdivision_layout, context.object)
 
+
+@rpraddon.register_class
+class RPRObject_PT_MotionBlur(RPRPanel, Panel):
+    bl_label = "RPR Motion Blur"
+    bl_context = 'object'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and (context.object.type in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META')) and \
+            super().poll(context)
+
+    def draw_header(self, context):
+        row = self.layout.row()
+        row.active = context.scene.rpr.render.motion_blur 
+        row.prop(context.object.rpr_object, "motion_blur", text='')
+
+    def draw(self, context):
+        row = self.layout.row()
+        row.active = context.scene.rpr.render.motion_blur
+        row.enabled = context.object.rpr_object.motion_blur
+        row.prop(context.object.rpr_object, "motion_blur_scale");
+
+
 @rpraddon.register_class
 class RPRCamra_PT(RPRPanel, Panel):
     bl_label = "RPR Settings"
@@ -1312,6 +1338,28 @@ class RPRCamera_PT_dof(RPRPanel, Panel):
         layout = self.layout
         cam = context.camera
         draw_camera_dof(context, layout, cam)
+
+
+@rpraddon.register_class
+class RPRCamera_PT_motion_blur(RPRPanel, Panel):
+    bl_label = "RPR Motion Blur"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and RPRPanel.poll(context)
+
+    def draw_header(self, context):
+        row = self.layout.row()
+        row.active = context.scene.rpr.render.motion_blur
+        row.prop(context.camera.rpr_camera, "motion_blur", text='')
+
+    def draw(self, context):
+        row = self.layout.row()
+        row.active = context.scene.rpr.render.motion_blur
+        row.enabled = context.camera.rpr_camera.motion_blur
+        row.prop(context.camera.rpr_camera, "motion_blur_exposure")
 
 
 @rpraddon.register_class

@@ -425,9 +425,11 @@ class SceneSynced:
             pyrpr.CameraSetLensShift(camera, *self.render_camera.shift)
             pyrpr.CameraSetOrthoWidth(camera, self.render_camera.ortho_width)
             pyrpr.CameraSetOrthoHeight(camera, self.render_camera.ortho_height)
+
         logging.debug('motion_blur: ', self.render_camera.motion_blur_enable, self.render_camera.motion_blur_exposure)
         if self.render_camera.motion_blur_enable:
             pyrpr.CameraSetExposure(camera, self.render_camera.motion_blur_exposure)
+        
         pyrpr.CameraSetMode(camera, mode)
         pyrpr.SceneSetCamera(self.core_scene, camera)
 
@@ -911,31 +913,30 @@ class SceneSynced:
         pyrpr.ShapeSetTransform(core_shape, True, ffi.cast('float*', matrix.ctypes.data))
 
     @call_logger.logged
-    def set_motion_blur(self, obj_key, obj_matrix, next_obj_matrix, scale):
-        if (obj_matrix == next_obj_matrix):
+    def set_motion_blur(self, obj_key, obj_matrix, prev_obj_matrix, scale):
+        if (obj_matrix == prev_obj_matrix):
             self.reset_motion_blur(obj_key)
             return
+
         logging.debug('obj_matrix', obj_matrix);
-        logging.debug('next_obj_matrix', next_obj_matrix);
+        logging.debug('prev_obj_matrix', prev_obj_matrix);
 
-        transform_quat = (next_obj_matrix * obj_matrix.inverted()).to_quaternion();
+        mul_diff = prev_obj_matrix * obj_matrix.inverted()
+        transform_quat = mul_diff.to_quaternion();
+        logging.debug('transform_quat', transform_quat, '; axis', transform_quat.axis, '; angle', transform_quat.angle);
 
-        logging.debug('transform_quat', transform_quat);
-
-        axis = transform_quat.axis
-        angle = transform_quat.angle
-
-        logging.debug('axis', axis);
-        logging.debug('angle', angle);
-        translation = (next_obj_matrix - obj_matrix).to_translation()
+        scale_vec = mul_diff.to_scale()
+        logging.debug('scale_vec', scale_vec);
+        
+        translation = (prev_obj_matrix - obj_matrix).to_translation()
         logging.debug('translation', translation);
-        seconds_in_frame = scale
 
-        velocity = translation * seconds_in_frame
-        momentum_axis = axis
-        momentum_angle = angle * seconds_in_frame
+        velocity = translation * scale
+        momentum_axis = transform_quat.axis
+        momentum_angle = transform_quat.angle * scale
+        momentum_scale = (scale_vec - mathutils.Vector((1, 1, 1))) * scale
 
-        handle = self.get_synced_obj(obj_key).core_obj
+        handle = self.get_core_obj(obj_key)
 
         logging.debug('LinearMotion', velocity.x, velocity.y, velocity.z)
         pyrpr.ShapeSetLinearMotion(handle, velocity.x, velocity.y, velocity.z)
@@ -947,18 +948,23 @@ class SceneSynced:
             logging.debug('AngularMotion', 1.0, 0.0, 0.0, 0.0)
             pyrpr.ShapeSetAngularMotion(handle, 1.0, 0.0, 0.0, 0.0)
 
+        logging.debug('ScaleMotion', momentum_scale.x, momentum_scale.y, momentum_scale.z)
+        pyrpr.ShapeSetScaleMotion(handle, momentum_scale.x, momentum_scale.y, momentum_scale.z)
+
+
     @call_logger.logged
     def reset_motion_blur(self, obj_key):
-        try:
-            handle = self.get_synced_obj(obj_key).core_obj
-        except KeyError:
-            return
+        handle = self.get_core_obj(obj_key)
 
         logging.debug('LinearMotion', 0.0, 0.0, 0.0)
         pyrpr.ShapeSetLinearMotion(handle, 0.0, 0.0, 0.0)
 
         logging.debug('AngularMotion', 1.0, 0.0, 0.0, 0.0)
         pyrpr.ShapeSetAngularMotion(handle, 1.0, 0.0, 0.0, 0.0)
+
+        logging.debug('ScalerMotion', 0.0, 0.0, 0.0)
+        pyrpr.ShapeSetScaleMotion(handle, 0.0, 0.0, 0.0)
+
 
     @call_logger.logged
     def mesh_set_shadowcatcher(self, obj_key, value):
@@ -1330,7 +1336,7 @@ class RenderCamera:
             return False
 
         if self.motion_blur_enable:
-            if not (self.motion_blur_exposure == other.motion_blur_enable):
+            if not (self.motion_blur_exposure == other.motion_blur_exposure):
                 return False
 
         return True
@@ -1412,10 +1418,10 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
 
     get_dof_data(render_camera, active_camera, settings)
 
-    render_camera.motion_blur_enable = settings.motion_blur
-
+    render_camera.motion_blur_enable = settings.motion_blur and data.rpr_camera.motion_blur
+    
     if render_camera.motion_blur_enable:
-        render_camera.motion_blur_exposure = settings.motion_blur_geometry_exposure
+        render_camera.motion_blur_exposure = data.rpr_camera.motion_blur_exposure
 
     if settings.camera.override_camera_settings:
         render_camera.type = settings.camera.panorama_type
