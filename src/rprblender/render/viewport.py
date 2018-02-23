@@ -60,7 +60,7 @@ class ViewportRenderer:
         self.threaded = threaded
 
         self.scene_renderer = rprblender.render.scene.SceneRenderer(
-            rprblender.render.get_render_device(is_production=is_production),
+            rprblender.render.get_render_device(is_production=is_production, has_denoiser=scene.rpr.render.denoiser.enable),
             scene.rpr.render, is_production=is_production)
         if self.threaded:
             self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
