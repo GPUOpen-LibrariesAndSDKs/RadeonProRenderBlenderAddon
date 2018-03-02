@@ -49,3 +49,6 @@ build_output/
 *.user
 *.ipch
 
+bindings-ok
+
+

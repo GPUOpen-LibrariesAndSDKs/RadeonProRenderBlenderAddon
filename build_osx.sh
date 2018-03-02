@@ -14,8 +14,12 @@ IGNORE_MISSING_OPENMP=1
 cxml="/usr/local/bin/castxml"
 if [ -f "$cxml" ]; then
 	python3 src/bindings/pyrpr/src/pyrprapi.py $cxml
-	python3 build.py
-	sh osx/postbuild.sh
+	if [ -f "./bindings-ok" ]; then
+		python3 build.py
+		sh osx/postbuild.sh
+	else
+		echo Compiling bindings failed
+	fi
 else
 	echo Error : $cxml is required for build
 fi

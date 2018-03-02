@@ -3,6 +3,7 @@ import platform
 from pathlib import Path
 from itertools import *
 
+bindingsOk = Path("./bindings-ok")
 
 class ConstantDesc:
 
@@ -180,6 +181,9 @@ def export(rpr_header, json_file_name, prefixes, castxml):
     import subprocess
 
     import sys
+
+    if bindingsOk.exists():
+         bindingsOk.unlink()
 
     if "Windows" == platform.system():
         subprocess.check_call([castxml, '-I', 'ThirdParty/RadeonProRender SDK/Win/inc', '-E', '-dD', '-x' , 'c++', rpr_header, '-o', 'rprapi.pp'])        
@@ -562,6 +566,9 @@ def export(rpr_header, json_file_name, prefixes, castxml):
             api.functions[name].docs = sig[2]
 
     save(api,json_file_name)
+
+    # If we got this far the current binding should have generated
+    bindingsOk.write_text("ok")
 
 
 if __name__=='__main__':
