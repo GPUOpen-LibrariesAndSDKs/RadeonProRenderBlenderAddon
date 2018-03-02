@@ -3763,7 +3763,7 @@ def test_displacement_shading_normal(render_image_check_fixture, material_setup,
     passes_aov.enable = True
 
     aov_nam = 'shading_normal'
-    blender_pass = rprblender.render.render_layers.aov2pass[aov_nam]
+    blender_pass = rprblender.render.render_layers.aov_info[aov_nam]['name']
 
     for i in range(len(passes_aov.passesStates)):
         passes_aov.passesStates[i] = aov_nam == passes_aov.render_passes_items[i][0]

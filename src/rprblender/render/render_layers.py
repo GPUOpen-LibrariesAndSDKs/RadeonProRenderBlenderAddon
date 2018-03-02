@@ -11,6 +11,7 @@ from rprblender.helpers import CallLogger
 from . import logging
 import rprblender.versions as versions
 
+import pyrpr
 import pyrprimagefilters
 
 call_logger = CallLogger(tag='render')
@@ -137,67 +138,163 @@ class RenderLayers:
         self.render_targets.enable_aov(aov_name)
 
 
+aov_info = {'default': 
+                {'name': 'Combined',
+                 'old_name': 'Combined', 
+                 'old_use_pass': 'use_pass_combined',
+                 'descr': 'Full Combined RGBA buffer',
+                 'channel': 'RGBA', 
+                 'rpr': pyrpr.AOV_COLOR,
+                 'order': 1},
+            'depth': 
+                {'name': 'Depth',
+                 'old_name': 'Depth', 
+                 'old_use_pass': 'use_pass_z',
+                 'descr': 'Depth Z values',
+                 'channel': 'Z', 
+                 'rpr': pyrpr.AOV_DEPTH,
+                 'order': 2},
+            'uv': 
+                {'name': 'UV', 
+                 'old_name': 'UV',
+                 'old_use_pass': 'use_pass_uv',
+                 'channel': 'UVA', 
+                 'rpr': pyrpr.AOV_UV,
+                 'order': 3},
+            'object_id': 
+                {'name': 'Object Index', 
+                 'old_name': 'IndexOB',
+                 'old_use_pass': 'use_pass_object_index',
+                 'channel': 'X', 
+                 'rpr': pyrpr.AOV_OBJECT_ID,
+                 'order': 4},
+            'material_idx': 
+                {'name': 'Material Index', 
+                 'old_name': 'IndexMA',
+                 'old_use_pass': 'use_pass_material_index',
+                 'channel': 'X', 
+                 'rpr': pyrpr.AOV_MATERIAL_IDX,
+                 'order': 5},
+            'world_coordinate': 
+                {'name': 'World Coordinate', 
+                 'old_name': 'Vector',
+                 'old_use_pass': 'use_pass_vector',
+                 'channel': 'XYZ', 
+                 'rpr': pyrpr.AOV_WORLD_COORDINATE,
+                 'order': 6},
+            'geometric_normal': 
+                {'name': 'Geometric Normal', 
+                 'old_name': 'Normal',
+                 'old_use_pass': 'use_pass_normal',
+                 'channel': 'XYZ', 
+                 'rpr': pyrpr.AOV_GEOMETRIC_NORMAL,
+                 'order': 7},
+            'shading_normal': 
+                {'name': 'Shading Normal', 
+                 'channel': 'XYZ', 
+                 'rpr': pyrpr.AOV_SHADING_NORMAL,
+                 'order': 8},
+            'object_group_id': 
+                {'name': 'Group Index', 
+                 'channel': 'X', 
+                 'rpr': pyrpr.AOV_OBJECT_GROUP_ID,
+                 'order': 9},
+            'shadow_catcher': 
+                {'name': 'Shadow Catcher', 
+                 'old_name': 'Shadow',
+                 'old_use_pass': 'use_pass_shadow',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_SHADOW_CATCHER,
+                 'order': 10},
+            'background': 
+                {'name': 'Background', 
+                 'old_name': 'Env',
+                 'old_use_pass': 'use_pass_environment',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_BACKGROUND,
+                 'order': 11},
+            'emission': 
+                {'name': 'Emission', 
+                 'old_name': 'Emit',
+                 'old_use_pass': 'use_pass_emit',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_EMISSION,
+                 'order': 12},
+            'velocity': 
+                {'name': 'Velocity', 
+                 'descr': 'Velocity Vector',
+                 'channel': 'XYZ', 
+                 'rpr': pyrpr.AOV_VELOCITY,
+                 'order': 13},
+            'direct_illumination': 
+                {'name': 'Direct Illumination', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_DIRECT_ILLUMINATION,
+                 'order': 14},
+            'indirect_illumination': 
+                {'name': 'Indirect Illumination', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_INDIRECT_ILLUMINATION,
+                 'order': 15},
+            'ambient_occlusion': 
+                {'name': 'Ambient Occlusion', 
+                 'old_name': 'AO',
+                 'old_use_pass': 'use_pass_ambient_occlusion',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_AO,
+                 'order': 16},
+            'direct_diffuse': 
+                {'name': 'Direct Diffuse', 
+                 'old_name': 'DiffDir',
+                 'old_use_pass': 'use_pass_diffuse_direct',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_DIRECT_DIFFUSE,
+                 'order': 17},
+            'direct_reflect': 
+                {'name': 'Direct Reflection', 
+                 'old_name': 'GlossDir',
+                 'old_use_pass': 'use_pass_glossy_direct',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_DIRECT_REFLECT,
+                 'order': 18},
+            'indirect_diffuse': 
+                {'name': 'Indirect Diffuse', 
+                 'old_name': 'DiffInd',
+                 'old_use_pass': 'use_pass_diffuse_indirect',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_INDIRECT_DIFFUSE,
+                 'order': 19},
+            'indirect_reflect': 
+                {'name': 'Indirect Reflection', 
+                 'old_name': 'GlossInd',
+                 'old_use_pass': 'use_pass_glossy_indirect',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_INDIRECT_REFLECT,
+                 'order': 20},
+            'refract': 
+                {'name': 'Refration', 
+                 'old_name': 'Refract',
+                 'old_use_pass': 'use_pass_refraction',
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_REFRACT,
+                 'order': 21},
+            'volume': 
+                {'name': 'Volume', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_VOLUME,
+                 'order': 22},
+            'opacity': 
+                {'name': 'Opacity', 
+                 'channel': 'A', 
+                 'rpr': pyrpr.AOV_OPACITY,
+                 'order': 23},
+            }
+
+if versions.is_blender_support_aov():
+    pass2aov = {val['name']: key for key, val in aov_info.items()}
+else:
+    pass2aov = {val['old_name']: key for key, val in aov_info.items() if val.get('old_name', None)}
+
 def pass_to_aov_name(pass_name):
     return pass2aov.get(pass_name or 'Combined', None)
 
-
-pass2info = {
-    # standard Blender passes that are compatible with RPR by name and semantics
-    'Combined': (4, "RGBA", 'COLOR'),
-    'UV': (3, "UVA", 'VECTOR'),
-
-    # standard Blender passes that can be used by RPR, for Blender <2.79, but not very compatible with RPR
-    # namings - e.g. no World coordinate, we are using Vector(Speed)
-    'IndexOB': (1, "X", 'VALUE'),
-    'IndexMA': (1, "X", 'VALUE'),
-    'Vector': (4, "XYZW", 'VECTOR'),
-    'Emit': (3, "RGB", 'COLOR'),
-    'Normal': (3, "XYZ", 'VECTOR'),
-
-    # custom Blender passes, thanks to 2.79
-    # https://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.79/Add-ons
-    'Object Index': (3, "RGB", 'VECTOR'),
-    'Material Index': (3, "RGB", 'VECTOR'),
-    'World Coordinate': (3, "XYZ", 'VECTOR'),
-    'Geometric Normal': (3, "XYZ", 'VECTOR'),
-    'Shading Normal': (3, "XYZ", 'VECTOR'),
-}
-
-pass_and_aov = [
-    ('Combined', 'default'),
-    ('UV', 'uv'),
-]
-
-if versions.is_blender_support_aov():
-    pass2info.update({
-        'Depth': (1, "Z", 'VALUE'),
-    })
-
-    pass_and_aov.extend(
-        [
-            ('Object Index', 'object_id'),
-            ('Material Index', 'material_idx'),
-            ('World Coordinate', 'world_coordinate'),
-            ('Geometric Normal', 'geometric_normal'),
-            ('Shading Normal', 'shading_normal'),
-            ('Depth', 'depth'),
-        ]
-    )
-else:
-    pass2info.update({
-        'Depth': (1, "Z", 'VALUE'),
-    })
-
-    pass_and_aov.extend(
-        [
-            ('IndexOB', 'object_id'),
-            ('IndexMA', 'material_idx'),
-            ('Vector', 'world_coordinate'),
-            ('Emit', 'geometric_normal'),
-            ('Normal', 'shading_normal'),
-            ('Depth', 'depth'),
-        ]
-    )
-
-aov2pass = {aov: pass_ for pass_, aov in pass_and_aov}
-pass2aov = {pass_:aov for pass_, aov in pass_and_aov}
