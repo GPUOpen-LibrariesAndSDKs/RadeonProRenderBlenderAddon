@@ -12,6 +12,7 @@ import rprblender.render
 from rprblender import config, logging, images
 from rprblender.helpers import CallLogger
 from rprblender.helpers import isMetalOn
+import rprblender.render.render_layers
 
 import sys
 
@@ -22,7 +23,7 @@ class AOV:
 
     def __init__(self, aov_name, context, render_resolution):
         self.context = context
-        self.aov = convert_name_to_rpr_aov(aov_name)
+        self.aov = rprblender.render.render_layers.aov_info[aov_name]['rpr']
         desc = ffi.new("rpr_framebuffer_desc*")
         self.width, self.height = render_resolution
         desc.fb_width, desc.fb_height = self.width, self.height
@@ -303,31 +304,4 @@ def get_core_frame_buffer_image(width, height, render_buffer):
 
 def get_image(width, height, render_buffer):
     return get_core_frame_buffer_image(width, height, render_buffer)
-
-
-def convert_name_to_rpr_aov(name):
-    if name == 'default':
-        return pyrpr.AOV_COLOR
-    elif name == 'opacity':
-        return pyrpr.AOV_OPACITY
-    elif name == 'world_coordinate':
-        return pyrpr.AOV_WORLD_COORDINATE
-    elif name == 'uv':
-        return pyrpr.AOV_UV
-    elif name == 'material_idx':
-        return pyrpr.AOV_MATERIAL_IDX
-    elif name == 'geometric_normal':
-        return pyrpr.AOV_GEOMETRIC_NORMAL
-    elif name == 'shading_normal':
-        return pyrpr.AOV_SHADING_NORMAL
-    elif name == 'depth':
-        return pyrpr.AOV_DEPTH
-    elif name == 'object_id':
-        return pyrpr.AOV_OBJECT_ID
-    elif name == 'shadow_catcher':
-        return pyrpr.AOV_SHADOW_CATCHER
-    elif name == 'background':
-        return pyrpr.AOV_BACKGROUND
-    assert False
-
 

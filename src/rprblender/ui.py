@@ -691,7 +691,7 @@ class RPRRender_PT_passes_aov(RPRPanel, Panel):
             row = col.box()
 
             split = row.split(percentage=0.5)
-            col1 = split.column()
+            col1 = split.column(align=True)
             split = split.split()
             col2 = split.column(align=True)
         else:
