@@ -61,4 +61,10 @@ if %vs_major%==15 (
 
 :build_plugin
 py -3.5 src\bindings\pyrpr\src\pyrprapi.py %castxml%
-py -3.5 build.py
+
+set bindingsOk=.\bindings-ok
+if exist %bindingsOk% (
+	py -3.5 build.py
+) else (
+	echo Compiling bindings failed
+)
