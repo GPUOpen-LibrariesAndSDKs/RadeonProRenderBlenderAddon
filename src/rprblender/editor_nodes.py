@@ -1171,6 +1171,14 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
 
     mapping_in = 'Mapping'
 
+    # items for texture gamma
+    items = (('Linear', "Linear", "Linear"),
+             ('sRGB', "sRGB", "sRGB"))
+
+    color_space_type = bpy.props.EnumProperty(name='Color Space',
+                                  items=items,
+                                  default='Linear')
+
     def generate_preview(self, context):
         name = self.name + '_' + self.id_data.name
         if name not in preview_collections:
@@ -1234,6 +1242,8 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
             split.prop_search(self, 'image_name', bpy.data, 'images', text='')
             split.prop(self, 'open_image_button', toggle=True, icon='FILESEL')
             layout.template_icon_view(self, 'preview', show_labels=True)
+
+        layout.prop(self, 'color_space_type')
 
     def draw_label(self):
         img = self.get_image()

@@ -1317,12 +1317,17 @@ class Material:
             log_mat("parse_texture_node_get_image : image is empty")
             return None
 
-        return self.parse_image(img)
+        return self.parse_image(img, blender_node.color_space_type)
 
-    def parse_image(self, source_image):
+    def parse_image(self, source_image, color_space_type):
         log_mat('Parse : image map "%s"...' % source_image.filepath)
         context = self.manager.get_core_context()
         image = Image(rprblender.core.image.get_core_image_for_blender_image(context, source_image))
+        if color_space_type == 'sRGB':
+            pyrpr.ImageSetGamma(image.get_handle(), 2.2)
+        else:
+            pyrpr.ImageSetGamma(image.get_handle(), 1)
+
         self.node_list.append(image.handle)
         return ValueImage(image)
 
@@ -1331,7 +1336,7 @@ class Material:
             log_mat('parse_cycles_TexImage - image is empty.')
             return ValueVector(1, 1, 1, 1)
 
-        image = self.parse_image(blender_node.image)
+        image = self.parse_image(blender_node.image, blender_node.color_space_type)
         node = ImageTextureNode(self)
         node.set_map(image)
         return ValueNode(node)
