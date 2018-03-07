@@ -153,7 +153,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         scene_renderer.production_render = True
 
-        render_resolution = width, height
+        render_resolution = (width, height)
 
         border = rprblender.sync.extract_render_border_from_scene(scene)
         render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, render_resolution)
@@ -164,7 +164,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         scene_synced.set_render_camera(render_camera)
 
-        passes_aov_list, active_index = bpy.context.scene.rpr.preview_aov if self.is_preview else versions.get_render_passes_aov_list(bpy.context)
+        (passes_aov_list, active_index) = versions.get_render_passes_aov_list(bpy.context, self.is_preview)
         aov_settings = rprblender.render.render_layers.extract_settings_list(passes_aov_list, active_index)
 
         with rprblender.render.core_operations(raise_error=True):
