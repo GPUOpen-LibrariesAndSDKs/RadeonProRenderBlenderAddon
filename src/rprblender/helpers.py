@@ -365,7 +365,8 @@ class RenderResourcesHelper:
         else:
             res = self.lib.check_device(path, 'Windows' == platform.system(), device_id,
                                         {'Windows': Os.WINDOWS, 'Linux': Os.LINUX, 'Darwin': Os.MACOS}[platform.system()],
-                                        str(render.ensure_core_cache_folder()).encode('latin1') )
+                                        str(render.ensure_core_cache_folder()).encode('latin1'),
+                                        additionalflags )
 
         return Compatibility(res)
 
