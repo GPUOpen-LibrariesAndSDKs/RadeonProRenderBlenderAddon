@@ -18,7 +18,6 @@ from bpy_extras.io_utils import ExportHelper
 from rprblender.node_editor import shader_node_output_name, find_node
 from rprblender.versions import get_render_passes_aov, is_blender_support_aov
 from . import version_checking
-from rprblender.helpers import isMetalOn
 
 PANEL_WIDTH_FOR_COLUMN = 200
 
@@ -164,7 +163,7 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
 
             col1.prop(settings, "samples", slider=True)
             row = col1.row()
-            row.enabled = gpu_enable
+            row.enabled = False if "Darwin" == platform.system() else gpu_enable # TODO : fix
             row.prop(settings, "device_type_plus_cpu")
 
             if not is_row:
@@ -692,7 +691,7 @@ class RPRRender_PT_passes_aov(RPRPanel, Panel):
             row = col.box()
 
             split = row.split(percentage=0.5)
-            col1 = split.column()
+            col1 = split.column(align=True)
             split = split.split()
             col2 = split.column(align=True)
         else:

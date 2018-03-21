@@ -593,14 +593,12 @@ class RPREngine(bpy.types.RenderEngine):
                 if not passes_aov.passesStates[i]:
                     continue
 
-                # not calling add_pass on 'Combined' (it's already there) and on 'Depth' (it's added by use_pass_z=True)
+                # not calling add_pass on 'default' (it's already there) and on 'depth' (it's added by use_pass_z=True)
                 aov_name = passes_item[0]
                 if aov_name == 'default' or aov_name == 'depth':
                     continue
 
-                pass_name = rprblender.render.render_layers.aov2pass[aov_name]
-                pass_info = rprblender.render.render_layers.pass2info[pass_name]
-                channels, chan_id = pass_info[0], pass_info[1]
+                aov_data = rprblender.render.render_layers.aov_info[aov_name]
 
-                logging.debug("    add_pass", pass_name, pass_info, "layer=%s" % layer_name, tag="render.engine.passes")
-                self.add_pass(pass_name, channels, chan_id, layer_name)
+                logging.debug("    add_pass", aov_data, "layer=%s" % layer_name, tag="render.engine.passes")
+                self.add_pass(aov_data['name'], len(aov_data['channel']), aov_data['channel'], layer_name)

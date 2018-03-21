@@ -12,7 +12,7 @@ import rprblender
 from rprblender.helpers import create_core_enum_for_property
 from rprblender.environment_op import callback_draw_sun
 import rprblender.render.render_layers
-from . import versions
+import rprblender.versions as versions
 
 def convert_K_to_RGB(colour_temperature):
     # range check
@@ -99,26 +99,9 @@ def states_change(self, context):
 
     # TODO: remove this when 2.78 is deprecated
     logging.warn("Using old Blender", bpy.app.version_string, "?")
-    layer.use_pass_combined = True
-    layer.use_pass_color = False
     for i in range(len(self.render_passes_items)):
-        name = self.render_passes_items[i][0]
-        if name == 'default':
-            layer.use_pass_combined = self.passesStates[i]
-        elif name == 'world_coordinate':
-            layer.use_pass_vector = self.passesStates[i]
-        elif name == 'uv':
-            layer.use_pass_uv = self.passesStates[i]
-        elif name == 'material_idx':
-            layer.use_pass_material_index = self.passesStates[i]
-        elif name == 'geometric_normal':
-            layer.use_pass_emit = self.passesStates[i]
-        elif name == 'shading_normal':
-            layer.use_pass_normal = self.passesStates[i]
-        elif name == 'depth':
-            layer.use_pass_z = self.passesStates[i]
-        elif name == 'object_id':
-            layer.use_pass_object_index = self.passesStates[i]
+        use_pass = rprblender.render.render_layers.aov_info[self.render_passes_items[i][0]]['old_use_pass']
+        setattr(layer, use_pass, self.passesStates[i])
 
 
 def aov_enable_change(self, context):
@@ -127,28 +110,33 @@ def aov_enable_change(self, context):
         return
 
     layer = context.scene.render.layers.active
-    layer.use_pass_color = False
-    layer.use_pass_vector = False
-    layer.use_pass_uv = False
-    layer.use_pass_material_index = False
-    layer.use_pass_emit = False
-    layer.use_pass_normal = False
+    for i in range(len(self.render_passes_items)):
+        use_pass = rprblender.render.render_layers.aov_info[self.render_passes_items[i][0]]['old_use_pass']
+        setattr(layer, use_pass, False)
+    layer.use_pass_combined = True
     layer.use_pass_z = False
-    layer.use_pass_object_index = False
 
+def get_render_passes_items():
+    aov_sorted_list = sorted(list(rprblender.render.render_layers.aov_info.items()), key=lambda item: item[1]['order'])
+    if versions.is_blender_support_aov():
+        #getting items in the following way: ('default', "Combined", "Full Combined RGBA buffer")
+        return tuple((key, val['name'], val.get('descr', val['name'])) for key, val in aov_sorted_list)
+    else:
+        #getting items in the following way: ('default', "Color (default)", "Full Combined RGBA buffer (layer 'Combined')")
+        return tuple((key, val['name'], val.get('descr', val['name']) + " (layer '%s')" % val['old_name']) for key, val in aov_sorted_list if val.get('old_name', None))
 
 @rpraddon.register_class
 class RenderPassesAov(bpy.types.PropertyGroup):
-    render_passes_items = (('default', "Color (default)", "Color (default) (layer 'Combined')"),
-                           ('depth', "Depth", "Depth (layer 'Z')"),
-                           ('uv', "UV", "UV (layer 'UV')"),
-                           ('world_coordinate', "World Coordinate", "World Coordinate (layer 'Vector')"),
-                           ('geometric_normal', "Geometric Normal", "Geometric Normal (layer 'Emit')"),
-                           ('shading_normal', "Shading Normal", "Shading Normal (layer 'Normal')"),
-                           ('object_id', "Object Id", "Object Id (layer 'IndexOB')"),
-                           ('material_idx', "Material Index", "Material Index (layer 'IndexMA')"),
-                           )
+    render_passes_items = get_render_passes_items()
 
+    passesStates = bpy.props.BoolVectorProperty(
+        name="passesStates",
+        description="Passes states",
+        size=len(render_passes_items),
+        update=states_change,
+        # enable depth pass by default because it is enabled in Blender by default
+        default=tuple((item[0] == 'depth') for item in render_passes_items),
+    )
     enable = bpy.props.BoolProperty(
         name="Render Passes (AOV)",
         description="Render Layers / Passes & AOVs",
@@ -161,15 +149,6 @@ class RenderPassesAov(bpy.types.PropertyGroup):
         description='Displayed In Render View',
         default='default',
     )
-    passesStates = bpy.props.BoolVectorProperty(
-        name="passesStates",
-        description="Passes states",
-        size=len(render_passes_items),
-        update=states_change,
-        # enable Depth pass by default because it is enabled in Blender by default
-        default=(False, True, False, False, False, False, False, False),
-    )
-
     transparent = bpy.props.BoolProperty(
         name="Transparent",
         description="World background is transparent with premultiplied alpha",
