@@ -216,10 +216,6 @@ class RenderDevice:
         if self.rif_context:
             return
 
-        # TODO : Temporary turn off until metal support for image processing is completed
-        if isMetalOn():
-            return
-
         try:
             creation_flags = pyrpr.ffi.new("rpr_creation_flags*", 0)
             pyrpr.ContextGetInfo(self.core_context, pyrpr.CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags),
@@ -232,6 +228,10 @@ class RenderDevice:
                 pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_OPENCL,
                                                 pyrprimagefilters.PROCESSOR_CPU, 0, pyrprimagefilters.ffi.NULL,
                                                 self.rif_context)
+            elif creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_METAL:
+                 pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_METAL,
+                                                 pyrprimagefilters.PROCESSOR_CPU, 0, pyrprimagefilters.ffi.NULL,
+                                                 self.rif_context)
             else:
                 # Obtain OpenCL context
                 cl_context = pyrpropencl.ffi.new("rpr_cl_context*")
