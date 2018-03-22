@@ -826,12 +826,18 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     )
 
     filter_type = bpy.props.EnumProperty(
-        name = "RPR Filter Type",
+        name="Filter Type",
         items=(("bilateral", "Bilateral", "Bilateral", 0),
-               ("lwr", "Local Weighted Regression", "lwr", 1),
-               ("eaw", "Edge Avoiding Wavelets", "eaw", 2)),
+               ("lwr", "Local Weighted Regression", "Local Weighted Regression", 1),
+               ("eaw", "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2)),
         description="Filter type",
         default='eaw'
+    )
+
+    enable_viewport = bpy.props.BoolProperty(
+        name="Denoiser in Render Preview",
+        description="Please Note: Enabling this functionality in the render preview\nmay cause your screen to go black for some of the first iterations",
+        default=True
     )
 
     # bilateral props
@@ -882,9 +888,10 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     )
 
     import pyrprimagefilters
-    filter_type_values = dict([("bilateral", pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE),
-                               ("lwr", pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE),
-                               ("eaw", pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE)])
+    filter_type_values = {"bilateral": pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE,
+                          "lwr": pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE,
+                          "eaw": pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE,
+                          }
 
 ########################################################################################################################
 # Depth of Field

@@ -59,8 +59,11 @@ class ViewportRenderer:
 
         self.threaded = threaded
 
+        has_denoiser = scene.rpr.render.denoiser.enable and \
+                       (is_production or scene.rpr.render.denoiser.enable_viewport)
+
         self.scene_renderer = rprblender.render.scene.SceneRenderer(
-            rprblender.render.get_render_device(is_production=is_production, has_denoiser=scene.rpr.render.denoiser.enable),
+            rprblender.render.get_render_device(is_production=is_production, has_denoiser=has_denoiser),
             scene.rpr.render, is_production=is_production)
         if self.threaded:
             self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
@@ -73,7 +76,7 @@ class ViewportRenderer:
                 self.scene_renderer.has_shadowcatcher = True
                 break
 
-        self.scene_renderer.has_denoiser = bpy.context.scene.rpr.render.denoiser.enable
+        self.scene_renderer.has_denoiser = has_denoiser
         if self.scene_renderer.has_denoiser:
             filter_type_value = bpy.context.scene.rpr.render.denoiser.filter_type
             self.scene_renderer.filter_type = bpy.context.scene.rpr.render.denoiser.filter_type_values[filter_type_value]

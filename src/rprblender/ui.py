@@ -743,7 +743,9 @@ class RPRRender_PT_Denoiser(RPRPanel, Panel):
             col.prop(settings, 'samples', slider=True)
             col.prop(settings, 'half_window', slider=True)
             col.prop(settings, 'bandwidth', slider=True)
-            
+        
+        row = col.row()
+        row.prop(settings, "enable_viewport")
 
 
 def draw_camera_settings(camera, layout):
