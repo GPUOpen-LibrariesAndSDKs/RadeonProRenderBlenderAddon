@@ -9,64 +9,10 @@ from . import logging
 from pyrpr import ffi
 from pathlib import Path
 import rprblender
-from rprblender.helpers import create_core_enum_for_property
+from rprblender.helpers import create_core_enum_for_property, convert_K_to_RGB
 from rprblender.environment_op import callback_draw_sun
 import rprblender.render.render_layers
 import rprblender.versions as versions
-
-def convert_K_to_RGB(colour_temperature):
-    # range check
-    if colour_temperature < 1000:
-        colour_temperature = 1000
-    elif colour_temperature > 40000:
-        colour_temperature = 40000
-
-    tmp_internal = colour_temperature / 100.0
-    # red
-    if tmp_internal <= 66:
-        red = 255
-    else:
-        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
-        if tmp_red < 0:
-            red = 0
-        elif tmp_red > 255:
-            red = 255
-        else:
-            red = tmp_red
-
-    # green
-    if tmp_internal <= 66:
-        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-    else:
-        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-
-    # blue
-    if tmp_internal >= 66:
-        blue = 255
-    elif tmp_internal <= 19:
-        blue = 0
-    else:
-        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
-        if tmp_blue < 0:
-            blue = 0
-        elif tmp_blue > 255:
-            blue = 255
-        else:
-            blue = tmp_blue
-
-    return red / 255.0, green / 255.0, blue / 255.0
 
 
 def create_core_enum_property(cls, prefix, name, description, text_suffix="", default=None):
@@ -1368,21 +1314,110 @@ class RPRCamera(bpy.types.PropertyGroup, RPRCameraSettings):
         )
 
 
-import bpy
-from bpy.types import Operator, AddonPreferences
-
-
-class RPRAddonPreferences(AddonPreferences):
+class RPRAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
     settings = bpy.props.PointerProperty(type=UserSettings)
 
 
 @rpraddon.register_class
 class RPRLamp(bpy.types.PropertyGroup):
+    # INTENSITY PROPERTIES
     intensity = bpy.props.FloatProperty(
         name="Intensity",
         description="Intensity in Watts for Point/Spot/Area light and W/m2 for Sun",
         min=0.0, default=100.0,
+    )
+
+    color = bpy.props.FloatVectorProperty(
+        name='Color', description="Light Color",
+        subtype='COLOR', min=0.0, max=1.0, size=3,
+        default=(1.0, 1.0, 1.0),
+    )
+
+    use_temperature = bpy.props.BoolProperty(
+        name="Use Temperature",
+        description="Use a temperature setting",
+        default=False,
+    )
+
+    temperature = bpy.props.IntProperty(
+        name="Temperature",
+        description="Use a blackbody temperature (in Kelvin). This will be tinted by the color",
+        min=1000, max=40000, soft_max=10000,
+        default=6500,
+    )
+
+    ies_file_name = bpy.props.StringProperty(
+        name='IES Data file', description='IES Data file name',
+        default='',
+    )
+
+    # AREA LIGHT PROPERTIES
+    def update_size(self, context):
+        # on updating sizes we set to zero default lamp sizes to prevent Blender to draw rectangle gizmo in 3d viewport
+        lamp = context.object.data
+        lamp.size = 0
+        lamp.size_y = 0
+
+    shape = bpy.props.EnumProperty(
+        name="Shape of the area lamp",
+        items=(('RECTANGLE', "Rectangle", "Rectangle shape"),
+               ('DISC', "Disc", "Disc shape"),
+               ('SPHERE', "Sphere", "Sphere shape"),
+               ('CYLINDER', "Cylinder", "Cylinder shape"),
+               ('MESH', "Mesh", "Select mesh object")),
+        description="Shape of the area lamp",
+        default='RECTANGLE',
+        update=update_size
+    )
+
+    visible = bpy.props.BoolProperty(
+        name = "Visible",
+        description="Light object to be visible",
+        default=False
+    )
+
+    cast_shadows = bpy.props.BoolProperty(
+        name = "Cast Shadows",
+        description="Enable shadows from other light sources",
+        default=False
+    )
+
+    intensity_normalization = bpy.props.BoolProperty(
+        name = "Intensity Normalization",
+        description="Prevents the light intensity from changing if the size of the light changes",
+        default=True
+    )
+
+    color_map = bpy.props.PointerProperty(type=bpy.types.Image)
+
+    size_1 = bpy.props.FloatProperty(
+        name="Size 1",
+        min=0.0,
+        default=0.1,
+        unit='LENGTH',
+        update=update_size
+    )
+
+    size_2 = bpy.props.FloatProperty(
+        name="Size 2",
+        min=0.0,
+        default=0.1,
+        unit='LENGTH',
+        update=update_size
+    )
+
+    mesh_obj = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name = "Object",
+        description="Select mesh object",
+    )
+
+    # DIRECTIONAL LIGHT PROPERTIES
+    shadow_softness = bpy.props.FloatProperty(
+        name="Shadow Softness",
+        description="Edge shadow softness. Increase this for lighter shadows",
+        min=0.0, max=1.0, default = 0.0
     )
 
     @classmethod
@@ -1391,10 +1426,6 @@ class RPRLamp(bpy.types.PropertyGroup):
             name="RPR Lamp",
             description="RPR Lamp params",
             type=cls,
-        )
-        cls.ies_file_name = bpy.props.StringProperty(
-            name='IES Data file', description='IES Data file name',
-            default='',
         )
 
     @classmethod

@@ -21,6 +21,7 @@ import rprblender.core.image
 import mathutils
 
 import pyrprx
+from rprblender import lights
 
 
 def rotation_env(env, rot):
@@ -115,137 +116,6 @@ class Background:
         rotation_env(self.core_background, value)
 
 
-class IESLight:
-    def __init__(self, light):
-        self.light = light
-
-    def load_data(self, file_name):
-        pyrpr.IESLightSetImageFromFile(self.light, file_name, 256, 256)
-
-    def set_transform(self, transform):
-        pyrpr.LightSetTransform(self.light, True, transform)
-
-    def set_power(self, power):
-        pyrpr.IESLightSetRadiantPower3f(self.light, *power[:3])
-
-    def get_core_obj(self):
-        return self.light
-
-    def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
-
-
-class PointLight:
-    def __init__(self, light):
-        self.light = light
-
-    def set_transform(self, transform):
-        pyrpr.LightSetTransform(self.light, True, transform)
-
-    def set_power(self, power):
-        pyrpr.PointLightSetRadiantPower3f(self.light, *power[:3])
-
-    def get_core_obj(self):
-        return self.light
-
-    def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
-
-
-class DirectionalLight:
-    def __init__(self, light):
-        self.light = light
-
-    def set_transform(self, transform):
-        pyrpr.LightSetTransform(self.light, True, transform)
-
-    def set_power(self, power):
-        pyrpr.DirectionalLightSetRadiantPower3f(self.light, *power[:3])
-
-    def get_core_obj(self):
-        return self.light
-
-    def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
-
-
-class SpotLight:
-    def __init__(self, light):
-        self.light = light
-
-    def set_transform(self, transform):
-        pyrpr.LightSetTransform(self.light, True, transform)
-
-    def set_power(self, power):
-        pyrpr.SpotLightSetRadiantPower3f(self.light, *power[:3])
-
-    def get_core_obj(self):
-        return self.light
-
-    def set_cone_shape(self, iangle, oangle):
-        pyrpr.SpotLightSetConeShape(self.light, iangle, oangle)
-
-    def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
-
-
-class AreaLight:
-    def __init__(self, shape, shader, area):
-        self.area = area
-        self.shader = shader
-        self.shape = shape
-
-    def set_transform(self, transform):
-        pyrpr.ShapeSetTransform(self.shape, True, transform)
-
-    def set_power(self, power):
-        pyrpr.MaterialNodeSetInputF(self.shader, b'color', *(power / self.area), 1.0)
-
-    def get_core_obj(self):
-        return self.shape
-
-    def attach(self, scene):
-        pyrpr.SceneAttachShape(scene, self.shape)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachShape(scene, self.shape)
-
-
-class SkyLight:
-    def __init__(self, light):
-        self.light = light
-
-    def get_core_obj(self):
-        return self.light
-
-    def set_turbidity(self, turbidity):
-        pyrpr.SkyLightSetTurbidity(self.light, turbidity)
-
-    def set_albedo(self, albedo):
-        pyrpr.SkyLightSetAlbedo(self.light, albedo)
-
-    def set_scale(self, scale):
-        pyrpr.SkyLightSetScale(self.light, scale)
-
-    def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-
-    def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
-
-
 call_logger = CallLogger(tag='export.sync.scene')
 
 
@@ -276,7 +146,6 @@ class SceneSynced:
         self.portal_lights_meshes = set()
         self.core_render_camera = None
         self.lamps = {}
-        self.area_light_shaders = {}
 
         self.materialsNodes = {}
         self.activeMaterialKey = None
@@ -311,7 +180,6 @@ class SceneSynced:
         self.objects_synced = {}
         self.core_render_camera = None
         self.lamps = {}
-        self.area_light_shaders = {}
         self._make_core_environment_light_cached = None
 
         self.ibls_attached = set()
@@ -605,96 +473,33 @@ class SceneSynced:
 
         self.lamps[obj_key].attach(self.get_core_scene())
 
+
     def core_make_lamp(self, obj_key, blender_obj, transform):
-        data = blender_obj.data  # type: bpy.types.Lamp
-        radiant_power = np.array(blender_obj.data.color) * blender_obj.data.rpr_lamp.intensity
-        if 'AREA' == data.type:
-            if not blender_obj.data.rpr_lamp.ies_file_name:
+        try:
+            lamp = blender_obj.data  # type: bpy.types.Lamp
+            if lamp.type == 'AREA':
+                light = lights.AreaLight(lamp, self.get_core_context(), self.get_material_system())
+            elif lamp.type == 'SPOT':
+                light = lights.SpotLight(lamp, self.get_core_context())
+            elif lamp.type == 'SUN':
+                light = lights.DirectionalLight(lamp, self.get_core_context())
+            elif lamp.type == 'POINT':
+                if lamp.rpr_lamp.ies_file_name:
+                    light = lights.IESLight(lamp, self.get_core_context())
+                else:
+                    light = lights.PointLight(lamp, self.get_core_context())
+            else: # 'HEMI'
+                assert lamp.type == 'HEMI'
+                raise lights.LigthError("Hemi lamp is not supported")
 
-                light = self._lamp_make_area(data)
-                self.area_light_shaders[obj_key] = light.shader
-            else:
-                core_light = pyrpr.Light()
-                pyrpr.ContextCreateIESLight(self.get_core_context(), core_light)
-                light = IESLight(core_light)
-                file_name = str(blender_obj.data.rpr_lamp.ies_file_name).encode('latin1')
-                light.load_data(file_name)
+            light.set_transform(transform)
 
-            light.set_power(radiant_power)
-            light.set_transform(transform)
-        elif 'SPOT' == data.type:
-            core_light = pyrpr.Light()
-            pyrpr.ContextCreateSpotLight(self.get_core_context(), core_light)
-            light = SpotLight(core_light)
-            light.set_cone_shape(0.5 * data.spot_size * (1.0 - data.spot_blend * data.spot_blend), 0.5 * data.spot_size)
-            # this seems to match Cycles very closely, i.e. one has watts, another watts/steradian
-            light.set_power(radiant_power / (4 * math.pi))
-            light.set_transform(transform)
-        elif 'SUN' == data.type or 'HEMI' == data.type:
-            core_light = pyrpr.Light()
-            pyrpr.ContextCreateDirectionalLight(self.get_core_context(), core_light)
-            light = DirectionalLight(core_light)
-            light.set_power(radiant_power)
-            light.set_transform(transform)
-        else:
-            core_light = pyrpr.Light()
+        except lights.LigthError as e:
+            logging.error(e.message + ". Empty light will be used.")
+            light = lights.EmptyLight()
 
-            if not blender_obj.data.rpr_lamp.ies_file_name:
-                pyrpr.ContextCreatePointLight(self.get_core_context(), core_light)
-                light = PointLight(core_light)
-            else:
-                logging.info("create IES light: ", blender_obj.data.rpr_lamp.ies_file_name)
-                pyrpr.ContextCreateIESLight(self.get_core_context(), core_light)
-                light = IESLight(core_light)
-                file_name = str(blender_obj.data.rpr_lamp.ies_file_name).encode('latin1')
-                light.load_data(file_name)
-
-            # this seems to match Cycles very closely, i.e. one has watts, another watts/steradian
-            light.set_power(radiant_power / (4 * math.pi))
-            light.set_transform(transform)
         return light
 
-    def _lamp_make_area(self, data):
-        if 'RECTANGLE' == data.shape:
-            size = (data.size, data.size_y)
-        else:
-            size = (data.size,) * 2
-        r = (-size[0] * 0.5, -size[1] * 0.5, size[0] * 0.5, size[1] * 0.5)
-        vertices = np.array(
-            [(r[0], r[1], 0),
-             (r[2], r[1], 0),
-             (r[2], r[3], 0),
-             (r[0], r[3], 0),
-             ], dtype=np.float32)
-        normals = np.array([(0, 0, -1) for x in range(-1, 1) for y in range(-1, 1)], dtype=np.float32)
-        assert normals.flags['C_CONTIGUOUS']
-        uvs = np.array([(0, 0) for x in range(-1, 1) for y in range(-1, 1)], dtype=np.float32)
-        assert uvs.flags['C_CONTIGUOUS']
-        indices = np.array([0, 1, 2, 3], dtype=np.int32)
-        assert indices.flags['C_CONTIGUOUS']
-        assert 4 == indices[0].nbytes
-        faces_counts = np.array([4], dtype=np.int32)
-        assert faces_counts.flags['C_CONTIGUOUS']
-        assert 12 == normals[0].nbytes
-        shape = pyrpr.Shape()
-        pyrpr.ContextCreateMesh(
-            self.get_core_context(),
-            ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
-            ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes,
-            ffi.cast("float *", uvs.ctypes.data), len(uvs), uvs[0].nbytes,
-            ffi.cast('rpr_int*', indices.ctypes.data), indices[0].nbytes,
-            ffi.cast('rpr_int*', indices.ctypes.data), indices[0].nbytes,
-            ffi.cast('rpr_int*', indices.ctypes.data), indices[0].nbytes,
-            ffi.cast('rpr_int*', faces_counts.ctypes.data), len(faces_counts), shape)
-        shader = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.get_material_system(), pyrpr.MATERIAL_NODE_EMISSIVE, shader)
-        area = size[0] * size[1]
-        pyrpr.ShapeSetMaterial(shape, shader)
-        pyrpr.SceneAttachShape(self.get_core_scene(), shape)
-        pyrpr.ShapeSetShadow(shape, False)
-        pyrpr.ShapeSetVisibilityPrimaryOnly(shape, False)
-
-        return AreaLight(shape, shader, area)
 
     def extract_lamp(self, obj):
         mw = np.array(obj.matrix_world, dtype=np.float32)
