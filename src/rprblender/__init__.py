@@ -4,7 +4,7 @@ bl_info = {
     "name": "Radeon ProRender",
     "description": "Radeon ProRender rendering plugin for Blender.",
     "author": "AMD",
-    "version": (1, 5, 132),
+    "version": (1, 5, 133),
     "blender": (2, 78, 0),
     "location": "Info header, render engine menu",
     "warning": "",  # used for warning icon and text in addons panel
