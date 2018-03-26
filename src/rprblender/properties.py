@@ -1416,7 +1416,7 @@ class RPRLamp(bpy.types.PropertyGroup):
     # DIRECTIONAL LIGHT PROPERTIES
     shadow_softness = bpy.props.FloatProperty(
         name="Shadow Softness",
-        description="Edge shadow softness. Increase this for lighter shadows",
+        description="Edge shadow softness. Increase for lighter shadows",
         min=0.0, max=1.0, default = 0.0
     )
 

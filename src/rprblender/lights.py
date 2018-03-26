@@ -8,9 +8,8 @@ import mathutils
 import rprblender.core.image
 from rprblender.helpers import convert_K_to_RGB
 
-class LigthError(Exception):
-    def __init__(self, message):
-        self.message = message
+class LightError(ValueError):
+    pass
 
 class Light:
     def __init__(self):
@@ -119,7 +118,7 @@ class AreaLight(Light):
         (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area) = self._get_mesh_prop(lamp.rpr_lamp, lamp.rpr_lamp.size_1, lamp.rpr_lamp.size_2)
 
         if area < np.finfo(dtype=np.float32).eps: 
-            raise LigthError("Surface area of mesh is equal to zero")
+            raise LightError("Surface area of mesh is equal to zero")
 
         power = self._get_lamp_power(lamp)
         if lamp.rpr_lamp.intensity_normalization:
@@ -194,15 +193,15 @@ class AreaLight(Light):
                 assert rpr_lamp.shape == 'MESH'
 
                 if not rpr_lamp.mesh_obj:
-                    raise LigthError("Mesh object for area light not selected")
+                    raise LightError("Mesh object for area light not selected")
                 if rpr_lamp.mesh_obj.type != 'MESH':
-                    raise LigthError("Mesh object for area light is not a 'MESH'")
+                    raise LightError("Mesh object for area light is not a 'MESH'")
 
                 bm.from_object(rpr_lamp.mesh_obj, bpy.context.scene)
                 bmesh.ops.triangulate(bm, faces=bm.faces)
 
             if len(bm.faces) == 0:
-                raise LigthError("No faces for area light mesh")
+                raise LightError("No faces for area light mesh")
 
             # rotate mesh around Y axis
             bmesh.ops.rotate(bm, matrix=mathutils.Matrix.Rotation(math.pi, 4, 'Y'), verts=bm.verts)
