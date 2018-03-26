@@ -490,12 +490,12 @@ class SceneSynced:
                     light = lights.PointLight(lamp, self.get_core_context())
             else: # 'HEMI'
                 assert lamp.type == 'HEMI'
-                raise lights.LigthError("Hemi lamp is not supported")
+                raise lights.LightError("Hemi lamp is not supported")
 
             light.set_transform(transform)
 
-        except lights.LigthError as e:
-            logging.error(e.message + ". Empty light will be used.")
+        except lights.LightError as e:
+            logging.error(e.args[0] + ". Empty light will be used.")
             light = lights.EmptyLight()
 
         return light
