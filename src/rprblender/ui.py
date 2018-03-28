@@ -111,7 +111,8 @@ def draw_lamp_settings(self, context):
                 col1.prop(lamp.rpr_lamp, 'size_1', text="Width")
                 col1.prop(lamp.rpr_lamp, 'size_2', text="Height")
             elif lamp.rpr_lamp.shape == 'MESH':
-                col1.prop_search(lamp.rpr_lamp, "mesh_obj", context.scene, "objects", text="") 
+                col1.prop_search(lamp.rpr_lamp, 'mesh_obj', context.scene, 'objects', 
+                                 text="", icon='MESH_DATA')
             elif lamp.rpr_lamp.shape == 'CYLINDER':
                 col1.prop(lamp.rpr_lamp, 'size_1', text="Radius")
                 col1.prop(lamp.rpr_lamp, 'size_2', text="Length")
@@ -151,7 +152,10 @@ def draw_lamp_settings(self, context):
             col1 = col.column()
             col1.label("Light Color Map:")
             col1.enabled = lamp.rpr_lamp.shape in ('RECTANGLE', 'DISC', 'MESH')
-            col1.template_ID(lamp.rpr_lamp, 'color_map', open='image.open')
+            if versions.is_blender_support_custom_datablock():
+                col1.template_ID(lamp.rpr_lamp, 'color_map', open='image.open')
+            else:
+                col1.prop(lamp.rpr_lamp, 'color_map', text='')
 
         elif lamp.type == 'POINT':
             col1 = col.column(align=True)
