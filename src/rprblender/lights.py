@@ -7,6 +7,7 @@ import bmesh
 import mathutils
 import rprblender.core.image
 from rprblender.helpers import convert_K_to_RGB
+import rprblender.versions as versions
 
 class LightError(ValueError):
     pass
@@ -89,7 +90,12 @@ class AreaLight(Light):
     def __init__(self, lamp, core_context, material_system):
 
         def create_image_shader(power, color_map):
-            core_image = rprblender.core.image.get_core_image_for_blender_image(core_context, color_map)
+            if versions.is_blender_support_custom_datablock():
+                blender_image = color_map
+            else:
+                blender_image = bpy.data.images.load(color_map)
+
+            core_image = rprblender.core.image.get_core_image_for_blender_image(core_context, blender_image)
 
             self.tex_shader = pyrpr.MaterialNode()
             pyrpr.MaterialSystemCreateNode(material_system, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, self.tex_shader) 
@@ -194,10 +200,18 @@ class AreaLight(Light):
 
                 if not rpr_lamp.mesh_obj:
                     raise LightError("Mesh object for area light not selected")
-                if rpr_lamp.mesh_obj.type != 'MESH':
+
+                if versions.is_blender_support_custom_datablock():
+                    mesh_obj = rpr_lamp.mesh_obj
+                else:
+                    mesh_obj = bpy.data.objects.get(rpr_lamp.mesh_obj, None)
+                    if not mesh_obj:
+                        raise LightError("Mesh object '%s' for area light not exists" % rpr_lamp.mesh_obj)
+
+                if mesh_obj.type != 'MESH':
                     raise LightError("Mesh object for area light is not a 'MESH'")
 
-                bm.from_object(rpr_lamp.mesh_obj, bpy.context.scene)
+                bm.from_object(mesh_obj, bpy.context.scene)
                 bmesh.ops.triangulate(bm, faces=bm.faces)
 
             if len(bm.faces) == 0:
@@ -314,9 +328,20 @@ def callback_light_draw():
                 bgl.glVertex3f(x, y, z)
             bgl.glEnd()
         else: # 'MESH'
-            if not lamp.mesh_obj or lamp.mesh_obj.type != 'MESH':
+            if not lamp.mesh_obj:
                 return
-            mesh = lamp.mesh_obj.data
+
+            if versions.is_blender_support_custom_datablock():
+                mesh_obj = lamp.mesh_obj
+            else:
+                mesh_obj = bpy.data.objects.get(lamp.mesh_obj, None)
+                if not mesh_obj:
+                    return
+
+            if mesh_obj.type != 'MESH':
+                return
+
+            mesh = mesh_obj.data
             if len(mesh.polygons) > 0:
                 for poly in mesh.polygons:
                     bgl.glBegin(bgl.GL_LINE_LOOP)

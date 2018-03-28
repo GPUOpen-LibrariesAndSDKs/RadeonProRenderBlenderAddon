@@ -1389,8 +1389,6 @@ class RPRLamp(bpy.types.PropertyGroup):
         default=True
     )
 
-    color_map = bpy.props.PointerProperty(type=bpy.types.Image)
-
     size_1 = bpy.props.FloatProperty(
         name="Size 1",
         min=0.0,
@@ -1407,11 +1405,24 @@ class RPRLamp(bpy.types.PropertyGroup):
         update=update_size
     )
 
-    mesh_obj = bpy.props.PointerProperty(
-        type=bpy.types.Object,
-        name = "Object",
-        description="Select mesh object",
-    )
+    if versions.is_blender_support_custom_datablock():
+        color_map = bpy.props.PointerProperty(type=bpy.types.Image)
+
+        mesh_obj = bpy.props.PointerProperty(
+            type=bpy.types.Object,
+            name = "Object",
+            description="Select mesh object",
+        )
+    else:
+        color_map = bpy.props.StringProperty(
+            name='Color Map', description='Color Map', subtype='FILE_PATH'
+        )
+
+        mesh_obj = bpy.props.StringProperty(
+            name = "Object",
+            description="Select mesh object",
+        )
+
 
     # DIRECTIONAL LIGHT PROPERTIES
     shadow_softness = bpy.props.FloatProperty(

@@ -22,6 +22,10 @@ def is_blender_support_ibl_image():
     return bpy.app.version >= BLENDER_SUPPORTED_CUSTOM_DATABLOCK
 
 
+def is_blender_support_custom_datablock():
+    return bpy.app.version >= BLENDER_SUPPORTED_CUSTOM_DATABLOCK
+
+
 def is_older_than_version(version1, version2):
     if version1[0] == version2[0]:
         if version1[1] == version2[1]:
