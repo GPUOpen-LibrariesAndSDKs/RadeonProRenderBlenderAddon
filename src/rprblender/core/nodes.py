@@ -1142,20 +1142,16 @@ class Material:
 
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
                                   self.get_value(blender_node, blender_node.subsurface_weight))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_ABSORPTION_COLOR,
-                                  self.get_value(blender_node, blender_node.subsurface_volume_transmission))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
-                                  self.get_value(blender_node, blender_node.subsurface_volume_scatter))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_ABSORPTION_DISTANCE,
-                                  self.get_value(blender_node, blender_node.subsurface_volume_density))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE,
-                                  self.get_value(blender_node, blender_node.subsurface_volume_density))
+                                  self.get_value(blender_node, blender_node.subsurface_scatter_color))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION,
-                                  self.get_value(blender_node, blender_node.subsurface_scattering_direction))
+                                  self.get_value(blender_node, blender_node.subsurface_scatter_direction))
+            
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, 
+                                  self.get_value(blender_node, blender_node.subsurface_radius))
 
-            is_multi_scattering = blender_node.subsurface_multiple_scattering
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
-                                pyrpr.TRUE if is_multi_scattering else pyrpr.FALSE)
+                                pyrpr.TRUE if blender_node.subsurface_multiple_scattering else pyrpr.FALSE)
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
                                   nul_value_vector)

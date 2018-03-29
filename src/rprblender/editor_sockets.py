@@ -123,7 +123,7 @@ class RPRSocketColor(bpy.types.NodeSocket):
     bl_idname = 'rpr_socket_color'
     bl_label = 'Color socket'
 
-    default_value = bpy.props.FloatVectorProperty(name='Color', subtype='COLOR', min=0.0, max=1.0,
+    default_value = bpy.props.FloatVectorProperty(name='Color', subtype='COLOR', min=0.0, soft_max=1.0,
                                                   size=4, default=(1.0, 1.0, 1.0, 1.0))
 
     def draw(self, context, layout, node, text):
