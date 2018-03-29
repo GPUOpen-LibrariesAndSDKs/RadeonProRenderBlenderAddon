@@ -168,6 +168,7 @@ class CyclesMaterialConverter(converter.MaterialConverter):
         cycles_node = params.node
         emissive = self.material_editor.create_emissive_material_node()
         emissive.node.location = self.get_new_loacation(cycles_node)
+        emissive.node.double_sided = True
         self.convert_value(cycles_node, 'Color', emissive, emissive.node.color_in)
         self.convert_value(cycles_node, 'Strength', emissive, emissive.node.intensity_in)
         return emissive
