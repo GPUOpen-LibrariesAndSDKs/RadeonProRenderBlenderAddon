@@ -848,6 +848,7 @@ node_categories = [
 
     RPRNodeCategory("RPR_SHADER", "Shader", items=[
         NodeItem("rpr_shader_node_diffuse"),
+        NodeItem("rpr_shader_node_double_sided"),
         NodeItem("rpr_shader_node_emissive"),
         NodeItem("rpr_shader_node_microfacet"),
         NodeItem("rpr_shader_node_microfacet_refraction"),

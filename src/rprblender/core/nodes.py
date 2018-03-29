@@ -41,6 +41,7 @@ class ValueType(Enum):
 class ShaderType(IntEnum):
     DIFFUSE = pyrpr.MATERIAL_NODE_DIFFUSE
     EMISSIVE = pyrpr.MATERIAL_NODE_EMISSIVE
+    DOUBLESIDED = pyrpr.MATERIAL_NODE_TWOSIDED
     VOLUME = pyrpr.MATERIAL_NODE_VOLUME
     MICROFACET = pyrpr.MATERIAL_NODE_MICROFACET
     MICROFACET_REFRACTION = pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION
@@ -447,6 +448,17 @@ class BlendShader(Shader):
         self.set_value(b"weight", value)
 
 
+class DoubleSidedShader(Shader):
+    def __init__(self, mat):
+        super().__init__(mat, ShaderType.DOUBLESIDED)
+
+    def set_shader_front(self, shader):
+        self.set_node(b"frontface", shader)
+
+    def set_shader_back(self, shader):
+        self.set_node(b"backface", shader)
+
+
 class DiffuseRefractionShader(Shader):
     def __init__(self, mat):
         super().__init__(mat, ShaderType.DIFFUSE_REFRACTION)
@@ -770,13 +782,31 @@ class Material:
             res = None
         return res, scale_min, scale_max
 
+
+    def parse_shader_node_double_sided(self, blender_node):
+        log_mat('parse_shader_node_double_sided...')
+        shader = DoubleSidedShader(self)
+        socket_front = self.get_socket(blender_node, blender_node.front_shader)
+        if socket_front:
+            shader.set_shader_front(self.parse_node(socket_front))
+        socket_back = self.get_socket(blender_node, blender_node.back_shader)
+        if socket_back:
+            shader.set_shader_back(self.parse_node(socket_back))
+
+        return shader
+
     def parse_shader_node_emissive(self, blender_node):
         log_mat('parse_shader_node_emissive...')
         shader = EmissiveShader(self)
         color = self.get_value(blender_node, blender_node.color_in)
-        intesivity = self.get_value(blender_node, blender_node.intensity_in)
-        val = self.mul_value(color, intesivity)
+        intensity = self.get_value(blender_node, blender_node.intensity_in)
+        val = self.mul_value(color, intensity)
         shader.set_color(val)
+        if blender_node.double_sided:
+            emissive = shader
+            shader = DoubleSidedShader(self)
+            shader.set_shader_front(emissive)
+            shader.set_shader_back(emissive)
         return shader
 
     def parse_shader_node_microfacet(self, blender_node):
@@ -1670,6 +1700,7 @@ class Material:
         registered_nodes = {
             'rpr_shader_node_output': self.parse_shader_node_output,
             'rpr_shader_node_diffuse': self.parse_shader_node_diffuse,
+            'rpr_shader_node_double_sided': self.parse_shader_node_double_sided,
             'rpr_shader_node_emissive': self.parse_shader_node_emissive,
             'rpr_shader_node_microfacet': self.parse_shader_node_microfacet,
             'rpr_shader_node_microfacet_refraction': self.parse_shader_node_microfacet_refraction,

@@ -115,12 +115,33 @@ class RPRShaderNode_Emissive(RPRNodeType_Shader):
 
     color_in = 'Emissive Color'
     intensity_in = 'Intensity'
+    double_sided = bpy.props.BoolProperty(name="Double Sided", default=False)
 
     def init(self, context):
         super(RPRShaderNode_Emissive, self).init()
         input_emissive_color = self.inputs.new('rpr_socket_color', self.color_in)
         self.inputs.new('rpr_socket_factor', self.intensity_in)
         input_emissive_color.default_value = (1.0, 1.0, 1.0, 1.0)
+
+    def draw_buttons(self, context, layout):
+        row = layout.column(align=True)
+        row.alignment = 'EXPAND'
+
+        row.prop(self, 'double_sided')
+
+
+@rpraddon.register_class
+class RPRShaderNode_DoubleSided(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_double_sided'
+    bl_label = 'RPR Double Sided'
+
+    front_shader = 'Front Shader'
+    back_shader = 'Back Shader'
+    
+    def init(self, context):
+        super(RPRShaderNode_DoubleSided, self).init()
+        self.inputs.new('NodeSocketShader', self.front_shader)
+        self.inputs.new('NodeSocketShader', self.back_shader)
 
 
 @rpraddon.register_class
