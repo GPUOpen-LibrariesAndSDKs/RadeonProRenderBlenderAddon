@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON_VERSION=`python --version`
+PYTHON_VERSION=`python3 --version`
 
 if [[ $PYTHON_VERSION =~ 'Python 3.5.' ]]; then
     echo Found correct python version
