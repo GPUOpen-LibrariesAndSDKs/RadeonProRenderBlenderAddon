@@ -435,11 +435,10 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
     subsurface_color = 'Subsurface Color'
     subsurface_weight = 'Subsurface Weight'
-    subsurface_volume_transmission = 'Subsurface Volume Transmission'
-    subsurface_volume_scatter = 'Subsurface Volume Scatter'
-    subsurface_volume_density = 'Subsurface Volume Density'
-    subsurface_scattering_direction = 'Subsurface Scattering Direction'
-
+    subsurface_scatter_color = 'Subsurface Scattering Color'
+    subsurface_scatter_direction = 'Subsurface Scattering Direction'
+    subsurface_radius = 'Subsurface Radius'
+    
     transparency_value = 'Transparency'
     normal_in = 'Normal'
     displacement_map = 'Displacement Map'
@@ -484,10 +483,9 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
     def subsurface_changed(self, context):
         self.inputs[self.subsurface_color].enabled = self.subsurface and not self.subsurface_use_diffuse_color
         self.inputs[self.subsurface_weight].enabled = self.subsurface
-        self.inputs[self.subsurface_volume_transmission].enabled = self.subsurface
-        self.inputs[self.subsurface_volume_scatter].enabled = self.subsurface
-        self.inputs[self.subsurface_volume_density].enabled = self.subsurface
-        self.inputs[self.subsurface_scattering_direction].enabled = self.subsurface
+        self.inputs[self.subsurface_scatter_color].enabled = self.subsurface
+        self.inputs[self.subsurface_scatter_direction].enabled = self.subsurface
+        self.inputs[self.subsurface_radius].enabled = self.subsurface
 
     def subsurface_use_diffuse_color_changed(self, context):
         self.inputs[self.subsurface_color].enabled = not self.subsurface_use_diffuse_color
@@ -519,7 +517,7 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
     subsurface = bpy.props.BoolProperty(name='Subsurface', update=subsurface_changed)
     subsurface_use_diffuse_color = bpy.props.BoolProperty(name='Subsurface Use Diffuse Color', update=subsurface_use_diffuse_color_changed)
-    subsurface_multiple_scattering = bpy.props.BoolProperty(name='Subsurface Multiple Scattering', default=True)
+    subsurface_multiple_scattering = bpy.props.BoolProperty(name='Subsurface Multiple Scattering', default=False)
 
     transparency = bpy.props.BoolProperty(name='Transparency', update=transparency_changed)
     normal = bpy.props.BoolProperty(name='Normal', update=normal_changed)
@@ -556,10 +554,9 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
         self.inputs.new('rpr_socket_color', self.subsurface_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.subsurface_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_color', self.subsurface_volume_transmission).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_color', self.subsurface_volume_scatter).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax10', self.subsurface_volume_density).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.subsurface_scattering_direction).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.subsurface_scatter_direction).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.subsurface_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
 
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency_value).default_value = 0.0
         self.inputs.new('rpr_socket_link', self.normal_in)
