@@ -5,7 +5,7 @@ from rprblender import rpraddon
 from rprblender.nodes import RPRPanel
 from rprblender import logging
 
-from rprblender.converter.cycles_converter import CyclesMaterialConverter
+from rprblender.converter.cycles_converter import CyclesMaterialConverter, CyclesWorldConverter
 from rprblender.converter.converter import log_convert
 
 
@@ -48,6 +48,13 @@ class RPRConvertAllCyclesMaterialsOperator(bpy.types.Operator):
             converter.convert(mat)
             if converter.error:
                 errors.append(mat.name)
+
+        log_convert('convert world')
+        converter = CyclesWorldConverter()
+        converter.convert(bpy.data.worlds[0])
+        if converter.error:
+            errors.append('World Properties')
+
         if errors:
             logging.error("Materials failed to convert without errors:", *errors)
             self.report({'ERROR'}, "Conversion completed with errors.\n Please see the log for more details!")
