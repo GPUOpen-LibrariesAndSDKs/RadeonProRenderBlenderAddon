@@ -1040,3 +1040,76 @@ class CyclesMaterialConverter(converter.MaterialConverter):
             self.end_node_convert(cycles_node)
 
         return res
+
+class CyclesWorldConverter():
+    def __init__(self):
+        self.error = False
+        self.errors = []
+
+    def error_convert(self, category, name, *args):
+        converter.error_convert('category:', category, "<%s>" % name, *args)
+        self.error = True
+        self.errors.append(' '.join(str(arg) for arg in args))
+
+    def convert(self, world):
+        assert world
+        log_convert('try to convert world: ', world.name)
+        env = world.rpr_data.environment
+
+        if not world.node_tree:
+            # use the color
+            env.enable = True
+            env.type = 'IBL'
+            env.ibl.type = 'COLOR'
+            env.ibl.color = world.horizon_color
+            env.ibl.intensity = 1.0
+            return
+
+        source_output = find_node(world, 'ShaderNodeOutputWorld')
+        if not source_output:
+            self.error_convert('generic', "world '%s' hasn't output Cycles node, skip conversion" % world)
+            return
+
+        if source_output.inputs['Surface'].is_linked:
+            background = source_output.inputs['Surface'].links[0].from_node
+            
+            # check for background only
+            if background.bl_idname == 'ShaderNodeBackground':
+                env.enable = True
+                    
+                # if color attached to a texture/IBL set that up
+                color = background.inputs['Color']
+                if color.is_linked:
+                    texture_node = color.links[0].from_node
+                    if texture_node.bl_idname in {'ShaderNodeTexEnvironment', 'ShaderNodeTexImage'}:
+                        env.type = 'IBL'
+                        env.ibl.type = 'IBL'
+                        env.ibl.ibl_image = texture_node.image
+                        env.gizmo_rotation[2] = -1.5708 # -90 to match cycles.
+                    elif texture_node.bl_idname == 'ShaderNodeTexSky':
+                        env.type = 'SUN_SKY'
+                        env.sun_sky.turbidity = texture_node.turbidity
+                        # TODO make these match better?
+                    else:
+                        self.error_convert('generic', "can't convert node '%s' connected to world" % texture_node.bl_idname)
+
+                else:
+                    # otherwise use color
+                    env.type = 'IBL'
+                    env.ibl.type = 'COLOR'
+                    env.ibl.color = color.default_value[0:3]
+
+                strength = background.inputs['Strength']
+                if strength.is_linked:
+                    # we don't know what to do with things hooked to strength
+                    self.error_convert('generic', "can't convert node '%s' connected to world" % strength.links[0].bl_idname)
+                else:
+                    # otherwise use strength
+                    env_settings = env.ibl if env.type == 'IBL' else env.sun_sky
+                    env_settings.intensity = strength.default_value
+
+            else:
+                self.error_convert('generic', "can't convert node '%s' connected to world" % background.bl_idname)
+                return
+
+
