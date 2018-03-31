@@ -15,6 +15,8 @@ import rprblender.ui
 import rprblender.core.image
 from rprblender.nodes import get_node_groups_by_id
 
+from . import buffer
+
 import pyrprx
 
 def log_mat(*args):
@@ -69,6 +71,7 @@ class NodeType(IntEnum):
     DOT_TEXTURE = pyrpr.MATERIAL_NODE_DOT_TEXTURE
     FRESNEL_SCHLICK = pyrpr.MATERIAL_NODE_FRESNEL_SCHLICK
     FRESNEL = pyrpr.MATERIAL_NODE_FRESNEL
+    BUFFER_SAMPLER = pyrpr.MATERIAL_NODE_BUFFER_SAMPLER
 
 
 class OperatorType(IntEnum):
@@ -348,6 +351,14 @@ class FresnelNode(Node):
         self.set_value(b'normal', normal)
         self.set_value(b'invec', invec)
 
+
+class BufferSamplerShader(Node):
+    def __init__(self, mat, uv, buffer):
+        super().__init__(mat.create_material_node(NodeType.BUFFER_SAMPLER))
+        # scale the uv by buffer size
+        self.set_value(b'uv', mat.mul_value(uv, ValueVector(config.ramp_buffer_size)))
+        pyrpr.MaterialNodeSetInputBufferData(self.get_handle(), b'data', buffer._get_handle())
+     
 
 class Shader(Node):
     type = None
@@ -1337,6 +1348,14 @@ class Material:
         node.set_uv(uv)
         return ValueNode(node)
 
+    def parse_color_ramp_node(self, blender_node):
+        context = self.manager.get_core_context()
+        core_buffer = buffer.create_core_buffer_from_color_ramp(context, blender_node.color_ramp)
+        self.node_list.append(core_buffer)
+        node = BufferSamplerShader(self, self.get_value(blender_node, 'Fac'), core_buffer)
+        return ValueNode(node)
+
+
     def parse_texture_node_get_image(self, blender_node):
         img = blender_node.get_image()
         if not img:
@@ -1730,6 +1749,7 @@ class Material:
             'rpr_texture_node_dot': self.parse_texture_node_dot,
             'rpr_fresnel_schlick_node': self.parse_fresnel_schlick_node,
             'rpr_fresnel_node': self.parse_fresnel_node,
+            'ShaderNodeValToRGB': self.parse_color_ramp_node,
 
             # volume
             'rpr_shader_node_subsurface': self.parse_volume_node_subsurface,
