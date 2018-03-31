@@ -226,6 +226,10 @@ class Image(Object):
 
     core_type_name = 'rpr_image'
 
+class Buffer(Object):
+
+    core_type_name = 'rpr_buffer'
+
 class PostEffect(Object):
 
     core_type_name = 'rpr_post_effect'

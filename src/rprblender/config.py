@@ -35,3 +35,5 @@ try:
     logging.info('loaded configdev', tag='')
 except ImportError:
     pass
+
+ramp_buffer_size = 256

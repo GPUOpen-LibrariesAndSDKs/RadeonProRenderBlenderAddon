@@ -33,6 +33,11 @@ class ValueNode(Node):
         return self.node.outputs[self.node.value_out]
 
 
+class RampNode(Node):
+    def get_output_socket(self):
+        return self.node.outputs['Color']
+
+
 class OutputNode(Node):
     def get_input_shader_socket(self):
         return self.get_input_socket_by_name('shader')
@@ -213,6 +218,9 @@ class MaterialEditor:
 
     def create_mapping_node(self):
         return MathNode(self.tree.nodes.new(type='rpr_mapping_node'), self)
+
+    def create_ramp_node(self):
+        return RampNode(self.tree.nodes.new(type='ShaderNodeValToRGB'), self)
 
     def link_nodes(self, output, input_socket):
         if not output or not input_socket:

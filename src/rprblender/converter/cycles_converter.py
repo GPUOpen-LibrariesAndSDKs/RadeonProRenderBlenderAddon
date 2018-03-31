@@ -724,6 +724,22 @@ class CyclesMaterialConverter(converter.MaterialConverter):
         self.convert_value_from_socket(socket_normal, fresnel, fresnel.node.normal_in, self.vec3_to_vec4)
         return fresnel
 
+    def convert_node_ramp(self, params):
+        cycles_node = params.node
+        ramp = self.material_editor.create_ramp_node()
+        ramp.node.location = self.get_new_loacation(cycles_node)
+        new_color_ramp = ramp.node.color_ramp
+        old_color_ramp = cycles_node.color_ramp
+        # brute copy vals
+        new_color_ramp.color_mode = old_color_ramp.color_mode
+        new_color_ramp.hue_interpolation = old_color_ramp.hue_interpolation
+        new_color_ramp.interpolation = old_color_ramp.interpolation
+        for elm in old_color_ramp.elements:
+            new_elm = new_color_ramp.elements.new(elm.position)
+            new_elm.alpha = elm.alpha
+            new_elm.color = elm.color
+        return ramp
+
     def convert_node_tex_coord(self, params):
         if params.socket.name == 'UV':
             op = 'UV'
@@ -1008,6 +1024,7 @@ class CyclesMaterialConverter(converter.MaterialConverter):
             'ShaderNodeBsdfTranslucent': self.convert_node_translucent,
             'ShaderNodeRGBCurve': self.convert_node_rgbcurve,
             'ShaderNodeMapping': self.convert_node_mapping,
+            'ShaderNodeValToRGB': self.convert_node_ramp,
             'ShaderNodeBsdfPrincipled': self.convert_node_principled,
         }
         return registered_nodes
