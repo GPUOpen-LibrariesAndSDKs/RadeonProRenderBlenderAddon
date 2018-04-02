@@ -642,34 +642,40 @@ class RPRShaderNode_PBR(RPRNodeType_Shader):
     base_color = 'Base Color'
     roughness = 'Roughness'
     metalness = 'Metalness'
+    specular = 'Specular'
 
-    coating_weight = 'Coating Weight'
-    coating_roughness = 'Coating Roughness'
     normal_in = 'Normal'
 
     emissive_color = 'Emissive Color'
-    emissive_intensity = 'Emissive Intensity'
     emissive_weight = 'Emissive Weight'
+    emissive_intensity = 'Emissive Intensity'
 
-    transparency = 'Transparency'
+    glass_weight = 'Glass'
+    glass_ior = 'Glass IOR'
+
+    sss_weight = 'Subsurface Weight'
+    sss_color = 'Subsurface Color'
+    sss_radius = 'Subsurface Radius' 
     
     def init(self, context):
         super(RPRShaderNode_PBR, self).init()
 
         self.inputs.new('rpr_socket_color', self.base_color).default_value = (0.5, 0.5, 0.5, 1.0)
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.roughness).default_value = 0.25
-
         self.inputs.new('rpr_socket_float_softMin0_softMax1', self.metalness).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.specular).default_value = 1.0
 
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_weight).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.0
-
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 0.0
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_factor', self.emissive_intensity).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 0.0
         
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.glass_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.glass_ior).default_value = 1.5
         
+        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.sss_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.sss_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_color', self.sss_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
+
         self.inputs.new('rpr_socket_link', self.normal_in)
         
     def draw_buttons(self, context, layout):

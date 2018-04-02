@@ -157,9 +157,14 @@ class CyclesMaterialConverter(converter.MaterialConverter):
         self.convert_value(cycles_node, 'Base Color', pbr, pbr.node.base_color)
         self.convert_value(cycles_node, 'Roughness', pbr, pbr.node.roughness)
         self.convert_value(cycles_node, 'Metallic', pbr, pbr.node.metalness)
-        self.convert_value(cycles_node, 'Clearcoat', pbr, pbr.node.coating_weight)
-        self.convert_value(cycles_node, 'Clearcoat Roughness', pbr, pbr.node.coating_roughness)
-        self.convert_value(cycles_node, 'Transmission', pbr, pbr.node.transparency)
+        self.convert_value(cycles_node, 'Specular', pbr, pbr.node.specular)
+        self.convert_value(cycles_node, 'Transmission', pbr, pbr.node.glass_weight)
+        self.convert_value(cycles_node, 'IOR', pbr, pbr.node.glass_ior)
+        self.convert_value(cycles_node, 'Subsurface Color', pbr, pbr.node.sss_color)
+        self.convert_value(cycles_node, 'Subsurface', pbr, pbr.node.sss_weight)
+        socket_sss_radius = self.get_socket(cycles_node, 'Subsurface Radius')
+        self.convert_value_from_socket(socket_sss_radius, pbr, pbr.node.sss_radius, self.vec3_to_vec4)
+
         socket_normal = self.get_socket(cycles_node, 'Normal')
         self.convert_value_from_socket(socket_normal, pbr, pbr.node.normal_in, self.vec3_to_vec4)
         return pbr

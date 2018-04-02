@@ -1252,7 +1252,7 @@ class Material:
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_COLOR,
                               self.get_value(blender_node, blender_node.base_color))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT,
-                              one_vector)
+                              self.get_value(blender_node, blender_node.specular))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS,
                               self.get_value(blender_node, blender_node.roughness))
         shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
@@ -1261,40 +1261,41 @@ class Material:
                               self.get_value(blender_node, blender_node.metalness))
     
         # REFRACTION:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_COLOR,
+                              self.get_value(blender_node, blender_node.base_color))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT,
-                                  nul_value_vector)
-
-        # SSS
+                              self.get_value(blender_node, blender_node.glass_weight))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ROUGHNESS,
+                              self.get_value(blender_node, blender_node.roughness))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR,
+                              self.get_value(blender_node, blender_node.glass_ior))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE,
+                            pyrpr.FALSE)
+        
+        # SUBSURFACE
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
+                                  self.get_value(blender_node, blender_node.base_color))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
-                                  nul_value_vector)
+                              self.get_value(blender_node, blender_node.sss_weight))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
+                              self.get_value(blender_node, blender_node.sss_color))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, 
+                              self.get_value(blender_node, blender_node.sss_radius))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
+                            pyrpr.FALSE)
 
         # EMISSION
         emissive_weight = self.get_value(blender_node, blender_node.emissive_weight)
         if emissive_weight != nul_value_vector:
-            emissive_color = self.mul_value(self.get_value(blender_node, blender_node.emissive_color),
-                                            self.get_value(blender_node, blender_node.emissive_intensity))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emissive_color)
+            emissive_color = self.get_value(blender_node, blender_node.emissive_color)
+            emissive_intensity = self.get_value(blender_node, blender_node.emissive_intensity)
+            val = self.mul_value(emissive_color, emissive_intensity)
+
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, emissive_weight)
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE, pyrprx.UBER_MATERIAL_EMISSION_MODE_SINGLESIDED)
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, nul_value_vector)
-
-        # COATING
-        coating_weight = self.get_value(blender_node, blender_node.coating_weight)
-        if coating_weight != nul_value_vector:
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
-                                coating_weight)
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS,
-                                self.get_value(blender_node, blender_node.coating_roughness))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
-                              coating_weight)
-        else:
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT,
-                              nul_value_vector)
-
-        # OPACITY
-        shader.set_value_rprx(pyrprx.UBER_MATERIAL_TRANSPARENCY,
-                                  self.get_value(blender_node, blender_node.transparency))
 
         # NORMAL
         normal_socket = self.get_socket(blender_node, blender_node.normal_in)
