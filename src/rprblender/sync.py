@@ -798,6 +798,12 @@ class SceneSynced:
         pyrpr.ShapeSetSubdivisionCreaseWeight(self.get_synced_obj(obj_key).core_obj, crease_weight)
 
     @call_logger.logged
+    def mesh_set_autosubdivision(self, obj_key, factor, boundary, crease_weight):
+        pyrpr.ShapeAutoAdaptSubdivisionFactor(self.get_synced_obj(obj_key).core_obj, self.render_device.render_target.get_frame_buffer(), self.core_render_camera, factor)
+        pyrpr.ShapeSetSubdivisionBoundaryInterop(self.get_synced_obj(obj_key).core_obj, boundary)
+        pyrpr.ShapeSetSubdivisionCreaseWeight(self.get_synced_obj(obj_key).core_obj, crease_weight)
+
+    @call_logger.logged
     def mesh_attach_portallight(self, obj_key):
         if obj_key in self.portal_lights_meshes:
             return
