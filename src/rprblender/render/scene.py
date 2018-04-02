@@ -349,8 +349,10 @@ class SceneRenderer:
                 pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
                                               sys.float_info.max);
 
-
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", rs.get_max_ray_depth(self.production_render))
+            depth, depth_diffuse, depth_glossy = rs.get_max_ray_depth(self.production_render)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", depth)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.diffuse", depth_diffuse)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.glossy", depth_glossy)
 
             # Convert milimeters to meters
             ray_epsilon = rs.global_illumination.ray_epsilon / 1000;

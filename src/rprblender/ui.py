@@ -676,9 +676,13 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
         row1.enabled = rpr_gi.use_clamp_irradiance
         row1.prop(rpr_gi, "clamp_irradiance")
 
-        row = layout.row()
-        col = row.column(align=True)
-        col.prop(rpr_gi, "max_ray_depth", slider=True)
+        col = layout.column(align=True)
+        row = col.row()
+        row.prop(rpr_gi, "max_ray_depth", slider=True)
+
+        row = col.row(align=True)
+        row.prop(rpr_gi, "max_diffuse_depth", slider=True, text='Max Diffuse')
+        row.prop(rpr_gi, "max_glossy_depth", slider=True, text='Max Glossy')
 
         row = layout.row()
         col = row.column(align=True)
