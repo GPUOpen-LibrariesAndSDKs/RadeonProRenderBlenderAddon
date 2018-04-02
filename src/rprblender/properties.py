@@ -547,18 +547,6 @@ class AntiAliasingSettings(bpy.types.PropertyGroup):
 ########################################################################################################################
 # Global Illumination
 ########################################################################################################################
-default_gi_max_ray_depth = 8
-
-def get_gi_max_ray_depth(self):
-    return self.get('max_ray_depth', default_gi_max_ray_depth)
-
-
-def set_gi_max_ray_depth(self, value):
-    if get_gi_max_ray_depth(self) != value:
-        bpy.context.scene.rpr.render.render_quality = 'CUSTOM'
-    self['max_ray_depth'] = value
-
-
 @rpraddon.register_class
 class GlobalIlluminationSettings(bpy.types.PropertyGroup):
     primary_solver = bpy.props.EnumProperty(
@@ -582,9 +570,19 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
         name="Max ray depth", description="Max ray depth",
         min=0,
         soft_min=2, soft_max=50,
-        default=default_gi_max_ray_depth,
-        set=set_gi_max_ray_depth,
-        get=get_gi_max_ray_depth,
+        default=8,
+    )
+    max_diffuse_depth = bpy.props.IntProperty(
+        name="Max diffuse ray depth", description="Max diffuse ray depth",
+        min=0,
+        soft_min=1, soft_max=50,
+        default=2,
+    )
+    max_glossy_depth = bpy.props.IntProperty(
+        name="Max glossy ray depth", description="Max glossy ray depth",
+        min=0,
+        soft_min=1, soft_max=50,
+        default=5,
     )
     ray_epsilon = bpy.props.FloatProperty(
         name="Ray cast epsilon", description="Ray cast epsilon",
@@ -858,12 +856,6 @@ def update_render_quality(self, context):
     elif self.render_quality == 'MEDIUM':
         self.global_illumination['max_ray_depth'] = 10
 
-
-class ViewportQuality():
-    fast_max_ray_depth = 5
-    normal_max_ray_depth = 10
-
-
 def update_motion_blur_exposure(self, context):
     selected = []
     if self.motion_blur_exposure_apply == 'ACTIVE':
@@ -982,12 +974,13 @@ class RenderSettings(bpy.types.PropertyGroup):
     )
 
     def get_max_ray_depth(self, is_production):
-        if not is_production:
-            if self.viewport_quality == 'FAST':
-                return ViewportQuality.fast_max_ray_depth
-            if self.viewport_quality == 'NORMAL':
-                return ViewportQuality.normal_max_ray_depth
-        return self.global_illumination.max_ray_depth
+        if not is_production and self.viewport_quality == 'FAST':
+            # in fast mode use max depth 5, 1 diffuse, 3 glossy
+            return (5, 1, 3)
+        else:
+            return (self.global_illumination.max_ray_depth,
+                    self.global_illumination.max_diffuse_depth,
+                    self.global_illumination.max_glossy_depth)
 
 
 ########################################################################################################################
