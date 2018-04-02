@@ -614,11 +614,22 @@ class ObjectsSync:
             self.scene_synced.mesh_set_shadows((key, i), object_settings.shadows)
 
             if duplicator is None:
-                self.scene_synced.mesh_set_subdivision(
-                    (key, i), object_settings.subdivision,
-                    helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
-                    object_settings.subdivision_crease_weight,
-                )
+                if object_settings.subdivision_type == 'level':
+                    self.scene_synced.mesh_set_subdivision(
+                        (key, i), object_settings.subdivision,
+                        helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
+                        object_settings.subdivision_crease_weight,
+                    )
+                else:
+                    # convert factor from size of subdiv in pixel to RPR
+                    # rpr does size in pixel = 2^factor  / 16.0
+                    factor = int(math.log2(1.0/object_settings.adaptive_subdivision * 16.0))
+                    
+                    self.scene_synced.mesh_set_autosubdivision(
+                        (key, i), factor,
+                        helpers.subdivision_boundary_prop.remap[object_settings.subdivision_boundary],
+                        object_settings.subdivision_crease_weight,
+                    )
 
             #self.scene_synced.mesh_set_visibility((key, i), object_settings.visibility)
             primary = self.scene_export.is_blender_object_visible_in_camera(

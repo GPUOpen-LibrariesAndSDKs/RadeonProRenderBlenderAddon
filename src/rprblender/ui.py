@@ -1273,7 +1273,11 @@ class RPRMaterial_PT_preview(RPRPanel, Panel):
 
 def add_subdivision_properties(layout, object):
     if object:
-        layout.prop(object.rpr_object, "subdivision")
+        layout.prop(object.rpr_object, "subdivision_type")
+        if object.rpr_object.subdivision_type == 'level':
+            layout.prop(object.rpr_object, "subdivision")
+        else:
+            layout.prop(object.rpr_object, "adaptive_subdivision")
         layout.prop(object.rpr_object, "subdivision_crease_weight", text='Crease Weight')
         layout.prop(object.rpr_object, "subdivision_boundary")
 

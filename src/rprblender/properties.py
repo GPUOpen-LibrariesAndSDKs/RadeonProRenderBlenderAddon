@@ -1255,10 +1255,24 @@ class RPRObject(bpy.types.PropertyGroup):
             default=False,
         )
 
+        cls.subdivision_type = bpy.props.EnumProperty(
+            name="Subdivision type",
+            items=(('level', 'Level', 'Set Subdivision Level Manually'),
+                   ('adaptive', 'Adaptive', 'Automatically set subdivision by object size in pixels')),
+            default='level',
+        )
+
         cls.subdivision = bpy.props.IntProperty(
             name="Subdivision",
             description="Subdivision factor for mesh",
             default=0,
+            min=0,
+        )
+
+        cls.adaptive_subdivision = bpy.props.FloatProperty(
+            name="Adaptive Subdiv Level",
+            description="Subdivision factor for mesh, in pixels that it should be subdivided to.  For finer subdivision set lower.",
+            default=1, soft_max=10,
             min=0,
         )
 
