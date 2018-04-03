@@ -21,9 +21,32 @@ class CoreError(Exception):
             if name.startswith('ERROR_') and status == value:
                 status = "%s<%d>" % (name, value)
                 break
+        
+        error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
+
         super().__init__(
-            "%s call %s(%s) returned error code: <%s>"%(
-                module_name, func_name, ', '.join(str(a) for a in argv), status))
+            "%s call %s(%s) returned error code <%s> with error message: '%s'" % 
+                (module_name, func_name, ', '.join(str(a) for a in argv), status, error_message))
+
+    def get_last_error_message(self, context):
+        if not isinstance(context, Context):
+            return ""
+
+        ffi = pyrprwrap.ffi
+        lib = pyrprwrap.lib
+        rpr_context = context._get_handle() if context else ffi.NULL
+        sizeParamPtr = ffi.new('size_t *', 0)
+
+        # bypass calling ContextGetInfo through wrappers, that's why calling it directly to the lib
+        state = lib.rprContextGetInfo(rpr_context, CONTEXT_LAST_ERROR_MESSAGE, 0, ffi.NULL, sizeParamPtr)
+        sizeParam = sizeParamPtr[0]
+        if state == SUCCESS and sizeParam >= 1:
+            strData = ffi.new('char[%d]' % sizeParam)
+            state = lib.rprContextGetInfo(rpr_context, CONTEXT_LAST_ERROR_MESSAGE, sizeParam, strData, ffi.NULL)
+            if state == SUCCESS:
+                return ffi.string(strData)
+
+        return ""
 
 
 def wrap_core_check_success(f, module_name):
