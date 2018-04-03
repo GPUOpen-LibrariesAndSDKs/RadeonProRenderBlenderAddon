@@ -9,6 +9,8 @@ import rprblender.core.image
 from rprblender.helpers import convert_K_to_RGB
 import rprblender.versions as versions
 
+MAX_LUMINOUS_EFFICACY = 684.0
+
 class LightError(ValueError):
     pass
 
@@ -28,11 +30,60 @@ class Light:
     def get_core_obj(self):
         return self.light
 
-    def _get_lamp_power(self, lamp):
-        color = np.array(lamp.rpr_lamp.color)
-        if lamp.rpr_lamp.use_temperature:
-            color *= convert_K_to_RGB(lamp.rpr_lamp.temperature)
-        return color * lamp.rpr_lamp.intensity
+    def _get_radiant_power(self, lamp, area=0):
+        rpr_lamp = lamp.rpr_lamp
+
+        # calculating color intensity
+        color = np.array(rpr_lamp.color)
+        if rpr_lamp.use_temperature:
+            color *= convert_K_to_RGB(rpr_lamp.temperature)
+        intensity = color * rpr_lamp.intensity
+
+        # calculating radian power for core
+        if lamp.type in ('POINT', 'SPOT'):
+            units = rpr_lamp.intensity_units_point
+            if units == 'DEFAULT':
+                return intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
+
+            # converting to lumens
+            if units == 'LUMEN':
+                lumens = intensity
+            elif units == 'WATTS':
+                lumens = intensity * rpr_lamp.luminous_efficacy
+            return lumens / MAX_LUMINOUS_EFFICACY
+
+        elif lamp.type == 'SUN':
+            units = rpr_lamp.intensity_units_dir
+            if units == 'DEFAULT':
+                return intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
+
+            # converting to luminance
+            if units == 'LUMINANCE':
+                luminance = intensity
+            if units == 'RADIANCE':
+                luminance = intensity * rpr_lamp.luminous_efficacy
+            return luminance / MAX_LUMINOUS_EFFICACY
+
+        else: 
+            assert lamp.type == 'AREA'
+
+            units = rpr_lamp.intensity_units_area
+            if units == 'DEFAULT':
+                if rpr_lamp.intensity_normalization:
+                    return intensity / area
+                return intensity
+
+            # converting to luminance
+            if units == 'LUMEN':
+                luminance = intensity / area
+            if units == 'WATTS':
+                luminance = intensity * rpr_lamp.luminous_efficacy / area
+            if units == 'LUMINANCE':
+                luminance = intensity
+            if units == 'RADIANCE':
+                luminance = intensity * rpr_lamp.luminous_efficacy
+            return luminance / MAX_LUMINOUS_EFFICACY
+
 
 class EmptyLight(Light):
     def __init__(self):
@@ -47,12 +98,13 @@ class EmptyLight(Light):
     def detach(self, scene):
         pass
 
+
 class IESLight(Light):
     def __init__(self, lamp, core_context):
         super().__init__()
         pyrpr.ContextCreateIESLight(core_context, self.light)
-        power = self._get_lamp_power(lamp) / (4*math.pi)    # dividing by 4*pi to be more convenient with point light
-        pyrpr.IESLightSetRadiantPower3f(self.light, *power[:3])
+        power = self._get_radiant_power(lamp)
+        pyrpr.IESLightSetRadiantPower3f(self.light, *power)
         pyrpr.IESLightSetImageFromFile(self.light, str(lamp.rpr_lamp.ies_file_name).encode('latin1'), 256, 256)
 
 
@@ -60,18 +112,16 @@ class PointLight(Light):
     def __init__(self, lamp, core_context):
         super().__init__()
         pyrpr.ContextCreatePointLight(core_context, self.light)
-        # dividing power by 4*pi because this seems to match Cycles very closely
-        # seems koeficient 4*pi corresponds to area of square: S=4*pi*r*r
-        power = self._get_lamp_power(lamp) / (4*math.pi) 
-        pyrpr.PointLightSetRadiantPower3f(self.light, *power[:3])
+        power = self._get_radiant_power(lamp)
+        pyrpr.PointLightSetRadiantPower3f(self.light, *power)
 
 
 class DirectionalLight(Light):
     def __init__(self, lamp, core_context):
         super().__init__()
         pyrpr.ContextCreateDirectionalLight(core_context, self.light)
-        power = self._get_lamp_power(lamp) * 0.01   # multiplying by 0.01 to be more convenient with point light
-        pyrpr.DirectionalLightSetRadiantPower3f(self.light, *power[:3])
+        power = self._get_radiant_power(lamp)
+        pyrpr.DirectionalLightSetRadiantPower3f(self.light, *power)
         pyrpr.DirectionalLightSetShadowSoftness(self.light, lamp.rpr_lamp.shadow_softness)
 
 
@@ -79,8 +129,8 @@ class SpotLight(Light):
     def __init__(self, lamp, core_context):
         super().__init__()
         pyrpr.ContextCreateSpotLight(core_context, self.light)
-        power = self._get_lamp_power(lamp) / (4*math.pi)    # dividing by 4*pi to be more convenient with point light
-        pyrpr.SpotLightSetRadiantPower3f(self.light, *power[:3])
+        power = self._get_radiant_power(lamp)
+        pyrpr.SpotLightSetRadiantPower3f(self.light, *power)
         oangle = 0.5 * lamp.spot_size   # half of spot_size
         iangle = oangle * (1.0 - lamp.spot_blend * lamp.spot_blend)   # square dependency of spot_blend
         pyrpr.SpotLightSetConeShape(self.light, iangle, oangle)
@@ -126,9 +176,7 @@ class AreaLight(Light):
         if area < np.finfo(dtype=np.float32).eps: 
             raise LightError("Surface area of mesh is equal to zero")
 
-        power = self._get_lamp_power(lamp)
-        if lamp.rpr_lamp.intensity_normalization:
-            power /= area
+        power = self._get_radiant_power(lamp, area)
 
         # Creating light mesh
         if uvs is None:
