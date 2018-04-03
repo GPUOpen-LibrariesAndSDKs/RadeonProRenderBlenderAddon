@@ -123,7 +123,6 @@ def draw_lamp_settings(self, context):
             row = col2.row()
             row.enabled = lamp.rpr_lamp.visible
             row.prop(lamp.rpr_lamp, 'cast_shadows')
-            col2.prop(lamp.rpr_lamp, 'intensity_normalization')
 
         elif lamp.type == 'SPOT':
             col1, col2, is_row = create_ui_autosize_column(context, layout, True)
@@ -138,34 +137,47 @@ def draw_lamp_settings(self, context):
 
 
     def draw_intensity(layout):
-        layout.row().prop(lamp.rpr_lamp, 'intensity')
-        col = layout.column()
-        col.row().prop(lamp.rpr_lamp, 'color')
+        if lamp.type in ('POINT', 'SPOT'):
+            intensity_units = 'intensity_units_point'
+        elif lamp.type == 'SUN':
+            intensity_units = 'intensity_units_dir'
+        else:
+            intensity_units = 'intensity_units_area'
 
-        row = col.row(align=True)
-        row.prop(lamp.rpr_lamp, 'use_temperature', text = "Temperature")
-        col1 = row.column()
-        col1.enabled = lamp.rpr_lamp.use_temperature
-        col1.prop(lamp.rpr_lamp, 'temperature', text = "", slider=True)
+        col1, col2, is_row = create_ui_autosize_column(context, layout, True)
+        col1.prop(lamp.rpr_lamp, intensity_units, text="")
 
+        col1.prop(lamp.rpr_lamp, 'intensity')
+        if getattr(lamp.rpr_lamp, intensity_units) in ('WATTS', 'RADIANCE'):
+            col1.prop(lamp.rpr_lamp, 'luminous_efficacy', slider=True)
+        elif lamp.type == 'AREA' and getattr(lamp.rpr_lamp, intensity_units) == 'DEFAULT':
+            col1.prop(lamp.rpr_lamp, 'intensity_normalization')
+
+        col2.row().prop(lamp.rpr_lamp, 'color')
+
+        col2.prop(lamp.rpr_lamp, 'use_temperature', text = "Temperature")
+        row = col2.row()
+        row.enabled = lamp.rpr_lamp.use_temperature
+        row.prop(lamp.rpr_lamp, 'temperature', text = "", slider=True)
+        
         if lamp.type == 'AREA':
-            col1 = col.column()
-            col1.label("Light Color Map:")
-            col1.enabled = lamp.rpr_lamp.shape in ('RECTANGLE', 'DISC', 'MESH')
+            col = layout.column()
+            col.label("Light Color Map:")
+            col.enabled = lamp.rpr_lamp.shape in ('RECTANGLE', 'DISC', 'MESH')
             if versions.is_blender_support_custom_datablock():
-                col1.template_ID(lamp.rpr_lamp, 'color_map', open='image.open')
+                col.template_ID(lamp.rpr_lamp, 'color_map', open='image.open')
             else:
-                col1.prop(lamp.rpr_lamp, 'color_map', text='')
+                col.prop(lamp.rpr_lamp, 'color_map', text='')
 
         elif lamp.type == 'POINT':
-            col1 = col.column(align=True)
-            col1.label('IES Data File:')
+            col = layout.column(align=True)
+            col.label('IES Data File:')
 
-            row = col1.row(align=True)
+            row = col.row(align=True)
             row.alignment = 'EXPAND'
             row.prop(lamp.rpr_lamp, "ies_file_name", text='')
             row.operator('rpr.op_select_ies_light_data', text='', icon='FILESEL')
-  
+
 
     self.layout.row(align=True).prop(lamp, 'type', expand=True)
 

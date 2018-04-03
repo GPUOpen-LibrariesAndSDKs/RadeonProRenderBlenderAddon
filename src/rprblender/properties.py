@@ -1326,13 +1326,50 @@ class RPRAddonPreferences(bpy.types.AddonPreferences):
     settings = bpy.props.PointerProperty(type=UserSettings)
 
 
+from rprblender.lights import MAX_LUMINOUS_EFFICACY
+
 @rpraddon.register_class
 class RPRLamp(bpy.types.PropertyGroup):
     # INTENSITY PROPERTIES
     intensity = bpy.props.FloatProperty(
         name="Intensity",
-        description="Intensity in Watts for Point/Spot/Area light and W/m2 for Sun",
-        min=0.0, default=100.0,
+        description="Light Intensity",
+        min=0.0, step=20,
+        default=100.0,
+    )
+
+    luminous_efficacy = bpy.props.FloatProperty(
+        name="Luminous Efficacy",
+        description="Luminous Efficacy - amount of Lumen emitted per Watt (lm/W)",
+        min=0.0, max=MAX_LUMINOUS_EFFICACY, soft_max=100.0,
+        default=17.0
+    )
+
+    intensity_units_items_default = (('DEFAULT', "Default", "Default intensity units"),)
+    intensity_units_items_point = (('WATTS', "Watts", "Light intensity in Watts (W)"),
+                             ('LUMEN', "Lumen", "Light intensity in Lumen (lm)"))
+    intensity_units_items_dir = (('RADIANCE', "Radiance", "Light intensity in Watts per square meter (W/m^2)"),
+                                  ('LUMINANCE', "Luminance", "Light intensity in Lumen per square meter (lm/m^2)"))
+
+    intensity_units_point = bpy.props.EnumProperty(
+        name="Intensity Units",
+        items=intensity_units_items_default + intensity_units_items_point,
+        description="Intensity Units",
+        default='DEFAULT',
+    )
+
+    intensity_units_dir = bpy.props.EnumProperty(
+        name="Intensity Units",
+        items=intensity_units_items_default + intensity_units_items_dir,
+        description="Intensity Units",
+        default='DEFAULT',
+    )
+
+    intensity_units_area = bpy.props.EnumProperty(
+        name="Intensity Units",
+        items=intensity_units_items_default + intensity_units_items_point + intensity_units_items_dir,
+        description="Intensity Units",
+        default='DEFAULT',
     )
 
     color = bpy.props.FloatVectorProperty(
@@ -1357,6 +1394,12 @@ class RPRLamp(bpy.types.PropertyGroup):
     ies_file_name = bpy.props.StringProperty(
         name='IES Data file', description='IES Data file name',
         default='',
+    )
+
+    intensity_normalization = bpy.props.BoolProperty(
+        name = "Intensity Normalization",
+        description="Prevents the light intensity from changing if the size of the light changes",
+        default=True
     )
 
     # AREA LIGHT PROPERTIES
@@ -1388,12 +1431,6 @@ class RPRLamp(bpy.types.PropertyGroup):
         name = "Cast Shadows",
         description="Enable shadows from other light sources",
         default=False
-    )
-
-    intensity_normalization = bpy.props.BoolProperty(
-        name = "Intensity Normalization",
-        description="Prevents the light intensity from changing if the size of the light changes",
-        default=True
     )
 
     size_1 = bpy.props.FloatProperty(
