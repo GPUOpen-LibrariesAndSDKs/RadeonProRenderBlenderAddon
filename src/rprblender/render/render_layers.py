@@ -203,7 +203,7 @@ aov_info = {'default':
                 {'name': 'Shadow Catcher', 
                  'old_name': 'Shadow',
                  'old_use_pass': 'use_pass_shadow',
-                 'channel': 'RGB', 
+                 'channel': 'RGBA', 
                  'rpr': pyrpr.AOV_SHADOW_CATCHER,
                  'order': 10},
             'background': 

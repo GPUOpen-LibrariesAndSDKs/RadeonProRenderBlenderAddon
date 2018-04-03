@@ -431,9 +431,8 @@ class SceneRenderer:
             return self.im_prepared[aov_name]
 
         with rprblender.render.core_operations(raise_error=True):
-            if self.has_shadowcatcher:
+            if aov_name == 'default' and self.has_shadowcatcher:
                 im = self._get_shadow_catcher_image()
-                aov_name = 'sc'
             else:
                 im = self._get_aov_image(aov_name)
 
@@ -483,9 +482,8 @@ class SceneRenderer:
         if aov_name in self.im_prepared:
             return self.im_prepared[aov_name]
 
-        if self.has_shadowcatcher:
+        if aov_name == 'default' and self.has_shadowcatcher:
             im = self._get_shadow_catcher_image()
-            aov_name = 'sc'
         else:
             im = self._get_aov_image(aov_name)
         if im is None:
