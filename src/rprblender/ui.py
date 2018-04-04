@@ -1061,6 +1061,12 @@ class RPRRender_PT_about(RPRPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
+        def core_ver_str():
+            core_ver = versions.get_core_version()
+            mj = (core_ver & 0xFFFF00000) >> 28
+            mn = (core_ver & 0xFFFFF) >> 8
+            return "%x.%x" % (mj, mn)
+
         layout = self.layout
         rpr = context.scene.rpr
 
@@ -1075,7 +1081,7 @@ class RPRRender_PT_about(RPRPanel, Panel):
 
         info = versions.get_addon_info()
         ver = info['version'];
-        row.label("%s for Blender v%d.%d.%d" % (info['name'], ver[0], ver[1], ver[2]))
+        row.label("%s for Blender %d.%d.%d (core %s)" % (info['name'], ver[0], ver[1], ver[2], core_ver_str()))
         row = col.row(align=True)
         row.alignment = 'CENTER'
         row.label("© 2016 Advanced Micro Devices, Inc. (AMD)")
