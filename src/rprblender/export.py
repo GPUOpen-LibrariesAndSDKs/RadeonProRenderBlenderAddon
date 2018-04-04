@@ -623,7 +623,9 @@ class ObjectsSync:
                 else:
                     # convert factor from size of subdiv in pixel to RPR
                     # rpr does size in pixel = 2^factor  / 16.0
-                    factor = int(math.log2(1.0/object_settings.adaptive_subdivision * 16.0))
+                    # guard against 0. 
+                    adaptive_subdivision = .0001 if object_settings.adaptive_subdivision == 0 else object_settings.adaptive_subdivision
+                    factor = int(math.log2(1.0/adaptive_subdivision * 16.0))
                     
                     self.scene_synced.mesh_set_autosubdivision(
                         (key, i), factor,
