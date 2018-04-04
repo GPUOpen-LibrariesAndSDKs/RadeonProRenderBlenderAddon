@@ -17,7 +17,7 @@ import bpy
 import sys
 
 from . import logging
-logging.debug("loading addon");
+logging.info("Loading RPR addon", bl_info['version']);
 
 from . import config
 from . import addon

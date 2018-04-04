@@ -56,6 +56,11 @@ def get_addon_version():
     return info['version']
 
 
+def get_core_version():
+    from pyrpr import API_VERSION
+    return API_VERSION
+
+
 def copy_settings(src, dst, keys):
     for key, value in keys.items():
         settings_value = src.get(key, value)

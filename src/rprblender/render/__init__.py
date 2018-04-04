@@ -44,6 +44,7 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         import pyrpr
         import pyrprapi  # import this to be have it in the sys.modules available later
 
+        log_pyrpr("RPR Core version", hex(pyrpr.API_VERSION))
         pyrpr.lib_wrapped_log_calls = config.pyrpr_log_calls
         pyrpr.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
@@ -51,10 +52,12 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         pyrpr_load_store.init(rprsdk_bin_path)
 
         import pyrprx
+        log_pyrpr("RPRX Support version", hex(pyrprx.SUPPORT_API_VERSION))
         pyrprx.lib_wrapped_log_calls = config.pyrprx_log_calls
         pyrprx.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
         import pyrprimagefilters
+        log_pyrpr("Image Filters version", hex(pyrprimagefilters.API_VERSION))
         pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
         pyrprimagefilters.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
@@ -123,9 +126,6 @@ if 'pyrpr' not in sys.modules:
     logging.debug('rprsdk_bin_path:', rprsdk_bin_path)
 
 import pyrpr
-
-log_pyrpr("Radeon ProRender ", hex(pyrpr.API_VERSION))
-
 
 def ensure_core_cache_folder():
     # TODO: set cache path to a user/temp folder?
