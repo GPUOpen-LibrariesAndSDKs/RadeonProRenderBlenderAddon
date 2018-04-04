@@ -298,3 +298,18 @@ else:
 def pass_to_aov_name(pass_name):
     return pass2aov.get(pass_name or 'Combined', None)
 
+def register_pass(render_engine, scene, render_layer, pass_name):
+    pass_item = aov_info.get(pass_name, None)
+    if not pass_item:
+        return
+    blender_type = 'VALUE'
+    channel_type = pass_item['channel']
+    # convert from channel to blender type
+    if 'RGB' in channel_type:
+        blender_type = 'COLOR'
+    elif channel_type in {'XYZ', 'UVA'}:
+        blender_type = 'VECTOR'
+
+    render_engine.register_pass(scene, render_layer, pass_item['name'], channel_type, 
+                                channel_type, blender_type)
+

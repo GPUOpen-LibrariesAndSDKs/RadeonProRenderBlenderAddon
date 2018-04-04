@@ -363,6 +363,14 @@ class RPREngine(bpy.types.RenderEngine):
                 return None
             return scene_renderer.im_iteration
 
+    def update_render_passes(self, scene=None, render_layer=None):
+        ''' This is called by blender 2.79 + to update compositor node with render passes names '''
+        aov_settings = render_layer.rpr_data.passes_aov
+        for i,pass_name in enumerate(aov_settings.render_passes_items):
+            state = aov_settings.passesStates[i]
+            if state:
+                rprblender.render.render_layers.register_pass(self, scene, render_layer, pass_name[0])
+
     def set_render_to_result(self, result_render_layer, scene_renderer):
         images = scene_renderer.get_images()
         with TimedContext("copy image to rect"):
