@@ -310,6 +310,6 @@ def register_pass(render_engine, scene, render_layer, pass_name):
     elif channel_type in {'XYZ', 'UVA'}:
         blender_type = 'VECTOR'
 
-    render_engine.register_pass(scene, render_layer, pass_item['name'], channel_type, 
+    render_engine.register_pass(scene, render_layer, pass_item['name'], len(channel_type), 
                                 channel_type, blender_type)
 

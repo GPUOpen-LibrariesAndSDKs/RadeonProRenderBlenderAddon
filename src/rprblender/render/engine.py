@@ -365,6 +365,12 @@ class RPREngine(bpy.types.RenderEngine):
 
     def update_render_passes(self, scene=None, render_layer=None):
         ''' This is called by blender 2.79 + to update compositor node with render passes names '''
+        if not render_layer:
+            # not sure when this case could be happen, but from documentation it is None by default
+            # so, we have to expect it is possible and in this case probably we have to call register_pass
+            self.register_pass(scene, None)
+            return
+
         aov_settings = render_layer.rpr_data.passes_aov
         for i,pass_name in enumerate(aov_settings.render_passes_items):
             state = aov_settings.passesStates[i]
