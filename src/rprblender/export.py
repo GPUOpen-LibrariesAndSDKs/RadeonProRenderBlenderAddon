@@ -177,8 +177,9 @@ class ObjectMesh:
 
 
 class MeshSync:
-    def __init__(self, object_mesh: ObjectMesh):
+    def __init__(self, object_mesh: ObjectMesh, volume_data = None):
         self.object_mesh = object_mesh
+        self.volume_data = volume_data
         self.materials_assigned = {}
         self.matrix = None
 
@@ -379,6 +380,9 @@ class ObjectsSync:
         self.object_instances_instantiated_as_mesh_prototype.add(key)
         self.mesh_added_for_prototype[sync.get_prototype_key()] = key
 
+        if sync.volume_data:
+            self.scene_synced.add_volume((key, 0), sync.volume_data, sync.matrix)
+
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh_prototype(self, key):
         mesh_sync = self.object_instances[key]
@@ -404,6 +408,8 @@ class ObjectsSync:
         sync = self.create_object_instance_sync(key, obj_key, obj, matrix_world)
         if not sync:
             return
+        if object_has_volume(obj):
+            sync.volume_data = extract_volume_data(obj)
         return sync
 
     @call_logger.logged
@@ -1837,6 +1843,41 @@ class SettingsSync:
         for p in path[:-1]:
             settings = settings.setdefault(p, {})
         settings[path[-1]] = value
+
+
+def object_has_volume(obj):
+    ''' Object is a volume if it has "smoke" '''
+    for modifier in obj.modifiers:
+        if modifier.type == "SMOKE" and modifier.domain_settings:
+            return True
+    return False
+
+
+def extract_volume_data(obj):
+    smoke_modifier = None
+    for modifier in obj.modifiers:
+        if modifier.type == "SMOKE" and modifier.domain_settings:
+            smoke_modifier = modifier
+    smoke_domain = smoke_modifier.domain_settings
+    if not smoke_domain:
+        return
+
+    smoke_resolution = smoke_domain.domain_resolution
+    if smoke_domain.use_high_resolution:
+        smoke_resolution = [(smoke_domain.amplify + 1) * i for i in smoke_resolution]
+
+    size_grid = smoke_resolution[0] * smoke_resolution[1] * smoke_resolution[2]
+
+    smoke_density = np.array(smoke_domain.color_grid, dtype=np.float32).reshape(size_grid, 4)
+    
+    smoke_density[:, 3] = smoke_domain.density_grid
+    #smoke comes out too sparse
+    smoke_density[:,3] *= 10.0
+
+    return {
+        'dimensions' : smoke_resolution,
+        'density': smoke_density
+    }
 
 
 class MeshRaw:

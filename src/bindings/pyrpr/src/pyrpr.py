@@ -21,7 +21,7 @@ class CoreError(Exception):
             if name.startswith('ERROR_') and status == value:
                 status = "%s<%d>" % (name, value)
                 break
-        
+       
         error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
 
         super().__init__(
@@ -220,6 +220,10 @@ class Scene(Object):
 class Shape(Object):
 
     core_type_name = 'rpr_shape'
+
+class HeteroVolume(Object):
+
+    core_type_name = 'rpr_hetero_volume'
 
 class Camera(Object):
 

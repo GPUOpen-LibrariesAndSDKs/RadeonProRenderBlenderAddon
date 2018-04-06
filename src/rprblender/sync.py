@@ -143,6 +143,7 @@ class SceneSynced:
 
         self.objects_synced = {}  # type: Dict[ObjectSynced]
         self.meshes = set()
+        self.volumes = set()
         self.portal_lights_meshes = set()
         self.core_render_camera = None
         self.lamps = {}
@@ -173,6 +174,7 @@ class SceneSynced:
             pyrpr.SceneDetachShape(self.core_scene, shape)
             shape.delete()
         self.meshes = set()
+        self.volumes = set()
         self.portal_lights_meshes = set()
 
         self.core_scene = None
@@ -227,6 +229,7 @@ class SceneSynced:
 
         self.objects_synced = {}
         self.meshes = set()
+        self.volumes = set()
         self.portal_lights_meshes = set()
         self.lamps = {}
 
@@ -703,6 +706,35 @@ class SceneSynced:
         logging.debug('add mesh done')
         return True
 
+    @call_logger.logged
+    def add_volume(self, obj_key, extracted_volume, matrix_world):
+        logging.debug('add volume:', obj_key, extracted_volume)
+
+        core_volume = self.core_make_volume(extracted_volume)
+        # rprlog("core_make_mesh: done", extracted_mesh)
+        core_shape = self.get_core_obj(obj_key)
+
+        pyrpr.ShapeSetHeteroVolume(core_shape,core_volume._get_handle())
+        pyrpr.SceneAttachHeteroVolume(self.get_core_scene(), core_volume._get_handle())
+        
+        matrix = np.array(matrix_world, dtype=np.float32)
+        # volumes must be scaled by 2
+        matrix[0,0] *= 2.0
+        matrix[1,1] *= 2.0
+        matrix[2,2] *= 2.0
+        
+        if pyrpr.is_transform_matrix_valid(matrix):
+            try:
+                # Blender needs matrix to be transposed
+                pyrpr.HeteroVolumeSetTransform(core_volume._get_handle(), True, ffi.cast('float*', matrix.ctypes.data))
+            except pyrpr.CoreError:
+                pass
+          
+        self.volumes.add(core_volume)
+
+        logging.debug('add volume done')
+        return True
+
     def shape_set_transform(self, core_shape, matrix_world):
         matrix = np.array(matrix_world, dtype=np.float32)
 
@@ -1046,6 +1078,32 @@ class SceneSynced:
             num_face_vertices_ptr, face_count, core_mesh)
 
         return core_mesh
+
+    def core_make_volume(self, volume_data):
+        logging.debug("core_make_volume")
+
+        context = self.get_core_context()
+        core_volume = pyrpr.HeteroVolume()
+        
+        x,y,z = volume_data['dimensions']
+        size = x * y * z
+
+        grid_data = np.ascontiguousarray(volume_data['density'].reshape(size * 4))
+        grid_data_ptr = ffi.cast("const float *", grid_data.ctypes.data)
+        logging.debug("grid_data_count: ", size * 4)
+
+        indices = np.ascontiguousarray(range(0,size), dtype=np.uint64)
+        indices_ptr = ffi.cast("const size_t *", indices.ctypes.data)
+        logging.debug("index_count: ", size)
+
+        # print(x,y,z, grid_data_count, index_count, grid_data.shape, grid_data[0].nbytes)
+        pyrpr.ContextCreateHeteroVolume(
+            context, core_volume._handle_ptr,
+            x,y,z,
+            indices_ptr, size, pyrpr.HETEROVOLUME_INDICES_TOPOLOGY_I_U64,
+            grid_data_ptr, size * grid_data[0].nbytes * 4, 0)
+
+        return core_volume
 
     @call_logger.logged
     def set_render_camera(self, render_camera):
