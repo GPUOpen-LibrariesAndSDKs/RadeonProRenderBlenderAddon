@@ -39,6 +39,9 @@ class Light:
             color *= convert_K_to_RGB(rpr_lamp.temperature)
         intensity = color * rpr_lamp.intensity
 
+        # calculate luminous efficiency
+        luminous_efficiency = rpr_lamp.luminous_efficacy / MAX_LUMINOUS_EFFICACY
+
         # calculating radian power for core
         if lamp.type in ('POINT', 'SPOT'):
             units = rpr_lamp.intensity_units_point
@@ -49,8 +52,8 @@ class Light:
             if units == 'LUMEN':
                 lumens = intensity
             elif units == 'WATTS':
-                lumens = intensity * rpr_lamp.luminous_efficacy
-            return lumens / MAX_LUMINOUS_EFFICACY
+                lumens = intensity * luminous_efficiency
+            return lumens
 
         elif lamp.type == 'SUN':
             units = rpr_lamp.intensity_units_dir
@@ -61,8 +64,8 @@ class Light:
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * rpr_lamp.luminous_efficacy
-            return luminance / MAX_LUMINOUS_EFFICACY
+                luminance = intensity * luminous_efficiency
+            return luminance
 
         else: 
             assert lamp.type == 'AREA'
@@ -77,12 +80,12 @@ class Light:
             if units == 'LUMEN':
                 luminance = intensity / area
             if units == 'WATTS':
-                luminance = intensity * rpr_lamp.luminous_efficacy / area
+                luminance = intensity * luminous_efficiency / area
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * rpr_lamp.luminous_efficacy
-            return luminance / MAX_LUMINOUS_EFFICACY
+                luminance = intensity * luminous_efficiency
+            return luminance
 
 
 class EmptyLight(Light):
