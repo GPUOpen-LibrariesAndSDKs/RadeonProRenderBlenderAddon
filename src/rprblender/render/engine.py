@@ -376,6 +376,8 @@ class RPREngine(bpy.types.RenderEngine):
             state = aov_settings.passesStates[i]
             if state:
                 rprblender.render.render_layers.register_pass(self, scene, render_layer, pass_name[0])
+        # need to register default always
+        rprblender.render.render_layers.register_pass(self, scene, render_layer, 'default')
 
     def set_render_to_result(self, result_render_layer, scene_renderer):
         images = scene_renderer.get_images()
