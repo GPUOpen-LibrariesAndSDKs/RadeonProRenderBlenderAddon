@@ -208,12 +208,10 @@ class AreaLight(Light):
 
         attach_emissive_shader(power, lamp.rpr_lamp.color_map, not uvs is None)
 
-        if not lamp.rpr_lamp.visible:
-            pyrpr.ShapeSetShadow(self.light, False)
-            pyrpr.ShapeSetVisibilityPrimaryOnly(self.light, False)
-            pyrpr.ShapeSetVisibilityInSpecular(self.light, False)
-        else:
-            pyrpr.ShapeSetShadow(self.light, lamp.rpr_lamp.cast_shadows)
+        pyrpr.ShapeSetVisibility(self.light, lamp.rpr_lamp.visible)
+        pyrpr.ShapeSetVisibilityPrimaryOnly(self.light, lamp.rpr_lamp.visible)
+        pyrpr.ShapeSetVisibilityInSpecular(self.light, lamp.rpr_lamp.visible)
+        pyrpr.ShapeSetShadow(self.light, lamp.rpr_lamp.visible and lamp.rpr_lamp.cast_shadows)
 
 
     def set_transform(self, transform):
