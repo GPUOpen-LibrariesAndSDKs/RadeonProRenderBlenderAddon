@@ -547,6 +547,11 @@ class SceneRenderer:
         # Always apply normalization, aov need this too.
         post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
 
+        settings = self.render_settings
+        self.update_tone_mapping(settings, post_effect_update)
+        self.update_white_balance(settings, post_effect_update)
+        self.update_gamma_correction(settings, post_effect_update)
+
         if self.has_denoiser:
             image_den = self._get_filtered_image(self.get_shadowcatcher_framebuffer())
             return image_den
@@ -566,6 +571,7 @@ class SceneRenderer:
 
         return self.filtered_image
 
+    @call_logger.logged
     def get_shadowcatcher_framebuffer(self):
         # Frame buffer for shadow catcher
         desc = ffi.new("rpr_framebuffer_desc*")

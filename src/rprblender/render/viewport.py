@@ -51,13 +51,11 @@ class ViewportRenderer:
             return self.scene_renderer.get_image(pass_name)
 
     @call_logger.logged
-    def start(self, scene, threaded=True, is_production=False):
+    def start(self, scene, is_production=False):
 
-        if self.scene_renderer_threaded and self.threaded:
+        if self.scene_renderer_threaded:
             self.scene_renderer_threaded.stop()
             self.scene_renderer_threaded = None
-
-        self.threaded = threaded
 
         has_denoiser = scene.rpr.render.denoiser.enable and \
                        (is_production or scene.rpr.render.denoiser.enable_viewport)
@@ -65,8 +63,7 @@ class ViewportRenderer:
         self.scene_renderer = rprblender.render.scene.SceneRenderer(
             rprblender.render.get_render_device(is_production=is_production, has_denoiser=has_denoiser),
             scene.rpr.render, is_production=is_production)
-        if self.threaded:
-            self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
+        self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
         # pyrpr.ContextSetParameter1f(self.scene_renderer.get_core_context(), b'displaygamma', 2.2)
 
         # searching for shadow catcher in scene
@@ -84,8 +81,7 @@ class ViewportRenderer:
         self.scene_renderer_threaded.set_aov(self.render_aov)
         self.scene_renderer_threaded.set_render_resolution(self.render_resolution)
         self.scene_renderer_threaded.set_render_region(self.render_region)
-        if self.threaded:
-            self.scene_renderer_threaded.start()
+        self.scene_renderer_threaded.start()
 
         self.set_scene(scene)
 
@@ -98,14 +94,12 @@ class ViewportRenderer:
 
             self.scene_synced.make_core_scene()
 
-            if self.threaded:
-                self.scene_renderer_threaded.set_scene_synced(self.scene_synced)
+            self.scene_renderer_threaded.set_scene_synced(self.scene_synced)
 
             self.export_scene(scene)
 
     def stop(self):
-        if self.threaded:
-            self.scene_renderer_threaded.stop()
+        self.scene_renderer_threaded.stop()
 
     def update_iter(self, scene):
         logging.debug('ViewportRenderer.update ...')

@@ -145,9 +145,7 @@ class RenderTargets:
         return fb_image
 
     def get_frame_buffer(self, aov_name='default'):
-        try:
-            return self.aovs[aov_name].render_buffer
-        except KeyError:pass
+        return self.aovs[aov_name].render_buffer
 
     def get_resolved_image(self, fb):
         pyrpr.FrameBufferClear(self.frame_buffer_tonemapped)
@@ -167,11 +165,11 @@ class RenderTargets:
         if self.attached:
             aov.attach()
 
-        logging.info('added aov: "%s", ok' % aov_name)
+        logging.info('added aov:', aov_name)
 
     def disable_aov(self, aov_name):
         if aov_name in self.aovs:
-            logging.info('remove: ', aov_name)
+            logging.info('removing aov:', aov_name)
             self.aovs.pop(aov_name).detach()
 
     def is_aov_enabled(self, aov_name):

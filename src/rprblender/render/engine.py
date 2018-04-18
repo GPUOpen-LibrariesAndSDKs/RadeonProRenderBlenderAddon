@@ -511,7 +511,6 @@ class RPREngine(bpy.types.RenderEngine):
             self.view_draw_get_image_timestamp = time_view_draw_start
             logging.debug("get_image", tag='render.viewport.draw')
 
-            viewport_renderer.update_render_aov(versions.get_render_passes_aov(bpy.context))
             viewport_renderer.update_render_resolution(render_resolution)
 
             region = self.get_view_render_region(context)
