@@ -81,7 +81,7 @@ class ViewportFixture:
     def start(self):
         self.viewport_renderer = rprblender.render.viewport.ViewportRenderer()
         self.set_render_camera_and_resolution_and_xxx(update=False)
-        self.viewport_renderer.start(bpy.context.scene, threaded=True, is_production=True)
+        self.viewport_renderer.start(bpy.context.scene, is_production=True)
         self.viewport_renderer.scene_renderer.production_render = True
         self.viewport_renderer.scene_renderer_threaded.sleep_delay = 0.0
 
@@ -121,21 +121,16 @@ class ViewportFixture:
 
     def wait_for_render_complete(self, shortest_expected_render_time_seconds=0.001, timeout_seconds=100):
         print('wait_for_render_complete:')
-        if self.viewport_renderer.threaded:
-            completed_successfully = False
-            for i in range(int(timeout_seconds / shortest_expected_render_time_seconds)):
-                if self.viewport_renderer.scene_renderer_threaded.render_completed_event.wait(
-                    timeout=shortest_expected_render_time_seconds):
-                    completed_successfully = True
-                    break
-                # check if thread is crashed
-                assert (not self.viewport_renderer.scene_renderer_threaded.is_render_completed()
-                        or self.viewport_renderer.scene_renderer_threaded.render_completed_event.is_set())
-            assert completed_successfully
-        else:
-            for _ in self.viewport_renderer.scene_renderer_threaded.render_proc(
-                self.viewport_renderer.scene_renderer.render_settings):
-                pass
+        completed_successfully = False
+        for i in range(int(timeout_seconds / shortest_expected_render_time_seconds)):
+            if self.viewport_renderer.scene_renderer_threaded.render_completed_event.wait(
+                timeout=shortest_expected_render_time_seconds):
+                completed_successfully = True
+                break
+            # check if thread is crashed
+            assert (not self.viewport_renderer.scene_renderer_threaded.is_render_completed()
+                    or self.viewport_renderer.scene_renderer_threaded.render_completed_event.is_set())
+        assert completed_successfully
         print('render compeleted')
 
     def __enter__(self):

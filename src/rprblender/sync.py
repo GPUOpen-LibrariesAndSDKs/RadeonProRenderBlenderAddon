@@ -219,21 +219,25 @@ class SceneSynced:
 
         self.reset_scene()
 
+    @call_logger.logged
     def reset_scene(self):
-        logging.debug("reset_scene", tag='sync')
-        # TODO: make sure objects are deleted, core ones and intermediate and whatever
         pyrpr.SceneClear(self.get_core_scene())
 
-        self.ibls_attached = set()
-        self.background = None
+        # materials should be deleted before deleting shapes
+        # because it implicitly uses shapes object
+        self.materialsNodes = {}
 
-        self.objects_synced = {}
+        for shape in self.meshes:
+            pyrpr.SceneDetachShape(self.core_scene, shape)
+            shape.delete()
         self.meshes = set()
         self.volumes = set()
         self.portal_lights_meshes = set()
         self.lamps = {}
+        self.objects_synced = {}
 
-        self.materialsNodes = {}
+        self.ibls_attached = set()
+        self.background = None
 
         self.setup_core_camera()
 
