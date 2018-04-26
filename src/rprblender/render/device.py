@@ -145,6 +145,10 @@ class RenderTargets:
         return fb_image
 
     def get_frame_buffer(self, aov_name='default'):
+        name = aov_name
+        if name not in self.aovs:
+            # logging.info("Looking for unknown aov",name)
+            return None
         return self.aovs[aov_name].render_buffer
 
     def get_resolved_image(self, fb):
