@@ -214,6 +214,9 @@ def get_render_device(is_production=True, persistent=False, has_denoiser=False):
 
     flags = rprblender.render.get_context_creation_flags(is_production)
 
+    if has_denoiser and (flags & pyrpr.CREATION_FLAGS_ENABLE_CPU):
+        raise ValueError("Denoiser is not supported with CPU render mode.")
+
     logging.debug("get_render_device(is_production=%s), flags: %s" %(is_production, hex(flags)), tag='render.device')
 
     if persistent:
