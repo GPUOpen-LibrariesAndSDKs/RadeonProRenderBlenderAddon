@@ -848,13 +848,16 @@ class RPRRender_PT_settings(RPRPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, "use_render_stamp", text='')
+        layout = self.layout
+        row = layout.column()
+        row.enabled = False if platform.system() == "Darwin" else True
+        row.prop(context.scene.rpr, "use_render_stamp", text='')
 
     def draw(self, context):
         layout = self.layout
         rpr = context.scene.rpr
         row = layout.column()
-        row.enabled = rpr.use_render_stamp
+        row.enabled = False if platform.system() == "Darwin" else rpr.use_render_stamp
         row.label("Render Stamp:")
         row.prop(rpr, "render_stamp", text="")
 
