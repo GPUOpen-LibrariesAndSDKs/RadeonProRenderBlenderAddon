@@ -1067,11 +1067,24 @@ class RPRMaterialNode_NormalMap(RPRNodeType_Input):
     map_in = 'Map'
     scale_in = 'Scale'
 
+    flip_x = bpy.props.BoolProperty(name='Flip X',
+                                description="Flip X coordinate",
+                                default=False)
+
+    flip_y = bpy.props.BoolProperty(name='Flip Y',
+                                description="Flip Y coordinate",
+                                default=False)
+
     def init(self, context):
         super(RPRMaterialNode_NormalMap, self).init()
         self.inputs.new('rpr_socket_color', self.map_in)
         input_scale = self.inputs.new('rpr_socket_float', self.scale_in)
         input_scale.default_value = 1.0
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'flip_x')
+        row.prop(self, 'flip_y')
 
 
 @rpraddon.register_class

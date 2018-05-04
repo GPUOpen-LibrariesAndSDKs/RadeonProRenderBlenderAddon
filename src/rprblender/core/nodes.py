@@ -1321,7 +1321,22 @@ class Material:
         socket = self.get_socket(blender_node, blender_node.map_in)
         if not socket:
             return Value()
-        node.set_map(self.parse_node(socket))
+
+        map_value = self.parse_node(socket)
+        if blender_node.flip_x or blender_node.flip_y:
+            # For flip_x the calculation is following: final_x = 1-x
+            # therefore for vector map_value it would be: map_value = (1,0,0,0) + (-1,1,1,1)*map_value
+            # The same calculation for Y coordinate
+            mul_vector = ValueVector(-1 if blender_node.flip_x else 1,
+                                     -1 if blender_node.flip_y else 1,
+                                     1, 1)
+            add_vector = ValueVector(1 if blender_node.flip_x else 0,
+                                     1 if blender_node.flip_y else 0,
+                                     0, 0)
+            map_value = self.add_value(self.mul_value(map_value, mul_vector), 
+                                     add_vector)
+
+        node.set_map(map_value)
         node.set_value(b'bumpscale', self.get_value(blender_node, blender_node.scale_in))
         return ValueNode(node)
 
