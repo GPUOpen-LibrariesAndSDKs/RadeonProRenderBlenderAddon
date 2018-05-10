@@ -272,7 +272,7 @@ aov_info = {'default':
                  'rpr': pyrpr.AOV_INDIRECT_REFLECT,
                  'order': 20},
             'refract': 
-                {'name': 'Refration', 
+                {'name': 'Refraction', 
                  'old_name': 'Refract',
                  'old_use_pass': 'use_pass_refraction',
                  'channel': 'RGB', 
