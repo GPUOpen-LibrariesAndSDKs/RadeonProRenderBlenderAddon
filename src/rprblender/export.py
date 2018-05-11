@@ -375,7 +375,7 @@ class ObjectsSync:
 
         log_sync('material_indices_used:', sync.material_indices_used)
         for i in sync.material_indices_used:
-            self.scene_synced.add_mesh((key, i), extract_submesh(sync.object_mesh.data, i, 1), sync.matrix)
+            self.scene_synced.add_mesh((key, i), extract_submesh(sync.object_mesh.data, i, 1), sync.matrix, sync.object_mesh.blender_obj)
             sync.materials_assigned[i] = True
         self.object_instances_instantiated_as_mesh_prototype.add(key)
         self.mesh_added_for_prototype[sync.get_prototype_key()] = key
