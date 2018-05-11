@@ -641,7 +641,7 @@ if __name__=='__main__':
         export(rpr_header_gltf, json_file_name_gltf,
                {
                    'type': [],
-                   'function': ['rprExport'],
+                   'function': ['rprExport', 'rprImport', 'rprGLTF'],
                    'constant': []
                },
                castxml)

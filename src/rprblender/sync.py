@@ -692,7 +692,7 @@ class SceneSynced:
     ########################################################################################################################
 
     @call_logger.logged
-    def add_mesh(self, obj_key, extracted_mesh, matrix_world):
+    def add_mesh(self, obj_key, extracted_mesh, matrix_world, blender_obj=None):
         logging.debug('add mesh:', obj_key, extracted_mesh)
 
         core_shape = self.core_make_mesh(extracted_mesh)
@@ -700,10 +700,10 @@ class SceneSynced:
 
         pyrpr.SceneAttachShape(self.get_core_scene(), core_shape);
 
-        pyrpr.ObjectSetName(core_shape._get_handle(), str(obj_key).encode('latin1'))
+        name = blender_obj.name if blender_obj else str(obj_key)
+        pyrpr.ObjectSetName(core_shape._get_handle(), name.encode('latin1'))
 
         self.shape_set_transform(core_shape, matrix_world)
-
         self.add_synced_obj(obj_key, core_shape)
         self.meshes.add(core_shape)
 

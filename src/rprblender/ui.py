@@ -982,23 +982,31 @@ def export_gltf_model(filepath):
 
     with rprblender.render.core_operations(raise_error=True):
         scene_synced.make_core_scene()
+
     try:
         scene_exporter = export.SceneExport(scene, scene_synced, ['MESH', 'CURVE'])
         scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)
         scene_exporter.export()
         rpr_scene = scene_synced.get_core_scene()
 
-        rpr_scene_array = pyrprgltf.ArrayObject("rpr_scene[]", [rpr_scene._handle_ptr[0]])
+        for key, core_shape in scene_synced.objects_synced.items():
+            if not type(key) is tuple:
+                continue
 
-        file_name = bytes(filepath, encoding="latin1")
-        pyrprgltf.ExportToGLTF(file_name, context, material_system, uber_context, 
-                           rpr_scene_array._handle_ptr, 1)
-    except:
-        logging.error("Export failed with an exception")
+            blender_obj = scene_exporter.objects_sync.object_instances[key[0]].object_mesh.blender_obj
+            group_name = ("Group_" + blender_obj.parent.name) if blender_obj.parent else "Root"
+            pyrprgltf.GLTF_AssignShapeToGroup(core_shape.core_obj, group_name.encode('latin1'))
+
+            if blender_obj.parent:
+                parent_group_name = ("Group_" + blender_obj.parent.parent.name) if blender_obj.parent.parent else "Root"
+                pyrprgltf.GLTF_AssignParentGroupToGroup(group_name.encode('latin1'), parent_group_name.encode('latin1'))
+
+
+        rpr_scene_array = pyrprgltf.ArrayObject("rpr_scene[]", [rpr_scene._handle_ptr[0]])
+        pyrprgltf.ExportToGLTF(filepath.encode('latin1'), context, material_system, uber_context, 
+                               rpr_scene_array._handle_ptr, 1)
     finally:
-        del scene_exporter
         scene_synced.destroy()
-        del scene_synced
 
     return {'FINISHED'}
 
