@@ -1959,10 +1959,13 @@ def extract_mesh_raw(mesh: bpy.types.Mesh):
     tessquads = tessfaces_view['v']
     isquad = tessquads[:, 3] != 0
     triangles = tessquads.copy()
-    triangles[:, 3] = triangles[:, 0]  # make triangle from quad by setting last vertex to first
+    triangles[:, 3] = triangles[:, 2]  # make triangle from quad by welding last 2 vertices
     result.tessface_vertices = np.where(isquad[:, np.newaxis], tessquads, triangles)
 
     split_normals_raw = get_attribute_as_array(mesh.tessfaces, 'split_normals', np.float32, 12).reshape(-1, 4, 3)
+    triangle_normals = split_normals_raw.copy()
+    triangle_normals[:, 3] = triangle_normals[:, 2] # for triangle last 2 normals are welded
+    split_normals_raw = np.where(isquad[:, np.newaxis, np.newaxis], split_normals_raw, triangle_normals) 
     result.tessface_split_normals = split_normals_raw.reshape(-1, 3)
 
     result.faces_materials = tessfaces_view['mat_nr'].copy()
