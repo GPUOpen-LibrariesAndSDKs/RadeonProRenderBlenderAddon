@@ -1859,7 +1859,7 @@ def extract_volume_data(obj):
         if modifier.type == "SMOKE" and modifier.domain_settings:
             smoke_modifier = modifier
     smoke_domain = smoke_modifier.domain_settings
-    if not smoke_domain:
+    if not smoke_domain or len(smoke_domain.color_grid) == 0:
         return
 
     smoke_resolution = smoke_domain.domain_resolution
