@@ -135,7 +135,8 @@ class RPREngine(bpy.types.RenderEngine):
         settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render
 
         with rprblender.render.core_operations(raise_error=True):
-            render_device = rprblender.render.get_render_device(is_production=True, persistent=True, has_denoiser=settings.denoiser.enable)
+            render_device = rprblender.render.get_render_device(is_production=not self.is_preview, persistent=True, 
+                                has_denoiser=settings.denoiser.enable)
             scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)  #
 
         # determine if scene has a shadow catcher
@@ -430,7 +431,6 @@ class RPREngine(bpy.types.RenderEngine):
 
     @call_logger.logged
     def _view_update(self, context: bpy.types.Context):
-
         logging.debug('view_update', context,
                       'region_data.view_perspective:', context.region_data.view_perspective,
                       'space_data.lens:', context.space_data.lens,

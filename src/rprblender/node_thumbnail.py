@@ -59,7 +59,7 @@ class NodeThumbnailManager:
             settings = bpy.context.scene.rpr.render_thumbnail  # type: rprblender.properties.RenderSettings
 
             self.scene_renderer = rprblender.render.scene.SceneRenderer(
-                rprblender.render.get_render_device(is_production=True),
+                rprblender.render.get_render_device(is_production=False),
                 settings, False)
             self.scene_renderer_lock = threading.Lock()  # to make sure only one thread renders thumbnail at a time
 

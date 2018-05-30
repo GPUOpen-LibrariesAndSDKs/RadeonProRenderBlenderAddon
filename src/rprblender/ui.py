@@ -902,7 +902,7 @@ def export_rpr_model(context, filepath):
     scene = bpy.context.scene
     settings = scene.rpr.render
 
-    render_device = rprblender.render.get_render_device(is_production=False)
+    render_device = rprblender.render.get_render_device()
     scene_synced = sync.SceneSynced(render_device, settings)
 
     render_resolution = (640, 480)

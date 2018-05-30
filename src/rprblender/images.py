@@ -35,9 +35,13 @@ class RPRImageCachePurgeOperator(bpy.types.Operator):
     def execute(self, context):
         logging.debug("cleaning:", context.space_data.image)
         image_cache.purge()
+        downscaled_image_cache.purge()
         core_image_cache.purge()
+        core_downscaled_image_cache.purge()
         return {'FINISHED'}
 
+
+use_downscaled_images = {}
 
 class ImageCacheStats:
     def __init__(self):
@@ -50,6 +54,9 @@ class ImageCacheStats:
         if image not in self.stats4image:
             self.stats4image[image] = [0, 0]
         self.stats4image[image][0] += 1
+
+    def deleted(self, image):
+        del self.stats4image[image]
 
     def format_current(self):
         requests = sum(s[0] for s in self.stats4image.values())
@@ -64,43 +71,55 @@ class ImageCacheStats:
 
 
 class ImageCache:
-    def __init__(self):
+    def __init__(self, name):
         self.image2pixels = {}
         self.stats = ImageCacheStats()
+        self.name = name
 
     def get_image_pixels(self, image, load_pixels_from_blender_image):
         self.stats.requested(image)
 
         if image in self.image2pixels:
-            return self.image2pixels[image]
+            pixels = self.image2pixels[image]
+        else:
+            pixels = load_pixels_from_blender_image(image)
+            self.image2pixels[image] = pixels
+            self.stats.loaded(image, pixels)
 
-        pixels = load_pixels_from_blender_image(image)
-        self.image2pixels[image] = pixels
-        self.stats.loaded(image, pixels)
+        logging.debug("ImageCache(%s).get_image_pixels, images=%d, loading image: %s" % 
+                      (self.name, len(self.image2pixels), image.name))
+
         return pixels
 
     def delete_image_pixels(self, image):
-        try:
+        if image in self.image2pixels:
             del self.image2pixels[image]
-        except KeyError:
-            pass
+            self.stats.deleted(image)
 
     def purge(self):
         self.image2pixels.clear()
+        self.stats = ImageCacheStats()
 
 
-image_cache = ImageCache()
+image_cache = ImageCache("original")
+downscaled_image_cache = ImageCache("downscaled")
 
 
 class CoreImageCache:
-    def __init__(self):
+    def __init__(self, name):
         self.images4context = weakref.WeakKeyDictionary()
+        self.name = name
 
     def get_core_image(self, context, image, load_image):
         images = self.images4context.setdefault(context, {})
         if image in images:
-            return images[image]
-        return images.setdefault(image, load_image(context, image))
+            ret = images[image]
+        else:
+            ret = images.setdefault(image, load_image(context, image))
+
+        logging.debug("CoreImageCache(%s).get_core_image, context_id=%d, images=%d, loading image: %s" % 
+                      (self.name, id(context), len(images), image.name))
+        return ret
 
     def purge(self):
         self.images4context.clear()
@@ -108,9 +127,16 @@ class CoreImageCache:
     def purge_for_context(self, core_context):
         self.images4context.get(core_context, {}).clear()
 
+    def get_info(self):
+        str = "CoreImageCache(%s): contexts number=%d" % (self.name, len(self.images4context))
+        str_list = []
+        for context, images in self.images4context.items():
+            str_list.append("\n    context_id=%d, images=%d" % (id(context), len(images)))
+        return str + "".join(str_list)
 
 
-core_image_cache = CoreImageCache()
+core_image_cache = CoreImageCache("original")
+core_downscaled_image_cache = CoreImageCache("downscaled")
 
 
 @bpy.app.handlers.persistent
