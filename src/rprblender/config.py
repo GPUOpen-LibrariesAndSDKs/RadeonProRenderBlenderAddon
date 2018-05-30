@@ -20,6 +20,9 @@ image_cache_blender = True
 image_cache_core = True
 
 image_dont_load_use_small = False
+use_downscaled_images = True
+downscaled_image_size = 512
+
 url_json_version = 'https://radeon-prorender.github.io/rpr_renderer_plugin_blender_latest_version.json'
 
 try:

@@ -199,9 +199,14 @@ class RenderDevice:
         self.render_target = None  # type:RenderTargets
         self.rif_context = None
 
+        images.use_downscaled_images[self.core_context] = not is_production and config.use_downscaled_images
+
+
     @logged
     def __del__(self):
         images.core_image_cache.purge_for_context(self.core_context)
+        images.core_downscaled_image_cache.purge_for_context(self.core_context)
+        del images.use_downscaled_images[self.core_context]
 
         del self.core_material_system
         del self.post_effects

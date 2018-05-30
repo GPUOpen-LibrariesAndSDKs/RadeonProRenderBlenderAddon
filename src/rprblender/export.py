@@ -817,6 +817,9 @@ class SceneExport:
         finally:
             import rprblender.images
             logging.info(rprblender.images.image_cache.stats.format_current(), tag='image_cache')
+            logging.info(rprblender.images.downscaled_image_cache.stats.format_current(), tag='downscaled_image_cache')
+            logging.info(rprblender.images.core_image_cache.get_info(), tag='core_image_cache')
+            logging.info(rprblender.images.core_downscaled_image_cache.get_info(), tag='core_downscaled_image_cache')
 
     def export_preview(self, is_icon):
         logging.debug('export_preview...')
