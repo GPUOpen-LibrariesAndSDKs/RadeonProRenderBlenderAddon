@@ -227,7 +227,7 @@ class RPRShaderNode_Blend(RPRNodeType_Shader):
 
     def init(self, context):
         super(RPRShaderNode_Blend, self).init()
-        self.inputs.new('rpr_socket_weight', self.weight_in)
+        self.inputs.new('rpr_socket_weight_soft', self.weight_in)
         self.inputs.new('NodeSocketShader', self.shader1_in)
         self.inputs.new('NodeSocketShader', self.shader2_in)
 
@@ -548,38 +548,38 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         super(RPRShaderNode_Uber2, self).init()
 
         self.inputs.new('rpr_socket_color', self.diffuse_color).default_value = (0.644, 0.644, 0.644, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.diffuse_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_weight_soft', self.diffuse_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.diffuse_roughness).default_value = 0.5
 
         self.inputs.new('rpr_socket_color', self.reflection_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_roughness).default_value = 0.25
-        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.reflection_anisotropy).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_anisotropy_rotation).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.reflection_fresnel_ior).default_value = 1.5
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.reflection_fresnel_metalness).default_value = 1.0
+        self.inputs.new('rpr_socket_weight_soft', self.reflection_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.reflection_roughness).default_value = 0.25
+        self.inputs.new('rpr_socket_float_MinN1_Max1', self.reflection_anisotropy).default_value = 0.0
+        self.inputs.new('rpr_socket_angle360', self.reflection_anisotropy_rotation).default_value = 0.0
+        self.inputs.new('rpr_socket_ior', self.reflection_fresnel_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_weight', self.reflection_fresnel_metalness).default_value = 1.0
 
         self.inputs.new('rpr_socket_color', self.refraction_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.refraction_roughness).default_value = 0.1
-        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.refraction_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_weight_soft', self.refraction_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.refraction_roughness).default_value = 0.1
+        self.inputs.new('rpr_socket_ior', self.refraction_ior).default_value = 1.5
 
         self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.coating_roughness).default_value = 0.01
-        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.coating_fresnel_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_weight_soft', self.coating_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.coating_roughness).default_value = 0.01
+        self.inputs.new('rpr_socket_ior', self.coating_fresnel_ior).default_value = 1.5
 
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_factor', self.emissive_intensity)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight_soft', self.emissive_weight).default_value = 1.0
 
         self.inputs.new('rpr_socket_color', self.subsurface_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.subsurface_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight_soft', self.subsurface_weight).default_value = 1.0
         self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.subsurface_scatter_direction).default_value = 0.0
+        self.inputs.new('rpr_socket_scattering_direction', self.subsurface_scatter_direction).default_value = 0.0
         self.inputs.new('rpr_socket_color', self.subsurface_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
 
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.transparency_value).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.transparency_value).default_value = 0.0
         self.inputs.new('rpr_socket_link', self.normal_in)
         self.inputs.new('rpr_socket_color', self.displacement_map).default_value = (0.0, 0.0, 0.0, 1.0)
         self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.displacement_min).default_value = 0.0
@@ -661,18 +661,18 @@ class RPRShaderNode_PBR(RPRNodeType_Shader):
         super(RPRShaderNode_PBR, self).init()
 
         self.inputs.new('rpr_socket_color', self.base_color).default_value = (0.5, 0.5, 0.5, 1.0)
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.roughness).default_value = 0.25
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.metalness).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.specular).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.roughness).default_value = 0.25
+        self.inputs.new('rpr_socket_weight', self.metalness).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.specular).default_value = 1.0
 
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.emissive_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight_soft', self.emissive_weight).default_value = 0.0
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_factor', self.emissive_intensity).default_value = 1.0
         
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.glass_weight).default_value = 0.0
-        self.inputs.new('rpr_socket_float_softMin0_softMax2', self.glass_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_weight_soft', self.glass_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_ior', self.glass_ior).default_value = 1.5
         
-        self.inputs.new('rpr_socket_float_softMin0_softMax1', self.sss_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight_soft', self.sss_weight).default_value = 0.0
         self.inputs.new('rpr_socket_color', self.sss_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_color', self.sss_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
 
