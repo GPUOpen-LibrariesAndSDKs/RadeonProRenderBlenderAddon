@@ -331,6 +331,22 @@ class RPRSocketBoolean(bpy.types.NodeSocket):
         return float_socket_color
 
 @rpraddon.register_class
+class RPRSocket_Float_SoftMin0_SoftMax1(bpy.types.NodeSocket):
+    bl_idname = 'rpr_socket_float_softMin0_softMax1'
+    bl_label = 'Float_SoftMin0_SoftMax1 socket'
+
+    default_value = bpy.props.FloatProperty(name="Float_SoftMin0_SoftMax1", soft_min=0.0, soft_max=1.0)
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            layout.prop(self, 'default_value', text=self.name, slider=True)
+
+    def draw_color(self, context, node):
+        return float_socket_color
+
+@rpraddon.register_class
 class RPRSocket_Float_SoftMinN1_SoftMax1(bpy.types.NodeSocket):
     bl_idname = 'rpr_socket_float_softMinN1_softMax1'
     bl_label = 'Float_SoftMinN1_SoftMax1 socket'
@@ -352,6 +368,38 @@ class RPRSocket_Float_MinN1_Max1(bpy.types.NodeSocket):
     bl_label = 'Float_MinN1_Max1 socket'
 
     default_value = bpy.props.FloatProperty(name="Float_MinN1_Max1", min=-1.0, max=1.0)
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            layout.prop(self, 'default_value', text=self.name, slider=True)
+
+    def draw_color(self, context, node):
+        return float_socket_color
+
+@rpraddon.register_class
+class RPRSocket_Float_SoftMin0_SoftMax2(bpy.types.NodeSocket):
+    bl_idname = 'rpr_socket_float_softMin0_softMax2'
+    bl_label = 'Float_SoftMin0_SoftMax2 socket'
+
+    default_value = bpy.props.FloatProperty(name="Float_SoftMin0_SoftMax2", soft_min=0.0, soft_max=2.0)
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            layout.prop(self, 'default_value', text=self.name, slider=True)
+
+    def draw_color(self, context, node):
+        return float_socket_color
+
+@rpraddon.register_class
+class RPRSocket_Float_SoftMin0_SoftMax10(bpy.types.NodeSocket):
+    bl_idname = 'rpr_socket_float_softMin0_softMax10'
+    bl_label = 'Float_SoftMin0_SoftMax10 socket'
+
+    default_value = bpy.props.FloatProperty(name="Float_SoftMin0_SoftMax10", soft_min=0.0, soft_max=10.0)
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
