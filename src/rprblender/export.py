@@ -116,6 +116,43 @@ def get_materials(obj):
     return materials
 
 
+class PrevWorldMatricesCache:
+    def __init__(self):
+        self._matrices = {}
+        self._cur_frame = None
+
+    @call_logger.logged
+    def update(self, scene, purge=True):
+        if not scene.rpr.render.motion_blur:
+            return
+        
+        if purge:
+            self.purge()
+
+        if scene.frame_current == self._cur_frame:
+            return
+
+        self._matrices = {}
+        self._cur_frame = scene.frame_current
+    
+        scene.frame_set(self._cur_frame - 1)
+        for obj in scene.objects:
+            if obj.type in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'CAMERA'):
+                self._matrices[obj.as_pointer()] = obj.matrix_world.copy()
+        scene.frame_set(self._cur_frame)
+
+    @call_logger.logged
+    def __getitem__(self, obj):
+        return self._matrices[obj.as_pointer()]
+
+    @call_logger.logged
+    def purge(self):
+        self._matrices = {}
+        self._cur_frame = None
+    
+prev_world_matrices_cache = PrevWorldMatricesCache()
+
+
 class EnvironmentExportState:
     ibl = None
     background_override = None
@@ -787,7 +824,7 @@ class SceneExport:
                 self.motion_blur_frame = self.scene.frame_current
                 self.prev_matrices = {}
             return (mesh_sync.object_mesh.blender_obj.matrix_world,
-                    self.get_prev_matrix(mesh_sync.object_mesh.blender_obj),
+                    prev_world_matrices_cache[mesh_sync.object_mesh.blender_obj],
                     object_settings.motion_blur_scale)
 
     def set_render_layer(self, render_layer):
@@ -962,134 +999,6 @@ class SceneExport:
 
     def get_render_layer(self):
         return self.render_layer or self.scene.render.layers.active
-
-    def get_prev_matrix(self, obj):
-        parent_movement = Matrix.Identity(4)
-        if obj.parent != None:
-            parent_movement = self.get_prev_matrix(obj.parent) * obj.parent.matrix_world.inverted()
-
-        id = get_object_key(obj)
-        matrix = obj.matrix_world.copy()
-        frame_num = self.scene.frame_current - 1
-        if self.prev_matrices.get(id) == None:
-            if obj.animation_data is not None and obj.animation_data.action is not None:
-                obj_curves = obj.animation_data.action.fcurves
-                logging.debug("rotation type", obj.rotation_mode)
-                x = 0.0
-                y = 0.0
-                z = 0.0
-                w = 0.0
-                if obj.rotation_mode == 'QUATERNION':
-                    w_curve = obj_curves.find('rotation_quaternion', index=0)
-                    x_curve = obj_curves.find('rotation_quaternion', index=1)
-                    y_curve = obj_curves.find('rotation_quaternion', index=2)
-                    z_curve = obj_curves.find('rotation_quaternion', index=3)
-
-                    if w_curve:
-                        w = w_curve.evaluate(frame_num)
-                    if x_curve:
-                        x = x_curve.evaluate(frame_num)
-                    if y_curve:
-                        y = y_curve.evaluate(frame_num)
-                    if z_curve:
-                        z = z_curve.evaluate(frame_num)
-
-                    # if no axis then just get axis from offset frame
-                    if not x_curve and not y_curve and not z_curve:
-                        x = obj.rotation_quaternion[1]
-                        y = obj.rotation_quaternion[2]
-                        z = obj.rotation_quaternion[3]
-                    logging.debug("rotation values", x, y, z, w)
-                    matrix = Quaternion((w, x, y, z)).to_matrix().to_4x4()
-
-                elif obj.rotation_mode == 'AXIS_ANGLE':
-                    w_curve = obj_curves.find('rotation_axis_angle', index=0)
-                    x_curve = obj_curves.find('rotation_axis_angle', index=1)
-                    y_curve = obj_curves.find('rotation_axis_angle', index=2)
-                    z_curve = obj_curves.find('rotation_axis_angle', index=3)
-
-                    if w_curve:
-                        w = w_curve.evaluate(frame_num)
-                    if x_curve:
-                        x = x_curve.evaluate(frame_num)
-                    if y_curve:
-                        y = y_curve.evaluate(frame_num)
-                    if z_curve:
-                        z = z_curve.evaluate(frame_num)
-
-                    # if no axis then just get axis from offset frame
-                    if not x_curve and not y_curve and not z_curve:
-                        x = obj.rotation_axis_angle[1]
-                        y = obj.rotation_axis_angle[2]
-                        z = obj.rotation_axis_angle[3]
-                    logging.debug("rotation values", x, y, z, w)
-                    matrix = Matrix.Rotation(w, 4, mathutils.Vector((x, y, z)))
-                else:
-                    x_curve = obj_curves.find('rotation_euler', index=0)
-                    y_curve = obj_curves.find('rotation_euler', index=1)
-                    z_curve = obj_curves.find('rotation_euler', index=2)
-                    if x_curve:
-                        x = x_curve.evaluate(frame_num)
-                    if y_curve:
-                        y = y_curve.evaluate(frame_num)
-                    if z_curve:
-                        z = z_curve.evaluate(frame_num)
-                    logging.debug("rotation values", x, y, z)
-                    matrix = Euler((x, y, z), 'XYZ').to_matrix().to_4x4()
-
-                logging.debug("rotation matrix", matrix)
-
-                scale = mathutils.Vector()
-                curve = obj_curves.find('scale', 0)
-                if curve:
-                    scale.x = curve.evaluate(frame_num)
-                else:
-                    scale.x = obj.scale[0]
-                curve = obj_curves.find('scale', 1)
-                if curve:
-                    scale.y = curve.evaluate(frame_num)
-                else:
-                    scale.y = obj.scale[1]
-                curve = obj_curves.find('scale', 2)
-                if curve:
-                    scale.z = curve.evaluate(frame_num)
-                else:
-                    scale.z = obj.scale[2]
-
-                logging.debug("scale", scale)
-
-                matrix *= mathutils.Matrix.Scale(scale.x, 4, mathutils.Vector((1.0, 0.0, 0.0)))
-                matrix *= mathutils.Matrix.Scale(scale.y, 4, mathutils.Vector((0.0, 1.0, 0.0)))
-                matrix *= mathutils.Matrix.Scale(scale.z, 4, mathutils.Vector((0.0, 0.0, 1.0)))
-
-                curve = obj_curves.find('location', 0)
-                if curve:
-                    matrix[0][3] = curve.evaluate(frame_num)
-                    logging.debug("locationX", matrix[0][3])
-                else:
-                    matrix[0][3] = obj.matrix_world[0][3]
-                curve = obj_curves.find('location', 1)
-                if curve:
-                    matrix[1][3] = curve.evaluate(frame_num)
-                    logging.debug("locationY", matrix[1][3])
-                else:
-                    matrix[1][3] = obj.matrix_world[1][3]
-                curve = obj_curves.find('location', 2)
-                if curve:
-                    matrix[2][3] = curve.evaluate(frame_num)
-                    logging.debug("locationZ", matrix[2][3])
-                else:
-                    matrix[2][3] = obj.matrix_world[2][3]
-            self.prev_matrices[id] = parent_movement * matrix
-        # How to check frame calculation. We don't use this simple way to get next matrix beacouse we don't want to move current frame
-        # logging.debug("was matrix", obj.matrix_world)
-        # logging.debug("now matrix", matrix)
-        # self.scene.frame_set(self.scene.frame_current + 1)
-        # matrix2 = obj.matrix_world.copy();
-        # logging.debug("test matrix", matrix2)
-        # self.scene.frame_set(self.scene.frame_current - 1)
-
-        return self.prev_matrices[id]
 
     def extract_settings(self, settings, settings_keys):
         result_settings = {}

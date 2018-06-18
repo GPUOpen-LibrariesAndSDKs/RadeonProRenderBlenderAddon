@@ -84,6 +84,8 @@ class RPREngine(bpy.types.RenderEngine):
             logging.debug('stopping:', viewport_renderer)
             viewport_renderer.stop()
 
+        export.prev_world_matrices_cache.purge()
+
     def update(self, data=None, scene=None):  # Export scene data for render
         if self.is_preview:
             logging.debug("create scene for preview render")
@@ -158,6 +160,8 @@ class RPREngine(bpy.types.RenderEngine):
 
         border = rprblender.sync.extract_render_border_from_scene(scene)
         render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, render_resolution)
+
+        export.prev_world_matrices_cache.update(scene)
 
         render_camera = sync.RenderCamera()
         sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings,
@@ -440,6 +444,8 @@ class RPREngine(bpy.types.RenderEngine):
                       'region.x:', context.region.x,
                       'region.y:', context.region.y,
                       'region_data.view_matrix:', context.region_data.view_matrix, tag='render.viewport.update')
+
+        export.prev_world_matrices_cache.update(context.scene, False)
 
         if context.space_data not in self.viewport_renderers:
             self.update_stats("Exporting", "scene")
