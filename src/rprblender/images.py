@@ -3,6 +3,7 @@ import weakref
 
 import bpy
 import numpy as np
+import math
 
 from rprblender import logging, rpraddon
 from rprblender.helpers import CallLogger
@@ -41,7 +42,7 @@ class RPRImageCachePurgeOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-use_downscaled_images = {}
+downscaled_image_size = {}
 
 class ImageCacheStats:
     def __init__(self):
@@ -75,14 +76,20 @@ class ImageCache:
         self.image2pixels = {}
         self.stats = ImageCacheStats()
         self.name = name
+        self.image_size = None
 
-    def get_image_pixels(self, image, load_pixels_from_blender_image):
+    def get_image_pixels(self, image, image_size, load_pixels_from_blender_image):
+        if self.image_size != image_size:
+            self.purge()
+            logging.debug("ImageCache(%s).get_image_pixels purged with new image_size=%s" % (self.name, str(self.image_size)))
+            self.image_size = image_size
+
         self.stats.requested(image)
 
         if image in self.image2pixels:
             pixels = self.image2pixels[image]
         else:
-            pixels = load_pixels_from_blender_image(image)
+            pixels = load_pixels_from_blender_image(image, image_size)
             self.image2pixels[image] = pixels
             self.stats.loaded(image, pixels)
 
@@ -109,13 +116,19 @@ class CoreImageCache:
     def __init__(self, name):
         self.images4context = weakref.WeakKeyDictionary()
         self.name = name
+        self.image_size = None
 
-    def get_core_image(self, context, image, load_image):
+    def get_core_image(self, context, image, image_size, load_image):
+        if self.name == "downscaled" and self.image_size != image_size:
+            self.purge()
+            logging.debug("CoreImageCache(%s).get_core_image purged with new image_size=%s" % (self.name, str(self.image_size)))
+            self.image_size = image_size
+
         images = self.images4context.setdefault(context, {})
         if image in images:
             ret = images[image]
         else:
-            ret = images.setdefault(image, load_image(context, image))
+            ret = images.setdefault(image, load_image(context, image, image_size))
 
         logging.debug("CoreImageCache(%s).get_core_image, context_id=%d, images=%d, loading image: %s" % 
                       (self.name, id(context), len(images), image.name))
@@ -128,11 +141,11 @@ class CoreImageCache:
         self.images4context.get(core_context, {}).clear()
 
     def get_info(self):
-        str = "CoreImageCache(%s): contexts number=%d" % (self.name, len(self.images4context))
-        str_list = []
+        s = "CoreImageCache(%s): image_size=%s, contexts number=%d" % (self.name, str(self.image_size), len(self.images4context))
+        s_list = []
         for context, images in self.images4context.items():
-            str_list.append("\n    context_id=%d, images=%d" % (id(context), len(images)))
-        return str + "".join(str_list)
+            s_list.append("\n    context_id=%d, images=%d" % (id(context), len(images)))
+        return s + "".join(s_list)
 
 
 core_image_cache = CoreImageCache("original")
@@ -162,6 +175,9 @@ def update_post(scene):
 
 update_pre = update_post
 
+def get_automatic_compression_size(scene):
+    avg_resolution = (scene.render.resolution_x + scene.render.resolution_y) * scene.render.resolution_percentage * 0.005
+    return 2**round(math.log2(avg_resolution))
 
 @bpy.app.handlers.persistent
 def load_post(context):

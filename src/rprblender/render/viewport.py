@@ -111,9 +111,6 @@ class ViewportRenderer:
         logging.debug('ViewportRenderer.update done')
 
     def export_scene(self, scene):
-        # texture compression context param needs to be set before exporting textures
-        pyrpr.ContextSetParameter1u(self.scene_renderer.get_core_context(), b"texturecompression",
-                                      self.scene_synced.settings.texturecompression)
         self.scene_exporter = export.SceneExport(scene, self.scene_synced, preview=True)
 
         self.scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)

@@ -15,30 +15,32 @@ def get_core_image_for_blender_image(context, blender_image):
     if config.image_cache_core:
         return get_cached_core_image_for_blender_image(context, blender_image)
     else:
-        if rprblender.images.use_downscaled_images[context]:
-            return create_core_downscaled_image_from_blender_image(context, blender_image)
+        if rprblender.images.downscaled_image_size[context]:
+            return create_core_downscaled_image_from_blender_image(context, blender_image,
+                        rprblender.images.downscaled_image_size[context])
 
-        return create_core_image_from_blender_image(context, blender_image)
+        return create_core_image_from_blender_image(context, blender_image, None)
 
 
 @logged
 def get_cached_core_image_for_blender_image(context, blender_image):
-    if rprblender.images.use_downscaled_images[context]:
+    if rprblender.images.downscaled_image_size[context]:
         return rprblender.images.core_downscaled_image_cache.get_core_image(
-            context, blender_image, create_core_downscaled_image_from_blender_image)
+            context, blender_image, rprblender.images.downscaled_image_size[context],
+            create_core_downscaled_image_from_blender_image)
 
     return rprblender.images.core_image_cache.get_core_image(
-        context, blender_image, create_core_image_from_blender_image)
+        context, blender_image, None, create_core_image_from_blender_image)
 
 
 @logged
-def create_core_downscaled_image_from_blender_image(context, blender_image):
-    if blender_image.size[0] < config.downscaled_image_size and blender_image.size[1] < config.downscaled_image_size:
+def create_core_downscaled_image_from_blender_image(context, blender_image, image_size):
+    if blender_image.size[0] < image_size and blender_image.size[1] < image_size:
         # this is small image we will not downscale it
-        return create_core_image_from_blender_image(context, blender_image)
+        return create_core_image_from_blender_image(context, blender_image, image_size)
 
-    new_size = (min(blender_image.size[0], config.downscaled_image_size), 
-                min(blender_image.size[1], config.downscaled_image_size))
+    new_size = (min(blender_image.size[0], image_size), 
+                min(blender_image.size[1], image_size))
 
     logging.debug("create_core_downscaled_image_from_blender_image: %s, path: %s, lib: %s, size=(%d, %d), new_size=(%d, %d)" %(
                   blender_image.name,
@@ -55,7 +57,7 @@ def create_core_downscaled_image_from_blender_image(context, blender_image):
 
 
 @logged
-def create_core_image_from_blender_image(context, blender_image):
+def create_core_image_from_blender_image(context, blender_image, image_size):
     logging.debug("create_core_image_from_blender_image: %s, path: %s, lib: %s, cur_size=(%d, %d)" %(
                   blender_image.name,
                   blender_image.filepath,
@@ -73,7 +75,7 @@ def create_core_image_from_blender_image(context, blender_image):
         # it crashes since 2.79, probably decause of depsgraph modification in a thread other than main(render's)
         return create_core_image_from_image_file(context, str(fpath))
     else:
-        if config.use_downscaled_images:
+        if image_size:
             # reloading blender image because it probably was downscaled before. If not
             # then probably it was not loaded fully (pixels were not readed) 
             # therefore reload will be a cheap operation
@@ -83,10 +85,10 @@ def create_core_image_from_blender_image(context, blender_image):
 
         core_image = create_core_image_from_pixels(context, get_pixels_for_blender_image(context, blender_image))
 
-        if config.use_downscaled_images:
+        if image_size:
             # scaling image back to downscaled size because we don't want to store it in Blender's memory
-            new_size = (min(blender_image.size[0], config.downscaled_image_size), 
-                        min(blender_image.size[1], config.downscaled_image_size))
+            new_size = (min(blender_image.size[0], image_size), 
+                        min(blender_image.size[1], image_size))
             blender_image.scale(new_size[0], new_size[1])
             logging.debug("create_core_image_from_blender_image: after srinking back new_size=(%d, %d)" % 
                           (blender_image.size[0], blender_image.size[1]))
@@ -105,9 +107,10 @@ def get_pixels_for_blender_image(context, blender_image):
 
 @logged
 def get_cached_pixels_for_blender_image(context, blender_image):
-    if rprblender.images.use_downscaled_images[context]:
+    if rprblender.images.downscaled_image_size[context]:
         return rprblender.images.downscaled_image_cache.get_image_pixels(
-            blender_image, extract_pixels_from_blender_downscaled_image)
+            blender_image, rprblender.images.downscaled_image_size[context],
+            extract_pixels_from_blender_downscaled_image)
 
     if config.image_cache_core:
         # blender cache is not needed there
@@ -169,16 +172,16 @@ def create_core_image_from_image_file_via_blender(context, filename, flipud):
     return create_core_image_from_pixels(context, pixels)
 
 @logged
-def extract_pixels_from_blender_downscaled_image(image, flipud=True):
-    if image.size[0] < config.downscaled_image_size and image.size[1] < config.downscaled_image_size:
+def extract_pixels_from_blender_downscaled_image(image, image_size, flipud=True):
+    if image.size[0] < image_size and image.size[1] < image_size:
         # this is small image we will not downscale it
         return extract_pixels_from_blender_image(image, flipud)
 
     if config.image_dont_load_use_small:
         return get_tiny_image()
 
-    new_size = (min(image.size[0], config.downscaled_image_size), 
-                min(image.size[1], config.downscaled_image_size))
+    new_size = (min(image.size[0], image_size), 
+                min(image.size[1], image_size))
     logging.debug("extract_pixels_from_blender_downscaled_image: %s, size=(%d, %d), new_size=(%d, %d)" %
                   (image.name, image.size[0], image.size[1], new_size[0], new_size[1]), 
                   tag="core.image")
