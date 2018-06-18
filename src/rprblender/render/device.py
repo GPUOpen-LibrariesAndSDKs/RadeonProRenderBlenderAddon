@@ -15,6 +15,7 @@ from rprblender.helpers import isMetalOn
 import rprblender.render.render_layers
 
 import sys
+import bpy
 
 logged = CallLogger(tag='render.device').logged
 
@@ -199,14 +200,14 @@ class RenderDevice:
         self.render_target = None  # type:RenderTargets
         self.rif_context = None
 
-        images.use_downscaled_images[self.core_context] = not is_production and config.use_downscaled_images
+        self.update_downscaled_image_size(is_production)
 
 
     @logged
     def __del__(self):
         images.core_image_cache.purge_for_context(self.core_context)
         images.core_downscaled_image_cache.purge_for_context(self.core_context)
-        del images.use_downscaled_images[self.core_context]
+        del images.downscaled_image_size[self.core_context]
 
         del self.core_material_system
         del self.post_effects
@@ -292,6 +293,17 @@ class RenderDevice:
         pyrpr.ContextDetachPostEffect(self.core_context, self.post_effects[post_effect])
         self.post_effects[post_effect].delete()
         del self.post_effects[post_effect]
+
+    def update_downscaled_image_size(self, is_production):
+        settings = bpy.context.scene.rpr.render
+        size = None
+        if (not is_production or settings.downscale_textures_production) and \
+                    settings.downscale_textures_size != 'NONE':
+            if settings.downscale_textures_size == 'AUTO':
+                size = images.get_automatic_compression_size(bpy.context.scene)
+            else:
+                size = int(settings.downscale_textures_size)
+        images.downscaled_image_size[self.core_context] = size
 
 
 @logged

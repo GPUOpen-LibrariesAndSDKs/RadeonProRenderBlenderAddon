@@ -848,14 +848,6 @@ class DofSettings(bpy.types.PropertyGroup):
     )
 
 
-def update_render_quality(self, context):
-    if self.render_quality == 'HIGH':
-        self.global_illumination['max_ray_depth'] = 20
-    elif self.render_quality == 'LOW':
-        self.global_illumination['max_ray_depth'] = 5
-    elif self.render_quality == 'MEDIUM':
-        self.global_illumination['max_ray_depth'] = 10
-
 def update_motion_blur_exposure(self, context):
     selected = []
     if self.motion_blur_exposure_apply == 'ACTIVE':
@@ -909,17 +901,6 @@ class RenderSettings(bpy.types.PropertyGroup):
         " render mode"
     )
 
-    render_quality = bpy.props.EnumProperty(
-        name="Render Quality",
-        items=(('HIGH', "High", "Best quality, but slow render"),
-               ('MEDIUM', "Medium", "Balance between quality and speed"),
-               ('LOW', "Low", "Fast speed, but preview quality"),
-               ('CUSTOM', "Custom", "User changed parameters")),
-        description="Render Quality",
-        default='CUSTOM',
-        update=update_render_quality,
-    )
-
     texturecompression = bpy.props.BoolProperty(
         name="Texture Compression",
         default=False
@@ -928,10 +909,27 @@ class RenderSettings(bpy.types.PropertyGroup):
     viewport_quality = bpy.props.EnumProperty(
         name="Viewport Quality",
         items=(('SAME_AS_RENDER', "Same as Render", "Same as render quality"),
-               ('NORMAL', "Normal", "Normal"),
                ('FAST', "Fast", "Fast")),
         description="Viewport Quality",
         default='FAST',
+    )
+
+    downscale_textures_size = bpy.props.EnumProperty(
+        name="Downscale Textures",
+        description="Downscale textures to speed up rendering precess and decrease memory usage",
+        items=(('256', "256", "Downscale textures to 256x256"),
+               ('512', "512", "Downscale textures to 512x512"),
+               ('1024', "1024", "Downscale textures to 1024x1024"),
+               ('2048', "2048", "Downscale textures to 2048x2048"),
+               ('AUTO', "Automatic", "Calculate downscale textures size depending by the render resolution"),
+               ('NONE', "No downscale", "Do not downscale textures")),
+        default='AUTO',
+    )
+
+    downscale_textures_production = bpy.props.BoolProperty(
+        name="Downscale Textures in Production",
+        description="Downscale textures in production render",
+        default=False
     )
 
     ####################################################################################################################

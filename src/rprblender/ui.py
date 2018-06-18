@@ -18,6 +18,7 @@ from bpy_extras.io_utils import ExportHelper
 from rprblender.node_editor import shader_node_output_name, find_node
 from rprblender.versions import get_render_passes_aov, is_blender_support_aov
 from . import version_checking
+from rprblender.images import get_automatic_compression_size
 
 PANEL_WIDTH_FOR_COLUMN = 200
 
@@ -705,8 +706,15 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
         row.prop(rpr_gi, "use_clamp_irradiance")
 
         layout.separator()
-
-        self.layout.prop(rpr, "texturecompression")
+        split = layout.split(percentage=0.45)
+        row = split.column()
+        if rpr.downscale_textures_size == 'AUTO':
+            row.label("Downscale Textures [%d]:" % get_automatic_compression_size(context.scene))
+        else:
+            row.label("Downscale Textures:")
+        row = split.column()
+        row.prop(rpr, 'downscale_textures_size', text="")
+        layout.prop(rpr, 'downscale_textures_production')
 
 
 @rpraddon.register_class

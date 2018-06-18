@@ -139,7 +139,8 @@ class RPREngine(bpy.types.RenderEngine):
         with rprblender.render.core_operations(raise_error=True):
             render_device = rprblender.render.get_render_device(is_production=not self.is_preview, persistent=True, 
                                 has_denoiser=settings.denoiser.enable)
-            scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)  #
+            render_device.update_downscaled_image_size(not self.is_preview)
+            scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)
 
         # determine if scene has a shadow catcher
         for obj in scene.objects:
@@ -198,11 +199,6 @@ class RPREngine(bpy.types.RenderEngine):
             scene_exporter = export.SceneExport(scene, scene_synced)
             scene_exporter.set_render_layer(scene.render.layers[0])
             try:
-
-                # texture compression context param needs to be set before exporting textures
-                pyrpr.ContextSetParameter1u(scene_renderer.get_core_context(), b"texturecompression",
-                                            settings.texturecompression)
-
                 if self.is_preview:
                     is_icon = width <= 32 and height <= 32
 
