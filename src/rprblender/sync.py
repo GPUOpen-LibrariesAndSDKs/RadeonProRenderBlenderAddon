@@ -12,8 +12,7 @@ from pyrpr import ffi
 import rprblender
 from rprblender import logging, versions
 from rprblender.core.nodes import log_mat, Material, ShaderType
-from rprblender.export import extract_mesh
-from rprblender.export import get_blender_mesh
+from rprblender.export import extract_mesh, get_blender_mesh, prev_world_matrices_cache
 from rprblender.helpers import CallLogger, print_memory_usage
 from rprblender.timing import TimedContext
 import rprblender.core.image
@@ -304,6 +303,15 @@ class SceneSynced:
         logging.debug('motion_blur: ', self.render_camera.motion_blur_enable, self.render_camera.motion_blur_exposure)
         if self.render_camera.motion_blur_enable:
             pyrpr.CameraSetExposure(camera, self.render_camera.motion_blur_exposure)
+            if not self.render_camera.prev_matrix_world is None:
+                mat = mathutils.Matrix(self.render_camera.matrix_world)
+                prev_mat = mathutils.Matrix(self.render_camera.prev_matrix_world)
+
+                quat = (prev_mat * mat.inverted()).to_quaternion();
+                pyrpr.CameraSetAngularMotion(camera, quat.axis.x, quat.axis.y, quat.axis.z, quat.angle)
+                trans = (prev_mat - mat).to_translation()
+                pyrpr.CameraSetLinearMotion(camera, trans.x, trans.y, trans.z)
+
         
         pyrpr.CameraSetMode(camera, mode)
         pyrpr.SceneSetCamera(self.core_scene, camera)
@@ -1162,6 +1170,7 @@ class RenderCamera:
     # motion blur
     motion_blur_enable = False
     motion_blur_exposure = None  # type: float
+    prev_matrix_world = None
 
     shift = (0, 0)
 
@@ -1295,6 +1304,7 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
     
     if render_camera.motion_blur_enable:
         render_camera.motion_blur_exposure = data.rpr_camera.motion_blur_exposure
+        render_camera.prev_matrix_world = np.array(prev_world_matrices_cache[active_camera], dtype=np.float32)
 
     if settings.camera.override_camera_settings:
         render_camera.type = settings.camera.panorama_type
