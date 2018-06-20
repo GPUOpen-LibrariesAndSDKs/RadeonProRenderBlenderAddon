@@ -575,13 +575,13 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
     max_diffuse_depth = bpy.props.IntProperty(
         name="Max diffuse ray depth", description="Max diffuse ray depth",
         min=0,
-        soft_min=1, soft_max=50,
-        default=2,
+        soft_min=2, soft_max=50,
+        default=3,
     )
     max_glossy_depth = bpy.props.IntProperty(
         name="Max glossy ray depth", description="Max glossy ray depth",
         min=0,
-        soft_min=1, soft_max=50,
+        soft_min=2, soft_max=50,
         default=5,
     )
     ray_epsilon = bpy.props.FloatProperty(
@@ -973,8 +973,8 @@ class RenderSettings(bpy.types.PropertyGroup):
 
     def get_max_ray_depth(self, is_production):
         if not is_production and self.viewport_quality == 'FAST':
-            # in fast mode use max depth 5, 1 diffuse, 3 glossy
-            return (5, 1, 3)
+            # in fast mode use max depth 5, 2 diffuse, 3 glossy
+            return (5, 2, 3)
         else:
             return (self.global_illumination.max_ray_depth,
                     self.global_illumination.max_diffuse_depth,
