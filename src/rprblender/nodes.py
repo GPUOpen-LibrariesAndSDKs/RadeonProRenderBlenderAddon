@@ -835,7 +835,8 @@ node_categories = [
         NodeItem("rpr_texture_node_gradient"),
         NodeItem("rpr_texture_node_checker"),
         NodeItem("rpr_texture_node_dot"),
-        NodeItem("ShaderNodeValToRGB")
+        NodeItem("ShaderNodeValToRGB"),
+        NodeItem("rpr_texture_node_ao"),
     ]),
 
     RPRNodeCategory("RPR_MAPPING", "Mapping", items=[

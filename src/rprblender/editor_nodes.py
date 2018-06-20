@@ -1356,6 +1356,31 @@ class RPRMaterialNode_Checker(RPRNodeType_Texture):
 
 
 @rpraddon.register_class
+class RPRMaterialNode_AO(RPRNodeType_Texture):
+    bl_idname = 'rpr_texture_node_ao'
+    bl_label = 'RPR Ambient Occlusion'
+
+    radius = bpy.props.FloatProperty(name='radius', min=-0.0, soft_max=10.0, default=0.1)
+    side = bpy.props.EnumProperty(name = 'side',
+                                  items={('FRONT', 'Front', 'Front'),
+                                         ('BACK', 'Back', 'Back')},
+                                  default='FRONT')
+    thumbnail = bpy.props.EnumProperty(items=RPRTreeNode.get_thumbnail_enum)
+    occluded_color = "Occluded Color"
+    unoccluded_color = "Unoccluded Color"
+
+    def init(self, context):
+        super(RPRMaterialNode_AO, self).init()
+        self.inputs.new('rpr_socket_color', self.unoccluded_color)
+        self.inputs.new('rpr_socket_color', self.occluded_color).default_value = (0.0, 0.0, 0.0, 1.0) 
+   
+    def draw_buttons(self, context, layout):
+        self.draw_thumbnail(layout)
+        layout.prop(self, 'radius')
+        layout.prop(self, 'side')
+
+
+@rpraddon.register_class
 class RPRMaterialNode_Dot(RPRNodeType_Texture):
     bl_idname = 'rpr_texture_node_dot'
     bl_label = 'RPR Dot'
