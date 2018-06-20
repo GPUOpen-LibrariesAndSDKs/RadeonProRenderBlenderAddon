@@ -72,6 +72,7 @@ class NodeType(IntEnum):
     FRESNEL_SCHLICK = pyrpr.MATERIAL_NODE_FRESNEL_SCHLICK
     FRESNEL = pyrpr.MATERIAL_NODE_FRESNEL
     BUFFER_SAMPLER = pyrpr.MATERIAL_NODE_BUFFER_SAMPLER
+    AO_MAP = pyrpr.MATERIAL_NODE_AO_MAP
 
 
 class OperatorType(IntEnum):
@@ -358,7 +359,14 @@ class BufferSamplerShader(Node):
         # scale the uv by buffer size
         self.set_value(b'uv', mat.mul_value(uv, ValueVector(config.ramp_buffer_size)))
         pyrpr.MaterialNodeSetInputBufferData(self.get_handle(), b'data', buffer._get_handle())
-     
+ 
+
+class AOMapShader(Node):
+    def __init__(self, mat, radius, side):
+        super().__init__(mat.create_material_node(NodeType.AO_MAP))
+        self.set_value(b'radius', radius)
+        self.set_value(b'side', side)
+
 
 class Shader(Node):
     type = None
@@ -1372,6 +1380,16 @@ class Material:
         return ValueNode(node)
 
 
+    def parse_ao_map(self, blender_node):
+        log_mat('parse_node_ao_map...')
+        side = ValueVector(1.0, 0.0, 0.0, 0.0) if blender_node.side == 'FRONT' else ValueVector(-1.0, 0.0, 0.0, 0.0)
+        radius = ValueVector(blender_node.radius, 0.0, 0.0, 0.0)
+        node = AOMapShader(self, radius, side)
+        
+        return self.blend_value(self.get_value(blender_node, blender_node.occluded_color), 
+                                self.get_value(blender_node, blender_node.unoccluded_color), 
+                                ValueNode(node))
+
     def parse_texture_node_get_image(self, blender_node):
         img = blender_node.get_image()
         if not img:
@@ -1765,6 +1783,7 @@ class Material:
             'rpr_texture_node_dot': self.parse_texture_node_dot,
             'rpr_fresnel_schlick_node': self.parse_fresnel_schlick_node,
             'rpr_fresnel_node': self.parse_fresnel_node,
+            'rpr_texture_node_ao': self.parse_ao_map,
             'ShaderNodeValToRGB': self.parse_color_ramp_node,
 
             # volume
