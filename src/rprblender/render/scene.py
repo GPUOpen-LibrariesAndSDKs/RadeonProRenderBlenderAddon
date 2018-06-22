@@ -348,11 +348,27 @@ class SceneRenderer:
             else:
                 pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
                                               sys.float_info.max);
+            
+            depth = 5
+            depth_diffuse = 2
+            depth_glossy = 3
+            depth_shadow = 3
+            depth_refraction = 3
+            depth_glossy_refraction = 3
+            if self.production_render or rs.viewport_quality != 'FAST':
+                depth = rs.global_illumination.max_ray_depth
+                depth_diffuse = rs.global_illumination.max_diffuse_depth
+                depth_glossy = rs.global_illumination.max_glossy_depth
+                depth_shadow = rs.global_illumination.max_shadow_depth
+                depth_refraction = rs.global_illumination.max_refraction_depth
+                depth_glossy_refraction = rs.global_illumination.max_glossy_refraction_depth
 
-            depth, depth_diffuse, depth_glossy = rs.get_max_ray_depth(self.production_render)
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", depth)
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.diffuse", depth_diffuse)
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.glossy", depth_glossy)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.shadow", depth_shadow)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.refraction", depth_refraction)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.refraction.glossy", depth_glossy_refraction)
 
             # Convert milimeters to meters
             ray_epsilon = rs.global_illumination.ray_epsilon / 1000;
