@@ -584,6 +584,24 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
         soft_min=2, soft_max=50,
         default=5,
     )
+    max_shadow_depth = bpy.props.IntProperty(
+        name="Max shadow depth", description="Max shadow depth",
+        min=0,
+        soft_min=2, soft_max=50,
+        default=5,
+    )
+    max_refraction_depth = bpy.props.IntProperty(
+        name="Max refraction ray depth", description="Max refraction ray depth",
+        min=0,
+        soft_min=2, soft_max=50,
+        default=5,
+    )
+    max_glossy_refraction_depth = bpy.props.IntProperty(
+        name="Max glossy refraction ray depth", description="Max glossy refraction ray depth",
+        min=0,
+        soft_min=2, soft_max=50,
+        default=5,
+    )
     ray_epsilon = bpy.props.FloatProperty(
         name="Ray cast epsilon", description="Ray cast epsilon",
         min=0.0, max=2.0,
@@ -970,15 +988,6 @@ class RenderSettings(bpy.types.PropertyGroup):
         default=1.0,
         update=update_motion_blur_scale
     )
-
-    def get_max_ray_depth(self, is_production):
-        if not is_production and self.viewport_quality == 'FAST':
-            # in fast mode use max depth 5, 2 diffuse, 3 glossy
-            return (5, 2, 3)
-        else:
-            return (self.global_illumination.max_ray_depth,
-                    self.global_illumination.max_diffuse_depth,
-                    self.global_illumination.max_glossy_depth)
 
 
 ########################################################################################################################

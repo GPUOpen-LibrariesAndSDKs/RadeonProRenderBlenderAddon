@@ -696,6 +696,12 @@ class RPRRender_PT_quality_and_type(RPRPanel, Panel):
         row = col.row(align=True)
         row.prop(rpr_gi, "max_diffuse_depth", slider=True, text='Max Diffuse')
         row.prop(rpr_gi, "max_glossy_depth", slider=True, text='Max Glossy')
+        row = col.row(align=True)
+        row.prop(rpr_gi, "max_shadow_depth", slider=True, text='Max Shadow')
+        row.prop(rpr_gi, "max_refraction_depth", slider=True, text='Max Refraction')
+        row = col.row(align=True)
+        row.prop(rpr_gi, "max_glossy_refraction_depth", slider=True, text='Max Glossy Refraction')
+
 
         row = layout.row()
         col = row.column(align=True)
