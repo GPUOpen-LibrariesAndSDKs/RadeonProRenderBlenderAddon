@@ -891,6 +891,7 @@ class Material:
         if socket:
             shader = self.parse_node(socket)
         else:
+            self.set_error("Please connect RPR material node to shader socket in RPR Material Output node")
             shader = self.create_error_shader()
 
         # volume socket
@@ -1621,6 +1622,7 @@ class Material:
         log_mat("blend_shader : %s, %s" % (shader1, shader2))
 
         if shader1 is None and shader2 is None:
+            self.set_error("Please connect RPR material nodes to shader_1 or shader_2 sockets in RPR Blend node")
             return self.create_error_shader()
         if shader1 is None:
             return shader2
@@ -1723,7 +1725,8 @@ class Material:
         self.node_group_stack = []
         blender_node = self.get_start_node(blender_mat)
         if not blender_node:
-            self.set_error("parse : Can't get output node, return error shader (material: %s)" % blender_mat.name)
+            # here we log only warning, no need to call set_error()
+            logging.warn("Parse : Can't get output node, return error shader (material: %s)" % blender_mat.name, tag='material')
             return
 
         try:
