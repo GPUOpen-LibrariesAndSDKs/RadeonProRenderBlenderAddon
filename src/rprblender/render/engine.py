@@ -223,7 +223,7 @@ class RPREngine(bpy.types.RenderEngine):
                     for name in scene_exporter.export_iter():
                         print_memory_usage("export %s" % name)
                         if scene_synced.has_error:
-                            self.report({'WARNING'},'Scene export completed with errors.\nPlease see the log for more details!')
+                            self.report({'WARNING'},'Scene export completed with errors. Please see the log for more details!')
                             scene_synced.has_error = False
                         if self.test_break():
                             return
