@@ -802,6 +802,13 @@ class DenoiserSettings(bpy.types.PropertyGroup):
         default=True
     )
 
+    scale_by_iterations = bpy.props.BoolProperty(
+        name="Scale Denoising Iterations",
+        description="Scale the amount of denoiser blur by number of iterations.  This will give more blur for renders with less samples, and become sharper as more samples are added.",
+        default=True
+    )
+
+
     # bilateral props
     radius = bpy.props.IntProperty(
         name="Radius", description="Radius",
@@ -809,28 +816,28 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     )
     p_sigma = bpy.props.FloatProperty(
         name="Color Sigma", description="Threshold for detecting position differences",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.0, soft_max = 1.0, default = .1
     )
 
     # EAW props
     color_sigma = bpy.props.FloatProperty(
         name="Color Sigma", description="Threshold for detecting color differences",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.0, soft_max = 1.0, default = .75
     )
 
     normal_sigma = bpy.props.FloatProperty(
         name="Normal Sigma", description="Threshold for detecting normal differences",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.0, soft_max = 1.0, default = .01
     )
 
     depth_sigma = bpy.props.FloatProperty(
         name="Depth Sigma", description="Threshold for detecting z depth differences",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.0, soft_max = 1.0, default = .01
     )
 
     trans_sigma = bpy.props.FloatProperty(
         name="ID Sigma", description="Threshold for detecting Object ID differences",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.0, soft_max = 1.0, default = .01
     )
 
     # LWR props
