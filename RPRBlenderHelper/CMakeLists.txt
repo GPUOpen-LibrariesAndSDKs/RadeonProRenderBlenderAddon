@@ -51,7 +51,7 @@ set(src
     RPRBlenderHelper/RPRBlenderHelper.cpp
     RPRBlenderHelper/SkyBuilder.cpp
     RPRBlenderHelper/SkyGen.cpp
-    RPRBlenderHelper/SunPositionCalculator.cpp
+    ../FireRender.Components/cpp/SunPosition/SPA.cpp
     RPRBlenderHelper/CitiesDatabase.cpp
     "${RPRTOOL}")
 

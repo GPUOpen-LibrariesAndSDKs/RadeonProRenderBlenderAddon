@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "SkyBuilder.h"
 #include "SkyGen.h"
-#include "SunPositionCalculator.h"
+#include "../../FireRender.Components/cpp/SunPosition/SPA.h"
 #include <vector>
 #include <assert.h>
 
@@ -66,31 +66,16 @@ void SkyBuilder::calculateSunPositionGeographic()
 	if (daylightSaving)
 		adjustDaylightSavingTime(hours, day, month, year);
 
-	// Initialize the sun position calculator.
-	SunPositionCalculator pc;
-	pc.year = year;
-	pc.month = month;
-	pc.day = day;
-	pc.hour = hours;
-	pc.minute = m_attributes.minutes;
-	pc.second = m_attributes.seconds;
-	pc.timezone = m_attributes.timeZone;
-	pc.delta_ut1 = 0;
-	pc.delta_t = 67;
-	pc.longitude = m_attributes.longitude;
-	pc.latitude = m_attributes.latitude;
-	pc.elevation = 0.0;
-	pc.pressure = 820;
-	pc.temperature = 11;
-	pc.slope = 0;
-	pc.azm_rotation = 0;
-	pc.atmos_refract = 0.5667;
-	pc.function = SunPositionCalculator::SPA_ALL;
+	JulianDate date = julian_day(year, month, day,
+		hours, m_attributes.minutes, m_attributes.seconds,
+		m_attributes.timeZone);
 
-	// Calculate the sun azimuth and altitude angles.
-	pc.calculate();
-	m_sunAzimuth = static_cast<float>(pc.azimuth);
-	m_sunAltitude = static_cast<float>(pc.e);
+	AzimuthZenithAngle pos = calculateSolarPosition(date,
+		m_attributes.latitude, m_attributes.longitude,
+		0.0, 0.0, 820, 11);
+
+	m_sunAzimuth = pos.Azimuth;
+	m_sunAltitude = 90.0 - pos.Zenith;
 }
 
 // -----------------------------------------------------------------------------
