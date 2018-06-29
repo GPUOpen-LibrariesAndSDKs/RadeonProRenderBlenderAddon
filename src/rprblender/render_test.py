@@ -2483,45 +2483,6 @@ def test_tonemapping_and_white_balance(render_image_check_fixture, material_setu
         tm.type = 'non_linear'
 
 
-def test_gamma_correction(render_image_check_fixture, material_setup, request, tmpdir_factory):
-    generate_uv()
-    bpy.context.object.scale = (1.5,) * 3
-
-    tree = material_setup.create_default_node_tree()
-    editor = MaterialEditor(tree)
-    output = material_editor.OutputNode(material_setup.get_node_tree_output(tree), editor)
-
-    emissive = editor.create_emissive_material_node()
-    image_texture = editor.create_image_texture_node()
-    editor.link_nodes(image_texture, emissive.get_input_socket_by_name('color'))
-    editor.link_nodes(emissive, output.get_input_shader_socket())
-
-    image = bpy_extras.image_utils.load_image(testdata.get_path('../data/rgb_tri.png'))
-    image_texture.set_image(image)
-
-    gc = bpy.context.scene.rpr.render.gamma_correction
-    assert gc.viewport_only
-
-    gc.viewport_only = False
-
-    print('check: enabled by default')
-    with render_image_check_fixture.set_expected('gamma_correction/enabled_default'):
-        pass
-
-    print('check: disabled')
-    with render_image_check_fixture.set_expected('gamma_correction/disabled'):
-        gc.enable = False
-
-    gc.enable = True
-    print('check: display_gamma')
-    with render_image_check_fixture.set_expected('gamma_correction/display_gamma_4'):
-        gc.display_gamma = 4
-
-    print('check: viewport_only')
-    with render_image_check_fixture.set_expected('gamma_correction/disabled'):
-        gc.viewport_only = True
-
-
 def test_dof(render_image_check_fixture, material_setup, request, tmpdir_factory):
     render_image_check_fixture.viewport_fixture.render_resolution = (640, 480)
     bpy.context.scene.rpr.render.rendering_limits.iterations = 200
