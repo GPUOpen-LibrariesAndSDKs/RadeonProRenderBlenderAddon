@@ -297,25 +297,6 @@ class RPRRender_PT_white_balance(RPRPanel, Panel):
 
 
 @rpraddon.register_class
-class RPRRender_PT_gamma_correction(RPRPanel, Panel):
-    bl_label = "RPR Gamma Correction"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.gamma_correction, "enable", text='')
-
-    def draw(self, context):
-        layout = self.layout
-        settings = context.scene.rpr.render.gamma_correction
-        col = layout.column()
-        col.enabled = settings.enable
-        row = col.row(align=True)
-        row.prop(settings, "display_gamma")
-        row = col.row(align=True)
-        row.prop(settings, "viewport_only")
-
-
-@rpraddon.register_class
 class RPRRender_PT_depth_of_field(RPRPanel, Panel):
     bl_label = "RPR Depth of Field"
     bl_options = {'DEFAULT_CLOSED'}

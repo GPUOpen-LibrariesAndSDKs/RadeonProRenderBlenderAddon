@@ -23,6 +23,10 @@ image_dont_load_use_small = False
 
 url_json_version = 'https://radeon-prorender.github.io/rpr_renderer_plugin_blender_latest_version.json'
 
+ramp_buffer_size = 256
+
+viewport_display_gamma = 2.2
+
 try:
     # configdev.py example for logging setup:
     # from . import logging
@@ -37,4 +41,3 @@ try:
 except ImportError:
     pass
 
-ramp_buffer_size = 256

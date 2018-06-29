@@ -728,24 +728,6 @@ class WhiteBalanceSettings(bpy.types.PropertyGroup):
                               )
 
 
-@rpraddon.register_class
-class GammaCorrectionSettings(bpy.types.PropertyGroup):
-    enable = bpy.props.BoolProperty(
-        description="Enable Gamma Correction",
-        default=True
-    )
-    viewport_only = bpy.props.BoolProperty(
-        name="Viewport Only",
-        description="Only apply gamma correction to viewport renders."
-                    " Blender color management is applied to final renders.",
-        default=True
-    )
-    display_gamma = bpy.props.FloatProperty(
-        name="Display Gamma", description="Gamma correction applied to the rendered image",
-        min=0, default=2.2
-    )
-
-
 class RPRCameraSettings:
     panorama_type = bpy.props.EnumProperty(
         name="Type",
@@ -913,7 +895,6 @@ class RenderSettings(bpy.types.PropertyGroup):
     global_illumination = bpy.props.PointerProperty(type=GlobalIlluminationSettings)  # type: GlobalIlluminationSettings
     tone_mapping = bpy.props.PointerProperty(type=ToneMappingSettings)  # type: ToneMappingSettings
     white_balance = bpy.props.PointerProperty(type=WhiteBalanceSettings)  # type: WhiteBalanceSettings
-    gamma_correction = bpy.props.PointerProperty(type=GammaCorrectionSettings)  # type: GammaCorrectionSettings
     camera = bpy.props.PointerProperty(type=CameraSettings)  # type: CameraSettings
     dof = bpy.props.PointerProperty(type=DofSettings)  # type: DofSettings
     denoiser = bpy.props.PointerProperty(type=DenoiserSettings) # type: DenoiserSettings

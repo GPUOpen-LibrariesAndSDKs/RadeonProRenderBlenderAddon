@@ -193,18 +193,12 @@ class SceneRenderer:
         return True
 
     def update_gamma_correction(self, settings, post_effect_update):
-
-        gm = settings.gamma_correction
-        if not gm.enable:
-            return False
-
-        if gm.viewport_only and self.production_render:
-            return False
+        if self.production_render:
+            return
 
         post_effect_update.enable(pyrpr.POST_EFFECT_GAMMA_CORRECTION)
-        pyrpr.ContextSetParameter1f(self.get_core_context(), b'displaygamma', gm.display_gamma)
+        pyrpr.ContextSetParameter1f(self.get_core_context(), b'displaygamma', config.viewport_display_gamma)
 
-        return True
 
     def render_proc(self):
         yield from self._render_proc()
