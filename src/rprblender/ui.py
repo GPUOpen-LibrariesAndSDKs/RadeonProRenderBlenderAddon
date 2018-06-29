@@ -824,6 +824,7 @@ class RPRRender_PT_Denoiser(RPRPanel, Panel):
         
         row = col.row()
         row.prop(settings, "enable_viewport")
+        row.prop(settings, "scale_by_iterations")
 
 
 def draw_camera_settings(camera, layout):

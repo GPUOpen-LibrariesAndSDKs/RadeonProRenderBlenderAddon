@@ -62,7 +62,7 @@ class SceneRenderer:
         self.tile_image = None
         self.has_shadowcatcher = False
         self.has_denoiser = False
-        self.filter_type = None
+        self.denoiser = None
         self.is_filter_attached = False
 
         self.is_production = is_production
@@ -105,89 +105,13 @@ class SceneRenderer:
         self.render_device.attach_render_target(self.render_targets)
 
         if self.has_denoiser:
-            self.render_layers.use_denoiser = True
-
             # Create separate filtered image buffer
             width, height = self.render_targets.render_resolution
-            self.filtered_image = np.empty((height, width, 4), dtype=np.float32)
-
-            self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.filter_type, self.get_core_context())
-
-            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
-                self.render_layers.filter_type = self.filter_type
-
-                if self.is_filter_attached:
-                    del self.denoiser
-                    self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.filter_type, self.get_core_context())
-
-                self.denoiser.add_input('geometric_normal')
-                self.denoiser.add_input('world_coordinate')
-                self.denoiser.add_input('object_id')
-
-                self.denoiser_radius = self.render_settings.denoiser.radius
-
-                self.denoiser.create_bilateral_filter()
-                self.denoiser.configure_bilateral_filter(self.denoiser_radius, 4)
-
-                self.is_filter_attached = True
             
-            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE:
-                self.render_layers.filter_type = self.filter_type
-                if self.is_filter_attached:
-                    del self.denoiser
-                    self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.filter_type, self.get_core_context())
+            self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.render_settings.denoiser, self.get_core_context())
+            self.is_filter_attached = True
 
-                self.denoiser.add_input('world_coordinate')
-                self.denoiser.add_input('geometric_normal')
-                self.denoiser.add_input('object_id')
-
-                self.denoiser.create_variance_image_filter(self.denoiser.filters["variance_image_filter"], self.denoiser.input_rif_image,
-                                                               self.denoiser.rif_images["output_rif_image"])
-                
-                # Create EAW image filter
-                self.denoiser.create_eaw_filter()
-
-                self.denoiser.configure_eaw_filter(self.render_settings.denoiser.color_sigma, self.render_settings.denoiser.normal_sigma,
-                                                       self.render_settings.denoiser.depth_sigma, self.render_settings.denoiser.trans_sigma)
-
-                self.denoiser.create_mlaa_filter()
-                
-                self.is_filter_attached = True
-
-            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE:
-                self.render_layers.filter_type = self.filter_type
-
-                if self.is_filter_attached:
-                    del self.denoiser
-                    self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.filter_type, self.get_core_context())
-
-                self.denoiser.add_input('world_coordinate')
-                self.denoiser.add_input('geometric_normal')
-                self.denoiser.add_input('object_id')
-                self.denoiser.add_input('depth')
-
-                self.denoiser.create_variance_image_filter(self.denoiser.filters["variance_image_filter"], self.denoiser.input_rif_image,
-                                                           self.denoiser.rif_images["color_output_image"])
-
-                self.denoiser.create_variance_image_filter(self.denoiser.filters["normal_var_image_filter"],
-                                                           self.denoiser.rif_images["geometric_normal"],
-                                                           self.denoiser.rif_images["normal_output_image"])
-
-                self.denoiser.create_normalized_filter(self.denoiser.rif_images["depth"],
-                                                       self.denoiser.rif_images["normalized_depth_rif_image"])
-                self.denoiser.create_variance_image_filter(self.denoiser.filters["depth_var_image_filter"], self.denoiser.rif_images["normalized_depth_rif_image"],
-                                                           self.denoiser.rif_images["normalized_depth_rif_image"])
-
-                self.denoiser.create_variance_image_filter(self.denoiser.filters["object_id_var_image_filter"], self.denoiser.rif_images["object_id"],
-                                                           self.denoiser.rif_images["object_id_output_image"])
-
-                self.denoiser.create_lwr_image_filter()
-                self.denoiser.configure_lwr_image_filter(self.render_settings.denoiser.samples, 
-                                                             self.render_settings.denoiser.half_window,
-                                                             self.render_settings.denoiser.bandwidth)
-                
-                self.is_filter_attached = True
-
+            
     @call_logger.logged
     def update_render_region(self, render_region):
         self.region = render_region
@@ -550,12 +474,10 @@ class SceneRenderer:
             self.update_white_balance(settings, post_effect_update)
             self.update_gamma_correction(settings, post_effect_update)
 
-        im = self.render_targets.get_resolved_image(frame_buffer)
         if self.has_denoiser and aov_name == 'default':
-            im_den = self._get_filtered_image(frame_buffer)
-            return im_den
-
-        return im
+            return self._get_filtered_image(frame_buffer)
+        else:
+            return self.render_targets.get_resolved_image(frame_buffer)
 
     def _get_shadow_catcher_image(self):
         post_effect_chain = self.posteffect_chain
@@ -576,16 +498,8 @@ class SceneRenderer:
         return image
 
     def _get_filtered_image(self, frame_buffer):
-        if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE and \
-            self.denoiser_radius != self.render_settings.denoiser.radius:
-            self.denoiser_radius = self.render_settings.denoiser.radius
-            rif_result = pyrprimagefilters.ImageFilterSetParameter1u(self.denoiser.rif_image_filter, b"radius",
-                                                                 self.denoiser_radius)
-            assert rif_result == pyrprimagefilters.SUCCESS
-
-        np.copyto(self.filtered_image, self.denoiser.execute(frame_buffer))
-
-        return self.filtered_image
+        self.denoiser.update_iterations(self.iteration_in_progress)
+        return self.denoiser.execute(frame_buffer)
 
     @call_logger.logged
     def get_shadowcatcher_framebuffer(self):

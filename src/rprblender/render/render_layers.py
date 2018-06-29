@@ -69,29 +69,13 @@ class RenderLayers:
 
         self.init_data(aov_settings)
 
-        self.use_denoiser = False
-        self.filter_type = pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE
-
         for p in self.get_needed_passes(aov_settings):
             self.enable_aov(p)
 
     def get_needed_passes(self, aov_settings):
         # always create color fb(needed by RPR)
         yield 'default'
-
-        if self.use_denoiser:
-            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
-                yield 'geometric_normal'
-                yield 'world_coordinate'
-                yield 'object_id'
-
-            if self.filter_type == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE or \
-                            self.filter_type == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE:
-                yield 'geometric_normal'
-                yield 'depth'
-                yield 'object_id'
-                yield 'world_coordinate'
-
+        
         if self.alpha_combine:
             yield 'opacity'
 
