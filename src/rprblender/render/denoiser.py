@@ -73,7 +73,7 @@ class Denoiser:
             self.render_targets.get_frame_buffer('default'), self.resolved_frame_buffer)
 
         pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
-                                                pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL)
+                                                pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL )
 
         # Store results in float array to form final image
         mapped_data = pyrprimagefilters.ffi.new("void**")
