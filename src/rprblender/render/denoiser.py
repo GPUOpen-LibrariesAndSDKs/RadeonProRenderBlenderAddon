@@ -4,6 +4,7 @@ import pyrpropencl
 import sys
 import numpy as np
 import math
+import platform
 
 from rprblender import logging
 import numbers
@@ -72,7 +73,11 @@ class Denoiser:
         pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, 
             self.render_targets.get_frame_buffer('default'), self.resolved_frame_buffer)
 
-        pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
+        if 'Darwin' == platform.system():
+            pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
+                                                pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL )
+        else:
+            pyrprimagefilters.ContextExecuteCommandQueue(self.render_device.rif_context, self.render_device.rif_command_queue,
                                                 pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL, pyrprimagefilters.ffi.NULL )
 
         # Store results in float array to form final image
