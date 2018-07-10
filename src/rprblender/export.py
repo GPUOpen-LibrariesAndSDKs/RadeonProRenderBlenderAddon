@@ -20,9 +20,14 @@ from rprblender.timing import TimedContext
 from rprblender import config
 from . import logging
 from rprblender.helpers import CallLogger
+import rprblender.images
+
 
 call_logger = CallLogger(tag='export')
 
+
+class ExportError(ValueError):
+    pass
 
 class ObjectKey:
     """This is for easier debugging - stores original object string representation
@@ -57,8 +62,7 @@ class InstanceKey:
     along with simple integer hash value that is used as key hash"""
 
     def __init__(self, duplicator, dupli):
-        persistent_id = tuple(dupli.persistent_id)
-        self.value = (duplicator.as_pointer(), persistent_id)
+        self.value = (duplicator.as_pointer(), tuple(dupli.persistent_id))
         self.hash = hash(self.value)
         if config.debug:
             self.str_repr = '<object: %s, duplicator: %s, id: %s, hash: %s> ' % (
@@ -87,7 +91,6 @@ class InstanceKey:
 
 
 def get_object_key(obj):
-    if obj is None: return None
     if config.debug:
         assert isinstance(obj, bpy.types.bpy_struct), obj
         return ObjectKey(obj)
@@ -195,49 +198,38 @@ class EnvironmentExportState:
         self.scene_synced.background_set(None)
 
 
-class ObjectMesh:
-    def __init__(self, blender_obj, extracted_mesh):
-        self.blender_obj = blender_obj
+class Prototype:
+    def __init__(self, blender_mesh, extracted_mesh):
+        self.blender_mesh = blender_mesh
         self.data = extracted_mesh
         self.material_indices_used = np.unique(self.data['data']['faces_materials']) if self.data else []
 
-    def get_materials(self):
-        return get_materials(self.blender_obj)
-
-    def enumerate_used_materials(self):
-        for i, m in enumerate(get_materials(self.blender_obj)):
-            if i in self.material_indices_used:
-                yield i, m
-
     def get_prototype_key(self):
-        return get_object_key(self.blender_obj.data)
+        return get_object_key(self.blender_mesh)
 
 
-class MeshSync:
-    def __init__(self, object_mesh: ObjectMesh, volume_data = None):
-        self.object_mesh = object_mesh
-        self.volume_data = volume_data
+class ObjectInstance:
+    def __init__(self, prototype: Prototype, blender_obj):
+        self.prototype = prototype
+        self.blender_obj = blender_obj
+        self.volume_data = None
         self.materials_assigned = {}
         self.matrix = None
 
     @property
     def material_indices_used(self):
-        return self.object_mesh.material_indices_used
-
-    def get_materials(self):
-        return self.object_mesh.get_materials()
+        return self.prototype.material_indices_used
 
     def enumerate_used_materials(self):
-        yield from self.object_mesh.enumerate_used_materials()
+        for i, m in enumerate(get_materials(self.blender_obj)):
+            if i in self.prototype.material_indices_used:
+                yield i, m
 
     def get_prototype_key(self):
-        return self.object_mesh.get_prototype_key()
+        return self.prototype.get_prototype_key()
 
     def set_matrix(self, matrix):
         self.matrix = np.array(matrix, dtype=np.float32)
-
-
-class InstanceSync(MeshSync): pass
 
 
 def log_sync(*message):
@@ -271,36 +263,6 @@ class ObjectsSync:
         self.materials_added = {}
         self.material_for_submesh = {}
 
-    def init_materials(self):
-        objects_needing_material_update = {}
-
-        for key in self.object_instances_instantiated_as_mesh_prototype:
-            sync = self.object_instances[key]
-            for material_index, material in sync.enumerate_used_materials():
-                if material:
-                    if material not in objects_needing_material_update:
-                        objects_needing_material_update[material] = set()
-                    objects_needing_material_update[material].add((key, material_index))
-
-        for material, keys in objects_needing_material_update.items():
-            self.update_material(keys, material)
-
-        submesh_instances_needing_material_update = {}
-
-        for key, sync in self.instances.items():
-            for material_index, material in sync.enumerate_used_materials():
-                if material:
-                    if material not in submesh_instances_needing_material_update:
-                        submesh_instances_needing_material_update[material] = set()
-                    if key != self.mesh_added_for_prototype.get(sync.get_prototype_key(), None):
-                        submesh_instances_needing_material_update[material].add((key, material_index))
-
-        for material, submesh_instances in submesh_instances_needing_material_update.items():
-            mat_key = get_object_key(material)
-            if mat_key not in self.materials_added:
-                self.add_material(material, mat_key)
-            for instance_key, material_index in submesh_instances:
-                self.scene_synced.assign_material_to_mesh_instance(mat_key, (instance_key, material_index))
 
     def update_material(self, sumbesh_keys, blender_mat):
         log_sync('update_material', sumbesh_keys, blender_mat)
@@ -329,9 +291,9 @@ class ObjectsSync:
     def update_instance_materials(self, instance_key):
         if instance_key not in self.instances:
             return
-        sync = self.instances[instance_key]
+        instance = self.instances[instance_key]
 
-        for material_index, material in sync.enumerate_used_materials():
+        for material_index, material in instance.enumerate_used_materials():
             if material:
                 mat_key = get_object_key(material)
                 if mat_key not in self.materials_added:
@@ -355,15 +317,17 @@ class ObjectsSync:
         return key in self.object_instances_instantiated_as_mesh_instance
 
     @call_logger.logged
-    def instantiate_object_instance_as_mesh(self, key, sync):
-        prototype_key = sync.get_prototype_key()
-        matrix = sync.matrix
+    def instantiate_object_instance_as_mesh(self, key, instance):
+        prototype_key = instance.get_prototype_key()
 
         if prototype_key in self.mesh_added_for_prototype:
             self.instantiate_object_instance_as_mesh_instance(
-                key, self.mesh_added_for_prototype[prototype_key], matrix)
+                key, self.mesh_added_for_prototype[prototype_key], instance.matrix)
         else:
-            self.instantiate_object_instance_as_mesh_prototype(key, sync)
+            self.instantiate_object_instance_as_mesh_prototype(key, instance)
+
+
+
 
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh(self, key):
@@ -374,18 +338,18 @@ class ObjectsSync:
 
     @call_logger.logged
     def instantiate_object_instance_as_mesh_instance(self, key, mesh_key, matrix):
-        mesh_sync = self.object_instances[mesh_key]
-        sync = self.object_instances[key]
-        prototype_key = sync.get_prototype_key()
+        mesh_instance = self.object_instances[mesh_key]
+        instance = self.object_instances[key]
+        prototype_key = mesh_instance.get_prototype_key()
 
         self.instances_added_for_prototype[prototype_key].add(key)
         self.object_instances_instantiated_as_mesh_instance.add(key)
 
-        for i in mesh_sync.materials_assigned:
-            sync.materials_assigned[i] = True
-            self.scene_synced.add_mesh_instance((key, i), ((mesh_key, i), matrix))
+        for i in mesh_instance.materials_assigned:
+            instance.materials_assigned[i] = True
+            self.scene_synced.add_mesh_instance((key, i), (mesh_key, i), matrix)
 
-        for material_index in mesh_sync.materials_assigned:
+        for material_index in mesh_instance.materials_assigned:
             prototype_submesh_key = prototype_key, material_index
             if prototype_submesh_key in self.material_for_submesh:
                 mat_key = self.material_for_submesh[prototype_submesh_key]
@@ -393,39 +357,40 @@ class ObjectsSync:
 
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh_instance(self, key):
-        sync = self.object_instances[key]
+        instance = self.object_instances[key]
 
-        for i in sync.materials_assigned:
+        for i in instance.materials_assigned:
             self.scene_synced.remove_material_from_mesh_instance((key, i))
             self.scene_synced.remove_mesh_instance((key, i))
 
-        self.instances_added_for_prototype[sync.get_prototype_key()].remove(key)
+        self.instances_added_for_prototype[instance.get_prototype_key()].remove(key)
         self.object_instances_instantiated_as_mesh_instance.remove(key)
 
     @call_logger.logged
-    def instantiate_object_instance_as_mesh_prototype(self, key, sync):
+    def instantiate_object_instance_as_mesh_prototype(self, key, instance):
         """  Add instance of blender object, assign specified key to the instance """
 
-        # TODO: scale also needs to sync, better remove this dependency from geometry
+        # TODO: scale also needs to instance, better remove this dependency from geometry
         # extraction and move it to matrix
         # TODO: cache extracted submesh
 
-        log_sync('material_indices_used:', sync.material_indices_used)
-        for i in sync.material_indices_used:
-            self.scene_synced.add_mesh((key, i), extract_submesh(sync.object_mesh.data, i, 1), sync.matrix, sync.object_mesh.blender_obj)
-            sync.materials_assigned[i] = True
+        log_sync('material_indices_used:', instance.material_indices_used)
+        for i in instance.material_indices_used:
+            submesh = extract_submesh(instance.prototype.data, i)
+            self.scene_synced.add_mesh((key, i), submesh, instance.matrix)
+            instance.materials_assigned[i] = True
         self.object_instances_instantiated_as_mesh_prototype.add(key)
-        self.mesh_added_for_prototype[sync.get_prototype_key()] = key
+        self.mesh_added_for_prototype[instance.get_prototype_key()] = key
 
-        if sync.volume_data:
-            self.scene_synced.add_volume((key, 0), sync.volume_data, sync.matrix)
+        if instance.volume_data:
+            self.scene_synced.add_volume((key, 0), instance.volume_data, instance.matrix)
 
     @call_logger.logged
     def deinstantiate_object_instance_as_mesh_prototype(self, key):
-        mesh_sync = self.object_instances[key]
-        prototype_key = self.object_instances[key].get_prototype_key()
+        instance = self.object_instances[key]
+        prototype_key = instance.get_prototype_key()
 
-        for i in mesh_sync.materials_assigned:
+        for i in instance.materials_assigned:
             mat_key = 0
             prototype_submesh_key = prototype_key, i
             if prototype_submesh_key in self.material_for_submesh:
@@ -440,15 +405,22 @@ class ObjectsSync:
         self.remove_prototype(prototype_key)
         self.scene_export.remove_mesh_data_from_cache(key)
 
+    def add_dupli_object_instance(self, key, dupli):
+        return self._add_object_instance(key, dupli.object, dupli.matrix)
+
+    def add_object_instance(self, obj):
+        return self._add_object_instance(get_object_key(obj), obj, obj.matrix_world)
+
     @call_logger.logged
-    def add_object_instance(self, key, obj, matrix_world):
-        prototype_key = get_object_key(obj.data)
-        sync = self.create_object_instance_sync(key, prototype_key, obj, matrix_world)
-        if not sync:
-            return
+    def _add_object_instance(self, key, obj, matrix):
+        instance = ObjectInstance(self.get_prototype(obj), obj)
+        instance.set_matrix(matrix)
+        self.object_instances[key] = instance
+
         if object_has_volume(obj):
-            sync.volume_data = extract_volume_data(obj)
-        return sync
+            instance.volume_data = extract_volume_data(obj)
+
+        return instance
 
     @call_logger.logged
     def remove_object_instance(self, key):
@@ -463,31 +435,26 @@ class ObjectsSync:
 
         del self.object_instances[key]
 
-    def get_instances_for_duplicator(self, duplicator_key):
-        return self.instances_for_duplicator[duplicator_key]
-
     def get_instances_added_for_prototype(self, prototype_key):
         return self.instances_added_for_prototype.get(prototype_key, [])
 
     @call_logger.logged
-    def add_instance(self, duplicator_key, key, dupli, duplicator_obj):
+    def add_dupli_instance(self, key, dupli, duplicator_obj):
+        duplicator_key = get_object_key(duplicator_obj)
         log_sync('dupli:', dupli.object, dupli.object.type, dupli.object.library, dupli.matrix)
 
-        sync = self.add_object_instance(key, dupli.object, dupli.matrix)
-        if not sync:
-            return
-
+        instance = self.add_dupli_object_instance(key, dupli)
         self.instances_for_duplicator.setdefault(duplicator_key, set()).add(key)
-        self.instances_for_prototype.setdefault(sync.get_prototype_key(), set()).add(key)
+        self.instances_for_prototype.setdefault(instance.get_prototype_key(), set()).add(key)
         self.duplicator_for_instance[key] = duplicator_key
-        self.instances[key] = sync
+        self.instances[key] = instance
 
-        if sync.get_prototype_key() not in self.duplicator_for_prototype:
-            self.duplicator_for_prototype[sync.get_prototype_key()] = set()
-        self.duplicator_for_prototype[sync.get_prototype_key()].add(duplicator_key)
+        if instance.get_prototype_key() not in self.duplicator_for_prototype:
+            self.duplicator_for_prototype[instance.get_prototype_key()] = set()
+        self.duplicator_for_prototype[instance.get_prototype_key()].add(duplicator_key)
 
-        self.instantiate_object_instance_as_mesh(key, sync)
-        self.update_settings(key, sync.object_mesh.blender_obj, duplicator=duplicator_obj)
+        self.instantiate_object_instance_as_mesh(key, instance)
+        self.update_settings(instance.blender_obj, duplicator_obj)
 
     @call_logger.logged
     def remove_instance(self, key):
@@ -503,76 +470,49 @@ class ObjectsSync:
 
         self.remove_object_instance(key)
 
-    def create_object_instance_sync(self, key, prototype_key, prototype, matrix):
-        prototype = self.get_prototype(prototype_key, prototype)
-        if not prototype:
-            return
-
-        mesh_sync = MeshSync(prototype)
-        self.object_instances[key] = mesh_sync
-
-        mesh_sync.set_matrix(matrix.copy())
-        return mesh_sync
-
-    def get_prototype(self, prototype_key, obj):
-        prototype = self.prototypes.get(prototype_key, None)
+    def get_prototype(self, obj):
+        prototype = self.prototypes.get(get_object_key(obj.data), None)
         if prototype:
             return prototype
 
-        prototype = self.add_prototype(obj)
-        if prototype is not None:
-            self.prototypes[prototype_key] = prototype
-            self.instances_added_for_prototype[prototype_key] = set()
+        prototype = Prototype(obj.data, self.scene_export.to_mesh(obj))
+        self.prototypes[prototype.get_prototype_key()] = prototype
+        self.instances_added_for_prototype[prototype.get_prototype_key()] = set()
         return prototype
 
-    @call_logger.logged
-    def add_prototype(self, obj):
-        extracted_mesh = self.scene_export.to_mesh(obj)
-        # mesh might not be added because it has not polygons
-        mesh = None
-        if extracted_mesh:
-            mesh = ObjectMesh(obj, extracted_mesh)
-        return mesh
-
     def remove_prototype(self, prototype_key):
-        assert not self.instances_added_for_prototype[prototype_key]
         del self.instances_added_for_prototype[prototype_key]
         del self.prototypes[prototype_key]
 
-    def is_duplicator(self, obj_key):
-        return obj_key in self.instances_for_duplicator
-
     def remove_duplicator_instances(self, duplicator_key):
-        for instance in list(self.get_instances_for_duplicator(duplicator_key)):
+        if duplicator_key not in self.instances_for_duplicator:
+            return
+            
+        for instance in list(self.instances_for_duplicator[duplicator_key]):
             self.remove_instance(instance)
         del self.instances_for_duplicator[duplicator_key]
 
         for duplicators in self.duplicator_for_prototype.values():
             duplicators.remove(duplicator_key)
 
-    def sync_duplicator_instances(self, obj_key, obj):
+    def sync_duplicator_instances(self, obj):
         for key, dupli in self.scene_export.iter_dupli_from_duplicator(obj):
-            # if key in self.object_instances:
-            #     self.deinstantiate_object_instance_as_mesh(key)
             pass
 
         for key, dupli in self.scene_export.iter_dupli_from_duplicator(obj):
             if key in self.object_instances:
-                # self.instantiate_object_instance_as_mesh(key, self.object_instances[key])
-                self.update_object_instance_transform(
-                    key, self.object_instances[key].get_prototype_key(), dupli.matrix)
+                self.update_object_instance_transform(key, dupli.matrix)
             else:
-                self.add_instance(obj_key, key, dupli, obj)
+                self.add_dupli_instance(key, dupli, obj)
 
-    def update_object_data(self, obj_key, obj):
+    def update_object_data(self, obj):
+        obj_key = get_object_key(obj)
         if obj_key not in self.object_instances:
-            sync = self.add_object_instance(obj_key, obj, obj.matrix_world)
-            if sync:
-                self.instantiate_object_instance_as_mesh(obj_key, sync)
-            return
+            instance = self.add_object_instance(obj)
+            self.instantiate_object_instance_as_mesh(obj_key, instance)
 
-        sync = self.object_instances[obj_key]
-        prototype_key = sync.get_prototype_key()
+        instance = self.object_instances[obj_key]
+        prototype_key = instance.get_prototype_key()
 
         for instance_key in list(self.instances_added_for_prototype.get(prototype_key, [])):
             assert instance_key in self.object_instances
@@ -580,9 +520,8 @@ class ObjectsSync:
 
         self.remove_object_instance(obj_key)
 
-        sync = self.add_object_instance(obj_key, obj, obj.matrix_world)
-        if sync:
-            self.instantiate_object_instance_as_mesh(obj_key, sync)
+        instance = self.add_object_instance(obj)
+        self.instantiate_object_instance_as_mesh(obj_key, instance)
 
     def remove_instances_for_prototype(self, obj_key):
         log_sync('instances_for_prototype:', self.instances_for_prototype)
@@ -593,47 +532,50 @@ class ObjectsSync:
     def show_object(self, key):
         if not self.is_object_instantiated_as_mesh_prototype(key):
             return
-        mesh_sync = self.object_instances[key]
-        for i in mesh_sync.materials_assigned:
+        instance = self.object_instances[key]
+        for i in instance.materials_assigned:
             self.scene_synced.show_mesh((key, i))
 
     def hide_object(self, key):
-        mesh_sync = self.object_instances[key]
-        for i in mesh_sync.materials_assigned:
+        instance = self.object_instances[key]
+        for i in instance.materials_assigned:
             self.scene_synced.hide_mesh((key, i))
 
     @call_logger.logged
-    def update_object_transform(self, key, obj):
-        mesh_sync = self.object_instances[key]
-        for i in mesh_sync.materials_assigned:
+    def update_object_transform(self, obj):
+        key = get_object_key(obj)
+        instance = self.object_instances[key]
+        for i in instance.materials_assigned:
             self.scene_synced.update_mesh_transform((key, i), obj.matrix_world)
 
     @call_logger.logged
-    def update_instance_transform(self, key, obj_key, matrix):
-        mesh_sync = self.object_instances[key]
-        for i in mesh_sync.materials_assigned:
+    def update_instance_transform(self, key, matrix):
+        instance = self.object_instances[key]
+        for i in instance.materials_assigned:
             self.scene_synced.update_instance_transform((key, i), matrix)
 
     @call_logger.logged
-    def update_object_instance_transform(self, key, obj_key, matrix):
+    def update_object_instance_transform(self, key, matrix):
         if self.is_object_instantiated_as_mesh_prototype(key):
-            sync = self.object_instances[key]
-            sync.set_matrix(matrix)
-            for i in sync.materials_assigned:
+            instance = self.object_instances[key]
+            instance.set_matrix(matrix)
+            for i in instance.materials_assigned:
                 self.scene_synced.update_mesh_transform((key, i), matrix)
         elif self.is_object_instantiated_as_mesh_instance(key):
-            sync = self.object_instances[key]
-            sync.set_matrix(matrix)
-            self.update_instance_transform(key, obj_key, matrix)
+            instance = self.object_instances[key]
+            instance.set_matrix(matrix)
+            self.update_instance_transform(key, matrix)
 
-    def update_settings(self, key, obj, duplicator=None):
+    def update_settings(self, obj, duplicator=None):
+        key = get_object_key(obj)
         if key not in self.object_instances:
             return
-        object_settings = obj.rpr_object
-        mesh_sync = self.object_instances[key]
-        motion_blur = self.scene_export.get_object_motion_blur(mesh_sync, object_settings)
 
-        for i in mesh_sync.materials_assigned:
+        object_settings = obj.rpr_object
+        instance = self.object_instances[key]
+        motion_blur = self.scene_export.get_object_motion_blur(instance, object_settings)
+
+        for i in instance.materials_assigned:
             self.scene_synced.mesh_set_shadowcatcher((key, i), object_settings.shadowcatcher)
             self.scene_synced.mesh_set_shadows((key, i), object_settings.shadows)
 
@@ -675,8 +617,7 @@ class ObjectsSync:
 
 
 class ObjectsSyncFrame:
-    def __init__(self, scene_export: 'SceneExport', objects_sync: 'ObjectsSync'):
-        self.scene_export = scene_export
+    def __init__(self, objects_sync):
         self.objects_sync = objects_sync
         self.duplicators_added = []
         self.duplicators_updated = set()
@@ -701,28 +642,28 @@ class ObjectsSyncFrame:
             for duplicator_key in self.objects_sync.duplicator_for_prototype[obj_key]:
                 self.duplicators_updated.add(duplicator_key)
 
-    def update_object_data(self, obj_key, obj):
-        self.meshes_updated_data[obj_key] = obj
+    def update_object_data(self, obj):
+        self.meshes_updated_data[get_object_key(obj)] = obj
 
-    def update_object_transform(self, obj_key, obj):
+    def update_object_transform(self, obj):
+        obj_key = get_object_key(obj)
         if obj_key not in self.objects_sync.object_instances:
-            sync = self.objects_sync.add_object_instance(obj_key, obj, obj.matrix_world)
-            if sync:
-                self.objects_sync.instantiate_object_instance_as_mesh(obj_key, sync)
+            instance = self.objects_sync.add_object_instance(obj)
+            self.objects_sync.instantiate_object_instance_as_mesh(obj_key, instance)
         else:
-            self.objects_sync.update_object_transform(obj_key, obj)
+            self.objects_sync.update_object_transform(obj)
 
-    def update_object_materials(self, obj_key, obj):
+    def update_object_materials(self, obj):
         materials = get_materials(obj)
         for material_index, material in enumerate(materials):
-            self.update_object_material(obj_key, material, material_index)
+            self.update_object_material(get_object_key(obj), material, material_index)
 
-    def update_object_materials_if_material_was_updated(self, obj_key, obj):
+    def update_object_materials_if_material_was_updated(self, obj):
         materials = get_materials(obj)
         for material_index, material in enumerate(materials):
             mat_key = get_object_key(material)
             if self.was_material_updated(mat_key):
-                self.update_object_material(obj_key, material, material_index)
+                self.update_object_material(get_object_key(obj), material, material_index)
 
     def update_object_material(self, obj_key, material, material_index):
         if material not in self.objects_needing_material_update:
@@ -778,17 +719,15 @@ class SceneExport:
         if key in self.meshes_extracted and not obj.data.is_updated:
             log_sync("to_mesh: found in cache")
             return self.meshes_extracted[key]
-        scene = self.scene
 
-        mesh = get_blender_mesh(scene, obj, preview=self.preview)
+        mesh = get_blender_mesh(self.scene, obj, self.preview)
         if not mesh:
-            log_sync("to_mesh: get_blender_mesh returned None")
-            return None
+            raise ExportError("get_blender_mesh returned None")
         try:
-            extracted_mesh = extract_mesh(mesh, 1)
+            extracted_mesh = extract_mesh(mesh)
             if not extracted_mesh:
-                return None
-            # mesh might not be added because it has not polygons
+                raise ExportError("Mesh doesn't have polygons")
+
             self.meshes_extracted[key] = extracted_mesh
             return extracted_mesh
         finally:
@@ -799,14 +738,14 @@ class SceneExport:
         if obj_key in self.meshes_extracted:
             del self.meshes_extracted[obj_key]
 
-    def get_object_motion_blur(self, mesh_sync: 'MeshSync', object_settings):
-        if self.scene.rpr.render.motion_blur and object_settings.motion_blur and (self.scene.camera != None):
+    def get_object_motion_blur(self, instance, rpr_object):
+        if self.scene.rpr.render.motion_blur and rpr_object.motion_blur and (self.scene.camera != None):
             if self.motion_blur_frame != self.scene.frame_current:
                 self.motion_blur_frame = self.scene.frame_current
                 self.prev_matrices = {}
-            return (mesh_sync.object_mesh.blender_obj.matrix_world,
-                    prev_world_matrices_cache[mesh_sync.object_mesh.blender_obj],
-                    object_settings.motion_blur_scale)
+            return (instance.blender_obj.matrix_world,
+                    prev_world_matrices_cache[instance.blender_obj],
+                    rpr_object.motion_blur_scale)
 
     def set_render_layer(self, render_layer):
         self.render_layer = render_layer
@@ -833,7 +772,6 @@ class SceneExport:
             logging.critical(traceback.format_exc(), tag='export')
             raise
         finally:
-            import rprblender.images
             logging.info(rprblender.images.image_cache.stats.format_current(), tag='image_cache')
             logging.info(rprblender.images.downscaled_image_cache.stats.format_current(), tag='downscaled_image_cache')
             logging.info(rprblender.images.core_image_cache.get_info(), tag='core_image_cache')
@@ -854,63 +792,12 @@ class SceneExport:
         yield from self.sync_updated_objects(set(self.visible_objects))
         self.scene_objects = set(objects)
 
-    def _export_objects_plain(self, objects):
-        """this is simple export of all objects, without using 'sync' method, left for reference"""
-        log_sync('_export_objects')
-        scene_synced = self.scene_synced
-        time_start = time.clock()
-
-        duplicators = []
-
-        for obj in objects:
-            yield obj.name
-            object_key = get_object_key(obj)
-            log_sync(obj, obj.type, object_key)
-            object_type = obj.type
-
-            visible = self.is_scene_object_visible(obj)
-
-            log_sync('VISIBLE' if visible else 'NOT VISIBLE')
-
-            if object_type in self.types_geometry:
-                if visible:
-                    sync = self.objects_sync.add_object_instance(object_key, obj, obj.matrix_world)
-                    if sync:
-                        self.objects_sync.instantiate_object_instance_as_mesh(object_key, sync)
-
-            if 'LAMP' == object_type:
-                if not self.is_material_preview and visible:
-                    self.add_lamp(obj)
-
-            if 'NONE' != obj.dupli_type:
-                if visible:
-                    log_sync(obj.dupli_type)
-                    assert obj.is_duplicator
-
-                    duplicators.append(obj)
-
-        for obj in duplicators:
-            for key, dupli in self.iter_dupli_from_duplicator(obj):
-                if self.is_prototype_visible(dupli.object):
-                    self.objects_sync.add_instance(get_object_key(obj), key, dupli, obj)
-
-        yield "materials"
-
-        self.objects_sync.init_materials()
-
-        self.visible_objects = {get_object_key(obj): obj.type for obj in self.filter_scene_objects_visible(objects)}
-        log_sync("visible_objects", len(self.visible_objects), self.visible_objects)
-
-        self.scene_objects = set(objects)
-        self.scene_objects = set(self.scene.objects)
-        log_sync("self.scene_objects", len(self.scene_objects), self.scene_objects)
-
     def iter_dupli_from_duplicator(self, duplicator):
         duplicator.dupli_list_create(self.scene, settings='RENDER')
         try:
             for dupli in duplicator.dupli_list:
                 if dupli.object.type in self.types_geometry:
-                    yield self.get_instance_key(duplicator, dupli), dupli
+                    yield get_instance_key(duplicator, dupli), dupli
         finally:
             duplicator.dupli_list_clear()
 
@@ -1001,9 +888,9 @@ class SceneExport:
         try:
             with TimedContext("sync"):
                 if self.profile:
-                    s = cProfile.runctx("self._sync(refresh_render_layers=refresh_render_layers)", globals(), locals(), sort='cumulative')
+                    s = cProfile.runctx("self._sync(refresh_render_layers)", globals(), locals(), sort='cumulative')
                 else:
-                    self._sync(refresh_render_layers=refresh_render_layers)
+                    self._sync(refresh_render_layers)
         except:
             logging.critical(traceback.format_exc(), tag='export')
             raise
@@ -1028,7 +915,7 @@ class SceneExport:
             self.need_scene_reset = True
             properties.DeveloperSettings.show_error_was_changed = False
 
-    def _sync(self, refresh_render_layers=False):
+    def _sync(self, refresh_render_layers):
         logging.debug("export.sync")
 
         self.need_scene_reset = False
@@ -1086,8 +973,7 @@ class SceneExport:
 
         for obj_key, obj_type in objects_not_visible_anymore.items():
 
-            if self.objects_sync.is_duplicator(obj_key):
-                self.objects_sync.remove_duplicator_instances(obj_key)
+            self.objects_sync.remove_duplicator_instances(obj_key)
 
             if obj_key in scene_objects_removed:
                 # TODO: handle removal without accessing object data(dereferencing pointer, i.e. obj.type)
@@ -1308,22 +1194,17 @@ class SceneExport:
                 continue
             if obj.type not in self.types_geometry:
                 continue
-            mesh_sync = self.objects_sync.object_instances[obj_key]
-            motion_blur = self.get_object_motion_blur(mesh_sync, obj.rpr_object)
+            instance = self.objects_sync.object_instances[obj_key]
+            motion_blur = self.get_object_motion_blur(instance, obj.rpr_object)
             if motion_blur is not None:
-                for i in mesh_sync.materials_assigned:
+                for i in instance.materials_assigned:
                     self.scene_synced.set_motion_blur((obj_key, i), *motion_blur)
             else:
-                for i in mesh_sync.materials_assigned:
+                for i in instance.materials_assigned:
                     self.scene_synced.reset_motion_blur((obj_key, i))
 
     def sync_updated_objects(self, scene_objects_added, refresh_render_layers=False):
-        log_sync('sync_updated_objects', scene_objects_added)
-
-        objects_sync_frame = ObjectsSyncFrame(self, self.objects_sync)
-
-        for obj in self.filter_scene_objects_visible(self.scene.objects):
-            yield obj.name
+        def sync_object(obj):
             obj_key = get_object_key(obj)
 
             if obj_key in scene_objects_added:
@@ -1342,13 +1223,13 @@ class SceneExport:
                         log_sync(
                             'update_mesh_data - obj.is_updated: %s, obj.is_updated_data:%s, obj.data.is_updated: %s' % (
                                 obj.is_updated, obj.is_updated_data, (obj.data and obj.data.is_updated)))
-                        objects_sync_frame.update_object_data(obj_key, obj)
+                        objects_sync_frame.update_object_data(obj)
                     else:
-                        objects_sync_frame.update_object_transform(obj_key, obj)
+                        objects_sync_frame.update_object_transform(obj)
 
-                    self.objects_sync.update_settings(obj_key, obj)
+                    self.objects_sync.update_settings(obj)
 
-                    objects_sync_frame.update_object_materials(obj_key, obj)
+                    objects_sync_frame.update_object_materials(obj)
 
                 elif 'LAMP' == obj.type:
 
@@ -1368,19 +1249,34 @@ class SceneExport:
                 if 'NONE' != obj.dupli_type:
                     objects_sync_frame.duplicators_updated.add(obj_key)
 
+
+        log_sync('sync_updated_objects', scene_objects_added)
+
+        objects_sync_frame = ObjectsSyncFrame(self.objects_sync)
+
+        for obj in self.filter_scene_objects_visible(self.scene.objects):
+            yield obj.name
+            try:
+                sync_object(obj)
+            except ExportError as err:
+                logging.warn(err, tag='sync')
+
         yield 'reinstantiating instances'
-        instances_to_readd = {}
+        instances_to_read = {}
         for obj_key, obj in objects_sync_frame.meshes_updated_data.items():
-            for instance_key in list(self.objects_sync.instances_added_for_prototype.get(obj_key, [])):
-                assert instance_key in self.objects_sync.instances
-                instance_sync = self.objects_sync.object_instances[instance_key]
-                duplicator_key = self.objects_sync.duplicator_for_instance[instance_key]
-                instances_to_readd.setdefault(duplicator_key, []).append((instance_key, instance_sync))
-                self.objects_sync.deinstantiate_object_instance_as_mesh(instance_key)
+            try:
+                for instance_key in list(self.objects_sync.instances_added_for_prototype.get(obj_key, [])):
+                    assert instance_key in self.objects_sync.instances
+                    instance_sync = self.objects_sync.object_instances[instance_key]
+                    duplicator_key = self.objects_sync.duplicator_for_instance[instance_key]
+                    instances_to_read.setdefault(duplicator_key, []).append((instance_key, instance_sync))
+                    self.objects_sync.deinstantiate_object_instance_as_mesh(instance_key)
 
-            self.objects_sync.update_object_data(obj_key, obj)
+                self.objects_sync.update_object_data(obj)
+            except ExportError as err:
+                logging.warn(err, tag='sync')
 
-        for duplicator_key, instances in instances_to_readd.items():
+        for duplicator_key, instances in instances_to_read.items():
             for instance_key, instance_sync in instances:
                 self.objects_sync.object_instances[instance_key] = instance_sync
                 self.objects_sync.instantiate_object_instance_as_mesh(instance_key, instance_sync)
@@ -1391,8 +1287,7 @@ class SceneExport:
         # all objects with this material
 
         for obj in self.scene.objects:
-            obj_key = get_object_key(obj)
-            objects_sync_frame.update_object_materials_if_material_was_updated(obj_key, obj)
+            objects_sync_frame.update_object_materials_if_material_was_updated(obj)
 
         ########## done ObjectsSyncFrame
 
@@ -1406,22 +1301,16 @@ class SceneExport:
         for obj in objects_sync_frame.duplicators_added:
             yield 'adding new duplicators:'+str(obj)
             for key, dupli in self.iter_dupli_from_duplicator(obj):
-                self.objects_sync.add_instance(get_object_key(obj), key, dupli, obj)
+                self.objects_sync.add_dupli_instance(key, dupli, obj)
                 self.objects_sync.update_instance_materials(key)
 
         yield 'updating duplicators'
         log_sync('duplicators_updated:', objects_sync_frame.duplicators_updated)
         with TimedContext("update duplicators"):
             for obj in self.scene.objects:
-                obj_key = get_object_key(obj)
-
-                if obj_key in objects_sync_frame.duplicators_updated:
-                    self.objects_sync.sync_duplicator_instances(obj_key, obj)
+                if get_object_key(obj) in objects_sync_frame.duplicators_updated:
+                    self.objects_sync.sync_duplicator_instances(obj)
         yield 'objects ok'
-
-    def get_instance_key(self, duplicator, dupli):
-        # different duplis can be instances of the same object and persistent_id differentiates them
-        return get_instance_key(duplicator, dupli)
 
     def filter_environment_light_settings_changes(self, settings_old, environment_settings):
         """"Leave only changes in settings that affect result render(i.e. don't bother with maps
@@ -1875,17 +1764,13 @@ def extract_mesh_raw(mesh: bpy.types.Mesh):
     return result
 
 
-def extract_mesh(mesh: bpy.types.Mesh, scale=1.0):
+def extract_mesh(mesh: bpy.types.Mesh):
     if not mesh.tessfaces:
         return None
-    return prepare_mesh(extract_mesh_raw(mesh), scale, use_auto_smooth=mesh.use_auto_smooth)
 
-
-def prepare_mesh(mesh_raw: MeshRaw, scale, use_auto_smooth=False):
-    vertices = mesh_raw.vertices * scale
+    mesh_raw = extract_mesh_raw(mesh)
 
     faces_counts = np.array([len(f) for f in mesh_raw.tessface_vertices], dtype=np.int32)
-
     indices = np.array(list(itertools.chain(*mesh_raw.tessface_vertices)), dtype=np.int32).flatten()
 
     if mesh_raw.tessface_uv_textures is not None:
@@ -1900,8 +1785,9 @@ def prepare_mesh(mesh_raw: MeshRaw, scale, use_auto_smooth=False):
 
     result = dict(
         type='MESH',
+        name=mesh.name,
         data=dict(
-            vertices=vertices,
+            vertices=mesh_raw.vertices,
             normals=normals_new,
             uvs=uvs,
             vertex_indices=indices,
@@ -1914,10 +1800,7 @@ def prepare_mesh(mesh_raw: MeshRaw, scale, use_auto_smooth=False):
 
 
 @call_logger.logged
-def extract_submesh(mesh, material_index, scale):
-    # assert {3} == set(np.unique(mesh['data']['faces_counts']))
-
-
+def extract_submesh(mesh, material_index):
     if {material_index} == set(np.unique(mesh['data']['faces_materials'])):
         return mesh
 
@@ -1932,6 +1815,7 @@ def extract_submesh(mesh, material_index, scale):
 
     result = dict(
         type='MESH',
+        name=mesh['name'],
         data=dict(
             vertices=vertices,
             normals=mesh['data']['normals'],
