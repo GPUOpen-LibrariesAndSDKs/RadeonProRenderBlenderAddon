@@ -543,6 +543,9 @@ class SceneSynced:
         pyrpr.CameraLookAt(camera, *origin, *target, *up)
 
     def update_camera_transform(self, camera, matrix_world):
+        def vec_normalize(d):
+            return d / np.sqrt(d.dot(d))
+
         m = matrix_world.reshape(4, 4)  # np.ndarray
 
         logging.debug("matrix_world:", m, tag='render.camera')
@@ -556,7 +559,7 @@ class SceneSynced:
         # SetTransform is strange
 
         # checking, that reconstructing matrix from vectors gives us same matrix
-        basis_z = self.vec_normalize(origin - target)
+        basis_z = vec_normalize(origin - target)
         basis_x = -np.cross(basis_z, up)
         basis = np.transpose([basis_x, up, basis_z])
         logging.debug("reconstruct:", basis, origin, tag='render.camera')
@@ -583,9 +586,6 @@ class SceneSynced:
         up = m.dot([0, 1, 0, 0])[:3]
 
         return origin, target, up
-
-    def vec_normalize(self, d):
-        return d / np.sqrt(d.dot(d))
 
     @call_logger.logged
     def add_material(self, key, blender_mat):
@@ -700,16 +700,14 @@ class SceneSynced:
     ########################################################################################################################
 
     @call_logger.logged
-    def add_mesh(self, obj_key, extracted_mesh, matrix_world, blender_obj=None):
+    def add_mesh(self, obj_key, extracted_mesh, matrix_world):
         logging.debug('add mesh:', obj_key, extracted_mesh)
 
-        core_shape = self.core_make_mesh(extracted_mesh)
+        core_shape = self._core_make_mesh(extracted_mesh)
         # rprlog("core_make_mesh: done", extracted_mesh)
 
         pyrpr.SceneAttachShape(self.get_core_scene(), core_shape);
-
-        name = blender_obj.name if blender_obj else str(obj_key)
-        pyrpr.ObjectSetName(core_shape._get_handle(), name.encode('latin1'))
+        pyrpr.ObjectSetName(core_shape._get_handle(), extracted_mesh['name'].encode('latin1'))
 
         self.shape_set_transform(core_shape, matrix_world)
         self.add_synced_obj(obj_key, core_shape)
@@ -722,7 +720,7 @@ class SceneSynced:
     def add_volume(self, obj_key, extracted_volume, matrix_world):
         logging.debug('add volume:', obj_key, extracted_volume)
 
-        core_volume = self.core_make_volume(extracted_volume)
+        core_volume = self._core_make_volume(extracted_volume)
         # rprlog("core_make_mesh: done", extracted_mesh)
         core_shape = self.get_core_obj(obj_key)
 
@@ -941,16 +939,13 @@ class SceneSynced:
         self.remove_shape(obj_key)
 
     @call_logger.logged
-    def add_mesh_instance(self, key, dupli):
-        logging.debug('add_mesh_instance:', key, dupli)
-
-        prototype_key = dupli[0]
-        matrix_world = dupli[1]
+    def add_mesh_instance(self, key, mesh_key, matrix_world):
+        logging.debug('add_mesh_instance:', key, mesh_key, matrix_world)
 
         core_instance = pyrpr.Shape()
         pyrpr.ContextCreateInstance(
             self.get_core_context(),
-            self.get_synced_obj(prototype_key).core_obj,
+            self.get_synced_obj(mesh_key).core_obj,
             core_instance
         )
 
@@ -1021,7 +1016,7 @@ class SceneSynced:
 
         self.shape_set_transform(self.get_core_obj(key), matrix_world)
 
-    def core_make_mesh(self, obj):
+    def _core_make_mesh(self, obj):
         logging.debug("core_make_mesh")
 
         mesh = obj['data']
@@ -1091,7 +1086,7 @@ class SceneSynced:
 
         return core_mesh
 
-    def core_make_volume(self, volume_data):
+    def _core_make_volume(self, volume_data):
         logging.debug("core_make_volume")
 
         context = self.get_core_context()

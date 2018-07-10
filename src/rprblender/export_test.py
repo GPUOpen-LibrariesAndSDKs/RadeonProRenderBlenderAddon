@@ -620,7 +620,7 @@ def test_mesh_sync(export_fixture, sync_fixture):
     assert bpy.ops.object.is_updated
 
     # obj.is_updated_data or (obj.data and obj.data.is_updated)
-    export.objects_sync.update_object_data(rprblender.export.get_object_key(cube), cube)
+    export.objects_sync.update_object_data(cube)
 
     assert 1 == len(scene_synced.meshes)
     polygon_count = len(scene_synced._get_meshes()[0]['faces_counts'])
@@ -1914,7 +1914,7 @@ class TestExtractMesh:
     def test_simple(self):
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         assert 6 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
+        mesh = rprblender.export.extract_mesh(blender_mesh)
         assert 24 == len(mesh['data']['indices'])
 
     def test_simple_triangles(self):
@@ -1923,13 +1923,13 @@ class TestExtractMesh:
         # assert 1 == len(bpy.context.object.data.polygons)
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         assert 12 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
+        mesh = rprblender.export.extract_mesh(blender_mesh)
         assert 48 == len(mesh['data']['indices'])
 
     def test_material_index(self):
         bpy.context.object.data.polygons[2].material_index = 1
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
-        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
+        mesh = rprblender.export.extract_mesh(blender_mesh)
         assert 1 == list(mesh['data']['faces_materials']).count(1)
         assert 5 == list(mesh['data']['faces_materials']).count(0)
 
@@ -1939,7 +1939,7 @@ class TestExtractMesh:
         bpy.context.object.data.fill_mode = 'BOTH'
         blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)  # type: bpy.types.Mesh
         assert 46 == len(blender_mesh.polygons)
-        mesh = rprblender.export.extract_mesh(blender_mesh, 1)
+        mesh = rprblender.export.extract_mesh(blender_mesh)
         assert 184 == len(mesh['data']['indices'])
 
     @pytest.mark.skipif(condition=not pytest.config.option.perf, reason='this is for simple profiling of export code')
@@ -1955,7 +1955,7 @@ class TestExtractMesh:
             blender_mesh = rprblender.export.get_blender_mesh(bpy.context.scene, bpy.context.object)
         with TimedContext("extract_mesh"):
             # s = cProfile.runctx("rprblender.export.extract_mesh(blender_mesh)", globals(), locals(), sort='cumulative')
-            mesh = rprblender.export.extract_mesh(blender_mesh, 1)
+            mesh = rprblender.export.extract_mesh(blender_mesh)
         assert 3305124 == len(mesh['data']['indices'])
 
 
