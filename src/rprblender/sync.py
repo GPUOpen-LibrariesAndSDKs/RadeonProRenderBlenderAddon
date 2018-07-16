@@ -601,26 +601,18 @@ class SceneSynced:
 
     @call_logger.logged
     def remove_material(self, key):
-        if key not in self.materialsNodes:
-            log_mat("remove_material : key %s not found" % key)
-            return
-        log_mat(self.materialsNodes)
-        rpr_material = self.materialsNodes.pop(key)
-        rpr_material.clear();
-        log_mat("remove_material : ok (key: %s)" % key)
+        if key in self.materialsNodes:
+            self.materialsNodes.pop(key)
 
     @call_logger.logged
     def remove_material_from_mesh(self, obj_key, material_key):
         log_mat('remove_material_from_mesh')
         if not obj_key in self.objects_synced:
-            # log_mat("assign_material_to_mesh : Object (key: %s) not exist: " % obj_key)
             return
         shape = self.get_core_obj(obj_key)
 
         if material_key in self.materialsNodes:
-            material = self.materialsNodes[material_key]
-            if material != None and material.shader != None and material.shader.type == ShaderType.UBER2:
-                pyrprx.xShapeDetachMaterial(material.shader.rprx_context, shape, material.shader.get_handle())
+            self.materialsNodes[material_key].detach_from_shape(shape)
 
         pyrpr.ShapeSetMaterial(shape, None)
 
