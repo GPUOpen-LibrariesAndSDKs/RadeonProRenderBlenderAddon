@@ -624,22 +624,25 @@ class UberShader2(Shader):
 
 
 class Material:
-    shader = None
-    manager = None
-    volume_handle = None
-    displacement = None
 
     def __init__(self, manager):
+        self.shader = None
         self.manager = manager
         self.node_list = []
         self.reroute_list = {}
         self.node_groups_list = {}
         self.has_error = False
+        self.volume_handle = None
+        self.displacement = None
 
     def __del__(self):
         if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
             pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
-            self.shader.rprx_context = None
+
+    def detach_from_shape(self, shape):
+        if self.shader != None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
+            pyrprx.ShapeDetachMaterial(self.shader.rprx_context, shape, self.shader.get_handle())
+        self.shader = None  # this requires to prevent calling MaterialDelete if ShapeDetachMaterial was called
 
     def get_handle(self):
         return None if self.shader == None else self.shader.get_handle()
@@ -1714,9 +1717,6 @@ class Material:
         logging.warn(args, tag='material')
         self.has_error = True
 
-    def simple(self):
-        self.shader = DiffuseShader(self)
-
     def parse(self, blender_mat):
         if blender_mat is None:
             return
@@ -1890,14 +1890,6 @@ class Material:
         if hasattr(volume, 'shader_blend'):
             return self.blend_shader(transparent_shader, shader, volume.shader_blend)
         return transparent_shader
-
-    def clear(self):
-        self.node_list.clear()
-        if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
-            pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
-            self.shader.rprx_context = None
-        self.shader = None
-        self.volume_handle = None
 
     ########################################################################################################################
     # Maths
