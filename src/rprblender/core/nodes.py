@@ -1400,9 +1400,9 @@ class Material:
             log_mat("parse_texture_node_get_image : image is empty")
             return None
 
-        return self.parse_image(img, blender_node.color_space_type)
+        return self.parse_image(img, blender_node.color_space_type, blender_node.wrap_type)
 
-    def parse_image(self, source_image, color_space_type):
+    def parse_image(self, source_image, color_space_type, wrap_type=None):
         log_mat('Parse : image map "%s"...' % source_image.filepath)
         context = self.manager.get_core_context()
         image = Image(rprblender.core.image.get_core_image_for_blender_image(context, source_image))
@@ -1410,6 +1410,10 @@ class Material:
             pyrpr.ImageSetGamma(image.get_handle(), 2.2)
         else:
             pyrpr.ImageSetGamma(image.get_handle(), 1)
+
+        if wrap_type:
+            wrap_type = 'IMAGE_WRAP_TYPE_' + wrap_type
+            pyrpr.ImageSetWrap(image.get_handle(), getattr(pyrpr, wrap_type))
 
         self.node_list.append(image.handle)
         return ValueImage(image)
