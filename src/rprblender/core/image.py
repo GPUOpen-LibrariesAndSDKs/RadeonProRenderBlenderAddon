@@ -58,11 +58,19 @@ def create_core_downscaled_image_from_blender_image(context, blender_image, imag
 
 @logged
 def create_core_image_from_blender_image(context, blender_image, image_size):
-    logging.debug("create_core_image_from_blender_image: %s, path: %s, lib: %s, cur_size=(%d, %d)" %(
+    # logging.debug("create_core_image_from_blender_image: %s, path: %s, lib: %s, cur_size=(%d, %d)" %(
+    #               blender_image.name,
+    #               blender_image.filepath,
+    #               blender_image.library.filepath if blender_image.library else "<none>",
+    #               blender_image.size[0], blender_image.size[1]),
+    #               tag="core.image")
+
+    # the above version of the call takes as long to check size if file is external, as 
+    # to parse the texture.  Uncomment if needed for debugging.
+    logging.debug("create_core_image_from_blender_image: %s, path: %s, lib: %s" %(
                   blender_image.name,
                   blender_image.filepath,
-                  blender_image.library.filepath if blender_image.library else "<none>",
-                  blender_image.size[0], blender_image.size[1]),
+                  blender_image.library.filepath if blender_image.library else "<none>"),
                   tag="core.image")
     fpath = Path(bpy.path.abspath(blender_image.filepath, library=blender_image.library))
     logging.debug("full path:", fpath, tag="core.image")
