@@ -96,6 +96,9 @@ class SceneRenderer:
         self.render_targets = rprblender.render.device.RenderTargets(self.render_device, self.resolution)
         self.render_layers = rprblender.render.render_layers.RenderLayers(
             self.aov_settings, self.render_targets, self.is_production)
+        # update transparent background
+        pyrpr.ContextSetParameter1u(self.get_core_context(), b"transparentbackground",
+                                        int(self.render_layers.alpha_combine))
 
         if self.has_shadowcatcher:
             self.render_layers.enable_aov('opacity')

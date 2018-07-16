@@ -187,14 +187,6 @@ def draw_lamp_settings(self, context):
         draw_intensity(self.layout.box())
 
 
-########################################################################################################################
-# Render panel
-########################################################################################################################
-def draw_settings(self, context):
-    if context.scene.render.engine == 'RPR':
-        self.layout.prop(get_render_passes_aov(context), "transparent")
-
-
 from . import helpers
 
 
@@ -1533,7 +1525,6 @@ def register():
     logging.info("ui.register()")
     AboutPanelHelper.instance = AboutPanelHelper()
 
-    bpy.types.RENDER_PT_render.append(draw_settings)
     bpy.types.DATA_PT_context_lamp.append(draw_lamp_settings)
 
     bpy.types.INFO_MT_file_export.append(add_rpr_export_menu_item)
@@ -1547,7 +1538,6 @@ def unregister():
     del AboutPanelHelper.instance
 
     bpy.types.DATA_PT_context_lamp.remove(draw_lamp_settings)
-    bpy.types.RENDER_PT_render.remove(draw_settings)
 
     bpy.types.INFO_MT_file_export.remove(add_rpr_export_menu_item)
 
