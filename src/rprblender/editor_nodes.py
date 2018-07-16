@@ -1209,12 +1209,25 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
     mapping_in = 'Mapping'
 
     # items for texture gamma
+
     items = (('Linear', "Linear", "Linear"),
              ('sRGB', "sRGB", "sRGB"))
-
     color_space_type = bpy.props.EnumProperty(name='Color Space',
                                   items=items,
                                   default='Linear')
+
+
+    # items for texture wrap
+    wrap_items = (('REPEAT', "Repeat", "Repeating Texture"),
+             ('MIRRORED_REPEAT', "Mirror", "Texture mirrors outside of 0-1"),
+             ('CLAMP_TO_EDGE', "Clamp to Edge", "Clamp to Edge.  Outside 0-1 the texture will smear."),
+             # redundant to clamp_zero ('CLAMP_TO_BORDER', "Clamp to Border", "Clamp to Border"),
+             ('CLAMP_ZERO', "Clamp to Black", "Clamp to Black outside 0-1"),
+             ('CLAMP_ONE', "Clamp to White", "Clamp to White outside 0-1"),)
+
+    wrap_type = bpy.props.EnumProperty(name='Wrap Type',
+                                  items=wrap_items,
+                                  default='REPEAT')
 
     def generate_preview(self, context):
         name = self.name + '_' + self.id_data.name
@@ -1281,6 +1294,7 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
             layout.template_icon_view(self, 'preview', show_labels=True)
 
         layout.prop(self, 'color_space_type')
+        layout.prop(self, 'wrap_type')
 
     def draw_label(self):
         img = self.get_image()
