@@ -564,8 +564,16 @@ class RPREngine(bpy.types.RenderEngine):
 
         if self.texture:
             zoom = viewport_renderer.scene_renderer.get_image_tile()
+
+            if self.support_display_space_shader(context.scene):
+                # This is the fragment shader that applies Blender color management
+                self.bind_display_space_shader(context.scene)
+
             viewportdraw.draw_image_texture(self.texture, render_resolution,
                                             zoom if zoom is not None else (1, 1))
+
+            if self.support_display_space_shader(context.scene):
+                self.unbind_display_space_shader()
 
     def get_view_render_region(self, context):
         if 'CAMERA' == context.region_data.view_perspective:
