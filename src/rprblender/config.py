@@ -25,8 +25,6 @@ url_json_version = 'https://radeon-prorender.github.io/rpr_renderer_plugin_blend
 
 ramp_buffer_size = 256
 
-viewport_display_gamma = 2.2
-
 try:
     # configdev.py example for logging setup:
     # from . import logging

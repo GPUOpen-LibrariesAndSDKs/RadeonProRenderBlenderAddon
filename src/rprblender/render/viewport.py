@@ -62,7 +62,6 @@ class ViewportRenderer:
         render_device = rprblender.render.get_render_device(is_production=is_production, has_denoiser=has_denoiser)
         self.scene_renderer = rprblender.render.scene.SceneRenderer(render_device, scene.rpr.render, is_production=is_production)
         self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
-        # pyrpr.ContextSetParameter1f(self.scene_renderer.get_core_context(), b'displaygamma', 2.2)
 
         # searching for shadow catcher in scene
         for obj in scene.objects:

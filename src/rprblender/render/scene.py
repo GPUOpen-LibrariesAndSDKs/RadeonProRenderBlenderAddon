@@ -195,22 +195,12 @@ class SceneRenderer:
 
         return True
 
-    def update_gamma_correction(self, settings, post_effect_update):
-        if self.production_render:
-            return
-
-        post_effect_update.enable(pyrpr.POST_EFFECT_GAMMA_CORRECTION)
-        pyrpr.ContextSetParameter1f(self.get_core_context(), b'displaygamma', config.viewport_display_gamma)
-
 
     def render_proc(self):
         yield from self._render_proc()
 
     def _render_proc(self):
-
         from rprblender import properties
-
-        #raise Exception("hello from render_proc")
 
         rs = self.render_settings
 
@@ -469,7 +459,6 @@ class SceneRenderer:
             settings = self.render_settings
             self.update_tone_mapping(settings, post_effect_update)
             self.update_white_balance(settings, post_effect_update)
-            self.update_gamma_correction(settings, post_effect_update)
 
         if self.has_denoiser and aov_name == 'default':
             return self._get_filtered_image(frame_buffer)
@@ -485,7 +474,6 @@ class SceneRenderer:
         settings = self.render_settings
         self.update_tone_mapping(settings, post_effect_update)
         self.update_white_balance(settings, post_effect_update)
-        self.update_gamma_correction(settings, post_effect_update)
 
         if self.has_denoiser:
             image_den = self._get_filtered_image(self.get_shadowcatcher_framebuffer())
