@@ -238,7 +238,7 @@ class RenderDevice:
                                                 self.rif_context)
             elif creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_METAL:
                  pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_METAL,
-                                                 pyrprimagefilters.PROCESSOR_CPU, 0, pyrprimagefilters.ffi.NULL,
+                                                 pyrprimagefilters.PROCESSOR_GPU, 0, pyrprimagefilters.ffi.NULL,
                                                  self.rif_context)
             else:
                 # Obtain OpenCL context
