@@ -84,8 +84,6 @@ class RPREngine(bpy.types.RenderEngine):
             logging.debug('stopping:', viewport_renderer)
             viewport_renderer.stop()
 
-        export.prev_world_matrices_cache.purge()
-
     def update(self, data=None, scene=None):  # Export scene data for render
         if self.is_preview:
             logging.debug("create scene for preview render")
@@ -304,9 +302,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         finally:
             scene_synced.destroy()
-            del scene_synced
-            del scene_renderer
-            del render_device
+            export.prev_world_matrices_cache.purge()
             #rprblender.render.free_render_devices()
 
     @staticmethod
