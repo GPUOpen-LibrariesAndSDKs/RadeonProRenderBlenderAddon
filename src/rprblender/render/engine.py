@@ -166,7 +166,8 @@ class RPREngine(bpy.types.RenderEngine):
 
         render_camera = sync.RenderCamera()
         sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings,
-                                                       scene, border=border)
+                                                       scene, border=border, 
+                                                       camera_offset=(scene.camera.data.shift_x, scene.camera.data.shift_y))
 
         scene_synced.set_render_camera(render_camera)
 

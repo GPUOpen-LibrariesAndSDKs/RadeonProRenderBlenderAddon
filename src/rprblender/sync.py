@@ -1258,31 +1258,33 @@ def get_render_resolution_for_border(border, render_resolution):
 @call_logger.logged
 def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
                                               render_camera, render_resolution, zoom, settings, scene,
-                                              border, view_offset=(0, 0)):
+                                              border, view_offset=(0, 0), camera_offset = (0,0)):
+    
     data = active_camera.data  # type: bpy.types.Camera
 
     # Blender defines sensor size either horizontal or vertical, or dependent on dominating resolution
     sensor_fit_horizontal = 'HORIZONTAL' == data.sensor_fit or ('AUTO' == data.sensor_fit
                                                                 and render_resolution[0] > render_resolution[1])
-    width, height = render_resolution
+    aspect = render_resolution[0] / render_resolution[1]
 
     if border is not None:
+        #TODO: this is not fully correct algorithm here, created bug RPRBLND-442
+
         # fixup camera to render border - shifting and zooming in to border position and size
         border = np.array(border, dtype=np.float32)
         border_size = border[:, 1] - border[:, 0]
 
-        width *= border_size[0]
-        height *= border_size[1]
-
         render_camera.shift = 0.5*(border[:, 1]+border[:, 0]-1)/border_size
         sensor_side = 0 if sensor_fit_horizontal else 1
+        # add the camera shift offset, scaled by the size of the crop window
+        render_camera.shift += np.array([camera_offset[0] / border_size[0], 
+                                         camera_offset[1] / border_size[1] * aspect], dtype=np.float32)
     else:
-        render_camera.shift = np.array((0, 0), dtype=np.float32)
+        # if a camera shift is on simply use that
+        render_camera.shift = np.array([camera_offset[0] / zoom, camera_offset[1] * aspect / zoom], dtype=np.float32)
 
     render_camera.shift += np.array(view_offset)*2/zoom
-
-    aspect = width / height
-
+    
     render_camera.matrix_world = np.array(active_camera.matrix_world, dtype=np.float32)
 
     get_dof_data(render_camera, active_camera, settings)
@@ -1356,12 +1358,13 @@ def extract_viewport_render_camera(context: bpy.types.Context, settings):
         # see blender/intern/cycles/blender/blender_camera.cpp:blender_camera_from_view (look for 1.41421f)
         zoom = 2 * 2 / (math.sqrt(2) + context.region_data.view_camera_zoom / 50.0) ** 2
         logging.debug("context.region_data.view_camera_zoom:", context.region_data.view_camera_zoom, zoom, tag='sync')
-
         extract_render_camera_from_blender_camera(context.scene.camera,
                                                   render_camera,
                                                   render_resolution, zoom, context.scene.rpr.render, context.scene,
                                                   border=None,
-                                                  view_offset=tuple(context.region_data.view_camera_offset))
+                                                  view_offset=tuple(context.region_data.view_camera_offset),
+                                                  camera_offset=(context.scene.camera.data.shift_x,
+                                                                 context.scene.camera.data.shift_y))
     elif 'PERSP' == context.region_data.view_perspective:
         render_camera.type = 'PERSP'
         render_camera.matrix_world = np.array(context.region_data.view_matrix.inverted(), dtype=np.float32)
