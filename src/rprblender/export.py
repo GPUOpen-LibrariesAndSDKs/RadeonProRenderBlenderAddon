@@ -661,6 +661,8 @@ class ObjectsSyncFrame:
     def update_object_materials_if_material_was_updated(self, obj):
         materials = get_materials(obj)
         for material_index, material in enumerate(materials):
+            if not material:
+                continue
             mat_key = get_object_key(material)
             if self.was_material_updated(mat_key):
                 self.update_object_material(get_object_key(obj), material, material_index)
