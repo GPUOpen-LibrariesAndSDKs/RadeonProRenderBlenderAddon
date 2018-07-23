@@ -981,7 +981,7 @@ def export_gltf_model(filepath):
             if not type(key) is tuple:
                 continue
 
-            blender_obj = scene_exporter.objects_sync.object_instances[key[0]].object_mesh.blender_obj
+            blender_obj = scene_exporter.objects_sync.object_instances[key[0]].blender_obj
             group_name = ("Group_" + blender_obj.parent.name) if blender_obj.parent else "Root"
             pyrprgltf.GLTF_AssignShapeToGroup(core_shape.core_obj, group_name.encode('latin1'))
 
