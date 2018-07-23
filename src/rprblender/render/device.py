@@ -198,7 +198,6 @@ class RenderDevice:
         self.post_effects = {}
 
         self.render_target = None  # type:RenderTargets
-        self.rif_context = None
 
         self.update_downscaled_image_size(is_production)
 
@@ -209,67 +208,11 @@ class RenderDevice:
         images.core_downscaled_image_cache.purge_for_context(self.core_context)
         del images.downscaled_image_size[self.core_context]
 
-        del self.core_material_system
-        del self.post_effects
-
         pyrprx.DeleteContext(self.core_uber_rprx_context)
-        del self.core_uber_rprx_context
 
         if config.debug:
             referrers = gc.get_referrers(self.core_context)
             assert 1 == len(referrers), (referrers, self.core_context)
-
-    # rif context used for denoising
-    def create_rif_context(self):
-        if self.rif_context:
-            return
-
-        try:
-            creation_flags = pyrpr.ffi.new("rpr_creation_flags*", 0)
-            pyrpr.ContextGetInfo(self.core_context, pyrpr.CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags),
-                                 creation_flags, pyrpr.ffi.NULL)
-
-            self.rif_context = pyrprimagefilters.RifContext()
-
-            # Todo : remove this when image filters supports metal
-            if creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_CPU:
-                pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_OPENCL,
-                                                pyrprimagefilters.PROCESSOR_CPU, 0, pyrprimagefilters.ffi.NULL,
-                                                self.rif_context)
-            elif creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_METAL:
-                 pyrprimagefilters.CreateContext(pyrprimagefilters.API_VERSION, pyrprimagefilters.BACKEND_API_METAL,
-                                                 pyrprimagefilters.PROCESSOR_GPU, 0, pyrprimagefilters.ffi.NULL,
-                                                 self.rif_context)
-            else:
-                # Obtain OpenCL context
-                cl_context = pyrpropencl.ffi.new("rpr_cl_context*")
-                pyrpr.ContextGetInfo(self.core_context, pyrpropencl.CONTEXT, sys.getsizeof(cl_context),
-                                    cl_context, pyrpropencl.ffi.NULL)
-
-                cl_device = pyrpropencl.ffi.new("rpr_cl_device*")
-                pyrpr.ContextGetInfo(self.core_context, pyrpropencl.DEVICE, sys.getsizeof(cl_device),
-                                     cl_device, pyrpropencl.ffi.NULL)
-
-                cl_command_queue = pyrpropencl.ffi.new("rpr_cl_command_queue*")
-                pyrpr.ContextGetInfo(self.core_context, pyrpropencl.COMMAND_QUEUE, sys.getsizeof(cl_command_queue),
-                                     cl_command_queue, pyrpropencl.ffi.NULL)
-
-                pyrprimagefilters.CreateContextFromOpenClContext(pyrprimagefilters.API_VERSION, cl_context[0], cl_device[0],
-                                                                 cl_command_queue[0], pyrprimagefilters.ffi.NULL,
-                                                                 self.rif_context)
-
-            # Create command queue for filtering
-            self.rif_command_queue = pyrprimagefilters.RifCommandQueue()
-            pyrprimagefilters.ContextCreateCommandQueue(self.rif_context, self.rif_command_queue)
-
-        except pyrpr.CoreError:
-            self.rif_context = None
-            logging.error("Denoiser will not work, hardware is not entirely supported this release.", tag="device.create_rif_context")
-            raise
-
-
-    def get_rif_context(self):
-        return self.rif_context
 
     def attach_render_target(self, render_target):
         if self.render_target:

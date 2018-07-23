@@ -806,7 +806,7 @@ class DenoiserSettings(bpy.types.PropertyGroup):
         min = 1, max = 50, default = 1
     )
     p_sigma = bpy.props.FloatProperty(
-        name="Color Sigma", description="Threshold for detecting position differences",
+        name="Position Sigma", description="Threshold for detecting position differences",
         min = 0.0, soft_max = 1.0, default = .1
     )
 
@@ -847,11 +847,6 @@ class DenoiserSettings(bpy.types.PropertyGroup):
         min = 0.0, max = 1.0, default = .1
     )
 
-    import pyrprimagefilters
-    filter_type_values = {"bilateral": pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE,
-                          "lwr": pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE,
-                          "eaw": pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE,
-                          }
 
 ########################################################################################################################
 # Depth of Field

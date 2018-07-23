@@ -17,12 +17,11 @@ import rprblender.render.device
 from rprblender import helpers, config
 from rprblender import logging
 from rprblender.helpers import CallLogger
+from rprblender import image_filter
 
 import pyrprimagefilters
 import pyrpropencl
 import numpy as np
-
-from rprblender.render import denoiser
 
 call_logger = CallLogger(tag='render.scene')
 
@@ -62,8 +61,7 @@ class SceneRenderer:
         self.tile_image = None
         self.has_shadowcatcher = False
         self.has_denoiser = False
-        self.denoiser = None
-        self.is_filter_attached = False
+        self.image_filter = None
 
         self.is_production = is_production
         self.used_iterations = 1
@@ -71,9 +69,6 @@ class SceneRenderer:
 
     @call_logger.logged
     def __del__(self):
-        if self.is_filter_attached:
-            del self.denoiser
-
         self.render_layers = None
         if self.render_targets is not None:
             self.render_device.detach_render_target(self.render_targets)
@@ -108,13 +103,68 @@ class SceneRenderer:
         self.render_device.attach_render_target(self.render_targets)
 
         if self.has_denoiser:
-            # Create separate filtered image buffer
-            width, height = self.render_targets.render_resolution
-            
-            self.denoiser = denoiser.Denoiser(self.render_layers, self.render_device, self.render_settings.denoiser, self.get_core_context())
-            self.is_filter_attached = True
+            self._setup_image_filter()
 
-            
+    def _setup_image_filter(self):
+        def fb(name):
+            self.render_layers.enable_aov(name)
+            return self.render_targets.get_frame_buffer(name)
+
+        settings = self.render_settings.denoiser
+        width, height = self.render_targets.render_resolution
+
+        if settings.filter_type == 'bilateral':
+            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+                                        image_filter.RifFilterType.Bilateral, width, height)
+
+            fb_color = self.image_filter.resolved_framebuffer()
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, settings.color_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), settings.normal_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), settings.p_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb('object_id'), settings.trans_sigma)
+
+            self.image_filter.add_param('radius', settings.radius)
+
+        elif settings.filter_type == 'eaw':
+            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+                                        image_filter.RifFilterType.Eaw, width, height)
+
+            fb_color = self.image_filter.resolved_framebuffer()
+            fb_trans = fb_object_id = fb('object_id')
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, settings.color_sigma);
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), settings.normal_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Depth, fb('depth'), settings.depth_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Trans, fb_trans, settings.trans_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb_object_id, 0.1)
+
+        elif settings.filter_type == 'lwr':
+            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+                                        image_filter.RifFilterType.Lwr, width, height)
+
+            fb_color = self.image_filter.resolved_framebuffer()
+            fb_trans = fb_object_id = fb('object_id')
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Depth, fb('depth'), 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb_object_id, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Trans, fb_trans, 0.1)
+
+            self.image_filter.add_param('samples', settings.samples);
+            self.image_filter.add_param('halfWindow', settings.half_window);
+            self.image_filter.add_param('bandwidth', settings.bandwidth);
+
+        self.image_filter.attach_filter()
+
+    
+    def _get_filtered_image(self, frame_buffer):
+        pyrpr.ContextResolveFrameBuffer(self.get_core_context(), frame_buffer, self.image_filter.resolved_framebuffer())
+
+        self.image_filter.run()
+        return self.image_filter.get_data()
+
+
     @call_logger.logged
     def update_render_region(self, render_region):
         self.region = render_region
@@ -198,7 +248,6 @@ class SceneRenderer:
 
     def render_proc(self):
         yield from self._render_proc()
-
     def _render_proc(self):
         from rprblender import properties
 
@@ -462,8 +511,8 @@ class SceneRenderer:
 
         if self.has_denoiser and aov_name == 'default':
             return self._get_filtered_image(frame_buffer)
-        else:
-            return self.render_targets.get_resolved_image(frame_buffer)
+
+        return self.render_targets.get_resolved_image(frame_buffer)
 
     def _get_shadow_catcher_image(self):
         post_effect_chain = self.posteffect_chain
@@ -476,15 +525,9 @@ class SceneRenderer:
         self.update_white_balance(settings, post_effect_update)
 
         if self.has_denoiser:
-            image_den = self._get_filtered_image(self.get_shadowcatcher_framebuffer())
-            return image_den
+            return self._get_filtered_image(self.get_shadowcatcher_framebuffer())
 
-        image = self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
-        return image
-
-    def _get_filtered_image(self, frame_buffer):
-        self.denoiser.update_iterations(self.iteration_in_progress)
-        return self.denoiser.execute(frame_buffer)
+        return self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
 
     @call_logger.logged
     def get_shadowcatcher_framebuffer(self):
