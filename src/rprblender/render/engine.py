@@ -135,8 +135,7 @@ class RPREngine(bpy.types.RenderEngine):
         settings = bpy.context.scene.rpr.render_preview if self.is_preview else scene.rpr.render
 
         with rprblender.render.core_operations(raise_error=True):
-            render_device = rprblender.render.get_render_device(is_production=not self.is_preview, persistent=True, 
-                                has_denoiser=settings.denoiser.enable)
+            render_device = rprblender.render.get_render_device(is_production=not self.is_preview, persistent=True)
             render_device.update_downscaled_image_size(not self.is_preview)
             scene_renderer = rprblender.render.scene.SceneRenderer(render_device, settings, not self.is_preview)
 
@@ -147,9 +146,6 @@ class RPREngine(bpy.types.RenderEngine):
                 break
 
         scene_renderer.has_denoiser = settings.denoiser.enable
-
-        if settings.denoiser.enable:
-            scene_renderer.filter_type = settings.denoiser.filter_type_values[settings.denoiser.filter_type]
 
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
 

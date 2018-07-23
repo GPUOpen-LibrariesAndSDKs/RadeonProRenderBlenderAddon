@@ -209,30 +209,22 @@ if support_path not in sys.path:
 render_devices = {}
 
 
-def get_render_device(is_production=True, persistent=False, has_denoiser=False):
+def get_render_device(is_production=True, persistent=False):
     import rprblender.render.device
 
     flags = rprblender.render.get_context_creation_flags(is_production)
-
-    if has_denoiser and (flags & pyrpr.CREATION_FLAGS_ENABLE_CPU):
-        raise ValueError("Denoiser is not supported with CPU render mode.")
-
     logging.debug("get_render_device(is_production=%s), flags: %s" %(is_production, hex(flags)), tag='render.device')
 
     if persistent:
         key = (is_production, flags)
 
         if key in render_devices:
-            device = render_devices[key]
-            if has_denoiser:
-                device.create_rif_context()
             return render_devices[key]
+
         render_devices.clear()  # don't keep more than one device(not to multiply memory usage for image cache)
 
     logging.debug("create new device, not found in cache:", render_devices, tag='render.device')
     device = rprblender.render.device.RenderDevice(is_production=is_production, context_flags=flags)
-    if has_denoiser:
-        device.create_rif_context()
     if persistent:
         render_devices[key] = device
     return device

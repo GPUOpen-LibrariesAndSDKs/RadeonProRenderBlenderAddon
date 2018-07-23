@@ -778,26 +778,25 @@ class RPRRender_PT_Denoiser(RPRPanel, Panel):
         row = col.row()
         row.prop(settings, "filter_type")
 
-        import pyrprimagefilters
-        if settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_BILATERAL_DENOISE:
+        if settings.filter_type == 'bilateral':
             col.prop(settings, "radius")
             col.prop(settings, 'color_sigma', slider=True)
             col.prop(settings, 'normal_sigma', slider=True)
             col.prop(settings, 'p_sigma', slider=True)
             col.prop(settings, 'trans_sigma', slider=True)
-        elif settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_EAW_DENOISE:
+        elif settings.filter_type == 'eaw':
             col.prop(settings, 'color_sigma', slider=True)
             col.prop(settings, 'normal_sigma', slider=True)
             col.prop(settings, 'depth_sigma', slider=True)
             col.prop(settings, 'trans_sigma', slider=True)
-        elif settings.filter_type_values[settings.filter_type] == pyrprimagefilters.IMAGE_FILTER_LWR_DENOISE:
+        elif settings.filter_type == 'lwr':
             col.prop(settings, 'samples', slider=True)
             col.prop(settings, 'half_window', slider=True)
             col.prop(settings, 'bandwidth', slider=True)
         
         row = col.row()
         row.prop(settings, "enable_viewport")
-        row.prop(settings, "scale_by_iterations")
+        #row.prop(settings, "scale_by_iterations")
 
 
 def draw_camera_settings(camera, layout):

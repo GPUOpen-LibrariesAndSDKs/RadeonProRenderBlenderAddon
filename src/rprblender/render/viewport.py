@@ -35,16 +35,10 @@ class ViewportRenderer:
 
     @call_logger.logged
     def __del__(self):
-        self.scene_exporter = None
-        self.scene_renderer_threaded = None
-
         self.scene_synced.destroy()
         if config.debug:
             referrers = gc.get_referrers(self.scene_synced)
             assert 1 == len(referrers), referrers
-        self.scene_synced = None
-
-        self.scene_renderer = None
 
     def get_image(self, pass_name='default'):
         with self.scene_renderer_threaded.image_lock:
@@ -59,7 +53,7 @@ class ViewportRenderer:
 
         has_denoiser = scene.rpr.render.denoiser.enable and \
                        (is_production or scene.rpr.render.denoiser.enable_viewport)
-        render_device = rprblender.render.get_render_device(is_production=is_production, has_denoiser=has_denoiser)
+        render_device = rprblender.render.get_render_device(is_production=is_production)
         self.scene_renderer = rprblender.render.scene.SceneRenderer(render_device, scene.rpr.render, is_production=is_production)
         self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
 
@@ -71,9 +65,6 @@ class ViewportRenderer:
                 break
 
         self.scene_renderer.has_denoiser = has_denoiser
-        if self.scene_renderer.has_denoiser:
-            filter_type_value = bpy.context.scene.rpr.render.denoiser.filter_type
-            self.scene_renderer.filter_type = bpy.context.scene.rpr.render.denoiser.filter_type_values[filter_type_value]
 
         self.scene_renderer_threaded.set_aov(self.render_aov)
         self.scene_renderer_threaded.set_render_resolution(self.render_resolution)
