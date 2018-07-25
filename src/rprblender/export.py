@@ -266,7 +266,6 @@ class ObjectsSync:
 
     def update_material(self, sumbesh_keys, blender_mat):
         log_sync('update_material', sumbesh_keys, blender_mat)
-
         key = get_object_key(blender_mat) if blender_mat else None
 
         for submesh_key in sumbesh_keys:
@@ -770,6 +769,8 @@ class SceneExport:
             yield from self._export_objects(self.scene.objects)
             yield '<environment>'
             self.sync_environment()
+            yield '<materials>'
+            self.scene_synced.commit_materials()
         except:
             logging.critical(traceback.format_exc(), tag='export')
             raise
@@ -954,6 +955,7 @@ class SceneExport:
                                 if slot.material == mat:
                                     objects_for_material.append((get_object_key(obj), material_index))
                     self.objects_sync.update_material(objects_for_material, mat)
+                    self.scene_synced.commit_material(get_object_key(mat))
 
         scene_objects = set(self.scene.objects)
 
