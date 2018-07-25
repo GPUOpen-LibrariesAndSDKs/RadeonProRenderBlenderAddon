@@ -51,6 +51,7 @@ class EnvironmentLight:
     def attach(self):
         logging.debug('EnvironmentLight re-attach', self.name, tag='sync')
         pyrpr.SceneAttachLight(self.scene_synced.get_core_scene(), self.core_environment_light)
+        pyrpr.ObjectSetName(self.core_environment_light._get_handle(), "Environment".encode('latin1'))
         self.attached = True
         self.scene_synced.ibls_attached.add(self)
 
@@ -666,8 +667,9 @@ class SceneSynced:
             pyrprx.xMaterialCommit(rpr_material.shader.rprx_context, shader)
         else:
 
-            volume = rpr_material.get_volume()
-            pyrpr.ShapeSetMaterial(shape, shader)
+            if shader:
+                pyrpr.ShapeSetMaterial(shape, shader)
+                pyrpr.ObjectSetName(shader._get_handle(), rpr_material.name.encode('latin1'))
 
             volume = rpr_material.get_volume()
             if volume:
@@ -931,23 +933,23 @@ class SceneSynced:
         self.remove_shape(obj_key)
 
     @call_logger.logged
-    def add_mesh_instance(self, key, mesh_key, matrix_world):
+    def add_mesh_instance(self, key, mesh_key, matrix_world, name):
         logging.debug('add_mesh_instance:', key, mesh_key, matrix_world)
 
-        core_instance = pyrpr.Shape()
+        shape = pyrpr.Shape()
         pyrpr.ContextCreateInstance(
             self.get_core_context(),
             self.get_synced_obj(mesh_key).core_obj,
-            core_instance
+            shape
         )
 
-        shape = core_instance
-        pyrpr.SceneAttachShape(self.get_core_scene(), shape);
+        pyrpr.SceneAttachShape(self.get_core_scene(), shape)
+        pyrpr.ObjectSetName(shape._get_handle(), name.encode('latin1'))
 
         self.shape_set_transform(shape, matrix_world)
 
-        self.add_synced_obj(key, core_instance)
-        self.meshes.add(core_instance)
+        self.add_synced_obj(key, shape)
+        self.meshes.add(shape)
 
     @call_logger.logged
     def remove_mesh_instance(self, obj_key):
@@ -969,10 +971,6 @@ class SceneSynced:
 
     @call_logger.logged
     def hide_mesh(self, obj_key):
-        logging.debug('hide_mesh:', obj_key)
-
-        assert obj_key in self.objects_synced
-
         obj_synced = self.get_synced_obj(obj_key)
 
         obj_synced.hidden = True
@@ -981,18 +979,14 @@ class SceneSynced:
 
     @call_logger.logged
     def show_mesh(self, obj_key):
-        logging.debug('show_mesh:', obj_key)
-
-        assert obj_key in self.objects_synced
-
         obj_synced = self.get_synced_obj(obj_key)
-        if not obj_synced.hidden: return
+        if not obj_synced.hidden: 
+            return
 
         obj_synced.hidden = False
         pyrpr.SceneAttachShape(self.get_core_scene(),
                                self.get_core_obj(obj_key))
 
-        logging.debug('show_mesh: reattached')
 
     @call_logger.logged
     def update_mesh_transform(self, key, matrix_world):

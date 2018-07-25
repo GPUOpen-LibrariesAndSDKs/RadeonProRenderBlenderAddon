@@ -891,6 +891,7 @@ def export_rpr_model(context, filepath):
 
     render_device = rprblender.render.get_render_device()
     scene_synced = sync.SceneSynced(render_device, settings)
+    export.prev_world_matrices_cache.update(scene)
 
     render_resolution = (640, 480)
 
@@ -917,9 +918,8 @@ def export_rpr_model(context, filepath):
     except:
         logging.error("Export failed with an exception")
     finally:
-        del scene_exporter
         scene_synced.destroy()
-        del scene_synced
+        export.prev_world_matrices_cache.purge()
 
     return {'FINISHED'}
 
@@ -958,6 +958,7 @@ def export_gltf_model(filepath):
     scene = bpy.context.scene
     settings = scene.rpr.render
     scene_synced = sync.SceneSynced(render_device, settings)
+    export.prev_world_matrices_cache.update(scene)
 
     render_resolution = (640, 480)
 
@@ -994,6 +995,7 @@ def export_gltf_model(filepath):
                                rpr_scene_array._handle_ptr, 1)
     finally:
         scene_synced.destroy()
+        export.prev_world_matrices_cache.purge()
 
     return {'FINISHED'}
 

@@ -634,6 +634,7 @@ class Material:
         self.has_error = False
         self.volume_handle = None
         self.displacement = None
+        self.name = ""
 
     def __del__(self):
         if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
@@ -1722,9 +1723,8 @@ class Material:
         self.has_error = True
 
     def parse(self, blender_mat):
-        if blender_mat is None:
-            return
         log_mat("parse : " + blender_mat.name)
+        self.name = blender_mat.name
         self.output_node_was_parsed = False
         self.node_group_stack = []
         blender_node = self.get_start_node(blender_mat)
