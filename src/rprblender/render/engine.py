@@ -148,6 +148,7 @@ class RPREngine(bpy.types.RenderEngine):
         scene_renderer.has_denoiser = settings.denoiser.enable
 
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
+        export.prev_world_matrices_cache.update(scene)
 
         scene_renderer.production_render = True
 
@@ -156,7 +157,6 @@ class RPREngine(bpy.types.RenderEngine):
         border = rprblender.sync.extract_render_border_from_scene(scene)
         render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, render_resolution)
 
-        export.prev_world_matrices_cache.update(scene)
 
         render_camera = sync.RenderCamera()
         sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings,

@@ -347,7 +347,7 @@ class ObjectsSync:
 
         for i in mesh_instance.materials_assigned:
             instance.materials_assigned[i] = True
-            self.scene_synced.add_mesh_instance((key, i), (mesh_key, i), matrix)
+            self.scene_synced.add_mesh_instance((key, i), (mesh_key, i), matrix, instance.blender_obj.name)
 
         for material_index in mesh_instance.materials_assigned:
             prototype_submesh_key = prototype_key, material_index
