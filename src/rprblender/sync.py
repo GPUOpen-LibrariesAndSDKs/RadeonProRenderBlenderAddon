@@ -658,7 +658,7 @@ class SceneSynced:
 
     def commit_materials(self):
         for key,rpr_material in self.materialsNodes.items():
-            self._commit_material(rpr_material)
+            self.commit_material(key)
 
     def commit_material(self, mat_key):
         log_mat('commit material...')
@@ -668,13 +668,11 @@ class SceneSynced:
             # log_mat("assign_material_to_mesh : Material (key: %s) not exist: " % mat_key)
             return
 
-        self._commit_material(self.materialsNodes[mat_key])
-
-    def _commit_material(self, rpr_material):
+        # commit the material
+        rpr_material = self.materialsNodes[mat_key]
         if rpr_material.shader != None and rpr_material.shader.type == ShaderType.UBER2:
             shader = rpr_material.get_handle()
             pyrprx.xMaterialCommit(rpr_material.shader.rprx_context, shader)
- 
 
     def _assign_material_to_shape(self, mat_key, shape, rpr_material):
         shader = rpr_material.get_handle()
