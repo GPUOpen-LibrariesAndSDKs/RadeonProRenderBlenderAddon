@@ -37,7 +37,6 @@ class AOV:
         self.attached = False
 
     def attach(self):
-        assert not self.attached
         pyrpr.ContextSetAOV(self.core_context, self.aov, self.render_buffer)
         self.attached = True
 
@@ -56,43 +55,35 @@ class AOV:
         self.detach()
 
 
-class PostEffect:
+class PostEffectManager:
+    def __init__(self, core_context):
+        self._core_context = core_context
+        self._post_effects = {}
 
-    def __init__(self, core_post_effect):
-        self.core_post_effect = core_post_effect
+    def attach(self, name, params = None):
+        post_effect = pyrpr.PostEffect()
+        pyrpr.ContextCreatePostEffect(self._core_context, name, post_effect)
+        self._post_effects[name] = post_effect
 
-    def set_param_float(self, name, value):
-        pyrpr.PostEffectSetParameter1f(self.core_post_effect, name, value)
+        if params:
+            for key, value in params.items():
+                if type(value) == int:
+                    pyrpr.PostEffectSetParameter1u(post_effect, key.encode('latin1'), value)
+                elif type(value) == float:
+                    pyrpr.PostEffectSetParameter1f(post_effect, key.encode('latin1'), value)
+                else:
+                    raise NotImplementedError("Not supported value type with key=%s", key)
 
-    def set_param_int(self, name, value):
-        pyrpr.PostEffectSetParameter1u(self.core_post_effect, name, value)
+        pyrpr.ContextAttachPostEffect(self._core_context, post_effect)
 
+    def clear(self):
+        for post_effect in self._post_effects.values():
+            pyrpr.ContextDetachPostEffect(self._core_context, post_effect)
 
-class PostEffectUpdate:
+        self._post_effects.clear()
 
-    def __init__(self, render_device):
-        self.posteffects_needed = []
-        self.render_device = render_device
-
-    def enable(self, post_effect_name) -> PostEffect:
-        self.posteffects_needed.append(post_effect_name)
-        return PostEffect(self.render_device.attach_posteffect(post_effect_name))
-
-
-class PostEffectChain:
-
-    def __init__(self, render_device):
-        self.render_device = render_device
-
-    def start_update(self):
-        # remove all posteffects
-        # TODO: possible optimization is to leave this for later
-        # and don't delete used effects. BUT post-effects attachments order matters.
-        # this will make this code a bit more complex. Right now I don't see need for extra complexity.
-        for post_effect in list(self.render_device.post_effects):
-            self.render_device.detach_posteffect(post_effect)
-
-        return PostEffectUpdate(self.render_device)
+    def __del__(self):
+        self.clear()
 
 
 class RenderTargets:
@@ -114,11 +105,6 @@ class RenderTargets:
         fmt = (4, pyrpr.COMPONENT_TYPE_FLOAT32)
         self.frame_buffer_tonemapped = pyrpr.FrameBuffer()
         pyrpr.ContextCreateFrameBuffer(self.render_device.core_context, fmt, desc, self.frame_buffer_tonemapped)
-
-    @logged
-    def __del__(self):
-        self.aovs.clear()
-        del self.frame_buffer_tonemapped
 
     def attach(self):
         assert not self.attached
@@ -195,8 +181,6 @@ class RenderDevice:
         self.core_uber_rprx_context = pyrprx.Object('rprx_context')
         pyrprx.CreateContext(self.core_material_system, 0, self.core_uber_rprx_context)
 
-        self.post_effects = {}
-
         self.render_target = None  # type:RenderTargets
 
         self.update_downscaled_image_size(is_production)
@@ -223,19 +207,6 @@ class RenderDevice:
     def detach_render_target(self, render_target):
         self.render_target.detach()
         self.render_target = None
-
-    def attach_posteffect(self, name):
-        if name not in self.post_effects:
-            post_effect = pyrpr.PostEffect()
-            self.post_effects[name] = post_effect
-            pyrpr.ContextCreatePostEffect(self.core_context, name, post_effect)
-            pyrpr.ContextAttachPostEffect(self.core_context, post_effect)
-        return self.post_effects[name]
-
-    def detach_posteffect(self, post_effect):
-        pyrpr.ContextDetachPostEffect(self.core_context, self.post_effects[post_effect])
-        self.post_effects[post_effect].delete()
-        del self.post_effects[post_effect]
 
     def update_downscaled_image_size(self, is_production):
         settings = bpy.context.scene.rpr.render
