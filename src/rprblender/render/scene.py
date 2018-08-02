@@ -42,7 +42,7 @@ class SceneRenderer:
     def __init__(self, render_device, rs, is_production=False):
         self.render_device = render_device
 
-        self.posteffect_chain = rprblender.render.device.PostEffectChain(self.render_device)
+        self.post_effect_manager = rprblender.render.device.PostEffectManager(self.get_core_context())
 
         self.im = None
         self.im_tile = None
@@ -69,13 +69,8 @@ class SceneRenderer:
 
     @call_logger.logged
     def __del__(self):
-        self.render_layers = None
-        if self.render_targets is not None:
+        if self.render_targets:
             self.render_device.detach_render_target(self.render_targets)
-            del self.render_targets
-
-        del self.posteffect_chain
-        del self.render_device
 
     def get_core_context(self):
         return self.core_context
@@ -175,16 +170,16 @@ class SceneRenderer:
         if self.render_layers:
             self.render_layers.update(self.aov_settings)
 
-    def update_tone_mapping(self, settings, post_effect_update):
+    def update_tone_mapping(self, settings):
 
         tm = settings.tone_mapping
         if not tm.enable:
             return False
 
         if tm.type == 'simplified':
-            simple_tonemap = post_effect_update.enable(pyrpr.POST_EFFECT_SIMPLE_TONEMAP)
-            simple_tonemap.set_param_float(b"exposure", tm.simplified.exposure)
-            simple_tonemap.set_param_float(b"contrast", tm.simplified.contrast)
+            self.post_effect_manager.attach(pyrpr.POST_EFFECT_SIMPLE_TONEMAP, 
+                                            {"exposure": tm.simplified.exposure,
+                                             "contrast": tm.simplified.contrast})
 
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"tonemapping.type",
                                         pyrpr.TONEMAPPING_OPERATOR_NONE)
@@ -233,15 +228,15 @@ class SceneRenderer:
 
         return False
 
-    def update_white_balance(self, settings, post_effect_update):
+    def update_white_balance(self, settings):
 
         wb = settings.white_balance
         if not wb.enable:
             return False
 
-        white_balance = post_effect_update.enable(pyrpr.POST_EFFECT_WHITE_BALANCE)
-        white_balance.set_param_int(b"colorspace", wb.color_space_values[wb.color_space])
-        white_balance.set_param_float(b"colortemp", wb.color_temperature)
+        self.post_effect_manager.attach(pyrpr.POST_EFFECT_WHITE_BALANCE,
+                                        {"colorspace": wb.color_space_values[wb.color_space],
+                                         "colortemp": wb.color_temperature})
 
         return True
 
@@ -497,17 +492,12 @@ class SceneRenderer:
         if not frame_buffer:
             return
 
-        # apply post effects, remaking posteffects chain for each pass separately
-        # RPR will have per-buffer posteffect chains later, but now they are on the context
-        # so need to be reattached separately for every aov
-        post_effect_chain = self.posteffect_chain
-        post_effect_update = post_effect_chain.start_update()
-        # Always apply normalization, aov need this too.
-        post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
+        self.post_effect_manager.clear()
+        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
+
         if aov_name == 'default':
-            settings = self.render_settings
-            self.update_tone_mapping(settings, post_effect_update)
-            self.update_white_balance(settings, post_effect_update)
+            self.update_tone_mapping(self.render_settings)
+            self.update_white_balance(self.render_settings)
 
         if self.has_denoiser and aov_name == 'default':
             return self._get_filtered_image(frame_buffer)
@@ -515,14 +505,11 @@ class SceneRenderer:
         return self.render_targets.get_resolved_image(frame_buffer)
 
     def _get_shadow_catcher_image(self):
-        post_effect_chain = self.posteffect_chain
-        post_effect_update = post_effect_chain.start_update()
-        # Always apply normalization, aov need this too.
-        post_effect_update.enable(pyrpr.POST_EFFECT_NORMALIZATION)
+        self.post_effect_manager.clear()
+        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
 
-        settings = self.render_settings
-        self.update_tone_mapping(settings, post_effect_update)
-        self.update_white_balance(settings, post_effect_update)
+        self.update_tone_mapping(self.render_settings)
+        self.update_white_balance(self.render_settings)
 
         if self.has_denoiser:
             return self._get_filtered_image(self.get_shadowcatcher_framebuffer())
