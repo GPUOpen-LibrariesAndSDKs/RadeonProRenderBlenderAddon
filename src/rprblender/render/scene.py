@@ -154,8 +154,10 @@ class SceneRenderer:
 
     
     def _get_filtered_image(self, frame_buffer):
-        pyrpr.ContextResolveFrameBuffer(self.get_core_context(), frame_buffer, self.image_filter.resolved_framebuffer())
-
+        if pyrpr.API_VERSION < 0x010031000:
+            pyrpr.ContextResolveFrameBuffer(self.get_core_context(), frame_buffer, self.image_filter.resolved_framebuffer())
+        else:
+            pyrpr.ContextResolveFrameBuffer(self.get_core_context(), frame_buffer, self.image_filter.resolved_framebuffer(), False)
         self.image_filter.run()
         return self.image_filter.get_data()
 

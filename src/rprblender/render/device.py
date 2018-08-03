@@ -140,7 +140,10 @@ class RenderTargets:
 
     def get_resolved_image(self, fb):
         pyrpr.FrameBufferClear(self.frame_buffer_tonemapped)
-        pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, fb, self.frame_buffer_tonemapped)
+        if pyrpr.API_VERSION < 0x010031000:
+            pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, fb, self.frame_buffer_tonemapped)
+        else:
+            pyrpr.ContextResolveFrameBuffer(self.render_device.core_context, fb, self.frame_buffer_tonemapped, False)
         return self.get_frame_buffer_image(self.frame_buffer_tonemapped)
 
     def get_frame_buffer_image(self, fb):
