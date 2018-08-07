@@ -10,18 +10,18 @@ class ImageFilterError(RuntimeError):
 
 
 class RifFilterType:
-	Bilateral = 0
-	Lwr = 1
-	Eaw = 2
+    Bilateral = 0
+    Lwr = 1
+    Eaw = 2
 
 
 class RifFilterInput:
-	Color = 0
-	Normal = 1
-	Depth = 2
-	WorldCoordinate = 3
-	ObjectId = 4
-	Trans = 5
+    Color = 0
+    Normal = 1
+    Depth = 2
+    WorldCoordinate = 3
+    ObjectId = 4
+    Trans = 5
 
 
 class RifContextWrapper():
@@ -29,6 +29,11 @@ class RifContextWrapper():
         self._rif_context = rif.RifContext()
         self._rif_command_queue = rif.RifCommandQueue()
         self._rif_output_image = rif.RifImage()
+
+    def __del__(self):
+        self._rif_output_image.delete()
+        self._rif_command_queue.delete()
+        self._rif_context.delete()
 
 
     def _get_rpr_cache_path(rpr_context):
@@ -172,9 +177,9 @@ class RifContextGPUMetal(RifContextWrapper):
 
 class RifFilterWrapper():
     class _InputTraits():
-        def __init__(self, rif_image, rif_framebuffer, sigma):
+        def __init__(self, rif_image, rpr_framebuffer, sigma):
             self.rif_image = rif_image
-            self.rpr_framebuffer = rif_framebuffer
+            self.rpr_framebuffer = rpr_framebuffer
             self.sigma = sigma
 
 
@@ -185,6 +190,18 @@ class RifFilterWrapper():
         self._aux_images = []
         self._inputs = {}
         self._params = {}
+
+    def __del__(self):
+        for input in self._inputs.values():
+            input.rif_image.delete()
+
+        for aux_image in self._aux_images:
+            aux_image.delete()
+
+        for aux_filter in self._aux_filters:
+            aux_filter.delete()
+
+        self._rif_image_filter.delete()
 
 
     def inputs(self):
