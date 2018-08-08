@@ -182,4 +182,7 @@ Example(full test code)
 ### Versioning
 
 The version number should be updated when a new plugin is released.  This is done by editing the version field
-of the bl_info structure in the src/rprblender/__init__.py file.
+of the bl_info structure in the src/rprblender/__init__.py file. Currently a build script will update the build
+number when checkins happen to the master branch.  So it is only necessary to update the major or minor number
+when required.
+
