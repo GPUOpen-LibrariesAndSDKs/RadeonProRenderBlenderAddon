@@ -39,6 +39,8 @@ class ValueType(Enum):
     vector = 2
     image = 3
 
+class MaterialError(RuntimeError):
+    pass
 
 class ShaderType(IntEnum):
     DIFFUSE = pyrpr.MATERIAL_NODE_DIFFUSE
@@ -895,8 +897,7 @@ class Material:
         if socket:
             shader = self.parse_node(socket)
         else:
-            self.set_error("Please connect RPR material node to shader socket in RPR Material Output node")
-            shader = self.create_error_shader()
+            raise MaterialError("No RPR material node connected to shader socket in RPR Material Output node", blender_node)
 
         # volume socket
         socket = self.get_socket(blender_node, blender_node.volume_in)
@@ -906,8 +907,7 @@ class Material:
                 self.volume_handle = volume.get_handle()
                 shader = self.prepare_surface_for_volume(shader, volume)
             else:
-                self.set_error('Please connect only RPR Volume or RPR Subsurface node to output volume')
-                return self.create_error_shader()
+                raise MaterialError("RPR Volume or RPR Subsurface should be connected to output volume", blender_node)
 
         # displacement socket
         socket = self.get_socket(blender_node, blender_node.displacement_in)
@@ -915,8 +915,7 @@ class Material:
             if socket.node.bl_idname == 'rpr_shader_node_displacement':
                 self.displacement = self.parse_node(socket)
             else:
-                self.set_error('Please connect only RPR Displacement node to output displacement')
-                return self.create_error_shader()
+                raise MaterialError("RPR Displacement node should be connected to output displacement", blender_node)
 
         return shader
 
@@ -1640,8 +1639,7 @@ class Material:
         log_mat("blend_shader : %s, %s" % (shader1, shader2))
 
         if shader1 is None and shader2 is None:
-            self.set_error("Please connect RPR material nodes to shader_1 or shader_2 sockets in RPR Blend node")
-            return self.create_error_shader()
+            raise MaterialError("RPR material nodes should be connected to shader_1 or shader_2 sockets in RPR Blend node", self)
         if shader1 is None:
             return shader2
         if shader2 is None:
@@ -1745,9 +1743,9 @@ class Material:
 
         try:
             self.shader = self.parse_root_node(blender_node)
-        except BaseException as e:
+        except MaterialError as e:
             logging.debug(traceback.format_exc(), tag='material')
-            self.set_error('{}(failed to parse material node "{}" (material: {}) )'.format(e, blender_node.name, blender_mat.name))
+            self.set_error("Failed to parse material '{}' with node '{}'. {}".format(blender_mat.name, blender_node.name, e))
             self.shader = self.create_error_shader()
 
     def parse_root_node(self, blender_node):

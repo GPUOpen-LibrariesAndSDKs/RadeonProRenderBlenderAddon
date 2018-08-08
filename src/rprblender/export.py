@@ -26,7 +26,7 @@ import rprblender.images
 call_logger = CallLogger(tag='export')
 
 
-class ExportError(ValueError):
+class ExportError(RuntimeError):
     pass
 
 class ObjectKey:
@@ -723,11 +723,11 @@ class SceneExport:
 
         mesh = get_blender_mesh(self.scene, obj, self.preview)
         if not mesh:
-            raise ExportError("get_blender_mesh returned None")
+            raise ExportError("get_blender_mesh returned None", obj.data, obj)
         try:
             extracted_mesh = extract_mesh(mesh)
             if not extracted_mesh:
-                raise ExportError("Mesh doesn't have polygons")
+                raise ExportError("Mesh doesn't have polygons", obj.data, obj)
 
             self.meshes_extracted[key] = extracted_mesh
             return extracted_mesh
@@ -1304,9 +1304,14 @@ class SceneExport:
         yield 'adding new duplicators'
         for obj in objects_sync_frame.duplicators_added:
             yield 'adding new duplicators:'+str(obj)
-            for key, dupli in self.iter_dupli_from_duplicator(obj):
-                self.objects_sync.add_dupli_instance(key, dupli, obj)
-                self.objects_sync.update_instance_materials(key)
+            try:
+                for key, dupli in self.iter_dupli_from_duplicator(obj):
+                    self.objects_sync.add_dupli_instance(key, dupli, obj)
+                    self.objects_sync.update_instance_materials(key)
+
+            except ExportError as err:
+                logging.warn(err, tag='sync')
+
 
         yield 'updating duplicators'
         log_sync('duplicators_updated:', objects_sync_frame.duplicators_updated)
