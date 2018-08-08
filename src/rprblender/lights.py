@@ -11,7 +11,7 @@ import rprblender.versions as versions
 
 MAX_LUMINOUS_EFFICACY = 684.0
 
-class LightError(ValueError):
+class LightError(RuntimeError):
     pass
 
 class Light:
