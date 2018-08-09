@@ -38,8 +38,11 @@ def log_pyrpr(*argv):
 
 
 def pyrpr_init(bindings_import_path, rprsdk_bin_path):
+    log_pyrpr("pyrpr_init: bindings_path=%s, rpr_bin_path=%s" % (bindings_import_path, rprsdk_bin_path))
+
     if bindings_import_path not in sys.path:
         sys.path.append(bindings_import_path)
+
     try:
         import pyrpr
         import pyrprapi  # import this to be have it in the sys.modules available later
@@ -86,9 +89,7 @@ if 'pyrpr' not in sys.modules:
     bindings_import_path = str(get_package_root_dir())
     rprsdk_bin_path = get_package_root_dir()
     if not pyrpr_init(bindings_import_path, rprsdk_bin_path):
-        logging.critical('failed to load rpr from ', bindings_import_path)
-        for line in traceback.format_stack():
-            logging.critical(line)
+        logging.warn("Failed to load rpr from %s. One more attempt will be provided.", bindings_import_path)
 
         # try loading pyrpr from source
         src = get_package_root_dir().parent
@@ -123,7 +124,8 @@ if 'pyrpr' not in sys.modules:
         finally:
             sys.path.remove(pyrpr_import_path)
 
-    logging.debug('rprsdk_bin_path:', rprsdk_bin_path)
+    logging.info('rprsdk_bin_path:', rprsdk_bin_path)
+
 
 import pyrpr
 

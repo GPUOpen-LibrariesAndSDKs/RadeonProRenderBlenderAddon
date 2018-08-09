@@ -226,10 +226,6 @@ def check_old_rpr_uber2_nodes():
             if node.bl_idname != 'rpr_shader_node_uber2':
                 continue
 
-            if node.emissive_intensity not in node.inputs:
-                socket = node.inputs.new('rpr_socket_factor', node.emissive_intensity)
-                socket.enabled = node.emissive
-
             if node.normal_in not in node.inputs:
                 socket = node.inputs.new('rpr_socket_link', node.normal_in)
                 socket.enabled = node.normal

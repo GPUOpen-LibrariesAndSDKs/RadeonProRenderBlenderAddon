@@ -54,13 +54,40 @@ class RPRSocketScatteringDirection(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return float_socket_color
 
+@rpraddon.register_class
+class RPRSocketScatteringRadius(bpy.types.NodeSocket):
+    bl_idname = 'rpr_socket_scattering_radius'
+    bl_label = 'Subsurface Scattering Radius'
+
+    default_value = bpy.props.FloatVectorProperty(name="Subsurface Scattering Radius", 
+                                                  size=3, min=0.0, soft_max=5.0,
+                                                  default=(3.67, 1.37, 0.68))   # skin values
+    show = bpy.props.BoolProperty(
+        name="Show/Hide",
+        default=False,
+    )
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            col = layout.column(align=True)
+            row = col.row()
+            row.label(text=self.name)
+            row.prop(self, 'show', text='', icon='TRIA_UP' if self.show else 'TRIA_DOWN')
+            if self.show:
+                col.prop(self, 'default_value', text='', slider=True)
+
+    def draw_color(self, context, node):
+        return float_socket_color
+
 
 @rpraddon.register_class
 class RPRSocketIOR(bpy.types.NodeSocket):
     bl_idname = 'rpr_socket_ior'
     bl_label = 'IOR socket'
 
-    default_value = bpy.props.FloatProperty(name="IOR", min=1.0, soft_max=10.0, default=1.0)
+    default_value = bpy.props.FloatProperty(name="IOR", min=0.0, soft_max=3.0, default=1.5)
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
@@ -77,7 +104,7 @@ class RPRSocketAngle360(bpy.types.NodeSocket):
     bl_idname = 'rpr_socket_angle360'
     bl_label = 'Angle360 socket'
 
-    default_value = bpy.props.FloatProperty(name="Angle", soft_min=-math.radians(360), soft_max=math.radians(360),
+    default_value = bpy.props.FloatProperty(name="Angle", soft_min=-math.radians(180), soft_max=math.radians(180),
                                             default=0.0, subtype='ANGLE')
 
     def draw(self, context, layout, node, text):
@@ -289,7 +316,7 @@ class RPRSocketLink(bpy.types.NodeSocket):
     default_value = bpy.props.FloatVectorProperty(name="Vector4", size=4)
 
     def draw(self, context, layout, node, text):
-            layout.label(text=self.name)
+        layout.label(text=self.name)
 
     def draw_color(self, context, node):
         return float_socket_color
@@ -400,6 +427,22 @@ class RPRSocket_Float_SoftMin0_SoftMax10(bpy.types.NodeSocket):
     bl_label = 'Float_SoftMin0_SoftMax10 socket'
 
     default_value = bpy.props.FloatProperty(name="Float_SoftMin0_SoftMax10", soft_min=0.0, soft_max=10.0)
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            layout.prop(self, 'default_value', text=self.name, slider=True)
+
+    def draw_color(self, context, node):
+        return float_socket_color
+
+@rpraddon.register_class
+class RPRSocket_Float_Min0_SoftMax10(bpy.types.NodeSocket):
+    bl_idname = 'rpr_socket_float_Min0_softMax10'
+    bl_label = 'Float_Min0_SoftMax10 socket'
+
+    default_value = bpy.props.FloatProperty(name="Float_Min0_SoftMax10", min=0.0, soft_max=10.0)
 
     def draw(self, context, layout, node, text):
         if self.is_linked:

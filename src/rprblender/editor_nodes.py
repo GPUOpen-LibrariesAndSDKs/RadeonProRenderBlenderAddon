@@ -10,6 +10,7 @@ from rprblender.core.nodes import log_mat
 from . import logging
 from bpy_extras.image_utils import load_image
 from . import versions
+from rprblender.ui import add_subdivision_properties
 
 def fix_path(path):
     if path.startswith('//'):
@@ -157,7 +158,7 @@ class RPRShaderNode_Diffuse(RPRNodeType_Shader):
         super(RPRShaderNode_Diffuse, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
         self.inputs.new('rpr_socket_weight', self.roughness_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
 
@@ -172,7 +173,7 @@ class RPRShaderNode_DiffuseRefraction(RPRNodeType_Shader):
     def init(self, context):
         super().init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
 
@@ -188,7 +189,7 @@ class RPRShaderNode_Microfacet(RPRNodeType_Shader):
     def init(self, context):
         super(RPRShaderNode_Microfacet, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         self.inputs.new('rpr_socket_weight', self.roughness_in)
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
@@ -207,7 +208,7 @@ class RPRShaderNode_MicrofacetRefraction(RPRNodeType_Shader):
     def init(self, context):
         super(RPRShaderNode_MicrofacetRefraction, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         self.inputs.new('rpr_socket_weight', self.roughness_in)
         self.inputs.new('rpr_socket_ior', self.ior_in)
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
@@ -247,7 +248,7 @@ class RPRShaderNode_OrenNayar(RPRNodeType_Shader):
     def init(self, context):
         super(RPRShaderNode_OrenNayar, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         self.inputs.new('rpr_socket_weight', self.roughness_in)
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
@@ -264,7 +265,7 @@ class RPRShaderNode_Refraction(RPRNodeType_Shader):
     def init(self, context):
         super(RPRShaderNode_Refraction, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         self.inputs.new('rpr_socket_ior', self.ior_in)
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
@@ -280,7 +281,7 @@ class RPRShaderNode_Reflection(RPRNodeType_Shader):
     def init(self, context):
         super(RPRShaderNode_Reflection, self).init()
         input_color = self.inputs.new('rpr_socket_color', self.color_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
 
 
@@ -314,7 +315,7 @@ class RPRShaderNode_Ward(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_angle360', self.rotation_in)
         self.inputs.new('rpr_socket_weight', self.roughness_x_in)
         self.inputs.new('rpr_socket_weight', self.roughness_y_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         input_color.default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs[self.roughness_x_in].default_value = 0.5
         self.inputs[self.roughness_y_in].default_value = 0.5
@@ -394,10 +395,10 @@ class RPRShaderNode_Uber(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_weight', self.transparency_level_in).default_value = 0.0
         self.inputs.new('rpr_socket_weight', self.refraction_level_in)
 
-        self.inputs.new('rpr_socket_link', self.diffuse_normal_in)
-        self.inputs.new('rpr_socket_link', self.reflect_normal_in)
-        self.inputs.new('rpr_socket_link', self.coat_normal_in)
-        self.inputs.new('rpr_socket_link', self.refraction_normal_in)
+        self.inputs.new('rpr_socket_link', self.diffuse_normal_in).hide_value=True
+        self.inputs.new('rpr_socket_link', self.reflect_normal_in).hide_value=True
+        self.inputs.new('rpr_socket_link', self.coat_normal_in).hide_value=True
+        self.inputs.new('rpr_socket_link', self.refraction_normal_in).hide_value=True
 
         self.inputs.new('rpr_socket_ior', self.reflect_ior_in)
         self.inputs.new('rpr_socket_ior', self.coat_ior_in)
@@ -417,6 +418,7 @@ class RPRShaderNode_Uber(RPRNodeType_Shader):
         row.prop(self, 'reflection', toggle=True)
         row.prop(self, 'clear_coat', toggle=True)
         row.prop(self, 'refraction', toggle=True)
+
 
 ########################################################################################################################
 # Uber2 node
@@ -630,6 +632,281 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
                 col = row.column()
                 add_subdivision_properties(col, active_object)
 
+
+########################################################################################################################
+# Uber3 node
+########################################################################################################################
+# before change - check check_old_rpr_uber2_nodes() please
+@rpraddon.register_class
+class RPRShaderNode_Uber3(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_uber3'
+    bl_label = 'RPR Uber'
+    bl_width_min = 300
+
+    diffuse_color = 'Diffuse Color'
+    diffuse_weight = 'Diffuse Weight'
+    diffuse_roughness = 'Diffuse Roughness'
+    diffuse_normal = 'Diffuse Normal'
+
+    reflection_color = 'Reflection Color'
+    reflection_weight = 'Reflection Weight'
+    reflection_roughness = 'Reflection Roughness'
+    reflection_anisotropy = 'Reflection Anisotropy'
+    reflection_anisotropy_rotation = 'Reflection Anisotropy Rotation'
+    reflection_ior = 'Reflection IOR'
+    reflection_metalness = 'Reflection Metalness'
+    reflection_normal = 'Reflection Normal'
+
+    refraction_color = 'Refraction Color'
+    refraction_weight = 'Refraction Weight'
+    refraction_roughness = 'Refraction Roughness'
+    refraction_ior = 'Refraction IOR'
+    refraction_absorption_distance = 'Refraction Absorption Distance'
+
+    coating_color = 'Coating Color'
+    coating_weight = 'Coating Weight'
+    coating_roughness = 'Coating Roughness'
+    coating_ior = 'Coating IOR'
+    coating_normal = 'Coating Normal'
+    coating_thickness = 'Coating Thickness'
+    coating_transmission_color = 'Coating Transmission Color'
+    
+    emissive_color = 'Emissive Color'
+    emissive_weight = 'Emissive Weight'
+
+    subsurface_weight = 'Subsurface Weight'
+    subsurface_scatter_color = 'Subsurface Scattering Color'
+    subsurface_scatter_direction = 'Subsurface Scattering Direction'
+    subsurface_radius = 'Subsurface Radius'
+    
+    backscatter_color = 'Backscattering Color'
+    backscatter_weight = 'Backscattering Weight'
+
+    normal_in = 'Normal'
+    transparency_value = 'Transparency'
+    displacement_map = 'Displacement Map'
+
+    def diffuse_changed(self, context):
+        self.inputs[self.diffuse_color].enabled = self.diffuse
+        self.inputs[self.diffuse_weight].enabled = self.diffuse
+        self.inputs[self.diffuse_roughness].enabled = self.diffuse
+        self.inputs[self.backscatter_weight].enabled = self.diffuse
+        self.diffuse_use_shader_normal_changed(context)
+        self.backscatter_separate_color_changed(context)
+
+    def diffuse_use_shader_normal_changed(self, context):
+        self.inputs[self.diffuse_normal].enabled = self.diffuse and not self.diffuse_use_shader_normal
+
+    def backscatter_separate_color_changed(self, context):
+        self.inputs[self.backscatter_color].enabled = self.diffuse and self.backscatter_separate_color
+
+    def reflection_changed(self, context):
+        self.inputs[self.reflection_color].enabled = self.reflection
+        self.inputs[self.reflection_weight].enabled = self.reflection
+        self.inputs[self.reflection_roughness].enabled = self.reflection
+        self.inputs[self.reflection_anisotropy].enabled = self.reflection
+        self.inputs[self.reflection_anisotropy_rotation].enabled = self.reflection
+        self.reflection_use_shader_normal_changed(context)
+        self.reflection_mode_changed(context)
+
+    def reflection_use_shader_normal_changed(self, context):
+        self.inputs[self.reflection_normal].enabled = self.reflection and not self.reflection_use_shader_normal
+
+    def reflection_mode_changed(self, context):
+        self.inputs[self.reflection_ior].enabled = self.reflection and (self.reflection_mode == 'IOR')
+        self.inputs[self.reflection_metalness].enabled = self.reflection and (self.reflection_mode == 'METALNESS')
+
+    def refraction_changed(self, context):
+        self.inputs[self.refraction_color].enabled = self.refraction
+        self.inputs[self.refraction_weight].enabled = self.refraction
+        self.inputs[self.refraction_roughness].enabled = self.refraction
+        self.inputs[self.refraction_ior].enabled = self.refraction
+        self.inputs[self.refraction_absorption_distance].enabled = self.refraction
+
+    def coating_changed(self, context):
+        self.inputs[self.coating_color].enabled = self.coating
+        self.inputs[self.coating_weight].enabled = self.coating
+        self.inputs[self.coating_roughness].enabled = self.coating
+        self.inputs[self.coating_ior].enabled = self.coating
+        self.inputs[self.coating_thickness].enabled = self.coating
+        self.inputs[self.coating_transmission_color].enabled = self.coating
+        self.coating_use_shader_normal_changed(context)
+
+    def coating_use_shader_normal_changed(self, context):
+        self.inputs[self.coating_normal].enabled = self.coating and not self.coating_use_shader_normal
+
+    def emissive_changed(self, context):
+        self.inputs[self.emissive_color].enabled = self.emissive
+        self.inputs[self.emissive_weight].enabled = self.emissive
+
+    def subsurface_changed(self, context):
+        self.subsurface_use_diffuse_color_changed(context)
+        self.inputs[self.subsurface_weight].enabled = self.subsurface
+        self.inputs[self.subsurface_scatter_direction].enabled = self.subsurface
+        self.inputs[self.subsurface_radius].enabled = self.subsurface
+
+    def subsurface_use_diffuse_color_changed(self, context):
+        self.inputs[self.subsurface_scatter_color].enabled = self.subsurface and not self.subsurface_use_diffuse_color        
+
+    def normal_changed(self, context):
+        self.inputs[self.normal_in].enabled = self.normal
+
+    def transparency_changed(self, context):
+        self.inputs[self.transparency_value].enabled = self.transparency
+
+    def displacement_changed(self, context):
+        self.inputs[self.displacement_map].enabled = self.displacement
+
+
+    diffuse = bpy.props.BoolProperty(name='Diffuse', update=diffuse_changed, default=True)
+    diffuse_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=diffuse_use_shader_normal_changed, default=True)
+    backscatter_separate_color = bpy.props.BoolProperty(name='Separate Backscatter Color', update=backscatter_separate_color_changed, default=False)
+    
+    reflection = bpy.props.BoolProperty(name='Reflection', update=reflection_changed)
+    reflection_mode = bpy.props.EnumProperty(name='Refletion Mode', 
+                                             items=(('IOR', 'IOR', ''),
+                                                    ('METALNESS', 'Metalness', '')), 
+                                             default='IOR',
+                                             update=reflection_mode_changed)
+    reflection_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=reflection_use_shader_normal_changed, default=True)
+
+    refraction = bpy.props.BoolProperty(name='Refraction', update=refraction_changed)
+    refraction_thin_surface = bpy.props.BoolProperty(name='Refraction Thin Surface', default=False)
+    refraction_caustics = bpy.props.BoolProperty(name='Allow Caustics', default=False)
+
+    coating = bpy.props.BoolProperty(name='Coating', update=coating_changed)
+    coating_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=coating_use_shader_normal_changed, default=True)
+
+    emissive = bpy.props.BoolProperty(name='Emissive', update=emissive_changed)
+    emissive_double_sided = bpy.props.BoolProperty(name='Emissive Double Sided')
+    emissive_intensity = bpy.props.FloatProperty(name='Emissive Intensity', min=0.0, default=1.0)
+
+    subsurface = bpy.props.BoolProperty(name='Subsurface', update=subsurface_changed)
+    subsurface_use_diffuse_color = bpy.props.BoolProperty(name='Subsurface Use Diffuse Color', update=subsurface_use_diffuse_color_changed)
+    subsurface_multiple_scattering = bpy.props.BoolProperty(name='Subsurface Multiple Scattering', default=False)
+
+    normal = bpy.props.BoolProperty(name='Normal', update=normal_changed, default=False)
+    transparency = bpy.props.BoolProperty(name='Transparency', update=transparency_changed)
+
+    displacement = bpy.props.BoolProperty(name='Displacement', update=displacement_changed)
+    displacement_min_max_show = bpy.props.BoolProperty(name='Show/Hide', default=False)
+    displacement_min = bpy.props.FloatProperty(name='Displacement Min', min=0.0, soft_max=10.0, default=0.0)
+    displacement_max = bpy.props.FloatProperty(name='Displacement Max', min=0.0, soft_max=10.0, default=1.0)
+    subdivision_show = bpy.props.BoolProperty(name='Show/Hide', default=False)
+
+    def init(self, context):
+        super(RPRShaderNode_Uber3, self).init()
+
+        self.inputs.new('rpr_socket_color', self.diffuse_color).default_value = (0.5, 0.5, 0.5, 1.0)
+        self.inputs.new('rpr_socket_weight_soft', self.diffuse_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.diffuse_roughness).default_value = 0.5
+        self.inputs.new('rpr_socket_link', self.diffuse_normal).hide_value = True
+        self.inputs.new('rpr_socket_color', self.backscatter_color).default_value = (0.5, 0.5, 0.5, 1.0)
+        self.inputs.new('rpr_socket_weight_soft', self.backscatter_weight).default_value = 0.0
+
+        self.inputs.new('rpr_socket_color', self.reflection_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_weight_soft', self.reflection_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.reflection_roughness).default_value = 0.25
+        self.inputs.new('rpr_socket_float_MinN1_Max1', self.reflection_anisotropy).default_value = 0.0
+        self.inputs.new('rpr_socket_angle360', self.reflection_anisotropy_rotation).default_value = 0.0
+        self.inputs.new('rpr_socket_ior', self.reflection_ior)
+        self.inputs.new('rpr_socket_weight', self.reflection_metalness).default_value = 0.0
+        self.inputs.new('rpr_socket_link', self.reflection_normal).hide_value=True
+
+        self.inputs.new('rpr_socket_color', self.refraction_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_weight_soft', self.refraction_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.refraction_roughness).default_value = 0.0
+        self.inputs.new('rpr_socket_ior', self.refraction_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_float_Min0_softMax10', self.refraction_absorption_distance).default_value = 0.0
+
+        self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_weight', self.coating_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.coating_roughness).default_value = 0.01
+        self.inputs.new('rpr_socket_ior', self.coating_ior).default_value = 1.5
+        self.inputs.new('rpr_socket_float_Min0_softMax10', self.coating_thickness).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.coating_transmission_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_link', self.coating_normal).hide_value=True
+
+        self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_weight', self.emissive_weight).default_value = 0.0
+
+        self.inputs.new('rpr_socket_weight', self.subsurface_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (0.436, 0.227, 0.131, 1.0)
+        self.inputs.new('rpr_socket_scattering_radius', self.subsurface_radius)
+        self.inputs.new('rpr_socket_scattering_direction', self.subsurface_scatter_direction).default_value = 0.0
+
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
+        self.inputs.new('rpr_socket_weight', self.transparency_value).default_value = 0.0
+        self.inputs.new('rpr_socket_link', self.displacement_map).hide_value=True
+
+        self.diffuse_changed(context)
+        self.reflection_changed(context)
+        self.refraction_changed(context)
+        self.coating_changed(context)
+        self.emissive_changed(context)
+        self.subsurface_changed(context)
+        self.normal_changed(context)
+        self.transparency_changed(context)
+        self.displacement_changed(context)
+
+    def draw_buttons(self, context, layout):
+        col = layout.column(align=True)
+        col.alignment = 'EXPAND'
+
+        col.prop(self, 'diffuse', toggle=True)
+        if self.diffuse:
+            col.prop(self, 'diffuse_use_shader_normal', toggle=False)
+            col.prop(self, 'backscatter_separate_color', toggle=False)
+
+        col.prop(self, 'reflection', toggle=True)
+        if self.reflection:
+            col.separator()
+            col.prop(self, 'reflection_mode')
+            col.prop(self, 'reflection_use_shader_normal', toggle=False)
+
+        col.prop(self, 'refraction', toggle=True)
+        if self.refraction:
+            col.prop(self, 'refraction_thin_surface', toggle=False)
+            col.prop(self, 'refraction_caustics', toggle=False)
+
+        col.prop(self, 'coating', toggle=True)
+        if self.coating:
+            col.prop(self, 'coating_use_shader_normal', toggle=False)
+        
+        col.prop(self, 'emissive', toggle=True)
+        if self.emissive:
+            col.prop(self, 'emissive_double_sided', toggle=False)
+            col.prop(self, 'emissive_intensity')
+            col.separator()
+
+        col.prop(self, 'subsurface', toggle=True)
+        if self.subsurface:
+            col.prop(self, 'subsurface_use_diffuse_color', toggle=False)
+            col.prop(self, 'subsurface_multiple_scattering', toggle=False)
+
+        col.prop(self, 'normal', toggle=True)
+        col.prop(self, 'transparency', toggle=True)
+
+        col.prop(self, 'displacement', toggle=True)
+        if self.displacement:
+            col1 = col.column(align=True)
+            row = col1.row()
+            row.label("Displacement Min/Max")
+            row.prop(self, 'displacement_min_max_show', text='', icon='TRIA_UP' if self.displacement_min_max_show else 'TRIA_DOWN')
+            if self.displacement_min_max_show:
+                row1 = col1.row(align=True)
+                row1.prop(self, 'displacement_min', slider=True, text='Min')
+                row1.prop(self, 'displacement_max', slider=True, text='Max')
+                col1.separator()
+            
+            row = col1.row()
+            row.label("Subdivision Object Properties")
+            row.prop(self, 'subdivision_show', text='', icon='TRIA_UP' if self.subdivision_show else 'TRIA_DOWN')
+            if self.subdivision_show:
+                col2 = col1.column()
+                add_subdivision_properties(col2, bpy.context.active_object)
+
+
 ########################################################################################################################
 # PBR node
 ########################################################################################################################
@@ -677,6 +954,54 @@ class RPRShaderNode_PBR(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_color', self.sss_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
 
         self.inputs.new('rpr_socket_link', self.normal_in)
+        
+    def draw_buttons(self, context, layout):
+        pass
+             
+
+########################################################################################################################
+# PBR3 node
+########################################################################################################################
+@rpraddon.register_class
+class RPRShaderNode_PBR3(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_pbr3'
+    bl_label = 'RPR PBR'
+    bl_width_min = 300
+
+    base_color = 'Base Color'
+    roughness = 'Roughness'
+    metalness = 'Metalness'
+    specular = 'Specular'
+    normal = 'Normal'
+
+    emissive_color = 'Emissive Color'
+    emissive_weight = 'Emissive Weight'
+
+    glass_weight = 'Glass'
+    glass_ior = 'Glass IOR'
+
+    subsurface_weight = 'Subsurface Weight'
+    subsurface_color = 'Subsurface Color'
+    subsurface_radius = 'Subsurface Radius' 
+    
+    def init(self, context):
+        super(RPRShaderNode_PBR3, self).init()
+
+        self.inputs.new('rpr_socket_color', self.base_color).default_value = (0.5, 0.5, 0.5, 1.0)
+        self.inputs.new('rpr_socket_weight', self.roughness).default_value = 0.25
+        self.inputs.new('rpr_socket_weight', self.metalness).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.specular).default_value = 1.0
+        self.inputs.new('rpr_socket_link', self.normal).hide_value=True
+
+        self.inputs.new('rpr_socket_weight', self.glass_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_ior', self.glass_ior).default_value = 1.5
+
+        self.inputs.new('rpr_socket_weight', self.emissive_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        
+        self.inputs.new('rpr_socket_weight', self.subsurface_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.subsurface_color).default_value = (0.436, 0.227, 0.131, 1.0)
+        self.inputs.new('rpr_socket_scattering_radius', self.subsurface_radius)
         
     def draw_buttons(self, context, layout):
         pass
@@ -1221,7 +1546,6 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
     wrap_items = (('REPEAT', "Repeat", "Repeating Texture"),
              ('MIRRORED_REPEAT', "Mirror", "Texture mirrors outside of 0-1"),
              ('CLAMP_TO_EDGE', "Clamp to Edge", "Clamp to Edge.  Outside 0-1 the texture will smear."),
-             # redundant to clamp_zero ('CLAMP_TO_BORDER', "Clamp to Border", "Clamp to Border"),
              ('CLAMP_ZERO', "Clamp to Black", "Clamp to Black outside 0-1"),
              ('CLAMP_ONE', "Clamp to White", "Clamp to White outside 0-1"),)
 
@@ -1444,8 +1768,8 @@ class RPRMaterialNode_Fresnel(RPRNodeType_Fresnel):
     def init(self, context):
         super(RPRMaterialNode_Fresnel, self).init()
         self.inputs.new('rpr_socket_ior', self.ior_in)
-        self.inputs.new('rpr_socket_link', self.normal_in)
-        self.inputs.new('rpr_socket_link', self.in_vec_in)
+        self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
+        self.inputs.new('rpr_socket_link', self.in_vec_in).hide_value=True
 
 ########################################################################################################################
 # Other nodes
@@ -1468,7 +1792,6 @@ class RPRShaderNode_Displacement(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_color', self.map_in)
 
     def draw_buttons(self, context, layout):
-        from rprblender.ui import add_subdivision_properties
         add_subdivision_properties(layout, bpy.context.active_object)
         layout.prop(self, 'scale_min', slider=True)
         layout.prop(self, 'scale_max', slider=True)
