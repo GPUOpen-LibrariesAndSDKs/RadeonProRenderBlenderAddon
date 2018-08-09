@@ -192,193 +192,125 @@ from . import helpers
 
 @rpraddon.register_class
 class RPRRender_PT_render_resources(RPRPanel, Panel):
-    bl_label = "RPR Render Resources"
+    bl_label = "RPR Final Render Device"
 
     def draw(self, context):
         layout = self.layout
-        settings = helpers.get_user_settings()
-        if len(helpers.render_resources_helper.devices) > 0:
-            # check non certified devices
-            have_only_certified = True
-            for i, device in enumerate(helpers.render_resources_helper.devices):
-                if i >= helpers.RenderResourcesHelper.max_gpu_count:
-                    break
-                if not device['certified']:
-                    have_only_certified = False
+        device_settings = helpers.get_device_settings(True)
+        
+        row = layout.split(percentage=0.25, align=True)
+        col = row.column()
+        col.prop(device_settings, 'use_cpu', text='CPU')
+        col = row.column()
+        box = col.box()
+        box.enabled = device_settings.use_cpu
+        box.prop(device_settings, 'cpu_threads')
 
-            gpu_enable = settings.device_type != "cpu"
-
-            # ui draw
-            col1, col2, is_row = create_ui_autosize_column(context, layout, True)
-
-            col1.label('Device Type')
-            col1.prop(settings, "device_type", text='')
-
-            col1.prop(settings, "samples", slider=True)
-            row = col1.row()
-            row.enabled = gpu_enable
-            row.prop(settings, "device_type_plus_cpu")
-
-            if not is_row:
-                col2.label('')
-            col2.prop(settings, "gpu_count")
-            col2.operator("rpr.op_gpu_list")
-            col2.enabled = gpu_enable
-
-            col = layout.column()
-            if not have_only_certified:
-                row = col.row()
-                row.prop(settings, "include_uncertified_devices")
-        else:
-            layout.label("You haven't any compatibility GPU. Render using CPU only.")
-
-
-@rpraddon.register_class
-class RPRRender_PT_tonemapping(RPRPanel, Panel):
-    bl_label = "RPR Tone Mapping"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.tone_mapping, "enable", text='')
-
-    def draw(self, context):
-        layout = self.layout
-        tm = context.scene.rpr.render.tone_mapping
-        bar = layout.row() if context.region.width > PANEL_WIDTH_FOR_COLUMN else layout.column()
-        bar.enabled = tm.enable
-        bar.prop(tm, "type", expand=True)
-        col1, col2, is_row = create_ui_autosize_column(context, layout, True)
-
-        if tm.type == 'simplified':
-            col1.prop(tm.simplified, "exposure")
-            col2.prop(tm.simplified, "contrast")
-        elif tm.type == 'linear':
-            col1.prop(tm.linear, "iso")
-            col1.prop(tm.linear, "f_stop")
-            col2.prop(tm.linear, "shutter_speed")
-        elif tm.type == 'non_linear':
-            col1.prop(tm.nonlinear, "burn")
-            col2.prop(tm.nonlinear, "prescale")
-            col2.prop(tm.nonlinear, "postscale")
-
-
-@rpraddon.register_class
-class RPRRender_PT_white_balance(RPRPanel, Panel):
-    bl_label = "RPR White Balance"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.white_balance, "enable", text='')
-
-    def draw(self, context):
-        layout = self.layout
-        settings = context.scene.rpr.render.white_balance
-        col = layout.column()
-        col.enabled = settings.enable
-        row = col.row()
-
-        row.alignment = 'EXPAND'
-        split = row.split(percentage=0.85, align=True)
-        col1 = split.column(align=True)
-        col1.prop(settings, "color_temperature", )
-        col1 = split.column(align=True)
-        col1.prop(settings, "preview_color", text='')
-
-        row = col.row()
-        row.prop(settings, "color_space")
-
-
-@rpraddon.register_class
-class RPRRender_PT_depth_of_field(RPRPanel, Panel):
-    bl_label = "RPR Depth of Field"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render.dof, "enable", text='')
-
-    def draw(self, context):
-        layout = self.layout
-        camera = context.scene.camera
-
-        scene_has_camera = len([obj for obj in context.scene.objects if obj.type == 'CAMERA']) > 0
-
-        if camera:
-            if camera.type == 'CAMERA':
-                draw_camera_dof(context, layout, camera.data)
-                layout.label('Active camera: ' + camera.name)
-            else:
-                layout.label("DoF supported by camera only.")
-        else:
-            if scene_has_camera:
-                layout.label("Scene hasn't active camera.")
-            else:
-                layout.label("No camera found in scene.")
-
-
-@rpraddon.register_class
-class RPRRender_PT_motion_blur(RPRPanel, Panel):
-    bl_label = "RPR Motion Blur"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.render, "motion_blur", text='')
-
-    def draw(self, context):
-        layout = self.layout
-        settings = context.scene.rpr.render
-        col = layout.column()
-        col.enabled = settings.motion_blur
-        col1, col2, is_row = create_ui_autosize_column(context, col)
-        col1.prop(settings, "motion_blur_exposure_apply", text="")
-        col1.prop(settings, "motion_blur_exposure")
-        col2.prop(settings, "motion_blur_scale_apply", text="")
-        col2.prop(settings, "motion_blur_scale")
-
-
-@rpraddon.register_class
-class OpGpuList(bpy.types.Operator):
-    bl_idname = "rpr.op_gpu_list"
-    bl_label = "Select GPU"
-
-    gpu_states = bpy.props.BoolVectorProperty(name="", size=helpers.RenderResourcesHelper.max_gpu_count)
-
-    def draw(self, context):
-        layout = self.layout
-        settings = helpers.get_user_settings()
-
-        for i, device in enumerate(helpers.render_resources_helper.devices):
-            if i >= helpers.RenderResourcesHelper.max_gpu_count:
-                break
-
-            name = device['name']
-            if not device['certified']:
-                if not settings.include_uncertified_devices:
+        row = layout.split(percentage=0.25, align=True)
+        col = row.column()
+        col.prop(device_settings, 'use_gpu', text='GPU')
+        col = row.column()
+        box = col.box()
+        box.enabled = device_settings.use_gpu
+        for i, device_item in enumerate(helpers.render_resources_helper.devices):
+            name = device_item['name']
+            if not device_item['certified']:
+                if not device_settings.include_uncertified_devices:
                     continue
                 name += ' (not certified)'
-            layout.prop(self, "gpu_states", index=i, text=name)
+            box.prop(device_settings, "gpu_states", index=i, text=name)
 
-    def execute(self, context):
-        global gpu_states
-        helpers.render_resources_helper.update_gpu_states_in_settings(self.gpu_states)
+        layout.separator()
 
-        # update GPU value (clamp)
-        max_count = helpers.render_resources_helper.get_max_gpu_can_use()
-        settings = helpers.get_user_settings()
-        if settings.gpu_count > max_count:
-            settings.gpu_count = max_count
-        return {'FINISHED'}
+        row = layout.row()
+        row.prop(device_settings, 'samples')
 
-    def invoke(self, context, event):
-        global gpu_states
-        settings = helpers.get_user_settings()
-        for i in range(len(self.gpu_states)):
-            self.gpu_states[i] = settings.gpu_states[i]
-        return context.window_manager.invoke_props_dialog(self)
+        # layout.separator()
+        # row = layout.row()
+        # row = layout.split(percentage=0.25, align=True)
+        # col = row.column()
+        # col.prop(final_settings, 'tiled_render')
+        # col = row.column(align=True)
+        # col.prop(final_settings, 'tile_x')
+        # col.prop(final_settings, 'tile_y')
 
+
+@rpraddon.register_class
+class RPRRender_PT_viewport_settings(RPRPanel, Panel):
+    bl_label = "RPR Preview Device and Settings"
+
+    def draw(self, context):
+        layout = self.layout
+
+        device_settings = helpers.get_device_settings(False)
+        
+        row = layout.split(percentage=0.25, align=True)
+        col = row.column()
+        col.prop(device_settings, 'use_cpu', text='CPU')
+        col = row.column()
+        box = col.box()
+        box.enabled = device_settings.use_cpu
+        box.prop(device_settings, 'cpu_threads')
+
+        row = layout.split(percentage=0.25, align=True)
+        col = row.column()
+        col.prop(device_settings, 'use_gpu', text='GPU')
+        col = row.column()
+        box = col.box()
+        box.enabled = device_settings.use_gpu
+        for i, device_item in enumerate(helpers.render_resources_helper.devices):
+            name = device_item['name']
+            if not device_item['certified']:
+                if not device_settings.include_uncertified_devices:
+                    continue
+                name += ' (not certified)'
+            box.prop(device_settings, "gpu_states", index=i, text=name)
+
+        # settings for viewport overrides
+        layout.separator()
+        layout.label("Viewport Settings:")
+        viewport_settings = helpers.get_user_settings().viewport_render_settings
+
+        layout.prop(viewport_settings, 'limit_resolution', text="Resolution Limit")
+        if viewport_settings.limit_resolution == 'SCALE':
+            layout.prop(viewport_settings, 'resolution_scale', slider=True)
+
+        layout.prop(viewport_settings.limits, "type", text="Iterations Limit")
+
+        if 'TIME' == viewport_settings.limits.type:
+            layout.prop(viewport_settings.limits, "seconds")
+        elif 'ITER' == viewport_settings.limits.type:
+            layout.prop(viewport_settings.limits, "iterations")
+
+        layout.separator()
+        row = layout.row()
+        row.prop(viewport_settings, 'render_mode', text="Render Mode")
+
+        row = layout.split()
+        col = row.column(align=True)
+        col.prop(viewport_settings, 'motion_blur', text='Show Motion Blur')
+        col.prop(viewport_settings, 'dof', text='Show Depth of Field')
+
+        col = row.column(align=True)
+        col.prop(viewport_settings.gi_settings, 'max_ray_depth')
+        col.prop(viewport_settings.gi_settings, 'max_diffuse_depth', text='Diffuse depth')
+        col.prop(viewport_settings.gi_settings, 'max_glossy_depth', text='Reflection depth')
+
+        layout.separator()
+        row = layout.row()
+        if viewport_settings.downscale_textures_size == 'AUTO':
+            text = "Downscale Textures [%d]:" % get_automatic_compression_size(context.scene)
+        else:
+            text = "Downscale Textures:"
+        row.prop(viewport_settings, 'downscale_textures_size', text=text)
+
+        layout.separator()
+        layout.prop(viewport_settings, 'thumbnail_iterations')
+        
 
 @rpraddon.register_class
 class RPRRender_PT_completion_criteria(RPRPanel, Panel):
-    bl_label = "RPR Sampling"
+    bl_label = "RPR Render Sampling"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -422,8 +354,84 @@ class RPRRender_PT_completion_criteria(RPRPanel, Panel):
             col2.label('')
             col2.prop(rpr_aa, "radius", slider=True, text='Radius')
 
+@rpraddon.register_class
+class RPRRender_PT_quality_and_type(RPRPanel, Panel):
+    bl_label = "RPR Render Quality"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        rpr = context.scene.rpr.render
+
+        layout.label("Ray Depths:")
+        split = layout.split(percentage=0.5)
+        col = split.column()
+        rpr_gi = rpr.global_illumination
+
+        col.prop(rpr_gi, "max_ray_depth", slider=True)
+
+        col = split.column(align=True)
+        col.prop(rpr_gi, "max_diffuse_depth", slider=True, text='Max Diffuse')
+        col.prop(rpr_gi, "max_glossy_depth", slider=True, text='Max Glossy')
+        col.prop(rpr_gi, "max_refraction_depth", slider=True, text='Max Refraction')
+        col.prop(rpr_gi, "max_glossy_refraction_depth", slider=True, text='Max Glossy Refraction')
+        col.prop(rpr_gi, "max_shadow_depth", slider=True, text='Max Shadow')
+
+        layout.separator()
+        row = layout.row()
+        row.prop(rpr_gi, "ray_epsilon", slider=True)
+
+        row = layout.row()
+        split = row.split(percentage=0.25)
+        row2 = split.row()
+        row2.prop(rpr_gi, "use_clamp_irradiance")
+        row1 = split.row()
+        row1.enabled = rpr_gi.use_clamp_irradiance
+        row1.prop(rpr_gi, "clamp_irradiance")
+        
+        layout.prop(rpr, 'downscale_textures_production')
+
 
 @rpraddon.register_class
+class RPRRender_PT_render_effects(RPRPanel, Panel):
+    bl_label = "RPR Render Effects"
+
+    def draw(self, context):
+        layout = self.layout
+        rpr = context.scene.rpr
+
+        layout.prop(rpr.render.dof, "enable", text='Depth of Field')
+        box = layout.box()
+        box.enabled = rpr.render.dof.enable
+        camera = context.scene.camera
+        if camera and camera.type == 'CAMERA':
+            box.label('Active camera: ' + camera.name)
+            draw_camera_dof(context, box, camera.data)
+        else:
+            sub_row.label("Scene hasn't active camera.")
+
+        layout.separator()
+        layout.prop(rpr.render, "motion_blur", text='Motion Blur')
+        box = layout.box()
+        box.enabled = rpr.render.motion_blur
+
+        split = box.split()
+        col1 = split.column()
+        col1.prop(rpr.render, "motion_blur_exposure_apply", text="")
+        col1.prop(rpr.render, "motion_blur_exposure")
+        col2 = split.column()
+        col2.prop(rpr.render, "motion_blur_scale_apply", text="")
+        col2.prop(rpr.render, "motion_blur_scale")
+
+        if platform.system() != "Darwin":
+            layout.separator()
+            layout.prop(rpr, "use_render_stamp", text='Render Stamp')
+            
+            box = layout.box()
+            box.enabled = rpr.use_render_stamp
+            box.prop(rpr, "render_stamp", text="")
+
+# @rpraddon.register_class
 class RPRRender_PT_preview_settings(RPRPanel, Panel):
     bl_label = "RPR Material Preview Settings"
     bl_options = {'DEFAULT_CLOSED'}
@@ -431,8 +439,9 @@ class RPRRender_PT_preview_settings(RPRPanel, Panel):
     def draw(self, context):
         layout = self.layout
         settings = bpy.context.scene.rpr.render_preview
+        
         layout.prop(settings.rendering_limits, "iterations")
-        layout.prop(settings.aa, "filter")
+        
 
 
 
@@ -637,66 +646,6 @@ class OpGetTimeNow(bpy.types.Operator):
 
 
 @rpraddon.register_class
-class RPRRender_PT_quality_and_type(RPRPanel, Panel):
-    bl_label = "RPR Mode/Quality"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        rpr = context.scene.rpr.render
-        split = layout.split(percentage=0.45)
-        row = split.column()
-        row.label('Render Mode:')
-        row.label('Viewport Quality:')
-
-        row = split.column()
-        row.prop(rpr, "render_mode", text='')
-        row.prop(rpr, "viewport_quality", text='')
-
-        layout.separator()
-        rpr_gi = rpr.global_illumination
-
-        row = layout.row()
-        split = row.split(percentage=0.66)
-        row1 = split.row()
-        row1.enabled = rpr_gi.use_clamp_irradiance
-        row1.prop(rpr_gi, "clamp_irradiance")
-
-        col = layout.column(align=True)
-        row = col.row()
-        row.prop(rpr_gi, "max_ray_depth", slider=True)
-
-        row = col.row(align=True)
-        row.prop(rpr_gi, "max_diffuse_depth", slider=True, text='Max Diffuse')
-        row.prop(rpr_gi, "max_glossy_depth", slider=True, text='Max Glossy')
-        row = col.row(align=True)
-        row.prop(rpr_gi, "max_shadow_depth", slider=True, text='Max Shadow')
-        row.prop(rpr_gi, "max_refraction_depth", slider=True, text='Max Refraction')
-        row = col.row(align=True)
-        row.prop(rpr_gi, "max_glossy_refraction_depth", slider=True, text='Max Glossy Refraction')
-
-
-        row = layout.row()
-        col = row.column(align=True)
-        col.prop(rpr_gi, "ray_epsilon", slider=True)
-
-        row = split.column()
-
-        row.prop(rpr_gi, "use_clamp_irradiance")
-
-        layout.separator()
-        split = layout.split(percentage=0.45)
-        row = split.column()
-        if rpr.downscale_textures_size == 'AUTO':
-            row.label("Downscale Textures [%d]:" % get_automatic_compression_size(context.scene))
-        else:
-            row.label("Downscale Textures:")
-        row = split.column()
-        row.prop(rpr, 'downscale_textures_size', text="")
-        layout.prop(rpr, 'downscale_textures_production')
-
-
-@rpraddon.register_class
 class RPRRender_PT_layers(RPRPanel, Panel):
     bl_label = "RPR Layers"
     bl_context = "render_layer"
@@ -829,42 +778,25 @@ class RPRRender_PT_camera_settings(RPRPanel, Panel):
         draw_camera_settings(camera, col_base)
 
 
-@rpraddon.register_class
-class RPRRender_PT_settings(RPRPanel, Panel):
-    bl_label = "RPR Stamp Settings"
-    bl_options = {'DEFAULT_CLOSED'}
+# @rpraddon.register_class
+# class RPRRender_PT_settings(RPRPanel, Panel):
+#     bl_label = "RPR Stamp Settings"
+#     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw_header(self, context):
-        layout = self.layout
-        row = layout.column()
-        row.enabled = False if platform.system() == "Darwin" else True
-        row.prop(context.scene.rpr, "use_render_stamp", text='')
+#     def draw_header(self, context):
+#         layout = self.layout
+#         row = layout.column()
+#         row.enabled = False if platform.system() == "Darwin" else True
+#         row.prop(context.scene.rpr, "use_render_stamp", text='')
 
-    def draw(self, context):
-        layout = self.layout
-        rpr = context.scene.rpr
-        row = layout.column()
-        row.enabled = False if platform.system() == "Darwin" else rpr.use_render_stamp
-        row.label("Render Stamp:")
-        row.prop(rpr, "render_stamp", text="")
+#     def draw(self, context):
+#         layout = self.layout
+#         rpr = context.scene.rpr
+#         row = layout.column()
+#         row.enabled = False if platform.system() == "Darwin" else rpr.use_render_stamp
+#         row.label("Render Stamp:")
+#         row.prop(rpr, "render_stamp", text="")
 
-@rpraddon.register_class
-class RPRRender_PT_developer(RPRPanel, Panel):
-    bl_label = "RPR Developer Diagnostics"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        dev = context.scene.rpr.dev
-        col = layout.column()
-        col.prop(dev, "show_rpr_materials_with_errors")
-        col.prop(dev, "show_cycles_materials_with_errors")
-        col.prop(dev, "trace_dump")
-        row = col.row()
-        row.enabled = dev.trace_dump
-        row.prop(dev, "trace_dump_folder", text="")
-        path = dev.get_trace_dump_folder()
-        row.operator("wm.path_open", text="", icon="RESTRICT_VIEW_OFF").filepath = path
 
 
 @rpraddon.register_class
@@ -1057,7 +989,7 @@ class RPRLogoProperties(bpy.types.PropertyGroup):
 
 @rpraddon.register_class
 class RPRRender_PT_about(RPRPanel, Panel):
-    bl_label = "RPR About"
+    bl_label = "RPR Help/About"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -1108,6 +1040,18 @@ class RPRRender_PT_about(RPRPanel, Panel):
         row = layout.row(align=True)
         row.alignment = 'CENTER'
         row.operator("rpr.op_show_eula")
+
+        dev = context.scene.rpr.dev
+        col = layout.column()
+        col.prop(dev, "show_rpr_materials_with_errors")
+        col.prop(dev, "show_cycles_materials_with_errors")
+        col.prop(dev, "trace_dump")
+        row = col.row()
+        row.enabled = dev.trace_dump
+        row.prop(dev, "trace_dump_folder", text="")
+        path = dev.get_trace_dump_folder()
+        row.operator("wm.path_open", text="", icon="RESTRICT_VIEW_OFF").filepath = path
+
 
     def add_link_button(self, row, page):
         caption = next(item[1] for item in links if page == item[0])

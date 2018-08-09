@@ -154,12 +154,13 @@ from rprblender import helpers
 
 
 def get_context_creation_flags(is_production):
-    settings = helpers.get_user_settings()
-    if settings.device_type == 'cpu':
+    settings = helpers.get_device_settings(is_production)
+    flags = 0
+    if settings.use_cpu:
         flags = pyrpr.CREATION_FLAGS_ENABLE_CPU
         logging.info('Using CPU only')
-    else:
-        flags = helpers.render_resources_helper.get_used_devices_flags()
+    if settings.use_gpu:
+        flags |= helpers.render_resources_helper.get_used_devices_flags(is_production)
         assert flags != 0
         # Keeping this mode for testing
         useGpuOcl = 'USE_GPU_OCL' in os.environ
@@ -168,8 +169,7 @@ def get_context_creation_flags(is_production):
         elif 'Darwin' == platform.system():
             flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
             logging.info("Enabling Metal GPU rendering")
-        if (settings.device_type_plus_cpu) and (is_production):
-            flags |= pyrpr.CREATION_FLAGS_ENABLE_CPU
+        if (settings.use_cpu) and (is_production):
             logging.info('Using GPU+CPU')
     return flags
 

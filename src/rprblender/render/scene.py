@@ -247,14 +247,15 @@ class SceneRenderer:
         from rprblender import properties
 
         rs = self.render_settings
+        limits = rs.rendering_limits if self.is_production else helpers.get_user_settings().viewport_render_settings.limits
 
         #AA-Sample and Iteration limit recalculated based on: AMDBLENDER-659
         ##iterations = (#user set iterations) * (#user set samples) / #samples
-        settings = helpers.get_user_settings()
+        settings = helpers.get_device_settings(self.production_render)
         numGPUs = helpers.get_used_gpu_count(settings.gpu_states)
         user_set_samples = settings.samples
-        if rs.rendering_limits.enable:
-            if 'ITER' == rs.rendering_limits.type:
+        if limits.enable:
+            if 'ITER' == limits.type:
                 # if production(final) render force sample count to GPU count for better throughput
                 # don't force it in viewport render for better interactivity(mGPU sync takes time)
                 if numGPUs > user_set_samples and self.is_production:
@@ -262,7 +263,7 @@ class SceneRenderer:
                 else:
                     samples = user_set_samples
 
-                self.used_iterations = int(rs.rendering_limits.iterations * user_set_samples / samples)
+                self.used_iterations = int(limits.iterations * user_set_samples / samples)
                 self.iteration_divider = user_set_samples / samples
                 if self.used_iterations < 1:
                     self.used_iterations = 1
@@ -291,9 +292,9 @@ class SceneRenderer:
         timestamp_operation_last = time.perf_counter()
 
         with rprblender.render.core_operations(raise_error=True):
-
+            render_mode = rs.render_mode if self.production_render else helpers.get_user_settings().viewport_render_settings.render_mode
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"rendermode",
-                                          properties.RenderSettings.rendermode_remap[rs.render_mode])
+                                          properties.RenderSettings.rendermode_remap[render_mode])
 
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"aasamples", samples)
 
@@ -310,13 +311,22 @@ class SceneRenderer:
             depth_shadow = 3
             depth_refraction = 3
             depth_glossy_refraction = 3
-            if self.production_render or rs.viewport_quality != 'FAST':
+            if self.production_render:
                 depth = rs.global_illumination.max_ray_depth
                 depth_diffuse = rs.global_illumination.max_diffuse_depth
                 depth_glossy = rs.global_illumination.max_glossy_depth
                 depth_shadow = rs.global_illumination.max_shadow_depth
                 depth_refraction = rs.global_illumination.max_refraction_depth
                 depth_glossy_refraction = rs.global_illumination.max_glossy_refraction_depth
+            else:
+                # if preview use viewport overrides
+                render_setting_overrides = helpers.get_user_settings().viewport_render_settings
+                depth = render_setting_overrides.gi_settings.max_ray_depth
+                depth_diffuse = render_setting_overrides.gi_settings.max_diffuse_depth
+                depth_glossy = render_setting_overrides.gi_settings.max_glossy_depth
+                depth_shadow = render_setting_overrides.gi_settings.max_diffuse_depth
+                depth_refraction = render_setting_overrides.gi_settings.max_glossy_depth
+                depth_glossy_refraction = render_setting_overrides.gi_settings.max_glossy_depth
 
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", depth)
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.diffuse", depth_diffuse)
@@ -346,12 +356,11 @@ class SceneRenderer:
             self.render_targets.clear()
 
         for i in itertools.count():
-            rendering_limits = rs.rendering_limits
-            if rendering_limits.enable:
-                if 'TIME' == rendering_limits.type:
-                    if rendering_limits.time != 0 and rendering_limits.time <= (time.perf_counter() - time_start):
+            if limits.enable:
+                if 'TIME' == limits.type:
+                    if rendering_limits.time != 0 and limits.time <= (time.perf_counter() - time_start):
                         break
-                elif 'ITER' == rendering_limits.type:
+                elif 'ITER' == limits.type:
                     if self.used_iterations != 0 and self.used_iterations <= i:
                         break
 

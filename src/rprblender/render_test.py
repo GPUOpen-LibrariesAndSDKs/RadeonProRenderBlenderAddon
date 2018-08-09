@@ -474,8 +474,12 @@ def basic_render_settings():
         bpy.context.scene.rpr.dev.trace_dump_folder = tracing_folder
 
     if enable_cpu:
-        helpers.get_user_settings().device_type = 'cpu'
-    helpers.get_user_settings().samples = 1
+        helpers.get_device_settings().use_cpu = True
+        helpers.get_device_settings().use_gpu = False
+    else:
+        helpers.get_device_settings().use_gpu = True
+        helpers.get_device_settings().use_cpu = False
+    helpers.get_device_settings().samples = 1
 
 
 @pytest.fixture(scope='function', autouse=True)
