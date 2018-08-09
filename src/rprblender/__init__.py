@@ -182,9 +182,6 @@ def register():
     from . import properties
     properties.register()
 
-    if __package__ in bpy.context.user_preferences.addons.keys():
-        helpers.render_resources_helper.init_gpu_states()
-
     # other stuff
     from . import ui
     from . import nodes
@@ -197,6 +194,9 @@ def register():
     import rprblender.converter
 
     rpraddon.register_all()
+    
+    if __package__ in bpy.context.user_preferences.addons.keys():
+        helpers.render_resources_helper.init_gpu_states()
 
     ui.register()
     render.register()

@@ -19,63 +19,8 @@ from enum import IntEnum
 
 from rprblender import config, logging, render
 
-class SavedSettings():
-    device_type = ''
-    gpu_count = -1
-    gpu_states_inited = False
-    gpu_states = [False, False, False, False, False, False, False, False]
-    include_uncertified_devices = False
-
-    device_type_plus_cpu = False
-    samples = 1
-    notify_update_addon = True
-
-    initialized = False
-
-    @classmethod
-    def is_changed(cls, settings):
-        if cls.device_type != settings.device_type:
-            return True
-        if cls.gpu_count != settings.gpu_count:
-            return True
-        if cls.gpu_states_inited != settings.gpu_states_inited:
-            return True
-        if cls.include_uncertified_devices != settings.include_uncertified_devices:
-            return True
-        if cls.device_type_plus_cpu != settings.device_type_plus_cpu:
-            return True
-        if cls.samples != settings.samples:
-            return True
-        if cls.notify_update_addon != settings.notify_update_addon:
-            return True
-
-        assert len(cls.gpu_states) == len(settings.gpu_states)
-        res = [i for i in range(len(cls.gpu_states)) if cls.gpu_states[i] != settings.gpu_states[i]]
-        if len(res) > 0:
-            return True
-        return False
-
-    @classmethod
-    def update(cls, settings):
-        cls.device_type = settings.device_type
-        cls.gpu_count = settings.gpu_count
-        cls.gpu_states_inited = settings.gpu_states_inited
-        cls.include_uncertified_devices = settings.include_uncertified_devices
-
-        cls.device_type_plus_cpu = settings.device_type_plus_cpu
-        cls.samples = settings.samples
-        cls.notify_update_addon = settings.notify_update_addon
-
-        for i in range(len(cls.gpu_states)):
-            cls.gpu_states[i] = settings.gpu_states[i]
-
-
 def settings_changed(self, context):
-    if SavedSettings.is_changed(self) and self.gpu_states_inited:
-        if SavedSettings.initialized:
-            save_user_settings()
-            SavedSettings.update(self)
-
+    save_user_settings()
 
 devices_types_desc = (('gpu', "GPU", "Use GPU only"),
                       ('cpu', "CPU", "Use CPU only"))
@@ -88,13 +33,14 @@ def get_device_type_index(device_type_name):
     assert False
     return 0
 
-
 def get_user_settings():
     if __package__ in bpy.context.user_preferences.addons.keys():
         return bpy.context.user_preferences.addons[__package__].preferences.settings
     else:
         return bpy.context.scene.rpr.fake_user_settings;
 
+def get_device_settings(production_render=True):
+    return get_user_settings().final_device_settings if production_render else get_user_settings().viewport_device_settings
 
 def save_user_settings():
     if __package__ in bpy.context.user_preferences.addons.keys():
@@ -213,7 +159,7 @@ class RenderResourcesHelper:
         assert self.lib
         self.lib_release()
 
-    def get_used_gpu_info(self):
+    def get_used_gpu_info(self, is_production):
         info = ''
         gpu_certified = False
         gpu_non_certified = False
@@ -224,7 +170,7 @@ class RenderResourcesHelper:
             else:
                 gpu_non_certified = True
 
-        settings = get_user_settings()
+        settings = get_device_settings(is_production)
 
         if not gpu_certified:
             if gpu_non_certified:
@@ -239,36 +185,34 @@ class RenderResourcesHelper:
 
 
     def init_gpu_states(self):
-        settings = get_user_settings()
-        if not settings.gpu_states_inited:
-            logging.info('gpu states not inited')
-            for i, device in enumerate(self.devices):
-                settings.gpu_states[i] = device['certified']
+        # do this for both final and viewport settings
+        for settings in (get_device_settings(True), get_device_settings(False)):
+            if not settings.gpu_states_inited:
+                logging.info('gpu states not inited')
+                for i, device in enumerate(self.devices):
+                    settings.gpu_states[i] = device['certified']
 
-            settings.gpu_states_inited = True
-            set_gpu_count(settings, settings.gpu_count)
-        else:
-            SavedSettings.update(settings) # update data without saving
-            self.update_gpu_states_in_settings(settings.gpu_states)
+                settings.gpu_states_inited = True
+            else:
+                self.update_gpu_states_in_settings(settings.gpu_states, settings)
 
 
     def enable_autosave(self):
-        SavedSettings.initialized = True  # allow save settings after that
         settings = get_user_settings()
         settings_changed(settings, None)
 
     def get_max_gpu_can_use(self):
-        settings = get_user_settings()
+        settings = get_device_settings()
         res = get_used_gpu_count(settings.gpu_states)
         res = min(len(self.devices), res)
         return res
 
-    def get_used_devices_flags(self):
-        settings = get_user_settings()
+    def get_used_devices_flags(self, is_production):
+        settings = get_device_settings(is_production)
         flags = 0
         used = 0
         for i in range(len(settings.gpu_states)):
-            if settings.gpu_states[i] is True and i < len(self.devices) and used < settings.gpu_count:
+            if settings.gpu_states[i] is True and i < len(self.devices):
                 gpu = self.devices[i]
                 flags |= gpu['flags']
                 logging.info('using GPU(%d): "%s"' % (used, gpu['name']))
@@ -278,19 +222,18 @@ class RenderResourcesHelper:
         return flags
 
     def get_used_devices(self):
-        settings = get_user_settings()
+        settings = get_device_settings()
         devices = ''
         used = 0
         for i in range(len(settings.gpu_states)):
-            if settings.gpu_states[i] is True and i < len(self.devices) and used < settings.gpu_count:
+            if settings.gpu_states[i] is True and i < len(self.devices):
                 gpu = self.devices[i]
                 devices = devices + gpu['name']
                 used += 1
 
         return devices
 
-    def update_gpu_states_in_settings(self, gpu_states):
-        settings = get_user_settings()
+    def update_gpu_states_in_settings(self, gpu_states, settings):
         have_selected_devices = False
         # update gpu states
         for i in range(len(gpu_states)):
@@ -409,8 +352,7 @@ def get_device_type(self):
 
 
 def set_device_type(self, value):
-    settings = get_user_settings()
-    render_resources_helper.update_gpu_states_in_settings(settings.gpu_states)
+    render_resources_helper.update_gpu_states_in_settings(settings.gpu_states, self)
     device_cpu = 1
     assert devices_types_desc[device_cpu][0] == 'cpu'
 

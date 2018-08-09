@@ -60,7 +60,7 @@ def get_cpu_name():
         registry_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0,winreg.KEY_READ)
         value, regtype = winreg.QueryValueEx(registry_key, 'ProcessorNameString')
         winreg.CloseKey(registry_key)
-        return value
+        return value.strip()
     except WindowsError:
         return None
 
@@ -69,18 +69,18 @@ def render_stamp( text, context,  image, image_width, image_height,channels, ite
     ver = get_addon_version()
 
     cpu_name = get_cpu_name()
-    settings = helpers.get_user_settings()
+    settings = helpers.get_device_settings()
     hardware = ''
-    if settings.device_type == "gpu":
+    render_mode = ''
+    if settings.use_gpu:
         hardware = helpers.render_resources_helper.get_used_devices()
-    elif settings.device_type == "cpu":
-        hardware = cpu_name
-    else:
-        hardware = helpers.render_resources_helper.get_used_devices() + " / " + cpu_name
-
-    render_mode = settings.device_type
-    if render_mode:
-        render_mode = render_mode.upper()
+        render_mode = "GPU"
+        if settings.use_cpu:
+            hardware = hardware + " / "
+            render_mode = render_mode + " + "
+    if settings.use_cpu:
+        hardware = hardware + cpu_name
+        render_mode = render_mode + "CPU"
 
     text = text.replace("%pt", time.strftime("%H:%M:%S", time.gmtime(frame_time)))
     text = text.replace("%pp", str(iter))

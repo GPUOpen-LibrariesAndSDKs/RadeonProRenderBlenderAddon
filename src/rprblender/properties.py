@@ -461,7 +461,6 @@ class RenderingLimits(bpy.types.PropertyGroup):
     )
 
     def update_time(self, context):
-        print('update_time')
         seconds = self.time
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
@@ -560,12 +559,12 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
     use_clamp_irradiance = bpy.props.BoolProperty(
         name="Use Clamp",
         description="Use Clamp Irradiance",
-        default=False,
+        default=True,
     )
     clamp_irradiance = bpy.props.FloatProperty(
         name="Clamp Irradiance",
         description="Clamp Irradiance",
-        min=1.0, default=1.0,
+        min=1.0, default=10.0,
     )
     max_ray_depth = bpy.props.IntProperty(
         name="Max ray depth", description="Max ray depth",
@@ -601,6 +600,24 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
         name="Max glossy refraction ray depth", description="Max glossy refraction ray depth",
         min=0,
         soft_min=2, soft_max=50,
+        default=5,
+    )
+    max_refraction_depth = bpy.props.IntProperty(
+        name="Max refraction ray depth", description="Max refraction ray depth",
+        min=0,
+        soft_min=1, soft_max=50,
+        default=5,
+    )
+    max_glossy_refraction_depth = bpy.props.IntProperty(
+        name="Max glossy refraction ray depth", description="Max glossy refraction ray depth",
+        min=0,
+        soft_min=1, soft_max=50,
+        default=5,
+    )
+    max_shadow_depth = bpy.props.IntProperty(
+        name="Max shadow ray depth", description="Max shadow ray depth",
+        min=0,
+        soft_min=1, soft_max=50,
         default=5,
     )
     ray_epsilon = bpy.props.FloatProperty(
@@ -911,29 +928,12 @@ class RenderSettings(bpy.types.PropertyGroup):
         " render mode"
     )
 
-    texturecompression = bpy.props.BoolProperty(
-        name="Texture Compression",
-        default=False
-    )
-
     viewport_quality = bpy.props.EnumProperty(
         name="Viewport Quality",
         items=(('SAME_AS_RENDER', "Same as Render", "Same as render quality"),
                ('FAST', "Fast", "Fast")),
         description="Viewport Quality",
         default='FAST',
-    )
-
-    downscale_textures_size = bpy.props.EnumProperty(
-        name="Downscale Textures",
-        description="Downscale textures to speed up rendering precess and decrease memory usage",
-        items=(('256', "256", "Downscale textures to 256x256"),
-               ('512', "512", "Downscale textures to 512x512"),
-               ('1024', "1024", "Downscale textures to 1024x1024"),
-               ('2048', "2048", "Downscale textures to 2048x2048"),
-               ('AUTO', "Automatic", "Calculate downscale textures size depending by the render resolution"),
-               ('NONE', "No downscale", "Do not downscale textures")),
-        default='AUTO',
     )
 
     downscale_textures_production = bpy.props.BoolProperty(
@@ -987,34 +987,151 @@ class RenderSettings(bpy.types.PropertyGroup):
 ########################################################################################################################
 from . import helpers
 
+@rpraddon.register_class
+class ViewportSettings(bpy.types.PropertyGroup):
+    ''' Settings for use with interactive renders in the viewport 
+        these should be persistent and not saved with the file. '''
 
-class UserSettings(bpy.types.PropertyGroup):
-    count = len(helpers.render_resources_helper.devices)
-    def_device = 'gpu' if count > 0 else 'cpu'
+    limits = bpy.props.PointerProperty(type=RenderingLimits)
 
-    device_type = bpy.props.EnumProperty(
-        name="Device Type",
-        items=helpers.devices_types_desc,
-        description="Device Type  used for render",
-        get=helpers.get_device_type,
-        set=helpers.set_device_type,
-        default=def_device,
+    thumbnail_iterations = bpy.props.IntProperty(
+        name="Thumbnail Iterations count",
+        description="Limit the max number of iterations for material previews",
+        min=0, max=0x7fffffff, default=50,
+    )
+
+    limit_resolution = bpy.props.EnumProperty(
+        name="Limit resolution",
+        items = {('SCALE', 'Scale Viewport Resolution', 'Scale viewport resolution by X'),
+                 ('RENDER', 'Render Resolution', 'Limit to Render Resolution')},
+        description="Limits Resolution to this size at max",
+        default='RENDER', 
+    )
+
+    downscale_textures_size = bpy.props.EnumProperty(
+        name="Downscale Textures",
+        description="Downscale textures to speed up rendering precess and decrease memory usage",
+        items=(('256', "256", "Downscale textures to 256x256"),
+               ('512', "512", "Downscale textures to 512x512"),
+               ('1024', "1024", "Downscale textures to 1024x1024"),
+               ('2048', "2048", "Downscale textures to 2048x2048"),
+               ('AUTO', "Automatic", "Calculate downscale textures size depending by the render resolution"),
+               ('NONE', "No downscale", "Do not downscale textures")),
+        default='AUTO',
+    )
+
+    def get_viewport_resolution(self, context):
+        # get the actual viewport resolution to use
+        region_w = context.region.width
+        region_h = context.region.height
+
+        if self.limit_resolution == 'SCALE':
+            scale = self.resolution_scale / 100
+            region_w = int(region_w * scale)
+            region_h = int(region_h * scale)
+        else:
+            render_w, render_h = context.scene.render.resolution_x, context.scene.render.resolution_y
+            region_aspect = region_w/region_h
+            render_aspect = render_w/render_h
+
+            render_w = int(render_w * context.scene.render.resolution_percentage / 100.0)
+            render_h = int(render_h * context.scene.render.resolution_percentage / 100.0)
+
+            if render_aspect > region_aspect:
+                # if render resolution is wider, use the max heigh from render
+                region_h = render_h
+                region_w = int(region_aspect * region_h)
+            else:
+                region_w = render_w
+                region_h = int(render_w / region_aspect)
+
+        return region_w, region_h
+
+
+
+
+
+
+    resolution_scale = bpy.props.IntProperty(
+        name="Resolution Scale", 
+        min=0, max=100, default=100,
+    )
+
+    gi_settings = bpy.props.PointerProperty(type=GlobalIlluminationSettings)
+
+    motion_blur = bpy.props.BoolProperty(
+        name="Viewport Motion Blur",
+        description="Show Motion Blur in viewport if enabled in the scene",
+        default=False, 
+    )
+
+    dof = bpy.props.BoolProperty(
+        name="Viewport Depth of Field",
+        description="Show Depth of Field in viewport if enabled in the scene",
+        default=False, 
+    )
+
+    render_mode, rendermode_remap = create_core_enum_property(
+        None,
+        'RENDER_MODE_',
+        "Render Mode",
+        "Render mode override",
+        " render mode"
+    )
+
+
+
+@rpraddon.register_class
+class FinalRenderSettings(bpy.types.PropertyGroup):
+    ''' Settings for use with final renders in the  
+        these should be persistent and not saved with the file. '''
+
+    def set_tile_size(self, context):
+        # TODO, if tile is enabled and tile size is 0, set the tile size to render size
+        pass
+
+    update_freq = bpy.props.IntProperty(
+        name="Seconds between render updates",
+        description="Number of seconds between updates to the render view.  Less updates will give a slightly faster render.  Set to 0 for no updates.  Note the first 10 iterations are always updated to the viewport.",
+        min=0, max=0x7fffffff, default=10,
+    )
+
+    tiled_render = bpy.props.BoolProperty(
+        name="Tile Render",
+        description="Splits render into tiles of size X by Y",
+        default=False, update=set_tile_size,
+    )
+
+    tile_x = bpy.props.IntProperty(
+        name="Tile X",
+        min=0, max=0x7fffffff, default=0,
+    )
+
+    tile_y = bpy.props.IntProperty(
+        name="Tile Y",
+        min=0, max=0x7fffffff, default=0,
+    )
+
+
+@rpraddon.register_class
+class DeviceSettings(bpy.types.PropertyGroup):
+    # can be used to return the count if > 0 there is gpus available
+    def get_device_count(self):
+        return len(helpers.render_resources_helper.devices)
+
+    use_cpu = bpy.props.BoolProperty(name="Use CPU", #get=helpers.get_enable_cpu,set=helpers.set_enable_cpu,
+                                        default=False, update=helpers.settings_changed,
+                                        description='GPU only rendering may be faster unless you have a CPU with many cores')
+
+    cpu_threads = bpy.props.IntProperty(
+        name="CPU Threads",
+        description="Number CPU threads used for render, ",
+        #max=helpers.get_cpu_cores(), default=helpers.get_cpu_cores(), get=helpers.get_cpu_threads, set=helpers.set_cpu_threads, 
         update=helpers.settings_changed,
     )
 
-    device_type_plus_cpu = bpy.props.BoolProperty(
-        name="Use CPU",
-        description='Only for Production Rendering',
-        default=False,
-        update=helpers.settings_changed,
-    )
-
-    gpu_count = bpy.props.IntProperty(
-        name="GPU Count",
-        description="Number GPUs used for render",
-        min=1, max=count, default=count, get=helpers.get_gpu_count, set=helpers.set_gpu_count,
-        update=helpers.settings_changed,
-    )
+    use_gpu = bpy.props.BoolProperty(name="Use GPU", #get=helpers.get_enable_gpu, set=helpers.set_enable_gpu,
+                                        default=True, update=helpers.settings_changed)
 
     gpu_states = bpy.props.BoolVectorProperty(name="",
                                               size=helpers.RenderResourcesHelper.max_gpu_count,
@@ -1030,21 +1147,33 @@ class UserSettings(bpy.types.PropertyGroup):
 
     include_uncertified_devices = bpy.props.BoolProperty(name="Include Uncertified Devices",
                                                          description="Include Uncertified Devices",
-                                                         default=False,
+                                                         default=True,
                                                          update=helpers.settings_changed,
                                                          )
 
-
     samples = bpy.props.IntProperty(
-        name="Render Samples", description="The more samples, the less viewport updates for shorter render times.",
+        name="Samples per view update", description="The more samples, the less viewport updates for shorter render times.",
         min=1, soft_max=16, default=1,
         update=helpers.settings_changed,
     )
 
+
+@rpraddon.register_class
+class UserSettings(bpy.types.PropertyGroup):
     notify_update_addon = bpy.props.BoolProperty(name='Notify update addon',
         default=True,
         update=helpers.settings_changed
     )
+
+    final_device_settings = bpy.props.PointerProperty(type=DeviceSettings)
+    final_render_settings = bpy.props.PointerProperty(type=FinalRenderSettings)
+
+    viewport_device_settings = bpy.props.PointerProperty(type=DeviceSettings)
+    viewport_render_settings = bpy.props.PointerProperty(type=ViewportSettings)
+
+
+
+
 
 
 ########################################################################################################################
@@ -1319,7 +1448,7 @@ class RPRCamera(bpy.types.PropertyGroup, RPRCameraSettings):
             type=cls,
         )
 
-
+@rpraddon.register_class
 class RPRAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
     settings = bpy.props.PointerProperty(type=UserSettings)
@@ -1518,11 +1647,7 @@ class RPRSceneRenderLayerData(bpy.types.PropertyGroup):
 
 def register():
     logging.debug("properties.register()")
-    bpy.utils.register_class(UserSettings)
-    bpy.utils.register_class(RPRAddonPreferences)
-
 
 def unregister():
     logging.debug("properties.unregister()")
-    bpy.utils.unregister_class(RPRAddonPreferences)
-    bpy.utils.unregister_class(UserSettings)
+    

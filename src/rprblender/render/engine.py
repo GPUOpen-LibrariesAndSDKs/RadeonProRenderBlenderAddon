@@ -17,7 +17,7 @@ import rprblender.render.render_layers
 import rprblender.render.render_stamp
 import rprblender.render.scene
 import rprblender.render.viewport
-from rprblender import rpraddon, logging, config, sync, export
+from rprblender import rpraddon, logging, config, sync, export, helpers
 from rprblender.helpers import CallLogger, print_memory_usage
 from rprblender.timing import TimedContext
 import rprblender.versions as versions
@@ -38,9 +38,10 @@ class RenderViewport(bpy.types.Operator):
 @call_logger.logged
 def start_viewport_rendering(context):
     viewport_renderer = rprblender.render.viewport.ViewportRenderer()
-    logging.debug('start: {},{}'.format(context.region.width, context.region.height), tag='render.viewport')
+    width, height = helpers.get_user_settings().viewport_render_settings.get_viewport_resolution(context)
+    logging.debug('start: {},{}'.format(width, height), tag='render.viewport')
     viewport_renderer.set_render_aov(versions.get_render_passes_aov(bpy.context))
-    viewport_renderer.set_render_resolution((context.region.width, context.region.height))
+    viewport_renderer.set_render_resolution((width, height))
 
     #viewport_renderer.set_render_resolution((context.region.width, context.region.height))
 
@@ -111,7 +112,7 @@ class RPREngine(bpy.types.RenderEngine):
     def show_gpu_info(self):
         from . import helpers
         # import rprblender.helpers
-        info = helpers.render_resources_helper.get_used_gpu_info()
+        info = helpers.render_resources_helper.get_used_gpu_info(not self.is_preview)
         if info:
             self.report({'WARNING'}, info)
             logging.info('info: ', info)
@@ -148,7 +149,10 @@ class RPREngine(bpy.types.RenderEngine):
         scene_renderer.has_denoiser = settings.denoiser.enable
 
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
-        export.prev_world_matrices_cache.update(scene)
+        # if this is a preview render and motion blur is off don't even try to cache matrices
+        # note:  if viewport MB is on and scene MB is off it still wont cache
+        if not self.is_preview or helpers.get_user_settings().viewport_render_settings.motion_blur:
+            export.prev_world_matrices_cache.update(scene)
 
         scene_renderer.production_render = True
 
@@ -268,7 +272,8 @@ class RPREngine(bpy.types.RenderEngine):
                                     return
                                 if self.test_break():
                                     return
-                                self.update_scene_render_stats(self, scene_renderer, settings.rendering_limits)
+                                limits = helpers.get_user_settings().viewport_render_settings.limits if self.is_preview else settings.rendering_limits
+                                self.update_scene_render_stats(self, scene_renderer, limits)
                                 if scene_renderer_threaded.render_completed_event.wait(timeout=0.1):
                                     render_completed = True
                                     break
@@ -413,6 +418,9 @@ class RPREngine(bpy.types.RenderEngine):
 
     def view_update(self, context):  # Update on data changes for viewport render
         logging.debug("view_update", tag='render')
+        
+        self.is_preview = True
+
         if self.error:
             return
         try:
@@ -458,6 +466,7 @@ class RPREngine(bpy.types.RenderEngine):
 
     def view_draw(self, context):  # Draw viewport render
         logging.debug("view_draw", tag='render')
+
         if self.error:
             return
         try:
@@ -500,8 +509,8 @@ class RPREngine(bpy.types.RenderEngine):
 
         time_view_draw_start = time.perf_counter()
 
-        render_resolution = (context.region.width, context.region.height)
-
+        render_resolution = helpers.get_user_settings().viewport_render_settings.get_viewport_resolution(context)
+        
         if (1 / self.view_draw_get_image_fps_max) < (time_view_draw_start - self.view_draw_get_image_timestamp):
             self.view_draw_get_image_timestamp = time_view_draw_start
             logging.debug("get_image", tag='render.viewport.draw')
@@ -544,7 +553,8 @@ class RPREngine(bpy.types.RenderEngine):
                 assert im.flags['C_CONTIGUOUS']
                 self.im = im
             settings = bpy.context.scene.rpr.render
-            self.update_scene_render_stats(self, viewport_renderer.scene_renderer, settings.rendering_limits)
+            limits = helpers.get_user_settings().viewport_render_settings.limits if self.is_preview else settings.rendering_limits
+            self.update_scene_render_stats(self, viewport_renderer.scene_renderer, limits)
 
             if self.im is not None:
                 logging.debug("draw_image", tag='render.viewport.draw')

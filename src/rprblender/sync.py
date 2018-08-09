@@ -13,7 +13,7 @@ import rprblender
 from rprblender import logging, versions
 from rprblender.core.nodes import log_mat, Material, ShaderType
 from rprblender.export import extract_mesh, get_blender_mesh, prev_world_matrices_cache
-from rprblender.helpers import CallLogger, print_memory_usage
+from rprblender.helpers import CallLogger, print_memory_usage, get_user_settings
 from rprblender.timing import TimedContext
 import rprblender.core.image
 
@@ -1232,13 +1232,13 @@ def get_focus_distance(blender_camera):
     return direction.length
 
 
-def get_dof_data(camera, blender_camera, settings):
+def get_dof_data(camera, blender_camera, settings, is_preview=False):
     if not blender_camera:
         camera.dof_enable = False
         return
 
     focus_distance = get_focus_distance(blender_camera)
-    camera.dof_enable = settings.dof.enable
+    camera.dof_enable = settings.dof.enable if not is_preview else settings.dof.enable and get_user_settings().viewport_render_settings.dof
     if camera.dof_enable:
         camera.dof_f_stop = blender_camera.data.gpu_dof.fstop
         camera.dof_blades = blender_camera.data.gpu_dof.blades
@@ -1355,15 +1355,14 @@ def extract_render_camera_from_blender_camera(active_camera: bpy.types.Camera,
 def extract_viewport_render_camera(context: bpy.types.Context, settings):
     render_camera = RenderCamera()
 
-    render_resolution = context.region.width, context.region.height
+    viewport_render_settings = get_user_settings().viewport_render_settings
+    render_resolution = viewport_render_settings.get_viewport_resolution(context)
     width, height = render_resolution
     aspect = float(width) / float(height)
 
     render_camera.aspect = aspect
 
     is_camera = 'CAMERA' == context.region_data.view_perspective
-
-    get_dof_data(render_camera, context.scene.camera if is_camera else None, settings)
 
     if is_camera:
         # see blender/intern/cycles/blender/blender_camera.cpp:blender_camera_from_view (look for 1.41421f)
@@ -1407,5 +1406,8 @@ def extract_viewport_render_camera(context: bpy.types.Context, settings):
         render_camera.ortho_depth = zoom * extent_base / 1
     else:
         assert False
+
+    # override dof data
+    get_dof_data(render_camera, context.scene.camera if is_camera else None, settings, is_preview=True)
 
     return render_camera

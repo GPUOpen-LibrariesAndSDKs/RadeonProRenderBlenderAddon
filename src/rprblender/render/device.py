@@ -10,14 +10,13 @@ import pyrprimagefilters
 
 import rprblender.render
 from rprblender import config, logging, images
-from rprblender.helpers import CallLogger
-from rprblender.helpers import isMetalOn
 import rprblender.render.render_layers
+import rprblender.helpers as helpers
 
 import sys
 import bpy
 
-logged = CallLogger(tag='render.device').logged
+logged = helpers.CallLogger(tag='render.device').logged
 
 
 class AOV:
@@ -210,13 +209,14 @@ class RenderDevice:
 
     def update_downscaled_image_size(self, is_production):
         settings = bpy.context.scene.rpr.render
+        viewport_settings = helpers.get_user_settings().viewport_render_settings
         size = None
         if (not is_production or settings.downscale_textures_production) and \
-                    settings.downscale_textures_size != 'NONE':
-            if settings.downscale_textures_size == 'AUTO':
+                    viewport_settings.downscale_textures_size != 'NONE':
+            if viewport_settings.downscale_textures_size == 'AUTO':
                 size = images.get_automatic_compression_size(bpy.context.scene)
             else:
-                size = int(settings.downscale_textures_size)
+                size = int(viewport_settings.downscale_textures_size)
         images.downscaled_image_size[self.core_context] = size
 
 
