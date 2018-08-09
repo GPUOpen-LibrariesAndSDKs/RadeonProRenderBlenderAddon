@@ -354,7 +354,11 @@ class RifFilterEaw(RifFilterWrapper):
 
         for i in range(RifFilterEaw._AuxInput.AuxInputMax):
             aux_filter = rif.RifImageFilter()
-            rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR, aux_filter)
+            if i == RifFilterEaw._AuxInput.Color:
+                rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR, aux_filter)
+            else:
+                rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_MLAA, aux_filter)
+
             self._aux_filters.append(aux_filter)
 
             aux_image = rif.RifImage()
@@ -366,6 +370,7 @@ class RifFilterEaw(RifFilterWrapper):
         # setup inputs
         rif.ImageFilterSetParameterImage(self._rif_image_filter, b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
         rif.ImageFilterSetParameterImage(self._rif_image_filter, b'transImg', self._inputs[RifFilterInput.Trans].rif_image)
+        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'depthImg', self._inputs[RifFilterInput.Depth].rif_image)
         rif.ImageFilterSetParameterImage(self._rif_image_filter, b'colorVar', self._inputs[RifFilterInput.Color].rif_image)
 
         # setup sigmas
@@ -379,7 +384,8 @@ class RifFilterEaw(RifFilterWrapper):
 
         # setup MLAA filter
         rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
-        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'meshIdsImg', self._inputs[RifFilterInput.ObjectId].rif_image)
+        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'meshIDImg', self._inputs[RifFilterInput.ObjectId].rif_image)
+        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'depthImg', self._inputs[RifFilterInput.Depth].rif_image)
 
         # attach filters
         rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterEaw._AuxInput.Color], 
