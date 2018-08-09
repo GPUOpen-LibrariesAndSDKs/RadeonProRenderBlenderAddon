@@ -2147,7 +2147,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.reflection_roughness].default_value = 1
 
         uber2.reflection_fresnel_metalmaterial = False
-        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 0.2
+        uber2.inputs[uber2.reflection_ior].default_value = 0.2
 
     with render_image_check_fixture.set_expected('uber2/uber2_reflection_ior_0_1_expected'):
         uber2.coating = False
@@ -2164,7 +2164,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.reflection_roughness].default_value = 1
 
         uber2.reflection_fresnel_metalmaterial = False
-        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 0.1
+        uber2.inputs[uber2.reflection_ior].default_value = 0.1
 
     with render_image_check_fixture.set_expected('uber2/uber2_reflection_ior_2_expected'):
         uber2.coating = False
@@ -2181,7 +2181,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.reflection_roughness].default_value = 1
 
         uber2.reflection_fresnel_metalmaterial = False
-        uber2.inputs[uber2.reflection_fresnel_ior].default_value = 2
+        uber2.inputs[uber2.reflection_ior].default_value = 2
 
     # CLEAR COAT
     with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_0_1_expected'):
@@ -2199,7 +2199,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.coating_roughness].default_value = 1
 
         uber2.coating_fresnel_metal_material = False
-        uber2.inputs[uber2.coating_fresnel_ior].default_value = 0.1
+        uber2.inputs[uber2.coating_ior].default_value = 0.1
 
     with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_0_2_expected'):
         uber2.coating = True
@@ -2216,7 +2216,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.coating_roughness].default_value = 1
 
         uber2.coating_fresnel_metal_material = False
-        uber2.inputs[uber2.coating_fresnel_ior].default_value = 0.2
+        uber2.inputs[uber2.coating_ior].default_value = 0.2
 
     with render_image_check_fixture.set_expected('uber2/uber2_clear_coat_ior_2_expected'):
         uber2.coating = True
@@ -2233,7 +2233,7 @@ def test_shader_node_uber2(render_image_check_fixture, material_setup, request, 
         uber2.inputs[uber2.coating_roughness].default_value = 1
 
         uber2.coating_fresnel_metal_material = False
-        uber2.inputs[uber2.coating_fresnel_ior].default_value = 2
+        uber2.inputs[uber2.coating_ior].default_value = 2
 
 
     # REFRACTION

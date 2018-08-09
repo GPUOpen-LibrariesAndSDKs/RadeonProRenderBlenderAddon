@@ -1320,9 +1320,7 @@ class RPRObject_PT(RPRPanel, Panel):
             visibility_layout = self.layout
             visibility_layout.prop(rpr, "visibility_in_primary_rays", text="Camera visibility:")
 
-            subdivision_layout = self.layout.box()
-            add_subdivision_properties(subdivision_layout, context.object)
-
+            add_subdivision_properties(self.layout.box(), context.object)
 
 @rpraddon.register_class
 class RPRObject_PT_MotionBlur(RPRPanel, Panel):
@@ -1369,7 +1367,7 @@ class OpAddMaterialNodeTree(bpy.types.Operator):
         context.material.use_nodes = True
         tree = context.material.node_tree
         tree.nodes.clear()
-        shader = tree.nodes.new("rpr_shader_node_uber2")
+        shader = tree.nodes.new("rpr_shader_node_uber3")
         shader.location = 150, 400
         matOut = tree.nodes.new(shader_node_output_name)
         matOut.location = 550, 400

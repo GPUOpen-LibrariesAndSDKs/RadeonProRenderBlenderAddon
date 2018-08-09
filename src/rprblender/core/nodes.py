@@ -1136,11 +1136,6 @@ class Material:
             if blender_node.reflection_fresnel_metalmaterial:
                 is_linked = False
 
-            if pyrpr.API_VERSION < 0x010031000:
-                shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR_MODE,
-                                    pyrprx.UBER_MATERIAL_REFRACTION_MODE_LINKED if is_linked else
-                                    pyrprx.UBER_MATERIAL_REFRACTION_MODE_SEPARATE)
-
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE,
                                 pyrpr.TRUE if is_thin_surface else
                                 pyrpr.FALSE)
@@ -1169,8 +1164,8 @@ class Material:
         # EMISSIVE:
         if blender_node.emissive:
             emissive_color = self.get_value(blender_node, blender_node.emissive_color)
-            emissive_intesivity = self.get_value(blender_node, blender_node.emissive_intensity)
-            val = self.mul_value(emissive_color, emissive_intesivity)
+            emissive_intensity = self.get_value(blender_node, blender_node.emissive_intensity)
+            val = self.mul_value(emissive_color, emissive_intensity)
 
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT,
@@ -1186,15 +1181,6 @@ class Material:
 
         # SUBSURFACE
         if blender_node.subsurface:
-            if pyrpr.API_VERSION < 0x010031000:
-                use_diffuse_color = blender_node.subsurface_use_diffuse_color
-                if use_diffuse_color and blender_node.diffuse:
-                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
-                                          self.get_value(blender_node, blender_node.diffuse_color))
-                else:
-                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
-                                          self.get_value(blender_node, blender_node.subsurface_color))
-
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
                                   self.get_value(blender_node, blender_node.subsurface_weight))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
@@ -1221,11 +1207,12 @@ class Material:
         if blender_node.normal:
             normal_socket = self.get_socket(blender_node, blender_node.normal_in)
             if normal_socket is not None:
-                if pyrpr.API_VERSION < 0x010031000:
-                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_NORMAL, self.parse_node(normal_socket))
-                else:
+                if blender_node.diffuse:
                     shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, self.parse_node(normal_socket))
+                if blender_node.reflection:
                     shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, self.parse_node(normal_socket))
+                if blender_node.coating:
+                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_NORMAL, self.parse_node(normal_socket))
 
 
         # DISPLACEMENT
@@ -1249,6 +1236,141 @@ class Material:
                     shader.set_value_rprx(pyrprx.UBER_MATERIAL_DISPLACEMENT, displacement_value)
 
         return shader
+
+
+    def parse_shader_node_uber3(self, blender_node):
+        def get_value(param):
+            return self.get_value(blender_node, getattr(blender_node, param))
+
+        def get_normal_socket(use_param, param):
+            socket = None
+            if not getattr(blender_node, use_param):
+                socket = self.get_socket(blender_node, getattr(blender_node, param))
+                if socket:
+                    return socket
+            if blender_node.normal:
+                socket = self.get_socket(blender_node, blender_node.normal_in)
+            return socket
+
+        log_mat('parse_shader_node_uber2...')
+        
+        shader = UberShader2(self)
+        nul_value_vector = ValueVector(0,0,0,0)
+
+        # DIFFUSE:
+        if blender_node.diffuse:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, get_value('diffuse_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, get_value('diffuse_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, get_value('diffuse_roughness'))
+
+            normal_socket = get_normal_socket('diffuse_use_shader_normal', 'diffuse_normal')
+            if normal_socket:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, self.parse_node(normal_socket))
+
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, get_value('backscatter_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, 
+                                  get_value('diffuse_color') if blender_node.diffuse and not blender_node.backscatter_separate_color else
+                                  get_value('backscatter_color'))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, nul_value_vector)
+
+        # REFLECTION:
+        if blender_node.reflection:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_COLOR, get_value('reflection_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, get_value('reflection_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS, get_value('reflection_roughness'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY, get_value('reflection_anisotropy'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION, get_value('reflection_anisotropy_rotation'))
+
+            if blender_node.reflection_mode == 'METALNESS':
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE, pyrprx.UBER_MATERIAL_REFLECTION_MODE_METALNESS)
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS, get_value('reflection_metalness'))
+            else:
+                shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE, pyrprx.UBER_MATERIAL_REFLECTION_MODE_PBR)
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_IOR, get_value('reflection_ior'))
+
+            normal_socket = get_normal_socket('reflection_use_shader_normal', 'reflection_normal')
+            if normal_socket:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, self.parse_node(normal_socket))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, nul_value_vector)
+
+        # REFRACTION:
+        if blender_node.refraction:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_COLOR, get_value('refraction_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, get_value('refraction_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ROUGHNESS, get_value('refraction_roughness'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR, get_value('refraction_ior'))
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE,
+                                pyrpr.TRUE if blender_node.refraction_thin_surface else pyrpr.FALSE)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_DISTANCE, get_value('refraction_absorption_distance'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_COLOR, get_value('refraction_color'))
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_CAUSTICS,
+                                pyrpr.TRUE if blender_node.refraction_caustics else pyrpr.FALSE)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, nul_value_vector)
+
+        # COATING
+        if blender_node.coating:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_COLOR, get_value('coating_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT, get_value('coating_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS, get_value('coating_roughness'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_THICKNESS, get_value('coating_thickness'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_TRANSMISSION_COLOR, 
+                                  self.sub_value(ValueVector(1, 1, 1), get_value('coating_transmission_color'))) # transmission color should be inverted
+
+            # coating should always be PBR mode
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_COATING_MODE, pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_IOR, get_value('coating_ior'))
+
+            normal_socket = get_normal_socket('coating_use_shader_normal', 'coating_normal')
+            if normal_socket:
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_NORMAL, self.parse_node(normal_socket))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT, nul_value_vector)
+
+        # EMISSIVE:
+        if blender_node.emissive:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, 
+                                  self.mul_value(get_value('emissive_color'), 
+                                  ValueVector(blender_node.emissive_intensity, blender_node.emissive_intensity, blender_node.emissive_intensity, 1.0)))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, get_value('emissive_weight'))
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE,
+                                pyrprx.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED if blender_node.emissive_double_sided else 
+                                pyrprx.UBER_MATERIAL_EMISSION_MODE_SINGLESIDED)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, nul_value_vector)
+
+        # SUBSURFACE
+        if blender_node.subsurface:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT, get_value('subsurface_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, 
+                                  get_value('diffuse_color') if blender_node.diffuse and blender_node.subsurface_use_diffuse_color else
+                                  get_value('subsurface_scatter_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION, get_value('subsurface_scatter_direction'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, get_value('subsurface_radius'))
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
+                                pyrpr.TRUE if blender_node.subsurface_multiple_scattering else pyrpr.FALSE)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT, nul_value_vector)
+
+        # TRANSPARENCY
+        if blender_node.transparency:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_TRANSPARENCY, get_value('transparency_value'))
+
+        # DISPLACEMENT
+        if blender_node.displacement:
+            displacement_socket = self.get_socket(blender_node, blender_node.displacement_map)
+            if displacement_socket:
+                displacement_value = self.parse_node(displacement_socket)
+                min, max = blender_node.displacement_min, blender_node.displacement_max
+                delta = max - min
+                displacement_value = self.mul_value(displacement_value, ValueVector(delta, delta, delta))
+                displacement_value = self.add_value(displacement_value, ValueVector(min, min, min))
+                shader.set_value_rprx(pyrprx.UBER_MATERIAL_DISPLACEMENT, displacement_value)
+
+        return shader
+
 
     def parse_shader_node_pbr(self, blender_node):
         log_mat('parse_shader_node_pbr...')
@@ -1291,8 +1413,6 @@ class Material:
                             pyrpr.FALSE)
         
         # SUBSURFACE
-        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SUBSURFACE_COLOR,
-                                  self.get_value(blender_node, blender_node.base_color))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
                               self.get_value(blender_node, blender_node.sss_weight))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
@@ -1323,6 +1443,59 @@ class Material:
             else:
                 shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, self.parse_node(normal_socket))
                 shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, self.parse_node(normal_socket))
+
+        return shader
+
+    def parse_shader_node_pbr3(self, blender_node):
+        def get_value(param):
+            return self.get_value(blender_node, getattr(blender_node, param))
+
+        log_mat('parse_shader_node_pbr3...')
+
+        shader = UberShader2(self)
+
+        nul_value_vector = ValueVector(0,0,0,0)
+        one_vector = ValueVector(1.0, 1.0, 1.0, 1.0)
+
+        normal_socket = self.get_socket(blender_node, blender_node.normal)
+
+        # DIFFUSE:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, get_value('base_color'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, one_vector)
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, get_value('roughness'))
+        if normal_socket:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, self.parse_node(normal_socket))
+
+        # REFLECTION:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_COLOR, get_value('base_color'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, get_value('specular'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS, get_value('roughness'))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFLECTION_MODE, pyrprx.UBER_MATERIAL_REFLECTION_MODE_METALNESS)
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS, get_value('metalness'))
+        if normal_socket:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, self.parse_node(normal_socket))
+    
+        # REFRACTION:
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_COLOR, get_value('base_color'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, get_value('glass_weight'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ROUGHNESS, get_value('roughness'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_IOR, get_value('glass_ior'))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE, pyrpr.FALSE)
+        
+        # EMISSIVE
+        emissive_weight = get_value('emissive_weight')
+        if emissive_weight != nul_value_vector:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, get_value('emissive_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, emissive_weight)
+            shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE, pyrprx.UBER_MATERIAL_EMISSION_MODE_SINGLESIDED)
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, nul_value_vector)
+
+        # SUBSURFACE
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT, get_value('subsurface_weight'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, get_value('subsurface_color'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, get_value('subsurface_radius'))
+        shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER, pyrpr.FALSE)
 
         return shader
 
@@ -1781,7 +1954,9 @@ class Material:
             'rpr_shader_node_ward': self.parse_shader_node_ward,
             'rpr_shader_node_uber': self.parse_shader_node_uber,
             'rpr_shader_node_uber2': self.parse_shader_node_uber2,
+            'rpr_shader_node_uber3': self.parse_shader_node_uber3,
             'rpr_shader_node_pbr': self.parse_shader_node_pbr,
+            'rpr_shader_node_pbr3': self.parse_shader_node_pbr3,
 
             'rpr_texture_node_image_map': self.parse_texture_node_image_map,
             'rpr_mapping_node': self.parse_mapping_node,
