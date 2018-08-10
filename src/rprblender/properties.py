@@ -790,12 +790,6 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     filter_items_list = (("bilateral", "Bilateral", "Bilateral", 0),
                      ("lwr", "Local Weighted Regression", "Local Weighted Regression", 1),
                      ("eaw", "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2))
-            
-    # TODO : remove when lwr is fixed on macos
-    if "Darwin" == platform.system():
-        item1 = filter_items_list[0]
-        item2 = filter_items_list[2]
-        filter_items_list = (item1,item2)
 
     filter_type = bpy.props.EnumProperty(
         name="Filter Type",
