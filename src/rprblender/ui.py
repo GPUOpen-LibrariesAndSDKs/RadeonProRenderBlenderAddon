@@ -937,12 +937,11 @@ def add_rpr_export_menu_item(self, context):
     self.layout.operator(OpExportGLTFModel.bl_idname, text="GLTF (.gltf)")
 
 
-links = (('main_site', "Main Site",         "http://pro.radeon.com/en-us/software/prorender/"),
-         ('documentation', "Documentation", "http://pro.radeon.com/en-us/software/prorender/"),
-         ('downloads', "Downloads",         "http://pro.radeon.com/en-us/software/prorender/"),
-         ('community', "Community",         "http://blender.radeonprorender.com/support/discussions"),
-         ('knowledge_base', "Knowledge Base", "http://blender.radeonprorender.com/support/home"),
-         ('bug_reports', "Bug Reports",     "http://blender.radeonprorender.com/support/login"),
+links = (('main_site', "Main Site",         "https://pro.radeon.com/en/software/prorender/"),
+         ('documentation', "Documentation", "https://pro.radeon.com/en/software/prorender/"),
+         ('downloads', "Downloads",         "https://pro.radeon.com/en/software/prorender/blender/"),
+         ('community', "Community",         "https://community.amd.com/community/prorender/"),
+         ('bug_reports', "Bug Reports",     "https://community.amd.com/community/prorender/blender/"),
         )
 
 
@@ -1034,7 +1033,6 @@ class RPRRender_PT_about(RPRPanel, Panel):
         row.alignment = 'CENTER'
 
         self.add_link_button(row, "community")
-        self.add_link_button(row, "knowledge_base")
         self.add_link_button(row, "bug_reports")
 
         row = layout.row(align=True)
