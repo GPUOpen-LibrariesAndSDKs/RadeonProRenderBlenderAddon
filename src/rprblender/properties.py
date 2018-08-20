@@ -1371,6 +1371,12 @@ class RPRObject(bpy.types.PropertyGroup):
             default=True,
         )
 
+        cls.reflection_visibility = bpy.props.BoolProperty(
+            name="Reflection Visibility",
+            description="Enable visibility of this object in reflections",
+            default=True,
+        )
+
         cls.portallight = bpy.props.BoolProperty(
             name="Portal Light",
             description="Use this object as portallight",
