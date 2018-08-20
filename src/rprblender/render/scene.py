@@ -378,7 +378,9 @@ class SceneRenderer:
 
             self.im_tile = self.tile_image
             self.im_iteration = i
-            self.im_prepared.clear()
+            # as aa samples are removed, we need to only update N samples
+            if i % user_set_samples == 0:
+                self.im_prepared.clear()
 
             timstamp_operation = time.perf_counter()
             time_local_total += timstamp_operation - timestamp_operation_last
@@ -389,6 +391,7 @@ class SceneRenderer:
 
             self.log_debug('render_proc inner loop iteration wait')
 
+        self.im_prepared.clear()
         self.log_debug('render_proc loops completed')
 
         self.log_debug('render_proc calc time:')
