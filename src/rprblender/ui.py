@@ -1257,6 +1257,7 @@ class RPRObject_PT(RPRPanel, Panel):
             rpr = context.object.rpr_object
             self.layout.prop(rpr, "shadowcatcher")
             self.layout.prop(rpr, "shadows", text="Casts shadows")
+            self.layout.prop(rpr, "reflection_visibility")
             self.layout.prop(rpr, "portallight")
 
             visibility_layout = self.layout

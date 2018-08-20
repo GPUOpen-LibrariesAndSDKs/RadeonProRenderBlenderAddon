@@ -577,6 +577,7 @@ class ObjectsSync:
         for i in instance.materials_assigned:
             self.scene_synced.mesh_set_shadowcatcher((key, i), object_settings.shadowcatcher)
             self.scene_synced.mesh_set_shadows((key, i), object_settings.shadows)
+            self.scene_synced.mesh_set_visibility_in_specular((key, i), object_settings.reflection_visibility)
 
             if duplicator is None:
                 if object_settings.subdivision_type == 'level':
