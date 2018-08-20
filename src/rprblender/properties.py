@@ -564,7 +564,7 @@ class GlobalIlluminationSettings(bpy.types.PropertyGroup):
     clamp_irradiance = bpy.props.FloatProperty(
         name="Clamp Irradiance",
         description="Clamp Irradiance",
-        min=1.0, default=10.0,
+        min=1.0, default=1.0,
     )
     max_ray_depth = bpy.props.IntProperty(
         name="Max ray depth", description="Max ray depth",
