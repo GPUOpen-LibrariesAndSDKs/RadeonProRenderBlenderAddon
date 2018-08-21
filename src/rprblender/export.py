@@ -1815,23 +1815,25 @@ def extract_submesh(mesh, material_index):
         return mesh
 
     material_faces = material_index == mesh['data']['faces_materials']
-
+    
     indices = mesh['data']['indices'].reshape(-1, 4)[material_faces].flatten()
     vertex_indices = mesh['data']['vertex_indices'].reshape(-1, 4)[material_faces].flatten()
 
     faces_counts = np.full(np.count_nonzero(material_faces), 4, dtype=np.int32)
 
-    vertices = mesh['data']['vertices']
-
+    # reset indices to 0-1, we will delete extras. Use the original order for deleting extras from other arrays such as UV
+    old_indices, indices = np.unique(indices, return_inverse=True)
+    old_vertex_indices, vertex_indices = np.unique(vertex_indices, return_inverse=True)
+    
     result = dict(
         type='MESH',
         name=mesh['name'],
         data=dict(
-            vertices=vertices,
-            normals=mesh['data']['normals'],
-            uvs=mesh['data']['uvs'],
-            vertex_indices=vertex_indices,
-            indices=indices,
+            vertices=mesh['data']['vertices'][old_vertex_indices],
+            normals=mesh['data']['normals'][old_indices],
+            uvs=mesh['data']['uvs'][old_indices],
+            vertex_indices=vertex_indices.astype(np.int32),
+            indices=indices.astype(np.int32),
             faces_counts=faces_counts,
         )
     )
