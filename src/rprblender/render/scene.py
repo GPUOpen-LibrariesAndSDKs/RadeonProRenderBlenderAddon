@@ -253,27 +253,15 @@ class SceneRenderer:
         ##iterations = (#user set iterations) * (#user set samples) / #samples
         settings = helpers.get_device_settings(self.production_render)
         numGPUs = helpers.get_used_gpu_count(settings.gpu_states)
-        user_set_samples = settings.samples
+        samples_per_iteration = settings.samples
         if limits.enable:
             if 'ITER' == limits.type:
-                # if production(final) render force sample count to GPU count for better throughput
-                # don't force it in viewport render for better interactivity(mGPU sync takes time)
-                if numGPUs > user_set_samples and self.is_production:
-                    samples = numGPUs
-                else:
-                    samples = user_set_samples
-
-                self.used_iterations = int(limits.iterations * user_set_samples / samples)
-                self.iteration_divider = user_set_samples / samples
-                if self.used_iterations < 1:
-                    self.used_iterations = 1
-                    self.iteration_divider = 1
-
-            else:
-                samples = user_set_samples
-        else:
-            samples = user_set_samples
-
+                if numGPUs > samples_per_iteration and self.is_production:
+                    samples_per_iteration = numGPUs
+                
+                self.used_iterations = int(limits.iterations / samples_per_iteration)
+                self.iteration_divider = 1 / samples_per_iteration
+        
         time_start = time.perf_counter()
         self.time_render_start = time_start
         time_local_total = 0
@@ -296,7 +284,7 @@ class SceneRenderer:
             pyrpr.ContextSetParameter1u(self.get_core_context(), b"rendermode",
                                           properties.RenderSettings.rendermode_remap[render_mode])
 
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"aasamples", samples)
+            pyrpr.ContextSetParameter1u(self.get_core_context(), b"iterations", samples_per_iteration)
 
             if rs.global_illumination.use_clamp_irradiance:
                 pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
@@ -378,10 +366,8 @@ class SceneRenderer:
 
             self.im_tile = self.tile_image
             self.im_iteration = i
-            # as aa samples are removed, we need to only update N samples
-            if i % user_set_samples == 0:
-                self.im_prepared.clear()
-
+            self.im_prepared.clear()
+            
             timstamp_operation = time.perf_counter()
             time_local_total += timstamp_operation - timestamp_operation_last
             timestamp_operation_last = timstamp_operation
@@ -391,7 +377,6 @@ class SceneRenderer:
 
             self.log_debug('render_proc inner loop iteration wait')
 
-        self.im_prepared.clear()
         self.log_debug('render_proc loops completed')
 
         self.log_debug('render_proc calc time:')
