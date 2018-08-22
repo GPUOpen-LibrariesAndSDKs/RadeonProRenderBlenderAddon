@@ -805,7 +805,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_weight_soft', self.backscatter_weight).default_value = 0.0
 
         self.inputs.new('rpr_socket_color', self.reflection_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_weight_soft', self.reflection_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight_soft', self.reflection_weight).default_value = 1.0
         self.inputs.new('rpr_socket_weight', self.reflection_roughness).default_value = 0.25
         self.inputs.new('rpr_socket_float_MinN1_Max1', self.reflection_anisotropy).default_value = 0.0
         self.inputs.new('rpr_socket_angle360', self.reflection_anisotropy_rotation).default_value = 0.0
@@ -814,13 +814,13 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_link', self.reflection_normal).hide_value=True
 
         self.inputs.new('rpr_socket_color', self.refraction_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_weight_soft', self.refraction_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight_soft', self.refraction_weight).default_value = 1.0
         self.inputs.new('rpr_socket_weight', self.refraction_roughness).default_value = 0.0
         self.inputs.new('rpr_socket_ior', self.refraction_ior).default_value = 1.5
         self.inputs.new('rpr_socket_float_Min0_softMax10', self.refraction_absorption_distance).default_value = 0.0
 
         self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_weight', self.coating_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.coating_weight).default_value =1.0
         self.inputs.new('rpr_socket_weight', self.coating_roughness).default_value = 0.01
         self.inputs.new('rpr_socket_ior', self.coating_ior).default_value = 1.5
         self.inputs.new('rpr_socket_float_Min0_softMax10', self.coating_thickness).default_value = 0.0
@@ -828,15 +828,15 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_link', self.coating_normal).hide_value=True
 
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
-        self.inputs.new('rpr_socket_weight', self.emissive_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.emissive_weight).default_value = 1.0
 
-        self.inputs.new('rpr_socket_weight', self.subsurface_weight).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.subsurface_weight).default_value = 1.0
         self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (0.436, 0.227, 0.131, 1.0)
         self.inputs.new('rpr_socket_scattering_radius', self.subsurface_radius)
         self.inputs.new('rpr_socket_scattering_direction', self.subsurface_scatter_direction).default_value = 0.0
 
         self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
-        self.inputs.new('rpr_socket_weight', self.transparency_value).default_value = 0.0
+        self.inputs.new('rpr_socket_weight', self.transparency_value).default_value = 1.0
         self.inputs.new('rpr_socket_link', self.displacement_map).hide_value=True
 
         self.diffuse_changed(context)
