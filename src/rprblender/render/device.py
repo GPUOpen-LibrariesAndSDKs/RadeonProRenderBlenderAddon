@@ -169,8 +169,9 @@ class RenderTargets:
 class RenderDevice:
 
     @logged
-    def __init__(self, is_production, context_flags):
-        self.core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder(), context_flags)
+    def __init__(self, is_production, context_flags, context_props=None):
+        self.core_context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder(),
+                                                             context_flags, context_props)
         pyrpr.ContextSetParameter1u(self.core_context, b'xflip', 0)
         pyrpr.ContextSetParameter1u(self.core_context, b'yflip', 1)
         pyrpr.ContextSetParameter1u(self.core_context, b'preview', 0 if is_production else 1)

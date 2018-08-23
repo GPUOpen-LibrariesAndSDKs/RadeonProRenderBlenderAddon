@@ -1119,8 +1119,10 @@ class DeviceSettings(bpy.types.PropertyGroup):
 
     cpu_threads = bpy.props.IntProperty(
         name="CPU Threads",
-        description="Number CPU threads used for render, ",
-        #max=helpers.get_cpu_cores(), default=helpers.get_cpu_cores(), get=helpers.get_cpu_threads, set=helpers.set_cpu_threads, 
+        description="Number of CPU threads for render, optimal value is about the number of physical CPU cores.",
+        min=helpers.MIN_CPU_THREADS_NUMBER,
+        max=helpers.MAX_CPU_THREADS_NUMBER,
+        default=helpers.cpu_threads_default_number,
         update=helpers.settings_changed,
     )
 
