@@ -174,7 +174,7 @@ def get_context_creation_flags(is_production):
     return flags
 
 
-def create_context(cache_path, flags) -> pyrpr.Context:
+def create_context(cache_path, flags, props=None) -> pyrpr.Context:
     # init trace dump settings
     from rprblender import properties
     properties.init_trace_dump(bpy.context.scene.rpr.dev)
@@ -186,8 +186,12 @@ def create_context(cache_path, flags) -> pyrpr.Context:
 
     assert -1 != tahoe_plugin_i_d
 
+    props_ffi = None
+    if props is not None:
+        props_ffi = pyrpr.ffi.new("rpr_context_properties[]",
+                                  [pyrpr.ffi.cast("rpr_context_properties", entry) for entry in props])
 
-    return pyrpr.Context([tahoe_plugin_i_d], flags, cache_path=str(cache_path))
+    return pyrpr.Context([tahoe_plugin_i_d], flags, props=props_ffi, cache_path=str(cache_path))
 
 
 def get_core_render_plugin_path():
@@ -217,8 +221,17 @@ def get_render_device(is_production=True, persistent=False):
     flags = rprblender.render.get_context_creation_flags(is_production)
     logging.debug("get_render_device(is_production=%s), flags: %s" %(is_production, hex(flags)), tag='render.device')
 
+    cpu_threads_number = 0
+    props = None
+    if is_production:
+        settings = helpers.get_device_settings(is_production)
+        if settings.use_cpu:
+            cpu_threads_number = max(helpers.MIN_CPU_THREADS_NUMBER,
+                                     min(helpers.MAX_CPU_THREADS_NUMBER, settings.cpu_threads))
+            props = [pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, cpu_threads_number, 0]
+
     if persistent:
-        key = (is_production, flags)
+        key = (is_production, flags, cpu_threads_number)
 
         if key in render_devices:
             return render_devices[key]
@@ -226,7 +239,8 @@ def get_render_device(is_production=True, persistent=False):
         render_devices.clear()  # don't keep more than one device(not to multiply memory usage for image cache)
 
     logging.debug("create new device, not found in cache:", render_devices, tag='render.device')
-    device = rprblender.render.device.RenderDevice(is_production=is_production, context_flags=flags)
+    device = rprblender.render.device.RenderDevice(is_production=is_production, context_flags=flags,
+                                                   context_props=props)
     if persistent:
         render_devices[key] = device
     return device

@@ -338,6 +338,28 @@ def set_gpu_count(self, value):
         set_device_type(self,device_cpu)
 
 
+def get_cpu_cores_count():
+    try:
+        from multiprocessing import cpu_count
+        return cpu_count()
+    except (ImportError, NotImplementedError, AttributeError):
+        pass
+
+    return os.cpu_count()
+
+
+MIN_CPU_THREADS_NUMBER = 2
+MAX_CPU_THREADS_NUMBER = 128
+
+cpu_cores = get_cpu_cores_count()
+if cpu_cores is None:  # use min threads number if cores number is unavailable for whatever reason
+    cpu_threads_default_number = MIN_CPU_THREADS_NUMBER
+else:
+    cpu_threads_default_number = min(max(cpu_cores, MIN_CPU_THREADS_NUMBER), MAX_CPU_THREADS_NUMBER)
+logging.debug("helpers: CPU cores found {}; default threads number: {}".
+             format(cpu_cores, cpu_threads_default_number))
+
+
 def get_device_type(self):
     default_device_type_name = 'gpu' if len(render_resources_helper.devices) > 0 else 'cpu'
     default_device_type_index = get_device_type_index(default_device_type_name)
