@@ -346,7 +346,7 @@ class SceneRenderer:
         for i in itertools.count():
             if limits.enable:
                 if 'TIME' == limits.type:
-                    if rendering_limits.time != 0 and limits.time <= (time.perf_counter() - time_start):
+                    if limits.time != 0 and limits.time <= (time.perf_counter() - time_start):
                         break
                 elif 'ITER' == limits.type:
                     if self.used_iterations != 0 and self.used_iterations <= i:
