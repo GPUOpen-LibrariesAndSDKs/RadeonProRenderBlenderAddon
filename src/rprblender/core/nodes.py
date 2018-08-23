@@ -1676,6 +1676,20 @@ class Material:
         node = FresnelNode(self, ior, normal, in_vec)
         return ValueNode(node)
 
+    def parse_fresnel_color_blend_node(self, blender_node):
+        log_mat('parse_fresnel_color_blend_node...')
+
+        normal = ValueNode(LookupNode(self, pyrpr.MATERIAL_NODE_LOOKUP_N))
+        invec = ValueNode(LookupNode(self, pyrpr.MATERIAL_NODE_LOOKUP_INVEC))
+
+        weight = self.sub_value(ValueVector(1.0, 1.0, 1.0), self.abs_value(self.dot3_value(normal, invec)))
+        k, a = (blender_node.pos2 - blender_node.pos1), blender_node.pos1
+        weight = self.add_value(self.mul_value(weight, ValueVector(k, k, k)), ValueVector(a, a, a))
+
+        return self.blend_value(self.get_value(blender_node, blender_node.color1),
+                                self.get_value(blender_node, blender_node.color2), 
+                                weight)
+
     def parse_mapping_node(self, blender_node):
         log_mat('parse_mapping_node...')
         node = LookupNode(self, LookupType.uv)
@@ -1973,6 +1987,7 @@ class Material:
             'rpr_texture_node_dot': self.parse_texture_node_dot,
             'rpr_fresnel_schlick_node': self.parse_fresnel_schlick_node,
             'rpr_fresnel_node': self.parse_fresnel_node,
+            'rpr_fresnel_color_blend_node': self.parse_fresnel_color_blend_node,
             'rpr_texture_node_ao': self.parse_ao_map,
             'ShaderNodeValToRGB': self.parse_color_ramp_node,
 

@@ -1756,6 +1756,7 @@ class RPRMaterialNode_FresnelSchlick(RPRNodeType_Fresnel):
         self.inputs.new('rpr_socket_link', self.normal_in)
         self.inputs.new('rpr_socket_link', self.in_vec_in)
 
+
 @rpraddon.register_class
 class RPRMaterialNode_Fresnel(RPRNodeType_Fresnel):
     bl_idname = 'rpr_fresnel_node'
@@ -1770,6 +1771,28 @@ class RPRMaterialNode_Fresnel(RPRNodeType_Fresnel):
         self.inputs.new('rpr_socket_ior', self.ior_in)
         self.inputs.new('rpr_socket_link', self.normal_in).hide_value=True
         self.inputs.new('rpr_socket_link', self.in_vec_in).hide_value=True
+
+
+@rpraddon.register_class
+class RPRMaterialNode_FresnelColorBlend(RPRNodeType_Fresnel):
+    bl_idname = 'rpr_fresnel_color_blend_node'
+    bl_label = 'RPR Fresnel Color Blend'
+
+    color1 = 'Color 1'
+    color2 = 'Color 2'
+    pos1 = bpy.props.FloatProperty(name='Pos 1', soft_min=0.0, soft_max=1.0, default=0.01)
+    pos2 = bpy.props.FloatProperty(name='Pos 2', soft_min=0.0, soft_max=1.0, default=0.99)
+
+    def init(self, context):
+        super(RPRMaterialNode_FresnelColorBlend, self).init()
+        self.inputs.new('rpr_socket_color', self.color1).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_color', self.color2).default_value = (0.0, 0.0, 0.0, 1.0)
+
+    def draw_buttons(self, context, layout):
+        col = layout.column(align=True)
+        col.prop(self, 'pos1', slider=True)
+        col.prop(self, 'pos2', slider=True)
+
 
 ########################################################################################################################
 # Other nodes
