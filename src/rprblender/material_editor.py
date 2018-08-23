@@ -213,6 +213,9 @@ class MaterialEditor:
     def create_fresnel_node(self):
         return ValueNode(self.tree.nodes.new(type='rpr_fresnel_node'), self)
 
+    def create_fresnel_color_blend_node(self):
+        return ValueNode(self.tree.nodes.new(type='rpr_fresnel_color_blend_node'), self)
+
     def create_input_constant_node(self):
         return ValueNode(self.tree.nodes.new(type='rpr_input_node_constant'), self)
 

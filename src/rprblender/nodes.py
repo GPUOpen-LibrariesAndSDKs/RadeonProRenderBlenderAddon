@@ -846,6 +846,7 @@ node_categories = [
     RPRNodeCategory("RPR_FRESNEL", "Fresnel", items=[
         NodeItem("rpr_fresnel_node"),
         NodeItem("rpr_fresnel_schlick_node"),
+        NodeItem("rpr_fresnel_color_blend_node"),
     ]),
 
     RPRNodeCategory("RPR_SHADER", "Shader", items=[
