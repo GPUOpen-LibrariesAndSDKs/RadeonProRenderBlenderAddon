@@ -217,9 +217,14 @@ class Scene(Object):
         ContextCreateScene(context, self)
 
 
-class Shape(Object):
+class Mesh(Object):
 
     core_type_name = 'rpr_shape'
+
+class Instance(Object):
+
+    core_type_name = 'rpr_shape'
+
 
 class HeteroVolume(Object):
 
