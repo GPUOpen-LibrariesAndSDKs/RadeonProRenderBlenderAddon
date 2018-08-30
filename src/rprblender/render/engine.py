@@ -254,8 +254,17 @@ class RPREngine(bpy.types.RenderEngine):
                         scene_exporter.set_render_layer(scene.render.layers[render_layer_index])
                         with scene_renderer_threaded.update_lock:
                             scene_renderer_threaded.need_scene_redraw = True
-                            self.update_stats("Sync layer:", str(render_layer_index))
-                            scene_exporter.sync(refresh_render_layers=True)
+                            self.update_stats("Sync layer:", "{} '{}'".format(str(render_layer_index),
+                                                                              result_render_layer.name))
+                            # full materials export is required for each subsequent render layer
+                            for name in scene_exporter.export_iter():
+                                print_memory_usage("export %s" % name)
+                                if scene_synced.has_error:
+                                    self.report({'WARNING'},'Scene export completed with errors. Please see the log for more details!')
+                                    scene_synced.has_error = False
+                                if self.test_break():
+                                    return
+                                logging.debug('exporting:', name, tag='sync')
 
                     for p in result_render_layer.passes:
                         logging.debug("    pass:", p.name, tag="render.engine.passes")
