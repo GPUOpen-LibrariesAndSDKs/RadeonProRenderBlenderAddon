@@ -1507,7 +1507,7 @@ class Material:
 
     def parse_input_node_value(self, blender_node):
         log_mat('parse_input_node_value...')
-        val = blender_node.default_value
+        val = blender_node.value_to_vector4()
         return ValueVector(val[0], val[1], val[2], val[3])
 
     def parse_node_normalmap(self, blender_node):
