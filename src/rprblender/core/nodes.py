@@ -990,6 +990,12 @@ class Material:
             shader.set_normal(self.parse_node(socket))
         return shader
 
+    def get_sss_radius(self, blender_node, input_id):
+        #convert radius (cm) to blender units (scale_length is in meters)
+        val = blender_node.inputs[getattr(blender_node, input_id)].default_value
+        scale = bpy.context.scene.unit_settings.scale_length * .01
+        return ValueVector(val[0] * scale, val[1] * scale, val[2]*scale, 1.0)
+
     def parse_shader_node_uber(self, blender_node):
         log_mat('parse_shader_node_uber...')
 
@@ -1183,13 +1189,16 @@ class Material:
         if blender_node.subsurface:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT,
                                   self.get_value(blender_node, blender_node.subsurface_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, 
+                                  self.get_value(blender_node, blender_node.subsurface_weight))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, ValueVector(1.0, 1.0, 1.0, 1.0))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR,
                                   self.get_value(blender_node, blender_node.subsurface_scatter_color))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION,
                                   self.get_value(blender_node, blender_node.subsurface_scatter_direction))
             
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, 
-                                  self.get_value(blender_node, blender_node.subsurface_radius))
+                                  self.get_sss_radius(blender_node, 'subsurface_radius'))
 
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
                                 pyrpr.TRUE if blender_node.subsurface_multiple_scattering else pyrpr.FALSE)
@@ -1347,8 +1356,11 @@ class Material:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, 
                                   get_value('diffuse_color') if blender_node.diffuse and blender_node.subsurface_use_diffuse_color else
                                   get_value('subsurface_scatter_color'))
+            # these also need to be set for core SSS to work.
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, get_value('subsurface_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, ValueVector(1.0, 1.0, 1.0, 1.0))
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION, get_value('subsurface_scatter_direction'))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, get_value('subsurface_radius'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, self.get_sss_radius(blender_node, 'subsurface_radius'))
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER,
                                 pyrpr.TRUE if blender_node.subsurface_multiple_scattering else pyrpr.FALSE)
         else:
@@ -1494,9 +1506,14 @@ class Material:
         # SUBSURFACE
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_WEIGHT, get_value('subsurface_weight'))
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, get_value('subsurface_color'))
-        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, get_value('subsurface_radius'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, self.get_sss_radius(blender_node, 'subsurface_radius'))
         shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER, pyrpr.FALSE)
-
+        # enable sss with backscatter
+        sss_weight_socket = self.get_socket(blender_node, blender_node.subsurface_weight)
+        if sss_weight_socket.is_linked or sss_weight_socket.default_value:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, get_value('subsurface_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, ValueVector(1.0, 1.0, 1.0, 1.0))
+        
         return shader
 
 
