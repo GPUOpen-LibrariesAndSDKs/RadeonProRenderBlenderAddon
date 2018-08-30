@@ -43,6 +43,7 @@ class SceneRenderer:
         self.render_device = render_device
 
         self.post_effect_manager = rprblender.render.device.PostEffectManager(self.get_core_context())
+        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
 
         self.im = None
         self.im_tile = None
@@ -169,77 +170,6 @@ class SceneRenderer:
         self.aov_settings = aov
         if self.render_layers:
             self.render_layers.update(self.aov_settings)
-
-    def update_tone_mapping(self, settings):
-
-        tm = settings.tone_mapping
-        if not tm.enable:
-            return False
-
-        if tm.type == 'simplified':
-            self.post_effect_manager.attach(pyrpr.POST_EFFECT_SIMPLE_TONEMAP, 
-                                            {"exposure": tm.simplified.exposure,
-                                             "contrast": tm.simplified.contrast})
-
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"tonemapping.type",
-                                        pyrpr.TONEMAPPING_OPERATOR_NONE)
-
-            return True
-
-        elif tm.type == 'linear':
-
-            post_effect_update.enable(pyrpr.POST_EFFECT_TONE_MAP)
-
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"tonemapping.type",
-                                        pyrpr.TONEMAPPING_OPERATOR_PHOTOLINEAR)
-
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.photolinear.sensitivity',
-                                        tm.linear.iso * 0.01)
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.photolinear.exposure',
-                                        tm.linear.shutter_speed)
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.photolinear.fstop', tm.linear.f_stop)
-
-            logging.info('tm.linear.iso: %d, tm.linear.shutter_speed: %f, tm.linear.f_stop %f' %
-                         (tm.linear.iso, tm.linear.shutter_speed, tm.linear.f_stop))
-
-            return True
-
-        elif tm.type == 'non_linear':
-
-            post_effect_update.enable(pyrpr.POST_EFFECT_TONE_MAP)
-
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"tonemapping.type",
-                                        pyrpr.TONEMAPPING_OPERATOR_REINHARD02)
-
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.reinhard02.prescale',
-                                        tm.nonlinear.prescale)
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.reinhard02.postscale',
-                                        tm.nonlinear.postscale)
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b'tonemapping.reinhard02.burn',
-                                        tm.nonlinear.burn)
-
-            logging.info('tm.nonlinear.prescale: %f, tm.nonlinear.postscale: %f, tm.nonlinear.burn %f' %
-                         (tm.nonlinear.prescale, tm.nonlinear.postscale, tm.nonlinear.burn))
-
-            return True
-
-        else:
-            assert False, 'unknown tonemapping type'
-
-        return False
-
-    def update_white_balance(self, settings):
-
-        wb = settings.white_balance
-        if not wb.enable:
-            return False
-
-        self.post_effect_manager.attach(pyrpr.POST_EFFECT_WHITE_BALANCE,
-                                        {"colorspace": wb.color_space_values[wb.color_space],
-                                         "colortemp": wb.color_temperature})
-
-        return True
-
 
     def render_proc(self):
         yield from self._render_proc()
@@ -486,28 +416,12 @@ class SceneRenderer:
     def _get_aov_image(self, aov_name):
         frame_buffer = self.render_targets.get_frame_buffer(aov_name)
 
-        if not frame_buffer:
-            return
-
-        self.post_effect_manager.clear()
-        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
-
-        if aov_name == 'default':
-            self.update_tone_mapping(self.render_settings)
-            self.update_white_balance(self.render_settings)
-
         if self.has_denoiser and aov_name == 'default':
             return self._get_filtered_image(frame_buffer)
 
         return self.render_targets.get_resolved_image(frame_buffer)
 
     def _get_shadow_catcher_image(self):
-        self.post_effect_manager.clear()
-        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
-
-        self.update_tone_mapping(self.render_settings)
-        self.update_white_balance(self.render_settings)
-
         if self.has_denoiser:
             return self._get_filtered_image(self.get_shadowcatcher_framebuffer())
 

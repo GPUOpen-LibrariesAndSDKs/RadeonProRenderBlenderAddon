@@ -648,104 +648,6 @@ def set_white_balance_color(self, value):
     self['preview_color'] = calc_white_balance_color(bpy.context.scene.rpr.render.white_balance.color_temperature)
 
 
-@rpraddon.register_class
-class ToneMappingSimplifiedSettings(bpy.types.PropertyGroup):
-    exposure = bpy.props.FloatProperty(
-        name="Exposure", description="Exposure",
-        default=0.0,
-    )
-    contrast = bpy.props.FloatProperty(
-        name="Contrast", description="Contrast",
-        min=0, default=1,
-    )
-
-
-@rpraddon.register_class
-class ToneMappingLinearSettings(bpy.types.PropertyGroup):
-    iso = bpy.props.IntProperty(
-        name="ISO", description="ISO",
-        min=0, default=100,
-    )
-    shutter_speed = bpy.props.FloatProperty(
-        name="Shutter Speed", description="Shutter Speed",
-        min=0, default=1,
-    )
-    f_stop = bpy.props.FloatProperty(
-        name="F-Stop", description="F-Stop",
-        min=0, default=4.0,
-    )
-
-
-@rpraddon.register_class
-class ToneMappingNonlinearSettings(bpy.types.PropertyGroup):
-    burn = bpy.props.FloatProperty(
-        name="Burn", description="Burn",
-        min=0, default=10.0,
-    )
-    prescale = bpy.props.FloatProperty(
-        name="Pre Scale", description="Pre Scale",
-        min=0, default=0.1,
-    )
-    postscale = bpy.props.FloatProperty(
-        name="Post Scale", description="Post Scale",
-        min=0, default=1.0,
-    )
-
-
-@rpraddon.register_class
-class ToneMappingSettings(bpy.types.PropertyGroup):
-    enable = bpy.props.BoolProperty(
-        name="Enable Tone Mapping",
-        description="Enable Tone Mapping",
-        default=False,
-    )
-    type = bpy.props.EnumProperty(
-        name="Tone Mapping",
-        items=(('simplified', "Simplified", "Simplified"),
-               ('linear', "Linear", "Linear"),
-               ('non_linear', "Non Linear", "Non Linear")),
-        description="Tone Mapping",
-        default='non_linear',
-    )
-
-    simplified = bpy.props.PointerProperty(type=ToneMappingSimplifiedSettings)  # type: ToneMappingSimplifiedSettings
-    linear = bpy.props.PointerProperty(type=ToneMappingLinearSettings)  # type: ToneMappingLinearSettings
-    nonlinear = bpy.props.PointerProperty(type=ToneMappingNonlinearSettings)  # type: ToneMappingNonlinearSettings
-
-
-@rpraddon.register_class
-class WhiteBalanceSettings(bpy.types.PropertyGroup):
-    enable = bpy.props.BoolProperty(
-        description="Enable White Balance",
-        default=False
-    )
-    color_temperature = bpy.props.IntProperty(
-        name="Color Temperature", description="Color Temperature (Kelvin)",
-        min=min_color_temperature, max=max_color_temperature, default=default_color_temperature,
-        update=set_white_balance_color
-    )
-    preview_color = bpy.props.FloatVectorProperty(
-        name='Preview Color', description="White balance preview color",
-        subtype='COLOR', min=0.0, max=1.0, size=3,
-        get=get_white_balance_color,
-        set=set_white_balance_color
-    )
-    color_space = bpy.props.EnumProperty(
-        name="Color Space",
-        items=(("s_rgb", "sRGB", "sRGB", 0),
-               ("adobe_rgb", "Adobe RGB", "Adobe RGB", 1),
-               ("dci_p3", "DCI-P3", "DCI-P3", 2),
-               ("rec_2020", "Rec. 2020", "Rec. 2020", 3)),
-        description="Color Space",
-        default='s_rgb'
-    )
-    color_space_values = dict([("s_rgb", pyrpr.COLOR_SPACE_SRGB),
-                               ("adobe_rgb", pyrpr.COLOR_SPACE_ADOBE_RGB),
-                               ("dci_p3", pyrpr.COLOR_SPACE_DCIP3),
-                               ("rec_2020", pyrpr.COLOR_SPACE_REC2020)]
-                              )
-
-
 class RPRCameraSettings:
     panorama_type = bpy.props.EnumProperty(
         name="Type",
@@ -908,8 +810,6 @@ class RenderSettings(bpy.types.PropertyGroup):
     rendering_limits = bpy.props.PointerProperty(type=RenderingLimits)  # type: RenderingLimits
     aa = bpy.props.PointerProperty(type=AntiAliasingSettings)  # type: AntiAliasingSettings
     global_illumination = bpy.props.PointerProperty(type=GlobalIlluminationSettings)  # type: GlobalIlluminationSettings
-    tone_mapping = bpy.props.PointerProperty(type=ToneMappingSettings)  # type: ToneMappingSettings
-    white_balance = bpy.props.PointerProperty(type=WhiteBalanceSettings)  # type: WhiteBalanceSettings
     camera = bpy.props.PointerProperty(type=CameraSettings)  # type: CameraSettings
     dof = bpy.props.PointerProperty(type=DofSettings)  # type: DofSettings
     denoiser = bpy.props.PointerProperty(type=DenoiserSettings) # type: DenoiserSettings
