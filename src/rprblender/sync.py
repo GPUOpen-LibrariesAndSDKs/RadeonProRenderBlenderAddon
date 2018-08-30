@@ -676,6 +676,8 @@ class SceneSynced:
 
     def _assign_material_to_shape(self, mat_key, shape, rpr_material):
         shader = rpr_material.get_handle()
+        if type(shape) == pyrpr.Instance:
+            return
 
         pyrpr.ShapeSetVolumeMaterial(shape, None)  # we have crash without it !!!
         pyrpr.ShapeSetDisplacementMaterial(shape, None)
@@ -953,7 +955,7 @@ class SceneSynced:
     def add_mesh_instance(self, key, mesh_key, matrix_world, name):
         logging.debug('add_mesh_instance:', key, mesh_key, matrix_world)
 
-        shape = pyrpr.Shape()
+        shape = pyrpr.Instance()
         pyrpr.ContextCreateInstance(
             self.get_core_context(),
             self.get_synced_obj(mesh_key).core_obj,
@@ -1070,7 +1072,7 @@ class SceneSynced:
         vertex_size = vertices[0].nbytes
 
         logging.debug("construct shape: ")
-        core_mesh = pyrpr.Shape()
+        core_mesh = pyrpr.Mesh()
         logging.debug("done")
 
         logging.debug("get_core_context: ")
