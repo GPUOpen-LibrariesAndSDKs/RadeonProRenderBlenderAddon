@@ -199,7 +199,7 @@ class AreaLight(Light):
             uvs_ind_nbytes = uvs_ind[0].nbytes
 
         self.name = lamp.name
-        self.light = pyrpr.Shape()
+        self.light = pyrpr.Mesh()
         pyrpr.ContextCreateMesh(
             core_context,
             pyrpr.ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
