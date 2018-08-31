@@ -222,7 +222,7 @@ class NodeThumbnailManager:
 
         num_face_vertices_ptr = ffi.new('rpr_int*', 4)
 
-        mesh = pyrpr.Shape()
+        mesh = pyrpr.Mesh()
 
         pyrpr.ContextCreateMesh(self.context,
                                 vertices_ptr, len(vertices), vertices[0].nbytes,
