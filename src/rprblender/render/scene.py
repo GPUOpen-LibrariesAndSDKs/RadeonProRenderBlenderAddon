@@ -415,6 +415,8 @@ class SceneRenderer:
 
     def _get_aov_image(self, aov_name):
         frame_buffer = self.render_targets.get_frame_buffer(aov_name)
+        if not frame_buffer:
+            return
 
         if self.has_denoiser and aov_name == 'default':
             return self._get_filtered_image(frame_buffer)
