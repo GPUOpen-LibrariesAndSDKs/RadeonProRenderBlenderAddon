@@ -1509,10 +1509,8 @@ class Material:
         shader.set_value_rprx(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, self.get_sss_radius(blender_node, 'subsurface_radius'))
         shader.set_int_rprx(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER, pyrpr.FALSE)
         # enable sss with backscatter
-        sss_weight_socket = self.get_socket(blender_node, blender_node.subsurface_weight)
-        if sss_weight_socket.is_linked or sss_weight_socket.default_value:
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, get_value('subsurface_weight'))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, ValueVector(1.0, 1.0, 1.0, 1.0))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, get_value('subsurface_weight'))
+        shader.set_value_rprx(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, ValueVector(1.0, 1.0, 1.0, 1.0))
         
         return shader
 
