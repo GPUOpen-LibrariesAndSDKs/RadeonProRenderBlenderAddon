@@ -86,6 +86,7 @@ def load_post(dummy):
 
     versions.check_old_rpr_image_nodes()
     versions.check_old_rpr_uber2_nodes()
+    versions.check_old_rpr_uber3_nodes()
     versions.check_old_rpr_ibl_images()
 
     check_data_from_library()
