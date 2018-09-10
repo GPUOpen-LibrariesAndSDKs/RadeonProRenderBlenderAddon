@@ -241,6 +241,21 @@ def check_old_rpr_uber2_nodes():
                 socket.enabled = node.displacement
 
 
+def check_old_rpr_uber3_nodes():
+    for mat in bpy.data.materials:
+        tree = mat.node_tree
+
+        if not tree:
+            continue
+
+        for node in mat.node_tree.nodes:
+            if node.bl_idname != 'rpr_shader_node_uber3':
+                continue
+
+            node.add_socket_if_missed(node.refraction_absorption_color, 'rpr_socket_color',
+                                      (1.0, 1.0, 1.0, 1.0), node.refraction)
+
+
 # convert old RPR Environment settings image paths to image datablock references
 def check_old_rpr_ibl_images():
     # skip check for newest saved settings version

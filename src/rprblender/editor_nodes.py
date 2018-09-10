@@ -662,6 +662,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     refraction_roughness = 'Refraction Roughness'
     refraction_ior = 'Refraction IOR'
     refraction_absorption_distance = 'Refraction Absorption Distance'
+    refraction_absorption_color = 'Refraction Absorption Color'
 
     coating_color = 'Coating Color'
     coating_weight = 'Coating Weight'
@@ -685,6 +686,15 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     normal_in = 'Normal'
     transparency_value = 'Transparency'
     displacement_map = 'Displacement Map'
+
+    def add_socket_if_missed(self, socket_name, socket_type, default_value, enabled):
+        """
+        Adds socket if it's missing, in case of loading scene with previous version of Uber3 material
+        """
+        if socket_name not in self.inputs:
+            log_mat("Adding '{}' Uber3 material node socket of type '{}'".format(socket_name, socket_type))
+            self.inputs.new(socket_type, socket_name).default_value = default_value
+            self.inputs[socket_name].enabled = enabled
 
     def diffuse_changed(self, context):
         self.inputs[self.diffuse_color].enabled = self.diffuse
@@ -722,6 +732,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs[self.refraction_roughness].enabled = self.refraction
         self.inputs[self.refraction_ior].enabled = self.refraction
         self.inputs[self.refraction_absorption_distance].enabled = self.refraction
+        self.inputs[self.refraction_absorption_color].enabled = self.refraction
 
     def coating_changed(self, context):
         self.inputs[self.coating_color].enabled = self.coating
@@ -818,6 +829,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_weight', self.refraction_roughness).default_value = 0.0
         self.inputs.new('rpr_socket_ior', self.refraction_ior).default_value = 1.5
         self.inputs.new('rpr_socket_float_Min0_softMax10', self.refraction_absorption_distance).default_value = 0.0
+        self.inputs.new('rpr_socket_color', self.refraction_absorption_color).default_value = (1.0, 1.0, 1.0, 1.0)
 
         self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_weight', self.coating_weight).default_value =1.0

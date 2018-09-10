@@ -1313,7 +1313,7 @@ class Material:
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE,
                                 pyrpr.TRUE if blender_node.refraction_thin_surface else pyrpr.FALSE)
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_DISTANCE, get_value('refraction_absorption_distance'))
-            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_COLOR, get_value('refraction_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_COLOR, get_value('refraction_absorption_color'))
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_CAUSTICS,
                                 pyrpr.TRUE if blender_node.refraction_caustics else pyrpr.FALSE)
         else:
