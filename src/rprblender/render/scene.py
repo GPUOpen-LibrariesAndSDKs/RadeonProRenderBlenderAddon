@@ -29,12 +29,8 @@ call_logger = CallLogger(tag='render.scene')
 class SceneRenderer:
 
     @property
-    def core_context(self):
-        return self.render_device.core_context
-
-    @property
-    def post_effects(self):
-        return self.render_device.post_effects
+    def context(self):
+        return self.render_device.context
 
     render_targets = None
     render_layers = None
@@ -42,7 +38,7 @@ class SceneRenderer:
     def __init__(self, render_device, rs, is_production=False):
         self.render_device = render_device
 
-        self.post_effect_manager = rprblender.render.device.PostEffectManager(self.get_core_context())
+        self.post_effect_manager = rprblender.render.device.PostEffectManager(self.context)
         self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
 
         self.im = None
@@ -73,9 +69,6 @@ class SceneRenderer:
         if self.render_targets:
             self.render_device.detach_render_target(self.render_targets)
 
-    def get_core_context(self):
-        return self.core_context
-
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
         self.render_layers = None
@@ -88,8 +81,7 @@ class SceneRenderer:
         self.render_layers = rprblender.render.render_layers.RenderLayers(
             self.aov_settings, self.render_targets, self.is_production)
         # update transparent background
-        pyrpr.ContextSetParameter1u(self.get_core_context(), b"transparentbackground",
-                                        int(self.render_layers.alpha_combine))
+        self.context.set_parameter("transparentbackground", int(self.render_layers.alpha_combine))
 
         if self.has_shadowcatcher:
             self.render_layers.enable_aov('opacity')
@@ -110,7 +102,7 @@ class SceneRenderer:
         width, height = self.render_targets.render_resolution
 
         if settings.filter_type == 'bilateral':
-            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+            self.image_filter = image_filter.ImageFilter(self.context, 
                                         image_filter.RifFilterType.Bilateral, width, height)
 
             fb_color = self.image_filter.resolved_framebuffer()
@@ -122,7 +114,7 @@ class SceneRenderer:
             self.image_filter.add_param('radius', settings.radius)
 
         elif settings.filter_type == 'eaw':
-            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+            self.image_filter = image_filter.ImageFilter(self.context, 
                                         image_filter.RifFilterType.Eaw, width, height)
 
             fb_color = self.image_filter.resolved_framebuffer()
@@ -135,7 +127,7 @@ class SceneRenderer:
             self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb_object_id, 0.1)
 
         elif settings.filter_type == 'lwr':
-            self.image_filter = image_filter.ImageFilter(self.get_core_context(), 
+            self.image_filter = image_filter.ImageFilter(self.context, 
                                         image_filter.RifFilterType.Lwr, width, height)
 
             fb_color = self.image_filter.resolved_framebuffer()
@@ -155,8 +147,7 @@ class SceneRenderer:
 
     
     def _get_filtered_image(self, frame_buffer):
-
-        pyrpr.ContextResolveFrameBuffer(self.get_core_context(), frame_buffer, self.image_filter.resolved_framebuffer(), False)
+        frame_buffer.resolve(self.image_filter.resolved_framebuffer())
         self.image_filter.run()
         return self.image_filter.get_data()
 
@@ -173,6 +164,7 @@ class SceneRenderer:
 
     def render_proc(self):
         yield from self._render_proc()
+
     def _render_proc(self):
         from rprblender import properties
 
@@ -211,17 +203,13 @@ class SceneRenderer:
 
         with rprblender.render.core_operations(raise_error=True):
             render_mode = rs.render_mode if self.production_render else helpers.get_user_settings().viewport_render_settings.render_mode
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"rendermode",
-                                          properties.RenderSettings.rendermode_remap[render_mode])
-
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"iterations", samples_per_iteration)
+            self.context.set_parameter("rendermode", properties.RenderSettings.rendermode_remap[render_mode])
+            self.context.set_parameter("iterations", samples_per_iteration)
 
             if rs.global_illumination.use_clamp_irradiance:
-                pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
-                                              rs.global_illumination.clamp_irradiance);
+                self.context.set_parameter("radianceclamp", rs.global_illumination.clamp_irradiance)
             else:
-                pyrpr.ContextSetParameter1f(self.get_core_context(), b"radianceclamp",
-                                              sys.float_info.max);
+                self.context.set_parameter("radianceclamp", sys.float_info.max)
             
             depth = 5
             depth_diffuse = 2
@@ -246,25 +234,21 @@ class SceneRenderer:
                 depth_refraction = render_setting_overrides.gi_settings.max_glossy_depth
                 depth_glossy_refraction = render_setting_overrides.gi_settings.max_glossy_depth
 
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxRecursion", depth)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.diffuse", depth_diffuse)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.glossy", depth_glossy)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.shadow", depth_shadow)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.refraction", depth_refraction)
-            pyrpr.ContextSetParameter1u(self.get_core_context(), b"maxdepth.refraction.glossy", depth_glossy_refraction)
+            self.context.set_parameter("maxRecursion", depth)
+            self.context.set_parameter("maxdepth.diffuse", depth_diffuse)
+            self.context.set_parameter("maxdepth.glossy", depth_glossy)
+            self.context.set_parameter("maxdepth.shadow", depth_shadow)
+            self.context.set_parameter("maxdepth.refraction", depth_refraction)
+            self.context.set_parameter("maxdepth.refraction.glossy", depth_glossy_refraction)
 
             # Convert milimeters to meters
             ray_epsilon = rs.global_illumination.ray_epsilon / 1000;
-            pyrpr.ContextSetParameter1f(self.get_core_context(), b"raycastepsilon", ray_epsilon)
+            self.context.set_parameter("raycastepsilon", ray_epsilon)
 
-            pyrpr.ContextSetParameter1u(self.get_core_context(),
-                                          b"imagefilter.type",
-                                          properties.AntiAliasingSettings.filter_remap[rs.aa.filter])
+            self.context.set_parameter("imagefilter.type", properties.AntiAliasingSettings.filter_remap[rs.aa.filter])
 
             if rs.aa.filter in properties.AntiAliasingSettings.radius_params:
-                pyrpr.ContextSetParameter1f(self.get_core_context(),
-                                              properties.AntiAliasingSettings.radius_params[rs.aa.filter],
-                                              rs.aa.radius)
+                self.context.set_parameter(properties.AntiAliasingSettings.radius_params[rs.aa.filter], rs.aa.radius)
 
         timstamp_operation = time.perf_counter()
         time_local_total += timstamp_operation - timestamp_operation_last
@@ -289,9 +273,10 @@ class SceneRenderer:
 
             with rprblender.render.core_operations(raise_error=True):
                 if render_region is None:
-                    pyrpr.ContextRender(self.get_core_context())
+                    self.context.render()
                 else:
-                    pyrpr.ContextRenderTile(self.get_core_context(), *render_region)
+                    self.context.render_tile(*render_region)
+
             self.cache_generated = True
 
             self.im_tile = self.tile_image
@@ -432,94 +417,58 @@ class SceneRenderer:
     @call_logger.logged
     def get_shadowcatcher_framebuffer(self):
         # Frame buffer for shadow catcher
-        desc = ffi.new("rpr_framebuffer_desc*")
         width, height = self.render_targets.render_resolution
-        desc.fb_width, desc.fb_height = width, height
-
-        fmt = (4, pyrpr.COMPONENT_TYPE_FLOAT32)
-        render_buffer = pyrpr.FrameBuffer()
-        pyrpr.ContextCreateFrameBuffer(self.get_core_context(), fmt, desc, render_buffer)
+        render_buffer = pyrpr.FrameBuffer(self.context, width, height)
 
         # Background composite
-        composite_background = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
-                                     composite_background)
-        pyrpr.CompositeSetInputFb(composite_background, b'framebuffer.input',
-                                  self.render_targets.get_frame_buffer('background'))
+        composite_background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        composite_background.set_input('framebuffer.input', self.render_targets.get_frame_buffer('background'))
 
-        composite_background_normalize = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
-                                     composite_background_normalize)
-        pyrpr.CompositeSetInputC(composite_background_normalize, b'normalize.color',
-                                 composite_background)
+        composite_background_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
+        composite_background_normalize.set_input('normalize.color', composite_background)
 
         # Color composite
-        composite_color = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
-                                     composite_color)
-        pyrpr.CompositeSetInputFb(composite_color, b'framebuffer.input',
-                                  self.render_targets.get_frame_buffer('default'))
+        composite_color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        composite_color.set_input('framebuffer.input', self.render_targets.get_frame_buffer('default'))
 
-        composite_color_normalize = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
-                                     composite_color_normalize)
-        pyrpr.CompositeSetInputC(composite_color_normalize, b'normalize.color',
-                                 composite_color)
+        composite_color_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
+        composite_color_normalize.set_input('normalize.color', composite_color)
 
         # Opacity composite
-        composite_opacity = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
-                                     composite_opacity)
-        pyrpr.CompositeSetInputFb(composite_opacity, b'framebuffer.input',
-                                  self.render_targets.get_frame_buffer('opacity'))
+        composite_opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        composite_opacity.set_input('framebuffer.input', self.render_targets.get_frame_buffer('opacity'))
 
-        composite_opacity_normalize = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
-                                     composite_opacity_normalize)
-        pyrpr.CompositeSetInputC(composite_opacity_normalize, b'normalize.color',
-                                 composite_opacity)
+        composite_opacity_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
+        composite_opacity_normalize.set_input('normalize.color', composite_opacity)
 
         # Combine color and background buffers using COMPOSITE_LERP_VALUE
-        composite_lerp1 = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_LERP_VALUE,
-                                     composite_lerp1)
-        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.color0', composite_background_normalize)
-        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.color1', composite_color_normalize)
-        pyrpr.CompositeSetInputC(composite_lerp1, b'lerp.weight', composite_opacity_normalize)
+        composite_lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        composite_lerp1.set_input('lerp.color0', composite_background_normalize)
+        composite_lerp1.set_input('lerp.color1', composite_color_normalize)
+        composite_lerp1.set_input('lerp.weight', composite_opacity_normalize)
 
         # Constant composites
-        composite_one = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_CONSTANT,
-                                     composite_one)
-        pyrpr.CompositeSetInput4f(composite_one, b'constant.input', 1.0, 0.0, 0.0, 0.0)
+        composite_one = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        composite_one.set_input('constant.input', (1.0, 0.0, 0.0, 0.0))
 
-        composite_zero = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_CONSTANT,
-                                     composite_zero)
-        pyrpr.CompositeSetInput4f(composite_zero, b'constant.input', 0.0, 0.0, 0.0, 1.0)
+        composite_zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        composite_zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
 
         # Composite shadow catcher
-        composite_shadowcatcher = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_FRAMEBUFFER,
-                                     composite_shadowcatcher)
-        pyrpr.CompositeSetInputFb(composite_shadowcatcher, b'framebuffer.input',
-                                  self.render_targets.get_frame_buffer('shadow_catcher'))
+        composite_shadowcatcher = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        composite_shadowcatcher.set_input('framebuffer.input', self.render_targets.get_frame_buffer('shadow_catcher'))
 
-        composite_shadowcatcher_normalize = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_NORMALIZE,
-                                     composite_shadowcatcher_normalize)
-        pyrpr.CompositeSetInputC(composite_shadowcatcher_normalize, b'normalize.color', composite_shadowcatcher)
-        pyrpr.CompositeSetInputC(composite_shadowcatcher_normalize, b'normalize.shadowcatcher', composite_one)
+        composite_shadowcatcher_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
+        composite_shadowcatcher_normalize.set_input('normalize.color', composite_shadowcatcher)
+        composite_shadowcatcher_normalize.set_input('normalize.shadowcatcher', composite_one)
 
         # comboine lerp1 and shadow catcher normalize composite objects
-        composite_lerp2 = pyrpr.Composite()
-        pyrpr.ContextCreateComposite(self.get_core_context(), pyrpr.COMPOSITE_LERP_VALUE,
-                                     composite_lerp2)
-        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.color0', composite_lerp1)
-        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.color1', composite_zero)
-        pyrpr.CompositeSetInputC(composite_lerp2, b'lerp.weight', composite_shadowcatcher_normalize)
+        composite_lerp2 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        composite_lerp2.set_input('lerp.color0', composite_lerp1)
+        composite_lerp2.set_input('lerp.color1', composite_zero)
+        composite_lerp2.set_input('lerp.weight', composite_shadowcatcher_normalize)
 
-        pyrpr.CompositeCompute(composite_lerp2, render_buffer)
+        composite_lerp2.compute(render_buffer)
         return render_buffer
 
 class RenderThread(threading.Thread):

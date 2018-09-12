@@ -68,12 +68,12 @@ class NodeThumbnailManager:
             self.scene_renderer.update_render_resolution((self.size, self.size))
 
             # Create the shared render context and scene state used by all thumbnails.
-            self.context = self.scene_renderer.get_core_context()
+            self.context = self.scene_renderer.context
             self.scene = self.create_scene()
             self.camera = self.create_camera()
             self.mesh = self.create_mesh()
-            self.material_system = self.create_material_system()
-            self.uber_rprx_context = self.create_rprx_uber_context()
+            self.material_system = pyrpr.MaterialSystem(self.context)
+            self.uber_rprx_context = pyrprx.Context(self.material_system)
 
             ibl_map = str(Path(rprblender.__file__).parent / 'img/env.hdr')
             self.light, self.ibl_img = self.create_environment_light(ibl_map)
@@ -94,7 +94,6 @@ class NodeThumbnailManager:
 
         if self.uber_rprx_context != None:
             pyrprx.DeleteContext(self.uber_rprx_context)
-            self.uber_rprx_context = None
 
         self.context = None
         self.scene = None
@@ -182,81 +181,52 @@ class NodeThumbnailManager:
     def get_material_system(self):
         return self.material_system
 
-    def get_core_context(self):
-        return self.context
-
     def get_uber_rprx_context(self):
         return self.uber_rprx_context
 
     def create_scene(self):
-
         scene = pyrpr.Scene(self.context)
-        pyrpr.ContextSetScene(self.context, scene)
+        self.context.set_scene(scene)
         return scene
 
     def create_camera(self):
-
-        camera = pyrpr.Camera()
-        pyrpr.ContextCreateCamera(self.context, camera)
-        pyrpr.CameraLookAt(camera, 0, 0, 7, 0, 0, 0, 0, 1, 0)
-        pyrpr.SceneSetCamera(self.scene, camera)
-
+        camera = pyrpr.Camera(self.context)
+        camera.look_at((0, 0, 7), (0, 0, 0), (0, 1, 0))
+        self.scene.set_camera(camera)
         return camera
 
     def create_mesh(self, size=3, z=0):
-        vertices = np.array([[-size, size, z, 0.0, 0.0, +1.0, 0.0, 0.0],
-                             [size, size, z, 0.0, 0.0, +1.0, 1.0, 0.0],
-                             [size, -size, z, 0.0, 0.0, +1.0, 1.0, 1.0],
-                             [-size, -size, z, 0.0, 0.0, +1.0, 0.0, 1.0],
-                             ], dtype=np.float32)
+        vertices = np.array([[-size, size, z],
+                             [size, size, z],
+                             [size, -size, z],
+                             [-size, -size, z]], dtype=np.float32)
 
-        vertices_ptr = ffi.cast("float *", vertices.ctypes.data)
-        normals_ptr = vertices_ptr + 3
-        uvs_ptr = vertices_ptr + 6
-
+        normals = np.array([[0.0, 0.0, 1.0],
+                            [0.0, 0.0, 1.0],
+                            [0.0, 0.0, 1.0],
+                            [0.0, 0.0, 1.0]], dtype=np.float32)
+        uvs = np.array([[0.0, 0.0],
+                        [1.0, 0.0],
+                        [1.0, 1.0],
+                        [0.0, 1.0]], dtype=np.float32)
         indices = np.array([3, 2, 1, 0], dtype=np.int32)
-        indices_ptr = ffi.cast("rpr_int *", indices.ctypes.data)
-        assert 4 == indices[0].nbytes
+        num_face_vertices = np.array([4,], dtype=np.int32)
 
-        np.testing.assert_almost_equal(indices, np.array([indices_ptr[i] for i in range(np.product(indices.shape))]))
+        mesh = pyrpr.Mesh(self.context,
+                          vertices, normals, uvs,
+                          indices, indices, indices,
+                          num_face_vertices)
 
-        num_face_vertices_ptr = ffi.new('rpr_int*', 4)
-
-        mesh = pyrpr.Mesh()
-
-        pyrpr.ContextCreateMesh(self.context,
-                                vertices_ptr, len(vertices), vertices[0].nbytes,
-                                normals_ptr, len(vertices), vertices[0].nbytes,
-                                uvs_ptr, len(vertices), vertices[0].nbytes,
-                                indices_ptr, indices[0].nbytes,
-                                indices_ptr, indices[0].nbytes,
-                                indices_ptr, indices[0].nbytes,
-                                num_face_vertices_ptr, 1, mesh)
-
-        pyrpr.SceneAttachShape(self.scene, mesh)
+        self.scene.attach(mesh)
         return mesh
 
     def create_back(self):
         mesh = self.create_mesh(z=-0.05)
-        shader = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.get_material_system(), pyrpr.MATERIAL_NODE_DIFFUSE, shader)
-        checker = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.get_material_system(), pyrpr.MATERIAL_NODE_CHECKER_TEXTURE, checker)
-        pyrpr.MaterialNodeSetInputN(shader, b'color', checker)
-        pyrpr.ShapeSetMaterial(mesh, shader)
+        shader = pyrpr.MaterialNode(self.material_system, pyrpr.MATERIAL_NODE_DIFFUSE)
+        checker = pyrpr.MaterialNode(self.material_system, pyrpr.MATERIAL_NODE_CHECKER_TEXTURE)
+        shader.set_input('color', checker)
+        mesh.set_material(shader)
         return mesh, shader, checker
-
-    def create_material_system(self):
-        system = pyrpr.MaterialSystem()
-        pyrpr.ContextCreateMaterialSystem(self.context, 0, system)
-
-        return system
-
-    def create_rprx_uber_context(self):
-        uber_rprx_context = pyrprx.Object('rprx_context')
-        pyrprx.CreateContext(self.material_system, 0, uber_rprx_context)
-
-        return uber_rprx_context
 
     def create_environment_light(self, image_path):
         image_path = bpy.path.native_pathsep(bpy.path.abspath(image_path))
@@ -276,29 +246,16 @@ class NodeThumbnailManager:
         return self.environment_light_from_image_data(im)
 
     def environment_light_from_image_data(self, im):
-        desc = ffi.new("rpr_image_desc*")
-        desc.image_width = im.shape[1]
-        desc.image_height = im.shape[0]
-        desc.image_depth = 0
-        desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * 4
-        desc.image_slice_pitch = 0
-
-        img = pyrpr.Image()
-        pyrpr.ContextCreateImage(self.context, (4, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
-                                 ffi.cast("float *", im.ctypes.data), img)
-        ibl = pyrpr.Light()
-        pyrpr.ContextCreateEnvironmentLight(self.context, ibl)
-        pyrpr.EnvironmentLightSetImage(ibl, img)
+        img = pyrpr.Image(self.context, data=im)
+        ibl = pyrpr.EnvironmentLight(self.context)
+        ibl.set_image(img)
         envmap_transform_fixup = [[1, 0, 0, 0],
                                   [0, 0, 1, 0],
                                   [0, 1, 0, 0],
                                   [0, 0, 0, 1], ]
         matrix = np.array(envmap_transform_fixup, dtype=np.float32)
-        matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-
-        pyrpr.LightSetTransform(ibl, False, matrix_ptr)
-
-        pyrpr.SceneAttachLight(self.scene, ibl)
+        ibl.set_transform(matrix)
+        self.scene.attach(ibl)
         return ibl, img
 
     def get_exported_material_node(self, material_node):
@@ -336,13 +293,11 @@ class NodeThumbnailManager:
                     except KeyError:
                         break
 
-                    pyrpr.ShapeSetMaterial(self.mesh, None)
-
                     node_id = item[0]
                     shader = item[1]
 
                     log_thumbnails("  set material for: ", node_id)
-                    pyrpr.ShapeSetMaterial(self.mesh, shader.handle)
+                    self.mesh.set_material(shader.handle)
 
                     for i in self.scene_renderer.render_proc():
                         pass

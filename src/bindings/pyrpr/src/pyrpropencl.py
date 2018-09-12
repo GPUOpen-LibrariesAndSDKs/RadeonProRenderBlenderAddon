@@ -1,8 +1,4 @@
-import functools
-import platform
-import traceback
-import inspect
-import ctypes
+import sys
 
 import pyrpropenclwrap
 from pyrpropenclwrap import *
@@ -49,3 +45,27 @@ class Object:
 
     def _get_handle(self):
         return self._handle_ptr[0]
+
+
+def _context_get_info(context, cl_type, cl_str_type):
+    val = ffi.new('%s *' % cl_str_type)
+    pyrpr.ContextGetInfo(context, cl_type, sys.getsizeof(val), val, ffi.NULL)
+    return val[0]
+
+
+def get_cl_context(context):
+    return _context_get_info(context, CONTEXT, 'rpr_cl_context')
+
+
+def get_cl_device(context):
+    return _context_get_info(context, DEVICE, 'rpr_cl_device')
+
+
+def get_cl_command_queue(context):
+    return _context_get_info(context, COMMAND_QUEUE, 'rpr_cl_command_queue')
+
+
+def get_mem_object(frame_buffer):
+    cl_mem = ffi.new('rpr_cl_mem *')
+    pyrpr.FrameBufferGetInfo(frame_buffer, MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, ffi.NULL)
+    return cl_mem[0]

@@ -3,18 +3,20 @@ import traceback
 import inspect
 import ctypes
 import os
+import threading
+import time
+import functools
+import sys
+import numpy as np
 
 import pyrprwrap
-import time
 from pyrprwrap import *
 
-import functools
 
 lib_wrapped_log_calls = False
 
 
 class CoreError(Exception):
-
     def __init__(self, status, func_name, argv, module_name):
         for name in pyrprwrap._constants_names:
             value = getattr(pyrprwrap, name)
@@ -72,8 +74,6 @@ def wrap_core_log_call(f, log_fun, module_name):
     return wrapped
 
 
-import threading
-
 global_lock = threading.Lock()
 
 
@@ -95,23 +95,21 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
 
     _init_data._log_fun = log_fun
 
-    image_lib_names = []
     alternate_relative_paths = ["../../../RadeonProImageProcessing", "../../../RadeonProRender-GLTF"]
     lib_platform = ""
-    if "Windows" == platform.system():
+    if platform.system() == "Windows":
         # preload OpenImage dll so we don't have to add PATH
         ctypes.CDLL(str(rprsdk_bin_path / 'OpenImageIO_RPR.dll'))
 
-        # FreeImage.dll preload
         lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll','RadeonImageFilters64.dll', 'FreeImage.dll', 'ProRenderGLTF.dll']
         lib_platform = "Win/lib"
-    elif "Linux" == platform.system():
+    elif platform.system() == "Linux":
         lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so', 'libRadeonImageFilters64.so']
         lib_platform = "Linux/Ubuntu/lib64"
-    elif "Darwin" == platform.system():
+    elif platform.system() == "Darwin":
         lib_names = ['libRadeonProRender64.dylib', 'libRprSupport64.dylib','libRadeonImageFilters64.dylib']
     else:
-        assert False
+        raise ValueError("Not supported OS", platform.system())
 
     for lib_name in lib_names:
         rpr_lib_path = rprsdk_bin_path / lib_name
@@ -159,13 +157,25 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
     del _module
     
 
-class Object:
+def encode(string):
+    return string.encode('utf8')
 
+
+def decode(bin_str):
+    return bin_str.decode('utf8')
+
+
+def register_plugin(path):
+    return RegisterPlugin(encode(path))
+
+
+class Object:
     core_type_name = 'void*'
 
     def __init__(self, core_type_name=None):
         self.ffi_type_name = (core_type_name if core_type_name is not None else self.core_type_name) + '*'
         self._reset_handle()
+        self.name = None
 
     def __del__(self):
         try:
@@ -177,8 +187,7 @@ class Object:
     def delete(self):
         if self._handle_ptr and self._get_handle():
             if lib_wrapped_log_calls:
-                assert _init_data._log_fun
-                _init_data._log_fun('delete: ', self)
+                _init_data._log_fun('delete: ', self.name, self)
             ObjectDelete(self._get_handle())
             self._reset_handle()
 
@@ -188,87 +197,596 @@ class Object:
     def _get_handle(self):
         return self._handle_ptr[0]
 
+    def set_name(self, name):
+        ObjectSetName(self._get_handle(), encode(name))
+        self.name = name
+
 
 class Context(Object):
-
     core_type_name = 'rpr_context'
 
-    def __init__(self, plugins, flags, props=None, cache_path=None, api_version=API_VERSION):
+    def __init__(self, plugins, flags, props=None, cache_path=None):
         super().__init__()
+        self.aovs = {}
 
-        self.create_result = CreateContext(
-            api_version,
-            plugins,
-            len(plugins),
-            flags,
-            ffi.NULL if not props else props,
-            cache_path.encode('latin1') if cache_path else ffi.NULL,
+        props_ptr = ffi.NULL
+        if props is not None:
+            props_ptr = ffi.new("rpr_context_properties[]",
+                                [ffi.cast("rpr_context_properties", entry) for entry in props])
+
+        self.create_result = CreateContext(API_VERSION, plugins, len(plugins), flags,
+            props_ptr, encode(cache_path) if cache_path else ffi.NULL,
             self)
 
-    def delete(self):
-        super().delete()
+    def set_parameter(self, name, param):
+        if isinstance(param, int):
+            ContextSetParameter1u(self, encode(name), param)
+        elif isinstance(param, bool):
+            ContextSetParameter1u(self, encode(name), int(param))
+        elif isinstance(param, float):
+            ContextSetParameter1f(self, encode(name), param)
+        elif isinstance(param, str):
+            ContextSetParameterString(self, encode(name), encode(param))
+        elif isinstance(param, tuple) and len(param) == 3:
+            ContextSetParameter3f(self, encode(name), *param)
+        elif isinstance(param, tuple) and len(param) == 4:
+            ContextSetParameter4f(self, encode(name), *param)
+        else:
+            raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
+
+    def set_scene(self, scene):
+        ContextSetScene(self, scene)
+
+    def render(self):
+        ContextRender(self)
+
+    def render_tile(self, xmin, xmax, ymin, ymax):
+        ContextRenderTile(self, xmin, xmax, ymin, ymax)
+
+    def set_aov(self, aov, frame_buffer):
+        if frame_buffer is None:
+            del self.aovs[aov]
+        else:
+            self.aovs[aov] = frame_buffer
+        ContextSetAOV(self, aov, frame_buffer)
+
+    def get_info_int(self, context_info):
+        size = ffi.new('size_t *', 0)
+        ContextGetInfo(self, context_info, 0, ffi.NULL, size)
+        return size[0]
+
+    def get_info_str(self, context_info):
+        size = self.get_info_int(context_info)
+        ptr = ffi.new('char[]', size)
+        ContextGetInfo(self, context_info, size, ptr, ffi.NULL)
+        return decode(ffi.string(ptr))
+
+    def get_creation_flags(self):
+        creation_flags = ffi.new("rpr_creation_flags*", 0)
+        ContextGetInfo(self, CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags), creation_flags, ffi.NULL)
+        return creation_flags[0]
+
 
 class Scene(Object):
-
     core_type_name = 'rpr_scene'
 
     def __init__(self, context):
         super().__init__()
-        ContextCreateScene(context, self)
+        self.context = context
+        self.objects = set()
+        self.camera = None
+        self.environments = {}
+        ContextCreateScene(self.context, self)
+
+    def __del__(self):
+        self.clear()
+        super().__del__()
+
+    def attach(self, obj):
+        if isinstance(obj, Shape):
+            SceneAttachShape(self, obj)
+        elif isinstance(obj, Light):
+            SceneAttachLight(self, obj)
+        elif isinstance(obj, HeteroVolume):
+            SceneAttachHeteroVolume(self, obj)
+        else:
+            raise TypeError("Incorrect type for SceneAttach*", self, obj)
+
+        self.objects.add(obj)
+
+    def detach(self, obj):
+        if isinstance(obj, Shape):
+            SceneDetachShape(self, obj)
+        elif isinstance(obj, Light):
+            SceneDetachLight(self, obj)
+        elif isinstance(obj, HeteroVolume):
+            SceneDetachHeteroVolume(self, obj)
+        else:
+            raise TypeError("Incorrect type for SceneDetach*", self, obj)
+ 
+        self.objects.remove(obj)
+
+    def clear(self):
+        for obj in tuple(self.objects):
+            self.detach(obj)
+        for override in tuple(self.environments.keys()):
+            self.remove_environment(override)
+
+        self.set_camera(None)
+        SceneClear(self)
+
+    def set_camera(self, camera):
+        self.camera = camera
+        SceneSetCamera(self, self.camera)
+
+    def add_environment(self, override, light):
+        self.environments[override] = light
+        SceneSetEnvironmentOverride(self, override, light)
+
+    def remove_environment(self, override):
+        del self.environments[override]
+        SceneSetEnvironmentOverride(self, override, None)
 
 
-class Mesh(Object):
-
+class Shape(Object):
     core_type_name = 'rpr_shape'
+    
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
 
-class Instance(Object):
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
-    core_type_name = 'rpr_shape'
+    def set_linear_motion(self, x, y, z):
+        ShapeSetLinearMotion(self, x, y, z)
+
+    def set_angular_motion(self, x, y, z, w):
+        ShapeSetAngularMotion(self, x, y, z, w)
+
+    def set_scale_motion(self, x, y, z):
+        ShapeSetScaleMotion(self, x, y, z)
+
+    def set_shadow_catcher(self, shadow_catcher):
+        ShapeSetShadowCatcher(self, shadow_catcher)
+
+    def set_shadow(self, casts_shadow):
+        ShapeSetShadow(self, casts_shadow)
+
+    def set_visibility(self, visible):
+        ShapeSetVisibility(self, visible)
+
+    def set_visibility_ex(self, visibility_type, visible):
+        ShapeSetVisibilityEx(self, encode(visibility_type), visible)
+
+    def set_visibility_in_specular(self, visible):
+        ShapeSetVisibilityInSpecular(self, visible)
+
+    def set_visibility_primary_only(self, visible):
+        ShapeSetVisibilityPrimaryOnly(self, visible)
+
+    def set_subdivision_factor(self, factor):
+        ShapeSetSubdivisionFactor(self, factor)
+
+    def set_auto_adapt_subdivision_factor(self, framebuffer, camera, factor):
+        ShapeAutoAdaptSubdivisionFactor(self, framebuffer, camera, factor)
+
+    def set_subdivision_boundary_interop(self, boundary):
+        ShapeSetSubdivisionBoundaryInterop(self, boundary)
+
+    def set_subdivision_crease_weight(self, factor):
+        ShapeSetSubdivisionCreaseWeight(self, factor)
+
+
+
+class Mesh(Shape):
+    def __init__(self, context, vertices, normals, texcoords, 
+                 vertex_indices, normal_indices, texcoord_indices, 
+                 num_face_vertices):
+        super().__init__(context)
+        self.material = None
+        self.x_material = None    # pyrprx.Material
+        self.volume_material = None
+        self.displacement_material = None
+        self.hetero_volume = None
+
+        if texcoords is None:
+            texcoords_ptr = ffi.NULL
+            texcoords_count = 0
+            texcoords_nbytes = 0
+            texcoords_ind_ptr = ffi.NULL
+            texcoords_ind_nbytes = 0
+        else:
+            texcoords_ptr = ffi.cast("float *", texcoords.ctypes.data)
+            texcoords_count = len(texcoords)
+            texcoords_nbytes = texcoords[0].nbytes
+            texcoords_ind_ptr = ffi.cast('rpr_int*', texcoord_indices.ctypes.data)
+            texcoords_ind_nbytes = texcoord_indices[0].nbytes
+
+        ContextCreateMesh(self.context,
+                 ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
+                 ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes, 
+                 texcoords_ptr, texcoords_count, texcoords_nbytes, 
+                 ffi.cast('rpr_int*', vertex_indices.ctypes.data), vertex_indices[0].nbytes, 
+                 ffi.cast('rpr_int*', normal_indices.ctypes.data), normal_indices[0].nbytes,
+                 texcoords_ind_ptr, texcoords_ind_nbytes, 
+                 ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
+                 self)
+
+    def __del__(self):
+        if self.material:
+            self.set_material(None)
+        if self.x_material:
+            self.x_material.detach(self)
+        if self.volume_material:
+            self.set_volume_material(None)
+        if self.displacement_material:
+            self.set_displacement_material(None)
+        if self.hetero_volume:
+            self.set_hetero_volume(None)
+
+        super().__del__()
+
+    def set_material(self, node):
+        self.material = node
+        ShapeSetMaterial(self, self.material)
+
+    def set_volume_material(self, node):
+        self.volume_material = node
+        ShapeSetVolumeMaterial(self, self.volume_material)
+
+    def set_displacement_material(self, node):
+        self.displacement_material = node
+        ShapeSetDisplacementMaterial(self, self.displacement_material)
+
+    def set_displacement_scale(self, minscale, maxscale):
+        ShapeSetDisplacementScale(self, minscale, maxscale)
+
+    def set_hetero_volume(self, hetero_volume):
+        self.hetero_volume = hetero_volume
+        ShapeSetHeteroVolume(self, self.hetero_volume)
+
+
+class Instance(Shape):
+    def __init__(self, context, mesh):
+        super().__init__(context)
+        self.mesh = mesh
+        ContextCreateInstance(self.context, mesh, self)
+
+    def set_material(self, mat_node):
+        pass
+
+    def set_volume_material(self, node):
+        pass
+
+    def set_displacement_material(self, node):
+        pass
+
+    def set_displacement_scale(self, minscale, maxscale):
+        pass
+
+    def set_hetero_volume(self, hetero_volume):
+        pass
 
 
 class HeteroVolume(Object):
-
     core_type_name = 'rpr_hetero_volume'
 
-class Camera(Object):
+    def __init__(self, context, 
+                 gridSizeX, gridSizeY, gridSizeZ, 
+                 indices:np.array, indicesListTopology, 
+                 grid_data:np.array):
+        super().__init__()
+        self.context = context
 
+        ContextCreateHeteroVolume(
+            self.context, self,
+            gridSizeX, gridSizeY, gridSizeZ,
+            ffi.cast('const size_t *', indices.ctypes.data), len(indices), indicesListTopology, 
+            ffi.cast('const float *', grid_data.ctypes.data), grid_data.nbytes, 0)
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        HeteroVolumeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
+
+
+class Camera(Object):
     core_type_name = 'rpr_camera'
 
-class FrameBuffer(Object):
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
+        ContextCreateCamera(self.context, self)
 
+    def set_mode(self, mode):
+        CameraSetMode(self, mode)
+
+    def look_at(self, pos, at, up):
+        CameraLookAt(self, pos[0], pos[1], pos[2], 
+                     at[0], at[1], at[2], 
+                     up[0], up[1], up[2])
+
+    def set_lens_shift(self, shiftx, shifty):
+        CameraSetLensShift(self, shiftx, shifty)
+
+    def set_focal_length(self, flength):
+        CameraSetFocalLength(self, flength)
+
+    def set_sensor_size(self, width, height):
+        CameraSetSensorSize(self, width, height)
+
+    def set_f_stop(self, fstop):
+        CameraSetFStop(self, fstop)
+
+    def set_aperture_blades(self, num_blades):
+        CameraSetApertureBlades(self, num_blades)
+
+    def set_focus_distance(self, fdist):
+        CameraSetFocusDistance(self, fdist)
+
+    def set_ortho(self, width, height):
+        CameraSetOrthoWidth(self, width)
+        CameraSetOrthoHeight(self, height)
+
+    def set_angular_motion(self, x, y, z, w):
+        CameraSetAngularMotion(self, x, y, z, w)
+
+    def set_linear_motion(self, x, y, z):
+        CameraSetLinearMotion(self, x, y, z)
+
+    def set_exposure(self, exposure):
+        CameraSetExposure(self, exposure)
+
+
+class FrameBuffer(Object):
     core_type_name = 'rpr_framebuffer'
 
-class Composite(Object):
+    def __init__(self, context, width, height):
+        super().__init__()
+        self.context = context
+        self.width = width
+        self.height = height
 
+        desc = ffi.new("rpr_framebuffer_desc*")
+        desc.fb_width, desc.fb_height = self.width, self.height
+        ContextCreateFrameBuffer(self.context, (4, COMPONENT_TYPE_FLOAT32), desc, self)
+
+    def clear(self):
+        FrameBufferClear(self)
+
+    def resolve(self, resolved_fb):
+        ContextResolveFrameBuffer(self.context, self, resolved_fb, False)
+
+    def get_data(self, buf=None):
+        if buf:
+            FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
+            return buf
+
+        data = np.empty((self.height, self.width, 4), dtype=np.float32)
+        FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', data.ctypes.data), ffi.NULL)
+        return data
+
+    def size(self):
+        return self.height*self.width*16    # 16 bytes = 4 channels of float32 values per pixel
+
+    def save_to_file(self, file_path):
+        FrameBufferSaveToFile(self, encode(file_path))
+
+
+
+class Composite(Object):
     core_type_name = 'rpr_composite'
 
-class MaterialSystem(Object):
+    def __init__(self, context, in_type):
+        super().__init__()
+        self.context = context
+        self.inputs = {}
+        ContextCreateComposite(self.context, in_type, self)
 
+    def set_input(self, name, in_value):
+        if isinstance(in_value, int):
+            CompositeSetInput1u(self, encode(name), in_value)
+        elif isinstance(in_value, tuple) and len(in_value) == 4:
+            CompositeSetInput4f(self, encode(name), *in_value)
+        elif isinstance(in_value, Composite):
+            CompositeSetInputC(self, encode(name), in_value)
+        elif isinstance(in_value, FrameBuffer):
+            CompositeSetInputFb(self, encode(name), in_value)
+        else:
+            raise TypeError("Incorrect type for  CompositeSetInput*", self, name, in_value)
+
+        self.inputs[name] = in_value
+
+    def compute(self, fb):
+        CompositeCompute(self, fb)
+
+
+class MaterialSystem(Object):
     core_type_name = 'rpr_material_system'
 
-class MaterialNode(Object):
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
+        ContextCreateMaterialSystem(self.context, 0, self)
 
+
+class MaterialNode(Object):
     core_type_name = 'rpr_material_node'
 
-class Light(Object):
+    def __init__(self, mat_sys, in_type):
+        super().__init__()
+        self.mat_sys = mat_sys
+        self.inputs = {}
+        self.x_inputs = {}
+        MaterialSystemCreateNode(self.mat_sys, in_type, self)
 
+    def __del__(self):
+        for param, x_mat in self.x_inputs.items():
+            x_mat.detach_from_node(param, self)
+        super().__del__()
+
+    def set_input(self, in_input, in_value):
+        if in_value is None or isinstance(in_value, MaterialNode):
+            MaterialNodeSetInputN(self, encode(in_input), in_value)
+        elif isinstance(in_value, int):
+            MaterialNodeSetInputU(self, encode(in_input), in_value)
+        elif isinstance(in_value, tuple) and len(in_value) == 4:
+            MaterialNodeSetInputF(self, encode(in_input), *in_value)
+        elif isinstance(in_value, Image):
+            MaterialNodeSetInputImageData(self, encode(in_input), in_value)
+        elif isinstance(in_value, Buffer):
+            MaterialNodeSetInputBufferData(self, encode(in_input), in_value)
+        else:
+            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, in_input, in_value)
+
+        self.inputs[in_input] = in_value
+
+
+class Light(Object):
     core_type_name = 'rpr_light'
 
-class Image(Object):
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
 
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        LightSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
+
+
+class EnvironmentLight(Light):
+    def __init__(self, context):
+        super().__init__(context)
+        self.portals = set()
+        self.image = None
+        ContextCreateEnvironmentLight(self.context, self)
+
+    def set_image(self, image):
+        self.image = image
+        EnvironmentLightSetImage(self, self.image)
+
+    def set_intensity_scale(self, intensity_scale):
+        EnvironmentLightSetIntensityScale(self, intensity_scale)
+
+    def attach_portal(self, scene, portal):
+        EnvironmentLightAttachPortal(scene, self, portal)
+        self.portals.add(portal)
+
+    def detach_portal(self, scene, portal):
+        EnvironmentLightDetachPortal(scene, self, portal)
+        self.portals.remove(portal)
+
+
+class IESLight(Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreateIESLight(self.context, self)
+
+    def set_radiant_power(self, r, g, b):
+        IESLightSetRadiantPower3f(self, r, g, b)
+
+    def set_image_from_file(self, image_path, nx, ny):
+        IESLightSetImageFromFile(self, encode(image_path), nx, ny)
+
+
+class PointLight(Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreatePointLight(self.context, self)
+
+    def set_radiant_power(self, r, g, b):
+        PointLightSetRadiantPower3f(self, r, g, b)
+
+
+class SpotLight(Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreateSpotLight(self.context, self)
+
+    def set_radiant_power(self, r, g, b):
+        SpotLightSetRadiantPower3f(self, r, g, b)
+
+    def set_cone_shape(self, iangle, oangle):
+        SpotLightSetConeShape(self, iangle, oangle)
+
+
+class DirectionalLight(Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreateDirectionalLight(self.context, self)
+
+    def set_radiant_power(self, r, g, b):
+        DirectionalLightSetRadiantPower3f(self, r, g, b)
+
+    def set_shadow_softness(self, coeff):
+        DirectionalLightSetShadowSoftness(self, coeff)
+
+
+
+class Image(Object):
     core_type_name = 'rpr_image'
 
-class Buffer(Object):
+    def __init__(self, context, data:np.array=None, path=None):
+        super().__init__()
+        self.context = context
+        
+        if path:
+            ContextCreateImageFromFile(self.context, encode(path), self)
+        else:
+            components = data.shape[2]
+            desc = ffi.new("rpr_image_desc*")
+            desc.image_width = data.shape[1]
+            desc.image_height = data.shape[0]
+            desc.image_depth = 0
+            desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * components
+            desc.image_slice_pitch = 0
 
+            ContextCreateImage(self.context, (components, COMPONENT_TYPE_FLOAT32), desc, ffi.cast("float *", data.ctypes.data), self)
+
+    def set_gamma(self, gamma):
+        ImageSetGamma(self, gamma)
+
+    def set_wrap(self, wrap_type):
+        ImageSetWrap(self, wrap_type)
+
+
+class Buffer(Object):
     core_type_name = 'rpr_buffer'
 
-class PostEffect(Object):
+    def __init__(self, context, data:np.array, element_type):
+        super().__init__()
+        self.context = context
 
+        desc = ffi.new("rpr_buffer_desc*")
+        desc.nb_element = len(data);
+        desc.element_type = element_type;
+        desc.element_channel_size = len(data[0]);
+
+        ContextCreateBuffer(self.context, desc, ffi.cast("float *", data.ctypes.data), self)
+
+
+class PostEffect(Object):
     core_type_name = 'rpr_post_effect'
+
+    def __init__(self, context, post_effect_type):
+        super().__init__()
+        self.context = context
+        ContextCreatePostEffect(self.context, post_effect_type, self)
+
+    def set_parameter(self, name, param):
+        if isinstance(param, int):
+            PostEffectSetParameter1u(self, encode(name), param)
+        elif isinstance(param, float):
+            PostEffectSetParameter1f(self, encode(name), param)
+        else:
+            raise TypeError("Not supported parameter type", self, name, param)
+
+    def attach(self):
+        ContextAttachPostEffect(self.context, self)
+
+    def detach(self):
+        ContextDetachPostEffect(self.context, self)
 
 
 def is_transform_matrix_valid(transform):
-    import numpy as np
     # just checking for 'NaN', everything else - catch failure of SetTransform and recover
     if not np.all(np.isfinite(transform)):
         return False

@@ -72,11 +72,9 @@ class ViewportFixture:
 
     def destroy(self):
         if self.viewport_renderer:  # if render even started
-            context = self.viewport_renderer.scene_renderer.get_core_context()
             self.viewport_renderer.scene_synced.destroy()
             self.stop()
             self.viewport_renderer = None
-            #context.delete()
 
     def start(self):
         self.viewport_renderer = rprblender.render.viewport.ViewportRenderer()
@@ -4632,7 +4630,7 @@ class TestPerf:
     @pytest.mark.skip()
     def test_image_load(self, tmpdir_factory):
         render_device = rprblender.render.get_render_device()
-        context = render_device.core_context
+        context = render_device.context
 
         for i in range(10):
             path = str(tmpdir_factory.mktemp('textures').join('image_texture%d.png' % i))

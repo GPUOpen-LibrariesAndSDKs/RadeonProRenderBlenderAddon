@@ -93,14 +93,18 @@ for name, t in api.functions.items():
                                                       'rprEnvironmentLight', 'rprSkyLight',
                                                       'rprPostEffect',
                                                       'rprIESLight',
-                                                      'rprImage']):
+                                                      'rprImage',
+                                                      'rprHeteroVolume',
+                                                      'rprBuffer']):
 
             if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_composite', 'rpr_scene',
                                                  'rpr_shape', 'rpr_camera',
                                                  'rpr_material_system', 'rpr_material_node',
                                                  'rpr_light',
                                                  'rpr_post_effect',
-                                                 'rpr_image']:
+                                                 'rpr_image',
+                                                 'rpr_hetero_volume',
+                                                 'rpr_buffer']:
                 replace_arg = 'value'
                 if '*' in argtype:
                     replace_arg = 'pointer'

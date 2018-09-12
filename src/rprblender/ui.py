@@ -842,7 +842,7 @@ def export_rpr_model(context, filepath):
         scene_exporter.export()
 
         logging.info("Exporting RPR model to:", filepath)
-        result = pyrpr_load_store.export(filepath, render_device.core_context, scene_synced.get_core_scene())
+        result = pyrpr_load_store.export(filepath, render_device.context, scene_synced.get_core_scene())
         if result == 0:
             logging.info("Export complete")
         else:
@@ -881,7 +881,7 @@ def export_gltf_model(filepath):
     import rprblender.render.scene
 
     render_device = rprblender.render.get_render_device()
-    context = render_device.core_context
+    context = render_device.context
     material_system = render_device.core_material_system
     uber_context = pyrprgltf.Object('rprx_context', render_device.core_uber_rprx_context)
 

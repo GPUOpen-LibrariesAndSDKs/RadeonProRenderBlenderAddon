@@ -1,8 +1,6 @@
 import functools
-import os
 import math
 import sys
-import traceback
 
 import bpy
 import numpy as np
@@ -13,13 +11,12 @@ import rprblender
 from rprblender import logging, versions
 from rprblender.core.nodes import log_mat, Material, ShaderType
 from rprblender.export import extract_mesh, get_blender_mesh, prev_world_matrices_cache
-from rprblender.helpers import CallLogger, print_memory_usage, get_user_settings
+from rprblender.helpers import CallLogger, get_user_settings
 from rprblender.timing import TimedContext
 import rprblender.core.image
 
 import mathutils
 
-import pyrprx
 from rprblender import lights
 
 
@@ -33,8 +30,7 @@ def rotation_env(env, rot):
     matrix = np.identity(4, dtype=np.float32)
     matrix[:3, :3] = np.dot(fixup, mat_rot)
 
-    matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-    pyrpr.LightSetTransform(env, False, matrix_ptr)
+    env.set_transform(matrix, False)
 
 
 class EnvironmentLight:
@@ -45,46 +41,28 @@ class EnvironmentLight:
         self.attached = False
         self.image = image
 
-    def __del__(self):
-        pass
-
     def attach(self):
         logging.debug('EnvironmentLight re-attach', self.name, tag='sync')
-        pyrpr.SceneAttachLight(self.scene_synced.get_core_scene(), self.core_environment_light)
-        pyrpr.ObjectSetName(self.core_environment_light._get_handle(), "Environment".encode('latin1'))
+        self.core_environment_light.set_name("Environment")
+        self.scene_synced.get_core_scene().attach(self.core_environment_light)
         self.attached = True
         self.scene_synced.ibls_attached.add(self)
 
     def detach(self):
         logging.debug('EnvironmentLight detach', self.name, tag='sync')
-        pyrpr.SceneDetachLight(self.scene_synced.get_core_scene(), self.core_environment_light)
+        self.scene_synced.get_core_scene().detach(self.core_environment_light)
         self.attached = False
         self.scene_synced.ibls_attached.remove(self)
 
     def set_intensity(self, value):
-        pyrpr.EnvironmentLightSetIntensityScale(self.core_environment_light, value)
+        self.core_environment_light.set_intensity_scale(value)
 
     def set_rotation(self, value):
         rotation_env(self.core_environment_light, value)
 
-    def set_image_from_buffer(self, im, num_components=4):
-        with TimedContext("set_image_from_buffer"):
-            context = self.scene_synced.get_core_context()
-            desc = ffi.new("rpr_image_desc*")
-            desc.image_width = im.shape[1]
-            desc.image_height = im.shape[0]
-            desc.image_depth = 0
-            desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * num_components
-            desc.image_slice_pitch = 0
-
-            logging.debug('set_image_from_buffer: (%s, %s)' % (desc.image_width, desc.image_height), tag='sync')
-
-            img = pyrpr.Image()
-            pyrpr.ContextCreateImage(context, (num_components, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
-                                     ffi.cast("float *", im.ctypes.data), img)
-
-            pyrpr.EnvironmentLightSetImage(self.core_environment_light, img)
-            self.image = img
+    def set_image_from_buffer(self, im):
+        self.image = pyrpr.Image(self.scene_synced.context, data=im)
+        self.core_environment_light.set_image(self.image)
 
 
 class Background:
@@ -94,23 +72,17 @@ class Background:
         self.name = name
         self.image = image
 
-    def __del__(self):
-        pass
-
     @property
     def enabled(self):
         return self.scene_synced.background_is_enabled(self)
 
     def _enable(self):
         logging.debug('background enable', self.name, tag='sync')
-        pyrpr.SceneSetEnvironmentOverride(
-            self.scene_synced.get_core_scene(), pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND,
-            self.core_background)
+        self.scene_synced.get_core_scene().add_environment(pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND, self.core_background)
 
     def _disable(self):
         logging.debug('background disable', tag='sync')
-        pyrpr.SceneSetEnvironmentOverride(
-            self.scene_synced.get_core_scene(), pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND, None)
+        self.scene_synced.get_core_scene().remove_environment(pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND)
 
     def set_rotation(self, value):
         rotation_env(self.core_background, value)
@@ -122,8 +94,8 @@ call_logger = CallLogger(tag='export.sync.scene')
 class SceneSynced:
 
     @property
-    def core_context(self):
-        return self.render_device.core_context
+    def context(self):
+        return self.render_device.context
 
     @property
     def core_material_system(self):
@@ -168,11 +140,12 @@ class SceneSynced:
         # Delete material nodes BEFORE deleting shapes
         # deleting materials uses imlicitly shapes object
         # so shapes must exists during deleting material nodes
+
+        if self.core_scene:
+            self.core_scene.clear()
+
         self.materialsNodes = {}
 
-        for shape in self.meshes:
-            pyrpr.SceneDetachShape(self.core_scene, shape)
-            shape.delete()
         self.meshes = set()
         self.volumes = set()
         self.portal_lights_meshes = set()
@@ -188,7 +161,7 @@ class SceneSynced:
         self.background = None
 
     def get_core_context(self):
-        return self.core_context
+        return self.context
 
     def get_uber_rprx_context(self):
         return self.core_uber_rprx_context
@@ -212,24 +185,19 @@ class SceneSynced:
         return self.objects_synced[obj_key].core_obj
 
     def make_core_scene(self):
-
-        self.core_scene = pyrpr.Scene(self.core_context)
-
-        pyrpr.ContextSetScene(self.core_context, self.core_scene)
-
+        self.core_scene = pyrpr.Scene(self.context)
+        self.context.set_scene(self.core_scene)
         self.reset_scene()
 
     @call_logger.logged
     def reset_scene(self):
-        pyrpr.SceneClear(self.get_core_scene())
 
         # materials should be deleted before deleting shapes
         # because it implicitly uses shapes object
         self.materialsNodes = {}
 
-        for shape in self.meshes:
-            pyrpr.SceneDetachShape(self.core_scene, shape)
-            shape.delete()
+        self.core_scene.clear()
+
         self.meshes = set()
         self.volumes = set()
         self.portal_lights_meshes = set()
@@ -244,9 +212,8 @@ class SceneSynced:
     def setup_core_camera(self):
         logging.debug('setup_core_camera: ', self.render_camera, tag='render.camera')
 
-        camera = pyrpr.Camera()
+        camera = pyrpr.Camera(self.context)
         self.core_render_camera = camera
-        pyrpr.ContextCreateCamera(self.core_context, camera)
 
         mode = {
             'ORTHO': pyrpr.CAMERA_MODE_ORTHOGRAPHIC,
@@ -274,12 +241,12 @@ class SceneSynced:
 
         if 'PERSP' == self.render_camera.type:
             self.update_camera_transform(camera, self.render_camera.matrix_world)
-            pyrpr.CameraSetLensShift(camera, *self.render_camera.shift)
+            camera.set_lens_shift(*self.render_camera.shift)
 
             logging.info('camera.focal_length: ', self.render_camera.lens)
             logging.info('camera.sensor_size: %s' % (self.render_camera.sensor_size,))
-            pyrpr.CameraSetFocalLength(camera, self.render_camera.lens)
-            pyrpr.CameraSetSensorSize(camera, *self.render_camera.sensor_size)
+            camera.set_focal_length(self.render_camera.lens)
+            camera.set_sensor_size(*self.render_camera.sensor_size)
 
             if self.render_camera.dof_enable:
                 fd = self.render_camera.dof_focus_distance
@@ -288,39 +255,36 @@ class SceneSynced:
                 logging.info('camera.dof_blades: ', self.render_camera.dof_blades)
                 logging.info('camera.dof_focus_distance (m): ', fd)
 
-                pyrpr.CameraSetFStop(camera, self.render_camera.dof_f_stop)
-                pyrpr.CameraSetApertureBlades(camera, self.render_camera.dof_blades)
-
-                pyrpr.CameraSetFocusDistance(camera, max(fd, 0.001))
+                camera.set_f_stop(self.render_camera.dof_f_stop)
+                camera.set_aperture_blades(self.render_camera.dof_blades)
+                camera.set_focus_distance(max(fd, 0.001))
             else:
-                pyrpr.CameraSetFStop(camera, sys.float_info.max)
+                camera.set_f_stop(sys.float_info.max)
 
         elif 'ORTHO' == self.render_camera.type:
             self.update_camera_transform_ortho(camera, self.render_camera.matrix_world, self.render_camera.ortho_depth)
-            pyrpr.CameraSetLensShift(camera, *self.render_camera.shift)
-            pyrpr.CameraSetOrthoWidth(camera, self.render_camera.ortho_width)
-            pyrpr.CameraSetOrthoHeight(camera, self.render_camera.ortho_height)
+            camera.set_lens_shift(*self.render_camera.shift)
+            camera.set_ortho(self.render_camera.ortho_width, self.render_camera.ortho_height)
 
         logging.debug('motion_blur: ', self.render_camera.motion_blur_enable, self.render_camera.motion_blur_exposure)
         if self.render_camera.motion_blur_enable:
-            pyrpr.CameraSetExposure(camera, self.render_camera.motion_blur_exposure)
-            if not self.render_camera.prev_matrix_world is None:
+            camera.set_exposure(self.render_camera.motion_blur_exposure)
+            if self.render_camera.prev_matrix_world is not None:
                 mat = mathutils.Matrix(self.render_camera.matrix_world)
                 prev_mat = mathutils.Matrix(self.render_camera.prev_matrix_world)
 
                 quat = (prev_mat * mat.inverted()).to_quaternion();
-                pyrpr.CameraSetAngularMotion(camera, quat.axis.x, quat.axis.y, quat.axis.z, quat.angle)
+                camera.set_angular_motion(quat.axis.x, quat.axis.y, quat.axis.z, quat.angle)
                 trans = (prev_mat - mat).to_translation()
-                pyrpr.CameraSetLinearMotion(camera, trans.x, trans.y, trans.z)
-
+                camera.set_linear_motion(trans.x, trans.y, trans.z)
         
-        pyrpr.CameraSetMode(camera, mode)
-        pyrpr.SceneSetCamera(self.core_scene, camera)
+        camera.set_mode(mode)
+        self.core_scene.set_camera(camera)
 
     def environment_light_create_color(self, color):
         im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
         return self.environment_light_create_from_core_image(
-            'ibl', self._make_core_image_from_image_data(self.get_core_context(), im))
+            'ibl', self._make_core_image_from_image_data(self.context, im))
 
     def environment_light_create(self, ibl_map):
         logging.debug('ibl create', ibl_map, tag='sync')
@@ -331,29 +295,27 @@ class SceneSynced:
         return EnvironmentLight(self, ibl_map, core_light, image=core_image)
 
     def environment_light_create_from_core_image(self, name, core_image):
-        core_light = self._make_core_environment_light_from_core_image(self.get_core_context(), core_image)
+        core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
 
         for obj_key in self.portal_lights_meshes:
-            pyrpr.EnvironmentLightAttachPortal(
-                self.get_core_scene(), core_light, self.get_synced_obj(obj_key).core_obj)
+            core_light.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
         return EnvironmentLight(self, name, core_light, image=core_image)
 
     def background_create_from_core_image(self, name, core_image):
-        core_light = self._make_core_environment_light_from_core_image(self.get_core_context(), core_image)
+        core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
         return Background(self, name, core_light, image=core_image)
 
     def environment_light_create_empty(self):
         logging.debug('environment_light_create_sun_sky', tag='sync')
 
         with TimedContext("environment_light_create_empty"):
-            context = self.get_core_context()
+            context = self.context
 
-            ibl = pyrpr.Light()
-            pyrpr.ContextCreateEnvironmentLight(context, ibl)
+            ibl = pyrpr.EnvironmentLight(context)
 
             for obj_key in self.portal_lights_meshes:
-                pyrpr.EnvironmentLightAttachPortal(ibl, self.get_synced_obj(obj_key).core_obj)
+                ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
         return EnvironmentLight(self, '', ibl)
 
@@ -380,7 +342,7 @@ class SceneSynced:
 
     def _make_core_environment_light(self, image):
         img = self.get_core_environment_image_for_blender_image(image)
-        ibl = self._make_core_environment_light_from_core_image(self.get_core_context(), img)
+        ibl = self._make_core_environment_light_from_core_image(self.context, img)
         return ibl, img
 
     def get_core_environment_image_for_blender_image(self, image):
@@ -391,16 +353,16 @@ class SceneSynced:
             if not versions.is_blender_support_ibl_image():
                 # in Blender before 2.79 ibl had filepath, newer use Image reference
                 return rprblender.core.image.create_core_image_from_image_file_via_blender(
-                    self.get_core_context(), image, flipud=False)
+                    self.context, image, flipud=False)
 
             # TODO: RPR(as of 1.272) IBL seems to be flipped vertically and this can't be fixed by IBL transform
             # - scaling by -1 doesn't work, only rotation is used. So we extract pixels from Blender image
             # and flip them(again, actuall - they are once flipped inside to match RPR's CreateImageFromFile)
             img = rprblender.core.image.create_core_image_from_pixels(
-                self.get_core_context(), rprblender.core.image.extract_pixels_from_blender_image(image, flipud=False))
+                self.context, rprblender.core.image.extract_pixels_from_blender_image(image, flipud=False))
         except Exception as e:
             logging.warn("Cant's read environment image: ", image, ", reason:", str(e), tag="sync")
-            img = self._make_core_image_from_image_data(self.get_core_context(),
+            img = self._make_core_image_from_image_data(self.context,
                                                         np.full((2, 2, 4), (1, 0, 1, 1,), dtype=np.float32))
         return img
 
@@ -413,38 +375,26 @@ class SceneSynced:
 
     def _make_core_environment_light_from_image_data(self, im):
         with TimedContext("make_core_envmap"):
-            context = self.get_core_context()
+            context = self.context
             img = self._make_core_image_from_image_data(context, im)
             ibl = self._make_core_environment_light_from_core_image(context, img)
 
         return ibl, img
 
     def _make_core_environment_light_from_core_image(self, context, img):
-        ibl = pyrpr.Light()
-        pyrpr.ContextCreateEnvironmentLight(context, ibl)
-        pyrpr.EnvironmentLightSetImage(ibl, img)
+        ibl = pyrpr.EnvironmentLight(context)
+        ibl.set_image(img)
         return ibl
 
     def _make_core_image_from_image_data(self, context, im):
-        num_components = im.shape[2]
-        desc = ffi.new("rpr_image_desc*")
-        desc.image_width = im.shape[1]
-        desc.image_height = im.shape[0]
-        desc.image_depth = 0
-        desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * num_components
-        desc.image_slice_pitch = 0
-        logging.debug('make_core_environment_light: (%s, %s)' % (desc.image_width, desc.image_height), tag='sync')
-        img = pyrpr.Image()
-        pyrpr.ContextCreateImage(context, (num_components, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
-                                 ffi.cast("float *", im.ctypes.data), img)
-        return img
+        return pyrpr.Image(context, data=im)
 
     def add_lamp(self, obj_key, blender_obj):
         logging.debug('add_lamp', obj_key, tag='sync')
         assert obj_key not in self.lamps
 
         extracted = self.extract_lamp(blender_obj)
-        lamp = self.core_make_lamp(obj_key, blender_obj, get_obj_transform(extracted))
+        lamp = self.core_make_lamp(blender_obj, extracted['matrix_world'])
         lamp.attach(self.get_core_scene())
         self.lamps[obj_key] = lamp
 
@@ -490,20 +440,20 @@ class SceneSynced:
         self.lamps[obj_key].attach(self.get_core_scene())
 
 
-    def core_make_lamp(self, obj_key, blender_obj, transform):
+    def core_make_lamp(self, blender_obj, transform):
         try:
             lamp = blender_obj.data  # type: bpy.types.Lamp
             if lamp.type == 'AREA':
-                light = lights.AreaLight(lamp, self.get_core_context(), self.get_material_system())
+                light = lights.AreaLight(lamp, self.context, self.get_material_system())
             elif lamp.type == 'SPOT':
-                light = lights.SpotLight(lamp, self.get_core_context())
+                light = lights.SpotLight(lamp, self.context)
             elif lamp.type == 'SUN':
-                light = lights.DirectionalLight(lamp, self.get_core_context())
+                light = lights.DirectionalLight(lamp, self.context)
             elif lamp.type == 'POINT':
                 if lamp.rpr_lamp.ies_file_name:
-                    light = lights.IESLight(lamp, self.get_core_context())
+                    light = lights.IESLight(lamp, self.context)
                 else:
-                    light = lights.PointLight(lamp, self.get_core_context())
+                    light = lights.PointLight(lamp, self.context)
             else: # 'HEMI'
                 assert lamp.type == 'HEMI'
                 raise lights.LightError("Hemi lamp is not supported")
@@ -541,45 +491,15 @@ class SceneSynced:
         origin -= dir * depth * 0.5
         target += dir * depth * 0.5
 
-        pyrpr.CameraLookAt(camera, *origin, *target, *up)
+        camera.look_at(origin, target, up)
 
     def update_camera_transform(self, camera, matrix_world):
-        def vec_normalize(d):
-            return d / np.sqrt(d.dot(d))
-
         m = matrix_world.reshape(4, 4)  # np.ndarray
-
         logging.debug("matrix_world:", m, tag='render.camera')
 
         origin, target, up = self.get_lookat_from_matrix(m)
         logging.debug("frCameraLookAt:", origin, target, up, tag='render.camera')
-
-        pyrpr.CameraLookAt(camera, *origin, *target, *up)
-
-        # NOTE: code below tries SetTransform instead of lookup but
-        # SetTransform is strange
-
-        # checking, that reconstructing matrix from vectors gives us same matrix
-        basis_z = vec_normalize(origin - target)
-        basis_x = -np.cross(basis_z, up)
-        basis = np.transpose([basis_x, up, basis_z])
-        logging.debug("reconstruct:", basis, origin, tag='render.camera')
-
-        # make 4x4
-        tm = np.append(np.append(basis.T, [origin], 0), [[0]] * 4, 1)
-        tm[3, 3] = 1
-        logging.debug("tm:", repr(tm.reshape(4, 4)), tag='render.camera')
-
-        tm = np.ascontiguousarray(tm, dtype=np.float32)
-
-        # pyrpr.CameraSetTransform(camera, False, ffi.cast('float*', tm.ctypes.data))
-
-
-        transform_ptr = ffi.new('float[16]')
-        pyrpr.CameraGetInfo(camera, pyrpr.CAMERA_TRANSFORM, ffi.sizeof('float') * 16, transform_ptr, ffi.NULL)
-        transform = transform_ptr
-        logging.debug("transform:", np.array([transform[i] for i in range(16)], dtype=np.float32).reshape(4, 4),
-                      tag='render.camera')
+        camera.look_at(origin, target, up)
 
     def get_lookat_from_matrix(self, m):
         origin = m.dot([0, 0, 0, 1])[:3]
@@ -608,14 +528,14 @@ class SceneSynced:
     @call_logger.logged
     def remove_material_from_mesh(self, obj_key, material_key):
         log_mat('remove_material_from_mesh')
-        if not obj_key in self.objects_synced:
+        if obj_key not in self.objects_synced:
             return
         shape = self.get_core_obj(obj_key)
 
         if material_key in self.materialsNodes:
             self.materialsNodes[material_key].detach_from_shape(shape)
 
-        pyrpr.ShapeSetMaterial(shape, None)
+        shape.set_material(None)
 
     @call_logger.logged
     def assign_material_to_mesh(self, mat_key, obj_key):
@@ -642,10 +562,10 @@ class SceneSynced:
     def assign_material_to_mesh_instance(self, mat_key, instance_key):
         log_mat('assign_material_to_mesh_instance')
 
-        if not mat_key in self.materialsNodes:
+        if mat_key not in self.materialsNodes:
             return
 
-        if not instance_key in self.objects_synced:
+        if instance_key not in self.objects_synced:
             return
 
         rpr_material = self.materialsNodes[mat_key]
@@ -657,7 +577,7 @@ class SceneSynced:
             "assign_material_to_mesh_instance : set mesh (key: %s) material (key: %s) ok: " % (mat_key, instance_key))
 
     def commit_materials(self):
-        for key,rpr_material in self.materialsNodes.items():
+        for key in self.materialsNodes.keys():
             self.commit_material(key)
 
     def commit_material(self, mat_key):
@@ -672,41 +592,39 @@ class SceneSynced:
         rpr_material = self.materialsNodes[mat_key]
         if rpr_material.shader != None and rpr_material.shader.type == ShaderType.UBER2:
             shader = rpr_material.get_handle()
-            pyrprx.xMaterialCommit(rpr_material.shader.rprx_context, shader)
+            shader.commit()
 
     def _assign_material_to_shape(self, mat_key, shape, rpr_material):
         shader = rpr_material.get_handle()
-        if type(shape) == pyrpr.Instance:
-            return
 
-        pyrpr.ShapeSetVolumeMaterial(shape, None)  # we have crash without it !!!
-        pyrpr.ShapeSetDisplacementMaterial(shape, None)
+        shape.set_volume_material(None)
+        shape.set_displacement_material(None)
 
         if rpr_material.shader != None and rpr_material.shader.type == ShaderType.UBER2:
-            pyrprx.xShapeAttachMaterial(rpr_material.shader.rprx_context, shape, shader)
+            shader.attach(shape)
         else:
 
             if shader:
-                pyrpr.ShapeSetMaterial(shape, shader)
-                pyrpr.ObjectSetName(shader._get_handle(), rpr_material.name.encode('latin1'))
+                shader.set_name(rpr_material.name)
+                shape.set_material(shader)
 
             volume = rpr_material.get_volume()
             if volume:
                 logging.info('assign volume material: ', mat_key, volume)
-                pyrpr.ShapeSetVolumeMaterial(shape, volume)
+                shape.set_volume_material(volume)
 
             displacement = rpr_material.get_displacement()
             if displacement and displacement[0]:
                 logging.info('assign displacement: ', mat_key, displacement)
-                pyrpr.ShapeSetDisplacementMaterial(shape, displacement[0].node.get_handle())
-                pyrpr.ShapeSetDisplacementScale(shape, displacement[1], displacement[2])
+                shape.set_displacement_material(displacement[0].node.get_handle())
+                shape.set_displacement_scale(displacement[1], displacement[2])
 
     @call_logger.logged
     def remove_material_from_mesh_instance(self, instance_key):
-        if not instance_key in self.objects_synced:
+        if instance_key not in self.objects_synced:
             return
         shape = self.get_core_obj(instance_key)
-        pyrpr.ShapeSetMaterial(shape, None)
+        shape.set_material(None)
 
     ########################################################################################################################
     # Meshes work
@@ -717,10 +635,8 @@ class SceneSynced:
         logging.debug('add mesh:', obj_key, extracted_mesh)
 
         core_shape = self._core_make_mesh(extracted_mesh)
-        # rprlog("core_make_mesh: done", extracted_mesh)
-
-        pyrpr.SceneAttachShape(self.get_core_scene(), core_shape);
-        pyrpr.ObjectSetName(core_shape._get_handle(), extracted_mesh['name'].encode('latin1'))
+        core_shape.set_name(extracted_mesh['name'])
+        self.core_scene.attach(core_shape)
 
         self.shape_set_transform(core_shape, matrix_world)
         self.add_synced_obj(obj_key, core_shape)
@@ -737,8 +653,8 @@ class SceneSynced:
         # rprlog("core_make_mesh: done", extracted_mesh)
         core_shape = self.get_core_obj(obj_key)
 
-        pyrpr.ShapeSetHeteroVolume(core_shape,core_volume._get_handle())
-        pyrpr.SceneAttachHeteroVolume(self.get_core_scene(), core_volume._get_handle())
+        core_shape.set_hetero_volume(core_volume)
+        self.core_scene.attach(core_volume)
         
         matrix = np.array(matrix_world, dtype=np.float32)
         # volumes must be scaled by 2
@@ -747,11 +663,7 @@ class SceneSynced:
         matrix[2,2] *= 2.0
         
         if pyrpr.is_transform_matrix_valid(matrix):
-            try:
-                # Blender needs matrix to be transposed
-                pyrpr.HeteroVolumeSetTransform(core_volume._get_handle(), True, ffi.cast('float*', matrix.ctypes.data))
-            except pyrpr.CoreError:
-                pass
+            core_volume.set_transform(matrix)
           
         self.volumes.add(core_volume)
 
@@ -762,15 +674,12 @@ class SceneSynced:
         matrix = np.array(matrix_world, dtype=np.float32)
 
         if pyrpr.is_transform_matrix_valid(matrix):
-            try:
-                # Blender needs matrix to be transposed
-                pyrpr.ShapeSetTransform(core_shape, True, ffi.cast('float*', matrix.ctypes.data))
-                return
-            except pyrpr.CoreError:
-                pass
-        self.report_error("invalid maatrix supplied: %s" % matrix_world)
+            core_shape.set_transform(matrix)
+            return
+
+        self.report_error("invalid matrix supplied: %s" % matrix_world)
         matrix = np.eye(4, dtype=np.float32)
-        pyrpr.ShapeSetTransform(core_shape, True, ffi.cast('float*', matrix.ctypes.data))
+        core_shape.set_transform(matrix)
 
     @call_logger.logged
     def set_motion_blur(self, obj_key, obj_matrix, prev_obj_matrix, scale):
@@ -795,68 +704,54 @@ class SceneSynced:
         momentum_axis = transform_quat.axis
         momentum_angle = transform_quat.angle * scale
         momentum_scale = (scale_vec - mathutils.Vector((1, 1, 1))) * scale
-
-        handle = self.get_core_obj(obj_key)
+        if momentum_axis.length < 0.5:
+            momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle = 1.0, 0.0, 0.0, 0.0
 
         logging.debug('LinearMotion', velocity.x, velocity.y, velocity.z)
-        pyrpr.ShapeSetLinearMotion(handle, velocity.x, velocity.y, velocity.z)
-
-        if momentum_axis.length > 0.5:
-            logging.debug('AngularMotion', momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle)
-            pyrpr.ShapeSetAngularMotion(handle, momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle)
-        else:
-            logging.debug('AngularMotion', 1.0, 0.0, 0.0, 0.0)
-            pyrpr.ShapeSetAngularMotion(handle, 1.0, 0.0, 0.0, 0.0)
-
-        logging.debug('ScaleMotion', momentum_scale.x, momentum_scale.y, momentum_scale.z)
-        pyrpr.ShapeSetScaleMotion(handle, momentum_scale.x, momentum_scale.y, momentum_scale.z)
+        logging.debug('AngularMotion', momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle)
+        logging.debug('ScaleMotion', momentum_scale.x, momentum_scale.y, momentum_scale.z)       
+        self.get_synced_obj(obj_key).set_motion_blur((velocity.x, velocity.y, velocity.z),
+                                                     (momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle),
+                                                     (momentum_scale.x, momentum_scale.y, momentum_scale.z))
 
 
     @call_logger.logged
     def reset_motion_blur(self, obj_key):
-        handle = self.get_core_obj(obj_key)
-
-        logging.debug('LinearMotion', 0.0, 0.0, 0.0)
-        pyrpr.ShapeSetLinearMotion(handle, 0.0, 0.0, 0.0)
-
-        logging.debug('AngularMotion', 1.0, 0.0, 0.0, 0.0)
-        pyrpr.ShapeSetAngularMotion(handle, 1.0, 0.0, 0.0, 0.0)
-
-        logging.debug('ScalerMotion', 0.0, 0.0, 0.0)
-        pyrpr.ShapeSetScaleMotion(handle, 0.0, 0.0, 0.0)
-
+        self.get_synced_obj(obj_key).reset_motion_blur()
 
     @call_logger.logged
     def mesh_set_shadowcatcher(self, obj_key, value):
-        pyrpr.ShapeSetShadowCatcher(self.get_synced_obj(obj_key).core_obj, value)
+        self.get_core_obj(obj_key).set_shadow_catcher(value)
 
     @call_logger.logged
     def mesh_set_shadows(self, obj_key, value):
-        pyrpr.ShapeSetShadow(self.get_synced_obj(obj_key).core_obj, value)
+        self.get_core_obj(obj_key).set_shadow(value)
 
     @call_logger.logged
     def mesh_set_visibility(self, obj_key, value):
-        pyrpr.ShapeSetVisibility(self.get_synced_obj(obj_key).core_obj, value)
+        self.get_core_obj(obj_key).set_visibility(value)
 
     @call_logger.logged
     def mesh_set_visibility_in_primary_rays(self, obj_key, value):
-        pyrpr.ShapeSetVisibilityPrimaryOnly(self.get_synced_obj(obj_key).core_obj, value)
+        self.get_core_obj(obj_key).set_visibility_primary_only(value)
 
     @call_logger.logged
     def mesh_set_visibility_in_specular(self, obj_key, value):
-        pyrpr.ShapeSetVisibilityInSpecular(self.get_synced_obj(obj_key).core_obj, value)
+        self.get_core_obj(obj_key).set_visibility_in_specular(value)
 
     @call_logger.logged
     def mesh_set_subdivision(self, obj_key, factor, boundary, crease_weight):
-        pyrpr.ShapeSetSubdivisionFactor(self.get_synced_obj(obj_key).core_obj, factor)
-        pyrpr.ShapeSetSubdivisionBoundaryInterop(self.get_synced_obj(obj_key).core_obj, boundary)
-        pyrpr.ShapeSetSubdivisionCreaseWeight(self.get_synced_obj(obj_key).core_obj, crease_weight)
+        core_shape = self.core_shape(obj_key)
+        core_shape.set_subdivision_factor(factor)
+        core_shape.set_subdivision_boundary_interop(boundary)
+        core_shape.set_subdivision_crease_weight(crease_weight)
 
     @call_logger.logged
     def mesh_set_autosubdivision(self, obj_key, factor, boundary, crease_weight):
-        pyrpr.ShapeAutoAdaptSubdivisionFactor(self.get_synced_obj(obj_key).core_obj, self.render_device.render_target.get_frame_buffer(), self.core_render_camera, factor)
-        pyrpr.ShapeSetSubdivisionBoundaryInterop(self.get_synced_obj(obj_key).core_obj, boundary)
-        pyrpr.ShapeSetSubdivisionCreaseWeight(self.get_synced_obj(obj_key).core_obj, crease_weight)
+        core_shape = self.core_shape(obj_key)
+        core_shape.set_auto_adapt_subdivision_factor(self.render_device.render_target.get_frame_buffer(), self.core_render_camera, factor)
+        core_shape.set_subdivision_boundary_interop(boundary)
+        core_shape.set_subdivision_crease_weight(crease_weight)
 
     @call_logger.logged
     def mesh_attach_portallight(self, obj_key):
@@ -865,9 +760,7 @@ class SceneSynced:
         self.portal_lights_meshes.add(obj_key)
 
         for ibl in self.ibls_attached:
-            pyrpr.EnvironmentLightAttachPortal(
-                self.get_core_scene(),
-                ibl.core_environment_light, self.core_shape(obj_key))
+            ibl.core_environment_light.attach_portal(self.core_scene, self.core_shape(obj_key))
 
     def core_shape(self, obj_key):
         return self.get_synced_obj(obj_key).core_obj
@@ -878,9 +771,7 @@ class SceneSynced:
             return
         self.portal_lights_meshes.discard(obj_key)
         for ibl in self.ibls_attached:
-            pyrpr.EnvironmentLightDetachPortal(
-                self.get_core_scene(),
-                ibl.core_environment_light, self.get_synced_obj(obj_key).core_obj)
+            ibl.core_environment_light.detach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
     preview_mesh_data = None
 
@@ -930,19 +821,14 @@ class SceneSynced:
         self.add_mesh(key, SceneSynced.preview_mesh_data, matrix)
         shape = self.get_core_obj(key)
 
-        # create material
-        shader = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.get_material_system(), pyrpr.MATERIAL_NODE_DIFFUSE, shader)
+        shader = pyrpr.MaterialNode(self.get_material_system(), pyrpr.MATERIAL_NODE_DIFFUSE)
         self.add_synced_obj('temp_shader', shader)
 
-        checker = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.get_material_system(), pyrpr.MATERIAL_NODE_CHECKER_TEXTURE, checker)
+        checker = pyrpr.MaterialNode(self.get_material_system(), pyrpr.MATERIAL_NODE_CHECKER_TEXTURE)
         self.add_synced_obj('temp_checker', checker)
+        shader.set_input('color', checker)
 
-        pyrpr.MaterialNodeSetInputN(shader, b'color', checker)
-
-        # assign material
-        pyrpr.ShapeSetMaterial(shape, shader)
+        shape.set_material(shader)
         logging.debug('add_back_preview ok.')
         return True
 
@@ -955,15 +841,9 @@ class SceneSynced:
     def add_mesh_instance(self, key, mesh_key, matrix_world, name):
         logging.debug('add_mesh_instance:', key, mesh_key, matrix_world)
 
-        shape = pyrpr.Instance()
-        pyrpr.ContextCreateInstance(
-            self.get_core_context(),
-            self.get_synced_obj(mesh_key).core_obj,
-            shape
-        )
-
-        pyrpr.SceneAttachShape(self.get_core_scene(), shape)
-        pyrpr.ObjectSetName(shape._get_handle(), name.encode('latin1'))
+        shape = pyrpr.Instance(self.context, self.get_synced_obj(mesh_key).core_obj)
+        shape.set_name(name)
+        self.core_scene.attach(shape)
 
         self.shape_set_transform(shape, matrix_world)
 
@@ -982,19 +862,17 @@ class SceneSynced:
 
         mesh = self.get_core_obj(obj_key)
         if not self.objects_synced[obj_key].hidden:
-            pyrpr.SceneDetachShape(self.get_core_scene(), mesh)
+            self.core_scene.detach(mesh)
 
         self.clear_synced_obj(obj_key)
         self.meshes.remove(mesh)
-        mesh.delete()
 
     @call_logger.logged
     def hide_mesh(self, obj_key):
         obj_synced = self.get_synced_obj(obj_key)
 
         obj_synced.hidden = True
-        pyrpr.SceneDetachShape(self.get_core_scene(),
-                               self.get_core_obj(obj_key))
+        self.core_scene.detach(self.get_core_obj(obj_key))
 
     @call_logger.logged
     def show_mesh(self, obj_key):
@@ -1003,8 +881,7 @@ class SceneSynced:
             return
 
         obj_synced.hidden = False
-        pyrpr.SceneAttachShape(self.get_core_scene(),
-                               self.get_core_obj(obj_key))
+        self.core_scene.attach(self.get_core_obj(obj_key))
 
 
     @call_logger.logged
@@ -1027,93 +904,43 @@ class SceneSynced:
         mesh = obj['data']
 
         vertices = np.ascontiguousarray(mesh['vertices'])
-        vertices_ptr = ffi.cast("float *", vertices.ctypes.data)
-        vertex_count = len(vertices)
-        logging.debug("vertex_count: ", vertex_count)
-
         normals = np.ascontiguousarray(mesh['normals'])
-        normals_ptr = ffi.cast("float *", normals.ctypes.data)
-        normal_count = len(normals)
-        logging.debug("normal_count: ", normal_count)
 
         if mesh.get('uvs', None) is not None:
             uvs = np.ascontiguousarray(mesh['uvs'])
-            uvs_ptr = ffi.cast("float *", uvs.ctypes.data)
-            uvs_count = len(uvs)
-            logging.debug("uvs_count: ", uvs_count)
-            uv_nbytes = uvs[0].nbytes
         else:
-            uvs_ptr = ffi.NULL
-            uvs_count = 0
-            uv_nbytes = 0
+            uvs = None
 
         indices = np.ascontiguousarray(mesh['indices'])
-        assert np.int32 == indices.dtype, indices.dtype
-        indices_ptr = ffi.cast("rpr_int *", indices.ctypes.data)
-
-        index_count = len(indices)
-        logging.debug("index_count: ", index_count)
 
         if 'vertex_indices' in mesh:
             vertex_indices = np.ascontiguousarray(mesh['vertex_indices'])
         else:
             vertex_indices = indices
 
-        vertex_indices_ptr = ffi.cast("rpr_int *", vertex_indices.ctypes.data)
-        assert 4 == vertex_indices[0].nbytes, vertex_indices
-        vertex_index_count = len(vertex_indices)
-        logging.debug("vertex_index_count: ", vertex_index_count)
-
         faces_counts = np.ascontiguousarray(mesh['faces_counts'])
-        face_count = len(mesh['faces_counts'])
-        logging.debug("face_count: ", face_count)
-
-        num_face_vertices_ptr = ffi.cast('rpr_int*', faces_counts.ctypes.data)
-        vertex_size = vertices[0].nbytes
-
-        logging.debug("construct shape: ")
-        core_mesh = pyrpr.Mesh()
-        logging.debug("done")
-
-        logging.debug("get_core_context: ")
-        context = self.get_core_context()
-        logging.debug("done")
-
-        pyrpr.ContextCreateMesh(
-            context,
-            vertices_ptr, vertex_count, vertex_size,
-            normals_ptr, normal_count, normals[0].nbytes,
-            uvs_ptr, uvs_count, uv_nbytes,
-            vertex_indices_ptr, vertex_indices[0].nbytes,
-            indices_ptr, indices[0].nbytes,
-            indices_ptr, indices[0].nbytes,
-            num_face_vertices_ptr, face_count, core_mesh)
+        core_mesh = pyrpr.Mesh(self.context, vertices, normals, uvs,
+                               vertex_indices, indices, indices,
+                               faces_counts)
 
         return core_mesh
 
     def _core_make_volume(self, volume_data):
         logging.debug("core_make_volume")
-
-        context = self.get_core_context()
-        core_volume = pyrpr.HeteroVolume()
         
-        x,y,z = volume_data['dimensions']
+        x ,y, z = volume_data['dimensions']
         size = x * y * z
 
         grid_data = np.ascontiguousarray(volume_data['density'].reshape(size * 4))
-        grid_data_ptr = ffi.cast("const float *", grid_data.ctypes.data)
         logging.debug("grid_data_count: ", size * 4)
 
         indices = np.ascontiguousarray(range(0,size), dtype=np.uint64)
-        indices_ptr = ffi.cast("const size_t *", indices.ctypes.data)
         logging.debug("index_count: ", size)
 
-        # print(x,y,z, grid_data_count, index_count, grid_data.shape, grid_data[0].nbytes)
-        pyrpr.ContextCreateHeteroVolume(
-            context, core_volume._handle_ptr,
-            x,y,z,
-            indices_ptr, size, pyrpr.HETEROVOLUME_INDICES_TOPOLOGY_I_U64,
-            grid_data_ptr, size * grid_data[0].nbytes * 4, 0)
+        core_volume = pyrpr.HeteroVolume(self.context,
+            x, y, z,
+            indices, pyrpr.HETEROVOLUME_INDICES_TOPOLOGY_I_U64,
+            grid_data)
 
         return core_volume
 
@@ -1128,21 +955,25 @@ class SceneSynced:
         logging.error(message)
 
 
-def camera_get_sensor_size(camera):
-    sensor_size_ptr = ffi.new('float[2]')
-    pyrpr.CameraGetInfo(camera, pyrpr.CAMERA_SENSOR_SIZE, ffi.sizeof('float') * 2, sensor_size_ptr, ffi.NULL)
-    sensor_size = sensor_size_ptr[0], sensor_size_ptr[1]
-    return sensor_size
-
-
-def get_obj_transform(obj):
-    return ffi.cast('float*', obj['matrix_world'].ctypes.data)
-
-
 class ObjectSynced:
     def __init__(self, core_obj, hidden=False):
         self.core_obj = core_obj
         self.hidden = hidden
+        self.motion_blur = False
+
+    def set_motion_blur(self, linear, angular, scale):
+        self.motion_blur = True
+        self.core_obj.set_linear_motion(*linear)
+        self.core_obj.set_angular_motion(*angular)
+        self.core_obj.set_scale_motion(*scale)
+
+    def reset_motion_blur(self):
+        if not self.motion_blur:
+            return
+        self.motion_blur = False
+        self.core_obj.set_linear_motion(0.0, 0.0, 0.0)
+        self.core_obj.set_angular_motion(1.0, 0.0, 0.0, 0.0)
+        self.core_obj.set_scale_motion(0.0, 0.0, 0.0)
 
 
 class RenderCamera:

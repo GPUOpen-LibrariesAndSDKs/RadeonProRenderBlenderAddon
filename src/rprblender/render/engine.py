@@ -204,14 +204,14 @@ class RPREngine(bpy.types.RenderEngine):
                     scene_exporter.export_preview(is_icon)
 
                     environment_light_image = rprblender.core.image.create_core_image_from_image_file(
-                        scene_renderer.core_context, str(Path(rprblender.__file__).parent / 'img/env.hdr'))
+                        scene_renderer.context, str(Path(rprblender.__file__).parent / 'img/env.hdr'))
                     environment_light = scene_synced.environment_light_create_from_core_image(
                         "preview_ibl", environment_light_image)
                     environment_light.attach()
 
                     if is_icon:
                         background_image = rprblender.core.image.create_core_image_from_image_file(
-                            scene_renderer.core_context, str(Path(rprblender.__file__).parent / 'img/gray.jpg'))
+                            scene_renderer.context, str(Path(rprblender.__file__).parent / 'img/gray.jpg'))
                         background = scene_synced.background_create_from_core_image(
                             "preview_background", background_image)
                         background._enable()

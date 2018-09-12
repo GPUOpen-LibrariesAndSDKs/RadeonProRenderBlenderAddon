@@ -1,5 +1,4 @@
 import cProfile
-import time
 import traceback
 import math
 import weakref
@@ -11,9 +10,6 @@ import numpy as np
 import mathutils
 from mathutils import Matrix, Euler, Quaternion
 import itertools
-
-import pyrpr
-from pyrpr import ffi
 
 from rprblender import helpers, versions
 from rprblender.timing import TimedContext
@@ -170,7 +166,7 @@ class EnvironmentExportState:
     def get_sun_sky_size(self, texture_resolution):
         if texture_resolution == 'high':
             return 4096
-        elif texture_resolution == 'small':
+        if texture_resolution == 'small':
             return 256
 
         return 1024
@@ -892,7 +888,7 @@ class SceneExport:
         try:
             with TimedContext("sync"):
                 if self.profile:
-                    s = cProfile.runctx("self._sync(refresh_render_layers)", globals(), locals(), sort='cumulative')
+                    cProfile.runctx("self._sync(refresh_render_layers)", globals(), locals(), sort='cumulative')
                 else:
                     self._sync(refresh_render_layers)
         except:
@@ -1097,8 +1093,7 @@ class SceneExport:
         if attach:
             self.environment_exporter.sun_sky = self.scene_synced.environment_light_create_empty()
 
-        self.environment_exporter.sun_sky.set_image_from_buffer(self.environment_exporter.sun_sky_image_buffer,
-                                                                self.environment_exporter.SKY_TEXTURE_BITS_COUNT)
+        self.environment_exporter.sun_sky.set_image_from_buffer(self.environment_exporter.sun_sky_image_buffer)
         intensity = sync.get('sun_sky', 'intensity').get_updated_value()
         self.environment_exporter.sun_sky.set_intensity(intensity)
 
@@ -1121,8 +1116,7 @@ class SceneExport:
                               [0, 1, 0]], dtype=np.float32)
             matrix = np.identity(4, dtype=np.float32)
             matrix[:3, :3] = np.dot(fixup, mat_rot)
-            matrix_ptr = ffi.cast('float*', matrix.ctypes.data)
-            pyrpr.LightSetTransform(self.environment_exporter.sun_sky.core_environment_light, False, matrix_ptr)
+            self.environment_exporter.sun_sky.core_environment_light.set_transform(matrix, False)
 
         if attach:
             self.environment_exporter.sun_sky.attach()
@@ -1199,7 +1193,10 @@ class SceneExport:
                 continue
             if obj.type not in self.types_geometry:
                 continue
-            instance = self.objects_sync.object_instances[obj_key]
+            instance = self.objects_sync.object_instances.get(obj_key, None)
+            if not instance:
+                continue
+
             motion_blur = self.get_object_motion_blur(instance, obj.rpr_object)
             if motion_blur is not None:
                 for i in instance.materials_assigned:

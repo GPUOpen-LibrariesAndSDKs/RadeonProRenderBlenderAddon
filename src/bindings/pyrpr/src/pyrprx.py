@@ -1,8 +1,4 @@
-import functools
 import platform
-import traceback
-import inspect
-import ctypes
 
 import pyrprsupportwrap
 from pyrprsupportwrap import *
@@ -22,14 +18,14 @@ def init(log_fun, rprsdk_bin_path):
 
     _init_data._log_fun = log_fun
 
-    if "Windows" == platform.system():
+    if platform.system() == "Windows":
         lib_name = 'RprSupport64.dll'
-    elif "Linux" == platform.system():
+    elif platform.system() == "Linux":
         lib_name = 'libRprSupport64.so'
-    elif "Darwin" == platform.system():
+    elif platform.system() == "Darwin":
         lib_name = 'libRprSupport64.dylib'
     else:
-        assert False
+        raise ValueError("Not supported OS", platform.system())
 
     import __rprx
 
@@ -58,7 +54,6 @@ def init(log_fun, rprsdk_bin_path):
 
 
 class Object:
-
     core_type_name = 'void*'
 
     def __init__(self, core_type_name=None):
@@ -72,3 +67,66 @@ class Object:
         return self._handle_ptr[0]
 
 
+
+class Context(Object):
+    core_type_name = 'rprx_context'
+
+    def __init__(self, material_system):
+        super().__init__()
+        self.material_system = material_system
+        CreateContext(self.material_system, 0, self)
+
+    def __del__(self):
+        DeleteContext(self)
+
+
+class Material(Object):
+    core_type_name = 'rprx_material'
+
+    def __init__(self, context, material_type):
+        super().__init__()
+        self.context = context
+        self.parameters = {}
+        self.material_nodes = {}
+        CreateMaterial(self.context, material_type, self)
+
+    def __del__(self):
+        MaterialDelete(self.context, self)
+
+    def commit(self):
+        MaterialCommit(self.context, self)
+
+    def set_parameter(self, parameter, value):
+        if value is None or isinstance(value, pyrpr.MaterialNode):
+            MaterialSetParameterN(self.context, self, parameter, value)
+        elif isinstance(value, int):
+            MaterialSetParameterU(self.context, self, parameter, value)
+        elif isinstance(value, tuple) and len(value) == 4:
+            MaterialSetParameterF(self.context, self, parameter, *value)
+        else:
+            raise TypeError("Incorrect type for MaterialSetParameter*", self, parameter, value)
+
+        self.parameters[parameter] = value
+
+    def attach(self, mesh):
+        mesh.x_material = self
+        ShapeAttachMaterial(self.context, mesh, self)
+        
+    def detach(self, mesh):
+        mesh.x_material = None
+        ShapeDetachMaterial(self.context, mesh, self)
+
+    def attach_to_node(self, parameter, node):
+        material = node.x_inputs.get(parameter, None)
+        if material:
+            # detaching existing material
+            MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), material)
+
+        node.x_inputs[parameter] = self
+        MaterialAttachMaterial(self.context, node, pyrpr.encode(parameter), self)
+        self.commit()
+
+    def detach_from_node(self, parameter, node):
+        del node.x_inputs[parameter]
+        MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), self)
+        self.commit()

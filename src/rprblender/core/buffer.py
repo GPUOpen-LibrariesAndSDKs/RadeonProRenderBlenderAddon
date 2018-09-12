@@ -16,17 +16,7 @@ def create_core_buffer_from_color_ramp(context, color_ramp):
     logging.debug("create_core_buffer_from_color_ramp:", color_ramp, tag="core.image")
 
     data = extract_buffer_from_blender_color_ramp(color_ramp)
-
-    desc = pyrpr.ffi.new("rpr_buffer_desc*")
-    desc.nb_element = len(data);
-    desc.element_type = pyrpr.BUFFER_ELEMENT_TYPE_FLOAT32;
-    desc.element_channel_size = len(data[0]);
-
-    handle = pyrpr.Buffer()
-    pyrpr.ContextCreateBuffer(context, desc, 
-                              pyrpr.ffi.cast("float *", data.ctypes.data), 
-                              handle._handle_ptr)
-    return handle
+    return pyrpr.Buffer(context, data, pyrpr.BUFFER_ELEMENT_TYPE_FLOAT32)
 
 @logged
 def extract_buffer_from_blender_color_ramp(color_ramp):

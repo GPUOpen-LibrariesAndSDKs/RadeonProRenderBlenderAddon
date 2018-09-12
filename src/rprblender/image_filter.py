@@ -36,15 +36,6 @@ class RifContextWrapper():
         self._rif_context.delete()
 
 
-    def _get_rpr_cache_path(rpr_context):
-        size = pyrpr.ffi.new('size_t *', 0)
-        pyrpr.ContextGetInfo(rpr_context, pyrpr.CONTEXT_CACHE_PATH, 0, pyrpr.ffi.NULL, size)
-
-        path = pyrpr.ffi.new('char[]', size[0])
-        pyrpr.ContextGetInfo(rpr_context, pyrpr.CONTEXT_CACHE_PATH, size[0], path, pyrpr.ffi.NULL)
-        return pyrpr.ffi.string(path)
-
-
     def _check_devices(backend_api_type, processor_type):
         deviceCount = rif.ffi.new('rif_int *', 0)
         rif.GetDeviceCount(backend_api_type, processor_type, deviceCount)
@@ -82,27 +73,21 @@ class RifContextGPU(RifContextWrapper):
         super(RifContextGPU, self).__init__()
         RifContextWrapper._check_devices(rif.BACKEND_API_OPENCL, rif.PROCESSOR_GPU)
 
-        cl_context = pyrpropencl.ffi.new('rpr_cl_context *')
-        pyrpr.ContextGetInfo(rpr_context, pyrpropencl.CONTEXT, sys.getsizeof(cl_context), cl_context, pyrpropencl.ffi.NULL)
+        cl_context = pyrpropencl.get_cl_context(rpr_context)
+        cl_device = pyrpropencl.get_cl_device(rpr_context)
+        cl_command_queue = pyrpropencl.get_cl_command_queue(rpr_context)
+        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
 
-        cl_device = pyrpropencl.ffi.new('rpr_cl_device *')
-        pyrpr.ContextGetInfo(rpr_context, pyrpropencl.DEVICE,  sys.getsizeof(cl_device), cl_device, pyrpropencl.ffi.NULL)
-
-        cl_command_queue = pyrpropencl.ffi.new('rpr_cl_command_queue *')
-        pyrpr.ContextGetInfo(rpr_context, pyrpropencl.COMMAND_QUEUE,  sys.getsizeof(cl_command_queue), cl_command_queue, pyrpropencl.ffi.NULL)
-
-        path = RifContextWrapper._get_rpr_cache_path(rpr_context)
-        rif.CreateContextFromOpenClContext(rif.API_VERSION, cl_context[0], cl_device[0], cl_command_queue[0], path, self._rif_context)
-
+        rif.CreateContextFromOpenClContext(rif.API_VERSION, cl_context, cl_device, cl_command_queue, 
+                                           pyrpr.encode(cache_path), self._rif_context)
         rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
 
 
     def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        cl_mem = pyrpropencl.ffi.new('rpr_cl_mem *')
-        pyrpr.FrameBufferGetInfo(rpr_framebuffer, pyrpropencl.MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, pyrpropencl.ffi.NULL)
+        cl_mem = pyrpropencl.get_mem_object(rpr_framebuffer)
 
         rif_image = rif.RifImage()
-        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem[0], False, rif_image)
+        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem, False, rif_image)
 
         return rif_image
 
@@ -116,10 +101,10 @@ class RifContextCPU(RifContextWrapper):
     def __init__(self, rpr_context):
         super(RifContextCPU, self).__init__()
         RifContextWrapper._check_devices(rif.BACKEND_API_OPENCL, rif.PROCESSOR_CPU)
+        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
 
-        path = RifContextWrapper._get_rpr_cache_path(rpr_context)
-        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_OPENCL, rif.PROCESSOR_CPU, 0, path, self._rif_context)
-
+        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_OPENCL, rif.PROCESSOR_CPU, 0, 
+                          pyrpr.encode(cache_path), self._rif_context)
         rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
 
 
@@ -136,16 +121,13 @@ class RifContextCPU(RifContextWrapper):
             ret_size = rif.ffi.new('size_t *', 0)
             rif.ImageGetInfo(input_data.rif_image, rif.IMAGE_DATA_SIZEBYTE, sys.getsizeof(size_in_bytes), rif.ffi.cast('void *', size_in_bytes), ret_size)
 
-            fb_size = pyrpr.ffi.new('size_t *', 0)
-            pyrpr.FrameBufferGetInfo(input_data.rpr_framebuffer, pyrpr.FRAMEBUFFER_DATA, 0, pyrpr.ffi.NULL, fb_size)
-
-            if size_in_bytes[0] != fb_size[0]:
+            if size_in_bytes[0] != input_data.rpr_framebuffer.size():
                 raise ImageFilterError("RPR denoiser failed to match RIF image and frame buffer sizes")
 
             # resolve framebuffer data to rif_image
             image_data = rif.ffi.new('void **')
             rif.ImageMap(input_data.rif_image, rif.IMAGE_MAP_WRITE, image_data)
-            pyrpr.FrameBufferGetInfo(input_data.rpr_framebuffer, pyrpr.FRAMEBUFFER_DATA, fb_size[0], image_data[0], pyrpr.ffi.NULL)
+            input_data.rpr_framebuffer.get_data(image_data[0])
             rif.ImageUnmap(input_data.rif_image, image_data[0])
 
 
@@ -153,16 +135,16 @@ class RifContextGPUMetal(RifContextWrapper):
     def __init__(self, rpr_context):
         super(RifContextGPUMetal, self).__init__()
         RifContextWrapper._check_devices(rif.BACKEND_API_METAL, rif.PROCESSOR_GPU)
+        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
 
-        path = RifContextWrapper._get_rpr_cache_path(rpr_context)
-        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_METAL, rif.PROCESSOR_GPU, 0, path, self._rif_context)
-
+        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_METAL, rif.PROCESSOR_GPU, 0, 
+                          pyrpr.encode(cache_path), self._rif_context)
         rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
 
 
     def create_rif_image(self, rpr_framebuffer, rif_image_desc):
         cl_mem = pyrpropencl.ffi.new('rpr_cl_mem *')
-        pyrpr.FrameBufferGetInfo(rpr_framebuffer, pyrpropencl.MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, pyrpropencl.ffi.NULL)
+        rpr_framebuffer.get_info(pyrpropencl.MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, pyrpropencl.ffi.NULL)
 
         rif_image = rif.RifImage()
         rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem[0], False, rif_image)
@@ -425,14 +407,13 @@ class ImageFilter():
         self._height = height
         self._resolved_framebuffer = None
 
-        creation_flags = pyrpr.ffi.new("rpr_creation_flags*", 0)
-        pyrpr.ContextGetInfo(rpr_context, pyrpr.CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags), creation_flags, pyrpr.ffi.NULL)
+        creation_flags = rpr_context.get_creation_flags()
 
-        if creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_METAL:
+        if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
             self._rif_context = RifContextGPUMetal(self._rpr_context)
-        elif is_gpu_enabled(creation_flags[0]):
+        elif is_gpu_enabled(creation_flags):
             self._rif_context = RifContextGPU(self._rpr_context)
-        elif creation_flags[0] & pyrpr.CREATION_FLAGS_ENABLE_CPU:
+        elif creation_flags & pyrpr.CREATION_FLAGS_ENABLE_CPU:
             self._rif_context = RifContextCPU(self._rpr_context)
         else:
             raise ImageFilterError("Not supported CONTEXT_CREATION_FLAGS")
@@ -487,10 +468,7 @@ class ImageFilter():
 
     def resolved_framebuffer(self):
         if not self._resolved_framebuffer:
-            self._resolved_framebuffer = pyrpr.FrameBuffer()
-            desc = pyrpr.ffi.new("rpr_framebuffer_desc*")
-            desc.fb_width, desc.fb_height = self._width, self._height
-            pyrpr.ContextCreateFrameBuffer(self._rpr_context, (4, pyrpr.COMPONENT_TYPE_FLOAT32), desc, self._resolved_framebuffer)
-            pyrpr.FrameBufferClear(self._resolved_framebuffer)
+            self._resolved_framebuffer = pyrpr.FrameBuffer(self._rpr_context, self._width, self._height)
+            self._resolved_framebuffer.clear()
 
         return self._resolved_framebuffer

@@ -112,36 +112,28 @@ class RenderResourcesHelper:
     def is_device_compatible(self, device_id):
         compatibility = self.is_device_compatible_by_rpr(device_id)
         if compatibility not in [Compatibility.INCOMPATIBLE_UNCERTIFIED, Compatibility.COMPATIBLE]:
-            #logging.info("device '%s' compatibility: %s" % (device_id, compatibility))
+            logging.info("device '%s' compatibility: %s" % (device_id, compatibility))
             return
 
-        pluginID = pyrpr.RegisterPlugin(str(self.renderer_dll_path).encode('utf8'))
-        assert -1 != pluginID
+        plugin_id = pyrpr.register_plugin(self.renderer_dll_path)
+        if plugin_id == -1:
+            raise RuntimeError("Plugin is not registered", self.renderer_dll_path)
 
         flags, context_info = self.get_params_by_device_id(device_id)
 
-        context = pyrpr.Object(core_type_name=pyrpr.Context.core_type_name)
-        status = pyrpr.CreateContext(pyrpr.API_VERSION, [pluginID], 1, flags, ffi.NULL, ffi.NULL, context)
-        if status is pyrpr.SUCCESS:
-            size_ptr = ffi.new('size_t *', 0)
-            status = pyrpr.ContextGetInfo(context, context_info, 0, ffi.NULL, size_ptr)
-            if status is pyrpr.SUCCESS:
-                size = size_ptr[0]
-                name_ptr = ffi.new('char[]', size)
-                pyrpr.ContextGetInfo(context, context_info, size, name_ptr, ffi.NULL)
-                if status is pyrpr.SUCCESS:
-                    device_name = ffi.string(name_ptr).decode('ascii')
-                    if not self.is_driver_compatible(device_name):
-                        logging.info("device %s' has incompatible driver, skip" % (device_name))
-                        return
+        context = pyrpr.Context([plugin_id,], flags)
+        device_name = context.get_info_str(context_info)
+        if not self.is_driver_compatible(device_name):
+            logging.info("device %s' has incompatible driver, skip" % (device_name))
+            return
 
-                    certified = compatibility != Compatibility.INCOMPATIBLE_UNCERTIFIED
-                    if certified:
-                        logging.info("   device '%s' is certified" % (device_name))
-                    else:
-                        logging.info("   device '%s' isn't certified" % (device_name))
+        certified = compatibility != Compatibility.INCOMPATIBLE_UNCERTIFIED
+        if certified:
+            logging.info("   device '%s' is certified" % (device_name))
+        else:
+            logging.info("   device '%s' isn't certified" % (device_name))
 
-                    self.devices.append({'name': device_name, 'flags': flags, 'certified': certified})
+        self.devices.append({'name': device_name, 'flags': flags, 'certified': certified})
 
     def __init__(self, renderer_dll_path):
         logging.info("   Renderer DLL Path:", renderer_dll_path)
