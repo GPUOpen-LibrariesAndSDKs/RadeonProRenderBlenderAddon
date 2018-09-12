@@ -137,8 +137,8 @@ class CoreImageCache:
     def purge(self):
         self.images4context.clear()
 
-    def purge_for_context(self, core_context):
-        self.images4context.get(core_context, {}).clear()
+    def purge_for_context(self, context):
+        self.images4context.get(context, {}).clear()
 
     def get_info(self):
         s = "CoreImageCache(%s): image_size=%s, contexts number=%d" % (self.name, str(self.image_size), len(self.images4context))

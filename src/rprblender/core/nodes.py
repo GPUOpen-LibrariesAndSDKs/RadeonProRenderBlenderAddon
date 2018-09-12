@@ -188,7 +188,7 @@ class Node:
         if value.is_vector():
             log_mat('  set_value : set "%s" rpr vector from value(%f, %f, %f, %f,)'
                     % (name, value.x, value.y, value.z, value.w))
-            pyrpr.MaterialNodeSetInputF(self.get_handle(), name, value.x, value.y, value.z, value.w)
+            self.get_handle().set_input(name, (value.x, value.y, value.z, value.w))
         elif value.is_node():
             log_mat('  set_value : set "%s" rpr node from value(%s)' % (name, value))
             self.set_node(name, value.node)
@@ -202,17 +202,13 @@ class Node:
         if value.is_vector():
             log_mat('  set_value_rprx : set "%s" rpr vector from value(%f, %f, %f, %f,)'
                     % (parameter, value.x, value.y, value.z, value.w))
-            pyrprx.MaterialSetParameterF(self.rprx_context, self.get_handle(),
-                                          parameter,
-                                          value.x, value.y, value.z, value.w)
+            self.get_handle().set_parameter(parameter, (value.x, value.y, value.z, value.w))
         elif value.is_node():
             node = value.node
-            pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
-                                          node.get_handle() if node.get_handle() else None)
+            self.get_handle().set_parameter(parameter, node.get_handle() if node.get_handle() else None)
         elif value.is_image():
             image = value.image
-            pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
-                                          image.get_handle() if image.get_handle() else None)
+            self.get_handle().set_parameter(parameter, image.get_handle() if image.get_handle() else None)
         else:
             log_mat('set_value : none "%s" (%s)' % (parameter, value))
 
@@ -220,33 +216,30 @@ class Node:
 
     def set_int(self, name, int_val):
         log_mat('  set_int : set "%s" int(%d)' % (name, int_val))
-        pyrpr.MaterialNodeSetInputU(self.get_handle(), name, int_val)
+        self.get_handle().set_input(name, int_val)
 
     def set_int_rprx(self, parameter, int_val):
         log_mat('  set_int : set "%s" int(%d)' % (parameter, int_val))
-        pyrprx.xMaterialSetParameterU(self.rprx_context, self.get_handle(), parameter, int_val)
+        self.get_handle().set_parameter(parameter, int_val)
 
     def set_node(self, name, rpr_node):
         assert self.get_handle()
         log_mat('  set_node : set node to param "%s"' % name)
         if rpr_node.rprx_context == None:
-            pyrpr.MaterialNodeSetInputN(self.get_handle(), name,
-                                        rpr_node.get_handle() if rpr_node.get_handle() else None)
+            self.get_handle().set_input(name, rpr_node.get_handle() if rpr_node.get_handle() else None)
         else:
             # attach rprx shader output to some material's input
             # note: there's no call to rprxShapeDetachMaterial
             assert rpr_node.get_handle()
-            pyrprx.xMaterialAttachMaterial(rpr_node.rprx_context, self.get_handle(), name, rpr_node.get_handle())
-            pyrprx.xMaterialCommit(rpr_node.rprx_context, rpr_node.get_handle())
+            rpr_node.get_handle().attach_to_node(name, self.get_handle())
 
     def set_node_rprx(self, parameter, rpr_node):
-        pyrprx.xMaterialSetParameterN(self.rprx_context, self.get_handle(), parameter,
-                                      rpr_node.get_handle() if rpr_node.get_handle() else None)
+        self.get_handle().set_parameter(parameter, rpr_node.get_handle() if rpr_node.get_handle() else None)
 
     def set_image(self, name, image):
         assert self.get_handle()
         log_mat('  set_node : set node to param "%s"' % name)
-        pyrpr.MaterialNodeSetInputImageData(self.get_handle(), name, image.get_handle() if image.get_handle() else None)
+        self.get_handle().set_input(name, image.get_handle() if image.get_handle() else None)
 
     def get_handle(self):
         return self.handle
@@ -257,17 +250,17 @@ class ImageTextureNode(Node):
         super().__init__(mat.create_material_node(NodeType.IMAGE_TEXTURE))
 
     def set_map(self, image):
-        self.set_value(b'data', image)
+        self.set_value('data', image)
 
     def set_uv(self, uv):
         if uv.type != ValueType.unknown:
-            self.set_value(b'uv', uv)
+            self.set_value('uv', uv)
 
 
 class LookupNode(Node):
     def __init__(self, mat, type):
         super().__init__(mat.create_material_node(NodeType.INPUT_LOOKUP))
-        self.set_int(b'value', type)
+        self.set_int('value', type)
 
 
 class NormalMapNode(Node):
@@ -276,7 +269,7 @@ class NormalMapNode(Node):
 
     def set_map(self, value):
         if value:
-            self.set_value(b'color', value)
+            self.set_value('color', value)
 
 
 class BumpMapNode(Node):
@@ -285,89 +278,89 @@ class BumpMapNode(Node):
 
     def set_map(self, value):
         if value:
-            self.set_value(b'color', value)
+            self.set_value('color', value)
 
     def set_bumpscale(self, value):
-        self.set_value(b'bumpscale', value)
+        self.set_value('bumpscale', value)
 
 
 class ArithmeticNode(Node):
     def __init__(self, mat, a, b, op):
         super().__init__(mat.create_material_node(NodeType.ARITHMETIC))
 
-        self.set_int(b'op', op)
-        self.set_value(b'color0', a)
+        self.set_int('op', op)
+        self.set_value('color0', a)
         if b is not None:
-            self.set_value(b'color1', b)
+            self.set_value('color1', b)
 
 
 class BlendNode(Node):
     def __init__(self, mat, a, b, weight):
         super().__init__(mat.create_material_node(NodeType.BLEND_VALUE))
-        self.set_value(b'weight', weight)
-        self.set_value(b'color0', a)
-        self.set_value(b'color1', b)
+        self.set_value('weight', weight)
+        self.set_value('color0', a)
+        self.set_value('color1', b)
 
 
 class GradientTextureNode(Node):
     def __init__(self, mat, color1, color2, uv):
         super().__init__(mat.create_material_node(NodeType.GRADIENT_TEXTURE))
-        self.set_value(b'color0', color1)
-        self.set_value(b'color1', color2)
+        self.set_value('color0', color1)
+        self.set_value('color1', color2)
         if uv.type != ValueType.unknown:
-            self.set_value(b'uv', uv)
+            self.set_value('uv', uv)
 
 
 class Noise2DTextureNode(Node):
     def __init__(self, mat, uv):
         super().__init__(mat.create_material_node(NodeType.NOISE2D_TEXTURE))
         if uv.type != ValueType.unknown:
-            self.set_value(b'uv', uv)
+            self.set_value('uv', uv)
 
 
 class CheckerTextureNode(Node):
     def __init__(self, mat, uv):
         super().__init__(mat.create_material_node(NodeType.CHECKER_TEXTURE))
         if uv.type != ValueType.unknown:
-            self.set_value(b'uv', uv)
+            self.set_value('uv', uv)
 
 
 class DotTextureNode(Node):
     def __init__(self, mat, uv):
         super().__init__(mat.create_material_node(NodeType.DOT_TEXTURE))
         if uv.type != ValueType.unknown:
-            self.set_value(b'uv', uv)
+            self.set_value('uv', uv)
 
 
 class FresnelSchlickNode(Node):
     def __init__(self, mat, reflectance, normal, invec):
         super().__init__(mat.create_material_node(NodeType.FRESNEL_SCHLICK))
-        self.set_value(b'reflectance', reflectance)
-        self.set_value(b'normal', normal)
-        self.set_value(b'invec', invec)
+        self.set_value('reflectance', reflectance)
+        self.set_value('normal', normal)
+        self.set_value('invec', invec)
 
 
 class FresnelNode(Node):
     def __init__(self, mat, ior, normal, invec):
         super().__init__(mat.create_material_node(NodeType.FRESNEL))
-        self.set_value(b'ior', ior)
-        self.set_value(b'normal', normal)
-        self.set_value(b'invec', invec)
+        self.set_value('ior', ior)
+        self.set_value('normal', normal)
+        self.set_value('invec', invec)
 
 
 class BufferSamplerShader(Node):
     def __init__(self, mat, uv, buffer):
         super().__init__(mat.create_material_node(NodeType.BUFFER_SAMPLER))
         # scale the uv by buffer size
-        self.set_value(b'uv', mat.mul_value(uv, ValueVector(config.ramp_buffer_size)))
-        pyrpr.MaterialNodeSetInputBufferData(self.get_handle(), b'data', buffer._get_handle())
+        self.set_value('uv', mat.mul_value(uv, ValueVector(config.ramp_buffer_size)))
+        self.get_handle().set_input('data', buffer)
  
 
 class AOMapShader(Node):
     def __init__(self, mat, radius, side):
         super().__init__(mat.create_material_node(NodeType.AO_MAP))
-        self.set_value(b'radius', radius)
-        self.set_value(b'side', side)
+        self.set_value('radius', radius)
+        self.set_value('side', side)
 
 
 class Shader(Node):
@@ -376,7 +369,7 @@ class Shader(Node):
     def __init__(self, mat, type):
         if type == ShaderType.UBER2:
             super().__init__(mat.create_uber_material())
-            super().set_rprx_context(mat.manager.get_uber_rprx_context())
+            super().set_rprx_context(mat.manager.core_uber_rprx_context)
         else:
             super().__init__(mat.create_material_node(type))
         self.type = type
@@ -387,13 +380,13 @@ class DiffuseShader(Shader):
         super().__init__(mat, ShaderType.DIFFUSE)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_roughness(self, value):
-        self.set_value(b"roughness", value)
+        self.set_value("roughness", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
 
 class EmissiveShader(Shader):
@@ -401,7 +394,7 @@ class EmissiveShader(Shader):
         super().__init__(mat, ShaderType.EMISSIVE)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
 
 class VolumeShader(Shader):
@@ -409,19 +402,19 @@ class VolumeShader(Shader):
         super().__init__(mat, ShaderType.VOLUME)
 
     def set_sigmas(self, value):
-        self.set_value(b"sigmas", value)
+        self.set_value("sigmas", value)
 
     def set_sigmaa(self, value):
-        self.set_value(b"sigmaa", value)
+        self.set_value("sigmaa", value)
 
     def set_emission(self, value):
-        self.set_value(b"emission", value)
+        self.set_value("emission", value)
 
     def set_g(self, value):
-        self.set_value(b"g", value)
+        self.set_value("g", value)
 
     def set_multiscatter(self, value):
-        self.set_value(b"multiscatter", value)
+        self.set_value("multiscatter", value)
 
 
 class MicrofacetShader(Shader):
@@ -429,13 +422,13 @@ class MicrofacetShader(Shader):
         super().__init__(mat, ShaderType.MICROFACET)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
     def set_roughness(self, value):
-        self.set_value(b"roughness", value)
+        self.set_value("roughness", value)
 
 
 class MicrofacetRefractionShader(Shader):
@@ -443,16 +436,16 @@ class MicrofacetRefractionShader(Shader):
         super().__init__(mat, ShaderType.MICROFACET_REFRACTION)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
     def set_roughness(self, value):
-        self.set_value(b"roughness", value)
+        self.set_value("roughness", value)
 
     def set_ior(self, value):
-        self.set_value(b"ior", value)
+        self.set_value("ior", value)
 
 
 class BlendShader(Shader):
@@ -460,13 +453,13 @@ class BlendShader(Shader):
         super().__init__(mat, ShaderType.BLEND)
 
     def set_shader1(self, shader):
-        self.set_node(b"color0", shader)
+        self.set_node("color0", shader)
 
     def set_shader2(self, shader):
-        self.set_node(b"color1", shader)
+        self.set_node("color1", shader)
 
     def set_weight(self, value):
-        self.set_value(b"weight", value)
+        self.set_value("weight", value)
 
 
 class DoubleSidedShader(Shader):
@@ -474,10 +467,10 @@ class DoubleSidedShader(Shader):
         super().__init__(mat, ShaderType.DOUBLESIDED)
 
     def set_shader_front(self, shader):
-        self.set_node(b"frontface", shader)
+        self.set_node("frontface", shader)
 
     def set_shader_back(self, shader):
-        self.set_node(b"backface", shader)
+        self.set_node("backface", shader)
 
 
 class DiffuseRefractionShader(Shader):
@@ -485,10 +478,10 @@ class DiffuseRefractionShader(Shader):
         super().__init__(mat, ShaderType.DIFFUSE_REFRACTION)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
 
 class OrenNayarShader(Shader):
@@ -496,13 +489,13 @@ class OrenNayarShader(Shader):
         super().__init__(mat, ShaderType.ORENNAYAR)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
     def set_roughness(self, value):
-        self.set_value(b"roughness", value)
+        self.set_value("roughness", value)
 
 
 class RefractionShader(Shader):
@@ -510,13 +503,13 @@ class RefractionShader(Shader):
         super().__init__(mat, ShaderType.REFRACTION)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
     def set_ior(self, value):
-        self.set_value(b"ior", value)
+        self.set_value("ior", value)
 
 
 class ReflectionShader(Shader):
@@ -524,10 +517,10 @@ class ReflectionShader(Shader):
         super().__init__(mat, ShaderType.REFLECTION)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
 
 class TransparentShader(Shader):
@@ -535,7 +528,7 @@ class TransparentShader(Shader):
         super().__init__(mat, ShaderType.TRANSPARENT)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
 
 class WardShader(Shader):
@@ -543,19 +536,19 @@ class WardShader(Shader):
         super().__init__(mat, ShaderType.WARD)
 
     def set_color(self, value):
-        self.set_value(b"color", value)
+        self.set_value("color", value)
 
     def set_rotation(self, value):
-        self.set_value(b"rotation", value)
+        self.set_value("rotation", value)
 
     def set_roughness_x(self, value):
-        self.set_value(b"roughness_x", value)
+        self.set_value("roughness_x", value)
 
     def set_roughness_y(self, value):
-        self.set_value(b"roughness_y", value)
+        self.set_value("roughness_y", value)
 
     def set_normal(self, value):
-        self.set_value(b"normal", value)
+        self.set_value("normal", value)
 
 
 class UberShader(Shader):
@@ -564,59 +557,59 @@ class UberShader(Shader):
 
     # DIFFUSE BASE
     def set_diffuse_color(self, value):
-        self.set_value(b"diffuse.color", value)
+        self.set_value("diffuse.color", value)
 
     def set_diffuse_normal(self, value):
-        self.set_value(b"diffuse.normal", value)
+        self.set_value("diffuse.normal", value)
 
     # GLOSSY REFLECTIONS
     def set_reflect_color(self, value):
-        self.set_value(b"glossy.color", value)
+        self.set_value("glossy.color", value)
 
     def set_reflect_ior(self, value):
-        self.set_value(b"weights.glossy2diffuse", value)
+        self.set_value("weights.glossy2diffuse", value)
 
     def set_reflect_roughness_x(self, value):
-        self.set_value(b"glossy.roughness_x", value)
+        self.set_value("glossy.roughness_x", value)
 
     def set_reflect_roughness_y(self, value):
-        self.set_value(b"glossy.roughness_y", value)
+        self.set_value("glossy.roughness_y", value)
 
     def set_reflect_normal(self, value):
-        self.set_value(b"glossy.normal", value)
+        self.set_value("glossy.normal", value)
 
     # CLEAR COAT
     def set_coat_color(self, value):
-        self.set_value(b"clearcoat.color", value)
+        self.set_value("clearcoat.color", value)
 
     def set_coat_ior(self, value):
-        self.set_value(b"weights.clearcoat2glossy", value)
+        self.set_value("weights.clearcoat2glossy", value)
 
     def set_coat_normal(self, value):
-        self.set_value(b"clearcoat.normal", value)
+        self.set_value("clearcoat.normal", value)
 
     # REFRACTION
     def set_refraction(self, value):
-        self.set_value(b"weights.diffuse2refraction", value)
+        self.set_value("weights.diffuse2refraction", value)
 
     def set_refraction_color(self, value):
-        self.set_value(b"refraction.color", value)
+        self.set_value("refraction.color", value)
 
     def set_refraction_ior(self, value):
-        self.set_value(b"refraction.ior", value)
+        self.set_value("refraction.ior", value)
 
     def set_refraction_roughness(self, value):
-        self.set_value(b"refraction.roughness", value)
+        self.set_value("refraction.roughness", value)
 
     def set_refraction_normal(self, value):
-        self.set_value(b"refraction.normal", value)
+        self.set_value("refraction.normal", value)
 
     # TRANSPARENCY
     def set_transparency_color(self, value):
-        self.set_value(b"transparency.color", value)
+        self.set_value("transparency.color", value)
 
     def set_transparency_level(self, value):
-        self.set_value(b"weights.transparency", value)
+        self.set_value("weights.transparency", value)
 
 
 
@@ -638,13 +631,9 @@ class Material:
         self.displacement = None
         self.name = ""
 
-    def __del__(self):
-        if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
-            pyrprx.MaterialDelete(self.shader.rprx_context, self.shader.get_handle())
-
     def detach_from_shape(self, shape):
         if self.shader != None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
-            pyrprx.ShapeDetachMaterial(self.shader.rprx_context, shape, self.shader.get_handle())
+            self.shader.get_handle().detach(shape)
         self.shader = None  # this requires to prevent calling MaterialDelete if ShapeDetachMaterial was called
 
     def get_handle(self):
@@ -1547,7 +1536,7 @@ class Material:
                                      add_vector)
 
         node.set_map(map_value)
-        node.set_value(b'bumpscale', self.get_value(blender_node, blender_node.scale_in))
+        node.set_value('bumpscale', self.get_value(blender_node, blender_node.scale_in))
         return ValueNode(node)
 
     def parse_node_bumpmap(self, blender_node):
@@ -1575,8 +1564,7 @@ class Material:
         return ValueNode(node)
 
     def parse_color_ramp_node(self, blender_node):
-        context = self.manager.get_core_context()
-        core_buffer = buffer.create_core_buffer_from_color_ramp(context, blender_node.color_ramp)
+        core_buffer = buffer.create_core_buffer_from_color_ramp(self.manager.context, blender_node.color_ramp)
         self.node_list.append(core_buffer)
         node = BufferSamplerShader(self, self.get_value(blender_node, 'Fac'), core_buffer)
         return ValueNode(node)
@@ -1602,16 +1590,12 @@ class Material:
 
     def parse_image(self, source_image, color_space_type, wrap_type=None):
         log_mat('Parse : image map "%s"...' % source_image.filepath)
-        context = self.manager.get_core_context()
-        image = Image(rprblender.core.image.get_core_image_for_blender_image(context, source_image))
-        if color_space_type == 'sRGB':
-            pyrpr.ImageSetGamma(image.get_handle(), 2.2)
-        else:
-            pyrpr.ImageSetGamma(image.get_handle(), 1)
+        image = Image(rprblender.core.image.get_core_image_for_blender_image(self.manager.context, source_image))
+        image.get_handle().set_gamma(2.2 if color_space_type == 'sRGB' else 1.0)
 
         if wrap_type:
             wrap_type = 'IMAGE_WRAP_TYPE_' + wrap_type
-            pyrpr.ImageSetWrap(image.get_handle(), getattr(pyrpr, wrap_type))
+            image.get_handle().set_wrap(getattr(pyrpr, wrap_type))
 
         self.node_list.append(image.handle)
         return ValueImage(image)
@@ -1826,14 +1810,12 @@ class Material:
         return val
 
     def create_material_node(self, matType):
-        core_node = pyrpr.MaterialNode()
-        pyrpr.MaterialSystemCreateNode(self.manager.get_material_system(), matType, core_node)
+        core_node = pyrpr.MaterialNode(self.manager.get_material_system(), matType)
         self.node_list.append(core_node)
         return core_node
 
     def create_uber_material(self):
-        uber_material = pyrprx.Object('rprx_material')
-        pyrprx.CreateMaterial(self.manager.get_uber_rprx_context(), pyrprx.MATERIAL_UBER, uber_material)
+        uber_material = pyrprx.Material(self.manager.core_uber_rprx_context, pyrprx.MATERIAL_UBER)
         self.node_list.append(uber_material)
         return uber_material
 

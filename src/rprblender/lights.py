@@ -15,19 +15,14 @@ class LightError(RuntimeError):
     pass
 
 class Light:
-    def __init__(self, name):
-        self.light = pyrpr.Light()
-        self.name = name
-
     def set_transform(self, transform):
-        pyrpr.LightSetTransform(self.light, True, transform)
+        self.light.set_transform(transform)
 
     def attach(self, scene):
-        pyrpr.SceneAttachLight(scene, self.light)
-        pyrpr.ObjectSetName(self.light._get_handle(), self.name.encode('latin1'))
+        scene.attach(self.light)
 
     def detach(self, scene):
-        pyrpr.SceneDetachLight(scene, self.light)
+        scene.detach(self.light)
 
     def get_core_obj(self):
         return self.light
@@ -91,9 +86,6 @@ class Light:
 
 
 class EmptyLight(Light):
-    def __init__(self):
-        self.light = None
-
     def set_transform(self, transform):
         pass
 
@@ -105,44 +97,41 @@ class EmptyLight(Light):
 
 
 class IESLight(Light):
-    def __init__(self, lamp, core_context):
-        super().__init__(lamp.name)
-        pyrpr.ContextCreateIESLight(core_context, self.light)
+    def __init__(self, lamp, context):
+        self.light = pyrpr.IESLight(context)
+        self.light.set_name(lamp.name)
         power = self._get_radiant_power(lamp)
-        pyrpr.IESLightSetRadiantPower3f(self.light, *power)
-        pyrpr.IESLightSetImageFromFile(self.light, str(lamp.rpr_lamp.ies_file_name).encode('latin1'), 256, 256)
+        self.light.set_radiant_power(*power)
+        self.light.set_image_from_file(lamp.rpr_lamp.ies_file_name, 256, 256)
 
 
 class PointLight(Light):
-    def __init__(self, lamp, core_context):
-        super().__init__(lamp.name)
-        pyrpr.ContextCreatePointLight(core_context, self.light)
+    def __init__(self, lamp, context):
+        self.light = pyrpr.PointLight(context)
         power = self._get_radiant_power(lamp)
-        pyrpr.PointLightSetRadiantPower3f(self.light, *power)
+        self.light.set_radiant_power(*power)
 
 
 class DirectionalLight(Light):
-    def __init__(self, lamp, core_context):
-        super().__init__(lamp.name)
-        pyrpr.ContextCreateDirectionalLight(core_context, self.light)
+    def __init__(self, lamp, context):
+        self.light = pyrpr.DirectionalLight(context)
         power = self._get_radiant_power(lamp)
-        pyrpr.DirectionalLightSetRadiantPower3f(self.light, *power)
-        pyrpr.DirectionalLightSetShadowSoftness(self.light, lamp.rpr_lamp.shadow_softness)
+        self.light.set_radiant_power(*power)
+        self.light.set_shadow_softness(lamp.rpr_lamp.shadow_softness)
 
 
 class SpotLight(Light):
-    def __init__(self, lamp, core_context):
-        super().__init__(lamp.name)
-        pyrpr.ContextCreateSpotLight(core_context, self.light)
+    def __init__(self, lamp, context):
+        self.light = pyrpr.SpotLight(context)
         power = self._get_radiant_power(lamp)
-        pyrpr.SpotLightSetRadiantPower3f(self.light, *power)
+        self.light.set_radiant_power(*power)
         oangle = 0.5 * lamp.spot_size   # half of spot_size
         iangle = oangle * (1.0 - lamp.spot_blend * lamp.spot_blend)   # square dependency of spot_blend
-        pyrpr.SpotLightSetConeShape(self.light, iangle, oangle)
+        self.light.set_cone_shape(iangle, oangle)
 
 
 class AreaLight(Light):
-    def __init__(self, lamp, core_context, material_system):
+    def __init__(self, lamp, context, material_system):
 
         def create_image_shader(power, color_map):
             if versions.is_blender_support_custom_datablock():
@@ -150,31 +139,27 @@ class AreaLight(Light):
             else:
                 blender_image = bpy.data.images.load(color_map)
 
-            core_image = rprblender.core.image.get_core_image_for_blender_image(core_context, blender_image)
+            core_image = rprblender.core.image.get_core_image_for_blender_image(context, blender_image)
 
-            self.tex_shader = pyrpr.MaterialNode()
-            pyrpr.MaterialSystemCreateNode(material_system, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, self.tex_shader) 
-            pyrpr.MaterialNodeSetInputImageData(self.tex_shader, b'data', core_image)
+            self.tex_shader = pyrpr.MaterialNode(material_system, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE) 
+            self.tex_shader.set_input('data', core_image)
 
-            self.image_shader = pyrpr.MaterialNode()
-            pyrpr.MaterialSystemCreateNode(material_system, pyrpr.MATERIAL_NODE_ARITHMETIC, self.image_shader) 
-            pyrpr.MaterialNodeSetInputU(self.image_shader, b'op', pyrpr.MATERIAL_NODE_OP_MUL)
-            pyrpr.MaterialNodeSetInputF(self.image_shader, b'color0', *power, 1.0)
-            pyrpr.MaterialNodeSetInputN(self.image_shader, b'color1', self.tex_shader)
-
+            self.image_shader = pyrpr.MaterialNode(material_system, pyrpr.MATERIAL_NODE_ARITHMETIC) 
+            self.image_shader.set_input('op', pyrpr.MATERIAL_NODE_OP_MUL)
+            self.image_shader.set_input('color0', (*power, 1.0))
+            self.image_shader.set_input('color1', self.tex_shader)
 
         def attach_emissive_shader(power, color_map, has_uvs):
-            self.shader = pyrpr.MaterialNode()
-            pyrpr.MaterialSystemCreateNode(material_system, pyrpr.MATERIAL_NODE_EMISSIVE, self.shader)
+            self.shader = pyrpr.MaterialNode(material_system, pyrpr.MATERIAL_NODE_EMISSIVE)
         
             if color_map and has_uvs:
                 create_image_shader(power, color_map)
-                pyrpr.MaterialNodeSetInputN(self.shader, b'color', self.image_shader)
+                self.shader.set_input('color', self.image_shader)
             else:
-                pyrpr.MaterialNodeSetInputF(self.shader, b'color', *power, 1.0)
+                self.shader.set_input('color', (*power, 1.0))
             
-            pyrpr.ShapeSetMaterial(self.light, self.shader)
-            pyrpr.ObjectSetName(self.shader._get_handle(), b"EmmisiveMaterial")
+            self.shader.set_name("EmmisiveMaterial")
+            self.light.set_material(self.shader)
 
 
         (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area) = self._get_mesh_prop(lamp.rpr_lamp, lamp.rpr_lamp.size_1, lamp.rpr_lamp.size_2)
@@ -184,47 +169,15 @@ class AreaLight(Light):
 
         power = self._get_radiant_power(lamp, area)
 
-        # Creating light mesh
-        if uvs is None:
-            uvs_ptr = pyrpr.ffi.NULL
-            uvs_count = 0
-            uvs_nbytes = 0
-            uvs_ind_ptr = pyrpr.ffi.NULL
-            uvs_ind_nbytes = 0
-        else:
-            uvs_ptr = pyrpr.ffi.cast("float *", uvs.ctypes.data)
-            uvs_count = len(uvs)
-            uvs_nbytes = uvs[0].nbytes
-            uvs_ind_ptr = pyrpr.ffi.cast('rpr_int*', uvs_ind.ctypes.data)
-            uvs_ind_nbytes = uvs_ind[0].nbytes
-
-        self.name = lamp.name
-        self.light = pyrpr.Mesh()
-        pyrpr.ContextCreateMesh(
-            core_context,
-            pyrpr.ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
-            pyrpr.ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes,
-            uvs_ptr, uvs_count, uvs_nbytes,
-            pyrpr.ffi.cast('rpr_int*', vert_ind.ctypes.data), vert_ind[0].nbytes,
-            pyrpr.ffi.cast('rpr_int*', norm_ind.ctypes.data), norm_ind[0].nbytes,
-            uvs_ind_ptr, uvs_ind_nbytes,
-            pyrpr.ffi.cast('rpr_int*', num_face_verts.ctypes.data), len(num_face_verts), self.light)
+        self.light = pyrpr.Mesh(context, vertices, normals, uvs, 
+                                vert_ind, norm_ind, uvs_ind, 
+                                num_face_verts)
+        self.light.set_name(lamp.name)
 
         attach_emissive_shader(power, lamp.rpr_lamp.color_map, not uvs is None)
 
-        pyrpr.ShapeSetVisibilityEx(self.light, b'visible.light', lamp.rpr_lamp.visible)
-        pyrpr.ShapeSetShadow(self.light, lamp.rpr_lamp.visible and lamp.rpr_lamp.cast_shadows)
-
-
-    def set_transform(self, transform):
-        pyrpr.ShapeSetTransform(self.light, True, transform)
-
-    def attach(self, scene):
-        pyrpr.SceneAttachShape(scene, self.light)
-        pyrpr.ObjectSetName(self.light._get_handle(), self.name.encode('latin1'))
-
-    def detach(self, scene):
-        pyrpr.SceneDetachShape(scene, self.light)
+        self.light.set_visibility_ex('visible.light', lamp.rpr_lamp.visible)
+        self.light.set_shadow(lamp.rpr_lamp.visible and lamp.rpr_lamp.cast_shadows)
 
 
     def _get_mesh_prop(self, rpr_lamp, size_1, size_2, segments=32):

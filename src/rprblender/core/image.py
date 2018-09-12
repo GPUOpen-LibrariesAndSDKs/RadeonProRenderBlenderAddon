@@ -7,6 +7,7 @@ from pathlib import Path
 import rprblender.images
 from rprblender import config, logging
 from rprblender.helpers import CallLogger
+from . import nodes
 
 logged = CallLogger(tag="core.image").logged
 
@@ -125,24 +126,13 @@ def get_cached_pixels_for_blender_image(context, blender_image):
         return extract_pixels_from_blender_image(blender_image)
 
     return rprblender.images.image_cache.get_image_pixels(
-        blender_image, extract_pixels_from_blender_image)
+        blender_image, 0, extract_pixels_from_blender_image)
 
 
 @logged
 def create_core_image_from_pixels(context, pixels):
     logging.debug("create_core_image_from_pixels:", pixels.shape, tag="core.image")
-
-    desc = pyrpr.ffi.new("rpr_image_desc*")
-    desc.image_width = pixels.shape[1]
-    desc.image_height = pixels.shape[0]
-    desc.image_depth = 0
-    desc.image_row_pitch = desc.image_width * pyrpr.ffi.sizeof('rpr_float') * 4
-    desc.image_slice_pitch = 0
-    handle = pyrpr.Image()
-    pyrpr.ContextCreateImage(context,
-                             (4, pyrpr.COMPONENT_TYPE_FLOAT32), desc,
-                             pyrpr.ffi.cast("float *", pixels.ctypes.data), handle)
-    return handle
+    return pyrpr.Image(context, data=pixels)
 
 
 @logged
@@ -151,9 +141,7 @@ def create_core_image_from_image_file(context, filename):
     if config.image_dont_load_use_small:
         return create_core_image_from_pixels(context, get_tiny_image())
 
-    handle = pyrpr.Image()
-    pyrpr.ContextCreateImageFromFile(context, str(filename).encode('utf8'), handle)
-    return handle
+    return pyrpr.Image(context, path=filename)
 
 
 def get_tiny_image():
@@ -220,7 +208,7 @@ def extract_pixels_from_blender_image(image, flipud=True):
     raw = np.fromiter(image.pixels, dtype=np.float32, count=image.size[0]*image.size[1]*image.channels)
 
     if 4 != image.channels:
-        raise Exception("Image: %s has %s channels" % (image.name, image.channels))
+        raise nodes.MaterialError("Image: %s has %s channels" % (image.name, image.channels))
 
     pixels = raw.reshape(image.size[1], image.size[0], 4)
     if flipud:

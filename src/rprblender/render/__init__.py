@@ -174,24 +174,17 @@ def get_context_creation_flags(is_production):
     return flags
 
 
-def create_context(cache_path, flags, props=None) -> pyrpr.Context:
+def create_context(cache_path, flags, props=None):
     # init trace dump settings
     from rprblender import properties
     properties.init_trace_dump(bpy.context.scene.rpr.dev)
 
     tahoe_path = get_core_render_plugin_path()
+    plugin_id = pyrpr.register_plugin(tahoe_path)
+    if plugin_id == -1:
+        raise RuntimeError("Plugin is not registered", tahoe_path)
 
-    logging.debug('tahoe_path', repr(tahoe_path))
-    tahoe_plugin_i_d = pyrpr.RegisterPlugin(tahoe_path.encode('utf8'))
-
-    assert -1 != tahoe_plugin_i_d
-
-    props_ffi = None
-    if props is not None:
-        props_ffi = pyrpr.ffi.new("rpr_context_properties[]",
-                                  [pyrpr.ffi.cast("rpr_context_properties", entry) for entry in props])
-
-    return pyrpr.Context([tahoe_plugin_i_d], flags, props=props_ffi, cache_path=str(cache_path))
+    return pyrpr.Context([plugin_id,], flags, props, cache_path)
 
 
 def get_core_render_plugin_path():

@@ -539,7 +539,7 @@ class AntiAliasingSettings(bpy.types.PropertyGroup):
     )
 
     # imagefilter_radius_params
-    radius_params = {filter_name: b"imagefilter.%s.radius" % filter_name.lower().encode('ascii')
+    radius_params = {filter_name: "imagefilter.%s.radius" % filter_name.lower()
                      for filter_name in filter_remap
                      if 'NONE' != filter_name}
 
@@ -1080,7 +1080,7 @@ def init_trace_dump(dev_settings):
     path = dev_settings.get_trace_dump_folder()
     if dev_settings.trace_dump:
         logging.info('tracing: on (%s)' % path)
-        pyrpr.ContextSetParameter1u(ffi.NULL, b"tracing", 0)
+        pyrpr.Context.set_parameter(None, "tracing", False)
         try:
             if not os.path.isdir(path):
                 os.makedirs(path)
@@ -1096,10 +1096,10 @@ def init_trace_dump(dev_settings):
                 dev_settings['trace_dump'] = False
                 return
 
-        pyrpr.ContextSetParameterString(ffi.NULL, b"tracingfolder", path.encode('latin1'))
-        pyrpr.ContextSetParameter1u(ffi.NULL, b"tracing", 1)
+        pyrpr.Context.set_parameter(None, "tracingfolder", path)
+        pyrpr.Context.set_parameter(None, "tracing", True)
     else:
-        pyrpr.ContextSetParameter1u(ffi.NULL, b"tracing", 0)
+        pyrpr.Context.set_parameter(None, "tracing", False)
         logging.info('tracing: off')
 
 
