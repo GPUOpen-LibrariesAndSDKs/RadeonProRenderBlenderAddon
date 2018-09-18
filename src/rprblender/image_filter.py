@@ -143,11 +143,10 @@ class RifContextGPUMetal(RifContextWrapper):
 
 
     def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        cl_mem = pyrpropencl.ffi.new('rpr_cl_mem *')
-        rpr_framebuffer.get_info(pyrpropencl.MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, pyrpropencl.ffi.NULL)
+        cl_mem = pyrpropencl.get_mem_object(rpr_framebuffer)
 
         rif_image = rif.RifImage()
-        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem[0], False, rif_image)
+        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem, False, rif_image)
 
         return rif_image
 
