@@ -1605,7 +1605,9 @@ class Material:
             log_mat('parse_cycles_TexImage - image is empty.')
             return ValueVector(1, 1, 1, 1)
 
-        image = self.parse_image(blender_node.image, blender_node.color_space_type)
+        color_space_type = 'sRGB' if blender_node.color_space == 'COLOR' else 'LINEAR'
+
+        image = self.parse_image(blender_node.image, color_space_type)
         node = ImageTextureNode(self)
         node.set_map(image)
         return ValueNode(node)
