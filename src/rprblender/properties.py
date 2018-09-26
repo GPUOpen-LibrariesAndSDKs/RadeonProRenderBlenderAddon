@@ -1061,6 +1061,11 @@ class UserSettings(bpy.types.PropertyGroup):
         update=helpers.settings_changed
     )
 
+    use_mps = bpy.props.BoolProperty(name='Use Metal Performance Shader',
+        default=False,
+        update=helpers.settings_changed
+    )
+
     final_device_settings = bpy.props.PointerProperty(type=DeviceSettings)
     final_render_settings = bpy.props.PointerProperty(type=FinalRenderSettings)
 

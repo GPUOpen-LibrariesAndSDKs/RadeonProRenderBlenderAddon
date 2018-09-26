@@ -57,6 +57,21 @@ def get_used_gpu_count(gpu_states):
     return len([gpu_states[i] for i in range(len(gpu_states)) if gpu_states[i] is True and i < len(render_resources_helper.devices)])
 
 
+def is_osx_mojave():
+    if platform.system() == 'Darwin':
+        mac_vers_major = platform.mac_ver()[0].split('.')[1]
+        return float(mac_vers_major) >= 14
+    else:
+        return False
+
+def use_mps():
+    ''' determines if metal MPS should be used. Only on OSX 10.14 or greater '''
+    if is_osx_mojave():
+        return get_user_settings().use_mps
+    else:
+        return False
+
+
 class DeviceId(IntEnum):  # sync with RprTools.h
     GPU0 = 0
     GPU1 = 1
