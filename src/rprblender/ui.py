@@ -219,6 +219,8 @@ class RPRRender_PT_render_resources(RPRPanel, Panel):
                     continue
                 name += ' (not certified)'
             box.prop(device_settings, "gpu_states", index=i, text=name)
+        if helpers.is_osx_mojave():
+            box.prop(helpers.get_user_settings(), 'use_mps')
 
         layout.separator()
 

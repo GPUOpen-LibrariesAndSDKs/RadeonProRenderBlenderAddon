@@ -160,6 +160,9 @@ class RenderDevice:
         self.context.set_parameter('yflip', True)
         self.context.set_parameter('preview', not is_production)
 
+        if helpers.use_mps():
+            self.context.set_parameter('metalperformanceshader', True)
+
         self.core_material_system = pyrpr.MaterialSystem(self.context)
         self.core_uber_rprx_context = pyrprx.Context(self.core_material_system)
 
