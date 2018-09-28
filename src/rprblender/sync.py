@@ -359,7 +359,7 @@ class SceneSynced:
             # - scaling by -1 doesn't work, only rotation is used. So we extract pixels from Blender image
             # and flip them(again, actuall - they are once flipped inside to match RPR's CreateImageFromFile)
             img = rprblender.core.image.create_core_image_from_pixels(
-                self.context, rprblender.core.image.extract_pixels_from_blender_image(image, flipud=False))
+                self.context, rprblender.core.image.extract_pixels_from_blender_image(image, flipud=True))
         except Exception as e:
             logging.warn("Cant's read environment image: ", image, ", reason:", str(e), tag="sync")
             img = self._make_core_image_from_image_data(self.context,
