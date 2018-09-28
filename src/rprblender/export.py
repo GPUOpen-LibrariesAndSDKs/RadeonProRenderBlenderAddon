@@ -1517,11 +1517,14 @@ class SceneExport:
         if background_needs_enable:
             self.scene_synced.background_set(self.environment_exporter.background_override)
 
+        rotation_value = rotation.get_updated_value()
+        rotation_updated_value = (rotation_value[0], rotation_value[1], rotation_value[2]+np.pi)
+
         if self.environment_exporter.ibl:
-            self.environment_exporter.ibl.set_rotation(rotation.get_updated_value())
+            self.environment_exporter.ibl.set_rotation(rotation_updated_value)
 
         if self.environment_exporter.background_override:
-            self.environment_exporter.background_override.set_rotation(rotation.get_updated_value())
+            self.environment_exporter.background_override.set_rotation(rotation_updated_value)
 
 
 class SettingsSyncer:
