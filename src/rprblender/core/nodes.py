@@ -225,7 +225,7 @@ class Node:
     def set_node(self, name, rpr_node):
         assert self.get_handle()
         log_mat('  set_node : set node to param "%s"' % name)
-        if rpr_node.rprx_context == None:
+        if rpr_node.rprx_context is None:
             self.get_handle().set_input(name, rpr_node.get_handle() if rpr_node.get_handle() else None)
         else:
             # attach rprx shader output to some material's input
@@ -631,13 +631,18 @@ class Material:
         self.displacement = None
         self.name = ""
 
+        self.memoized_socket_values = {}
+
+    def __del__(self):
+        self.memoized_socket_values.clear()
+
     def detach_from_shape(self, shape):
-        if self.shader != None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
+        if self.shader is not None and self.shader.type == ShaderType.UBER2 and self.shader.rprx_context:
             self.shader.get_handle().detach(shape)
         self.shader = None  # this requires to prevent calling MaterialDelete if ShapeDetachMaterial was called
 
     def get_handle(self):
-        return None if self.shader == None else self.shader.get_handle()
+        return None if self.shader is None else self.shader.get_handle()
 
     def get_volume(self):
         return self.volume_handle
@@ -1253,7 +1258,7 @@ class Material:
         log_mat('parse_shader_node_uber2...')
         
         shader = UberShader2(self)
-        nul_value_vector = ValueVector(0,0,0,0)
+        nul_value_vector = ValueVector(0, 0, 0, 0)
 
         # DIFFUSE:
         if blender_node.diffuse:
@@ -1845,17 +1850,31 @@ class Material:
         return shader
 
     def get_value(self, blender_node, name, default=None):
+        memoize_key = (blender_node, name, default)
+        if memoize_key in self.memoized_socket_values:
+            log_mat("get_value({}): returning known value {}".
+                    format(memoize_key, self.memoized_socket_values[memoize_key]))
+            return self.memoized_socket_values[memoize_key]
+
         try:
             socket = blender_node.inputs[name]
         except KeyError:
             if default:
-                return ValueVector(*(default,) * 4)
+                result = ValueVector(*(default,) * 4)
             else:
-                return Value()
+                result = Value()
+            self.memoized_socket_values[memoize_key] = result
+            return result
+
         if socket.is_linked and len(socket.links) > 0:
             log_mat("get_value : from  linked node (socket: %s)" % socket, blender_node, name)
             linked_socket = socket.links[0].from_socket
-            return self.parse_node(linked_socket)
+            if linked_socket in self.memoized_socket_values.keys():
+                log_mat("get_value({}, {}): returning known link {}".
+                        format(self.name, name, linked_socket, self.memoized_socket_values[linked_socket]))
+            else:
+                self.memoized_socket_values[linked_socket] = self.parse_node(linked_socket)
+            return self.memoized_socket_values[linked_socket]
         else:
             log_mat("get_value : from socket (socket: %s)" % socket, blender_node, name)
             if hasattr(socket, 'default_value'):
@@ -1863,27 +1882,28 @@ class Material:
                 if isinstance(value, bool):
                     log_mat("bool value")
                     value = 1.0 if value else 0.0
-                    val = ValueVector(value, value, value, value)
+                    result = ValueVector(value, value, value, value)
                 elif isinstance(value, float):
                     log_mat("float value")
-                    val = ValueVector(value, value, value, value)
+                    result = ValueVector(value, value, value, value)
                 elif len(value) == 4:
                     log_mat("vector4 value")
-                    val = ValueVector(value[0], value[1], value[2], value[3])
+                    result = ValueVector(value[0], value[1], value[2], value[3])
                 elif len(value) == 3:
                     log_mat("vector3 value")
-                    val = ValueVector(value[0], value[1], value[2], 1.0)
+                    result = ValueVector(value[0], value[1], value[2], 1.0)
                 elif len(value) == 2:
                     log_mat("vector2 value")
-                    val = ValueVector(value[0], value[1], 0, 1.0)
+                    result = ValueVector(value[0], value[1], 0, 1.0)
                 else:
                     log_mat("unknown value type")
-                    val = ValueVector()
+                    result = ValueVector()
             else:
-                val = Value()
+                result = Value()
                 log_mat("get_value : value (%s) hasn't default value and wasn't linked" % name)
 
-            return val
+        self.memoized_socket_values[memoize_key] = result
+        return result
 
     ####################################################################################################################
 
