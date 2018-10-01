@@ -214,9 +214,6 @@ def check_old_rpr_image_nodes():
 
 
 def check_old_rpr_uber2_nodes():
-    if is_newer_than_saved_addon_version((1,2,4)):
-        return
-
     for mat in bpy.data.materials:
         tree = mat.node_tree
         if not tree:
@@ -226,19 +223,16 @@ def check_old_rpr_uber2_nodes():
             if node.bl_idname != 'rpr_shader_node_uber2':
                 continue
 
-            if node.normal_in not in node.inputs:
-                socket = node.inputs.new('rpr_socket_link', node.normal_in)
-                socket.enabled = node.normal
+            node.add_socket_if_missed(node.normal_in, 'rpr_socket_link', enabled=node.normal)
 
-            if node.displacement_min not in node.inputs:
-                socket = node.inputs.new('rpr_socket_float_softMinN1_softMax1', node.displacement_min)
-                socket.default_value = 0.0
-                socket.enabled = node.displacement
+            node.add_socket_if_missed(node.displacement_min, 'rpr_socket_float_softMinN1_softMax1',
+                                      default_value=0.0, enabled=node.displacement)
 
-            if node.displacement_max not in node.inputs:
-                socket = node.inputs.new('rpr_socket_float_softMinN1_softMax1', node.displacement_max)
-                socket.default_value = 1.0
-                socket.enabled = node.displacement
+            node.add_socket_if_missed(node.displacement_max, 'rpr_socket_float_softMinN1_softMax1',
+                                      default_value=1.0, enabled=node.displacement)
+
+            node.add_socket_if_missed(node.subsurface_radius, 'rpr_socket_color',
+                                      default_value=(1.0, 1.0, 1.0, 1.0), enabled=node.subsurface)
 
 
 def check_old_rpr_uber3_nodes():

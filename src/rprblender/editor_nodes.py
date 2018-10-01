@@ -51,6 +51,17 @@ class RPRNodeType_Shader(RPRTreeNode):
     def init(self):
         self.outputs.new('NodeSocketShader', self.shader_out)
 
+    def add_socket_if_missed(self, socket_name, socket_type, default_value=None, enabled=None):
+        """
+        Adds socket if it's missing, in case of loading scene with previous version of Uber2 and Uber3 materials
+        """
+        if socket_name not in self.inputs:
+            log_mat("Adding '{}' Uber3 material node socket of type '{}'".format(socket_name, socket_type))
+            if default_value is not None:
+                self.inputs.new(socket_type, socket_name).default_value = default_value
+            if enabled is not None:
+                self.inputs[socket_name].enabled = enabled
+
 
 class RPRNodeType_Volume(RPRTreeNode):
     shader_out = 'Volume'
@@ -577,9 +588,9 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
 
         self.inputs.new('rpr_socket_color', self.subsurface_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_weight_soft', self.subsurface_weight).default_value = 1.0
-        self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_color', self.subsurface_scatter_color).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
         self.inputs.new('rpr_socket_scattering_direction', self.subsurface_scatter_direction).default_value = 0.0
-        self.inputs.new('rpr_socket_color', self.subsurface_radius).default_value = (3.67, 1.37, 0.68, 1.0)  # skin values
+        self.inputs.new('rpr_socket_color', self.subsurface_radius).default_value = (1.0, 1.0, 1.0, 1.0)
 
         self.inputs.new('rpr_socket_weight', self.transparency_value).default_value = 0.0
         self.inputs.new('rpr_socket_link', self.normal_in)
@@ -686,15 +697,6 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     normal_in = 'Normal'
     transparency_value = 'Transparency'
     displacement_map = 'Displacement Map'
-
-    def add_socket_if_missed(self, socket_name, socket_type, default_value, enabled):
-        """
-        Adds socket if it's missing, in case of loading scene with previous version of Uber3 material
-        """
-        if socket_name not in self.inputs:
-            log_mat("Adding '{}' Uber3 material node socket of type '{}'".format(socket_name, socket_type))
-            self.inputs.new(socket_type, socket_name).default_value = default_value
-            self.inputs[socket_name].enabled = enabled
 
     def diffuse_changed(self, context):
         self.inputs[self.diffuse_color].enabled = self.diffuse
