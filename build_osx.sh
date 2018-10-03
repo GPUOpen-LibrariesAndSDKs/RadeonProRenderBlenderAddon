@@ -9,6 +9,9 @@ else
     exit 1
 fi
 
+pushd ThirdParty
+./unix_update.sh
+popd
 
 IGNORE_MISSING_OPENMP=1
 cxml="/usr/local/bin/castxml"

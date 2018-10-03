@@ -32,7 +32,8 @@ def init(log_fun, rprsdk_bin_path):
         lib_name = 'libProRenderGLTF.so'
         lib_platform = "Linux-Ubuntu/lib"
     elif "Darwin" == platform.system():
-        assert False
+        lib_name = "libProRenderGLTF.dylib"
+        lib_platform = "Mac/lib"
     else:
         assert False
 

@@ -874,10 +874,6 @@ class OpExportGLTFModel(Operator, ExportHelper):
 
 def export_gltf_model(filepath):
     
-    if platform.system() == "Darwin":  # TODO : GLTF
-        logging.info("GLTF is not implemented on this platform.")
-        return
-
     import pyrprgltf
     from rprblender import sync, export
     import rprblender.render.scene

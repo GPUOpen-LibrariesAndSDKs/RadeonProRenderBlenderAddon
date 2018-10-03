@@ -637,11 +637,11 @@ if __name__=='__main__':
            },
            castxml)
 
-    if platform.system() != "Darwin": # TODO : GLTF
-        export(rpr_header_gltf, json_file_name_gltf,
-               {
-                   'type': ['rprgltf_'],
-                   'function': ['rprExport', 'rprImport', 'rprGLTF'],
-                   'constant': []
-               },
-               castxml)
+    export(rpr_header_gltf, json_file_name_gltf,
+           {
+               'type': ['rprgltf_'],
+               'function': ['rprExport', 'rprImport', 'rprGLTF'],
+               'constant': []
+           },
+           castxml)
+
