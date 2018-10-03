@@ -150,6 +150,6 @@ if __name__ == "__main__":
     export('pyrpropenclapi.json', ['pyrprapi.json'],
            'RadeonProRender_CL.h', '__rprcl', 'pyrpropenclwrap.py', 'pyrpropenclwrap_make.py', abi_mode)
 
-    if platform.system() != "Darwin":  # TODO : GLTF
-        export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'],
-               'ProRenderGLTF.h', '__gltf', 'gltfwrap.py', 'pyrprgltfwrap_make.py', abi_mode)
+    export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'],
+           'ProRenderGLTF.h', '__gltf', 'gltfwrap.py', 'pyrprgltfwrap_make.py', abi_mode)
+

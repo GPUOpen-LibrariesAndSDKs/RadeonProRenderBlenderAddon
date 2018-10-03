@@ -67,10 +67,9 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         import pyrpropencl
         pyrpropencl.init()
 
-        if platform.system() != "Darwin":  # TODO : GLTF
-            import pyrprgltf
-            pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
-            pyrprgltf.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
+        import pyrprgltf
+        pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
+        pyrprgltf.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
     except:
         logging.critical(traceback.format_exc(), tag='')
