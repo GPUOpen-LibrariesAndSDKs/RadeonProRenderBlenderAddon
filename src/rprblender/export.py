@@ -1028,6 +1028,7 @@ class SceneExport:
 
         lib.generate_sky_image.restype = ctypes.c_bool
         lib.get_sun_azimuth.restype = ctypes.c_float
+        lib.get_sun_altitude.restype = ctypes.c_float
 
         # set parameters & calculate image
         env_type = sync.get('type')
@@ -1069,6 +1070,11 @@ class SceneExport:
                                           time_zone_var.get_updated_value(), daylight_savings_var.get_updated_value())
                 azimuth_was_changed = True
 
+        sun_azimuth = lib.get_sun_azimuth()
+        sun_altitude = lib.get_sun_altitude()
+        logging.debug("Sun-n-Sky: sun at azimuth {:.6} rad({:.3} deg), altitude {:.6} rad({:.3} deg)".
+                      format(sun_azimuth, np.degrees(sun_azimuth), sun_altitude, np.degrees(sun_altitude), ))
+
         filter_color = sync.get('sun_sky', 'filter_color').get_updated_value()
         ground_color = sync.get('sun_sky', 'ground_color').get_updated_value()
         turbidity = sync.get('sun_sky', 'turbidity').get_updated_value()
@@ -1093,7 +1099,10 @@ class SceneExport:
         if attach:
             self.environment_exporter.sun_sky = self.scene_synced.environment_light_create_empty()
 
-        self.environment_exporter.sun_sky.set_image_from_buffer(self.environment_exporter.sun_sky_image_buffer)
+        # we have to flip the IBL image upside down
+        ibl_data = np.ascontiguousarray(np.flipud(self.environment_exporter.sun_sky_image_buffer))
+
+        self.environment_exporter.sun_sky.set_image_from_buffer(ibl_data)
         intensity = sync.get('sun_sky', 'intensity').get_updated_value()
         self.environment_exporter.sun_sky.set_intensity(intensity)
 
@@ -1101,10 +1110,9 @@ class SceneExport:
         rotation_var = sync.get('gizmo_rotation')
 
         if azimuth_was_changed or rotation_var.updated() or attach:
-            sun_azimuth = lib.get_sun_azimuth()
             rot = rotation_var.get_updated_value()
 
-            euler_main_rotation = mathutils.Euler((-rot[0], -rot[1], -rot[2]))
+            euler_main_rotation = mathutils.Euler((-rot[0], -rot[1], -np.pi - rot[2]))
             main_matrix = euler_main_rotation.to_matrix()
             euler_azimut_rotation = mathutils.Euler((0, np.pi, -sun_azimuth))
             azimut_matrix = euler_azimut_rotation.to_matrix()
