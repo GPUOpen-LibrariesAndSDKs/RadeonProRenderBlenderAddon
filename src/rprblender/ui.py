@@ -745,10 +745,6 @@ class RPRRender_PT_Denoiser(RPRPanel, Panel):
             col.prop(settings, 'half_window', slider=True)
             col.prop(settings, 'bandwidth', slider=True)
         
-        row = col.row()
-        row.prop(settings, "enable_viewport")
-        #row.prop(settings, "scale_by_iterations")
-
 
 def draw_camera_settings(camera, layout):
     layout.prop(camera, "panorama_type")
@@ -880,8 +876,8 @@ def export_gltf_model(filepath):
 
     render_device = rprblender.render.get_render_device()
     context = render_device.context
-    material_system = render_device.core_material_system
-    uber_context = pyrprgltf.Object('rprx_context', render_device.core_uber_rprx_context)
+    material_system = render_device.material_system
+    uber_context = pyrprgltf.Object('rprx_context', render_device.x_context)
 
     count = len(bpy.data.scenes)
 

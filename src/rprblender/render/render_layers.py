@@ -64,7 +64,7 @@ class RenderLayers:
 
         self.render_targets = render_targets
 
-        self.context = render_targets.render_device.context
+        self.context = render_targets.context
         self.alpha_combine = aov_settings.transparent
 
         self.init_data(aov_settings)

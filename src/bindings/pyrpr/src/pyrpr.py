@@ -8,6 +8,7 @@ import time
 import functools
 import sys
 import numpy as np
+import bgl
 
 import pyrprwrap
 from pyrprwrap import *
@@ -182,7 +183,6 @@ class Object:
             self.delete()
         except:
             _init_data._log_fun('EXCEPTION:', traceback.format_exc())
-            raise
 
     def delete(self):
         if self._handle_ptr and self._get_handle():
@@ -214,7 +214,7 @@ class Context(Object):
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
-        self.create_result = CreateContext(API_VERSION, plugins, len(plugins), flags,
+        CreateContext(API_VERSION, plugins, len(plugins), flags,
             props_ptr, encode(cache_path) if cache_path else ffi.NULL,
             self)
 
@@ -243,12 +243,18 @@ class Context(Object):
     def render_tile(self, xmin, xmax, ymin, ymax):
         ContextRenderTile(self, xmin, xmax, ymin, ymax)
 
-    def set_aov(self, aov, frame_buffer):
-        if frame_buffer is None:
-            del self.aovs[aov]
-        else:
-            self.aovs[aov] = frame_buffer
+    def attach_aov(self, aov, frame_buffer):
+        if aov in self.aovs:
+            self.detach_aov(aov)
+
+        self.aovs[aov] = frame_buffer
+        frame_buffer.aov = aov
         ContextSetAOV(self, aov, frame_buffer)
+
+    def detach_aov(self, aov):
+        self.aovs[aov].aov = None
+        ContextSetAOV(self, aov, None)
+        del self.aovs[aov]
 
     def get_info_int(self, context_info):
         size = ffi.new('size_t *', 0)
@@ -266,6 +272,20 @@ class Context(Object):
         ContextGetInfo(self, CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags), creation_flags, ffi.NULL)
         return creation_flags[0]
 
+    def _get_cl_info(self, cl_type, cl_str_type):
+        val = ffi.new('%s *' % cl_str_type)
+        ContextGetInfo(self, cl_type, sys.getsizeof(val), val, ffi.NULL)
+        return val[0]
+
+    def get_cl_context(self):
+        return self._get_cl_info(CL_CONTEXT, 'rpr_cl_context')
+
+    def get_cl_device(self):
+        return self._get_cl_info(CL_DEVICE, 'rpr_cl_device')
+
+    def get_cl_command_queue(self):
+        return self._get_cl_info(CL_COMMAND_QUEUE, 'rpr_cl_command_queue')
+
 
 class Scene(Object):
     core_type_name = 'rpr_scene'
@@ -278,9 +298,9 @@ class Scene(Object):
         self.environments = {}
         ContextCreateScene(self.context, self)
 
-    def __del__(self):
+    def delete(self):
         self.clear()
-        super().__del__()
+        super().delete()
 
     def attach(self, obj):
         if isinstance(obj, Shape):
@@ -413,7 +433,7 @@ class Mesh(Shape):
                  ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                  self)
 
-    def __del__(self):
+    def delete(self):
         if self.material:
             self.set_material(None)
         if self.x_material:
@@ -425,7 +445,7 @@ class Mesh(Shape):
         if self.hetero_volume:
             self.set_hetero_volume(None)
 
-        super().__del__()
+        super().delete()
 
     def set_material(self, node):
         self.material = node
@@ -545,16 +565,39 @@ class FrameBuffer(Object):
         self.context = context
         self.width = width
         self.height = height
+        self.aov = None
+        self._create()
 
+    def delete(self):
+        if self.aov is not None:
+            self.context.detach_aov(self.aov)
+             
+        return super().delete()
+
+    def _create(self):
         desc = ffi.new("rpr_framebuffer_desc*")
         desc.fb_width, desc.fb_height = self.width, self.height
         ContextCreateFrameBuffer(self.context, (4, COMPONENT_TYPE_FLOAT32), desc, self)
+
+    def resize(self, width, height):
+        if self.width == width and self.height == height:
+            return
+
+        aov = self.aov
+        self.delete()
+
+        self.width = width
+        self.height = height
+        self._create()
+
+        if aov is not None:
+            self.context.attach_aov(aov, self)
 
     def clear(self):
         FrameBufferClear(self)
 
     def resolve(self, resolved_fb):
-        ContextResolveFrameBuffer(self.context, self, resolved_fb, False)
+        ContextResolveFrameBuffer(self.context, self, resolved_fb, True)
 
     def get_data(self, buf=None):
         if buf:
@@ -571,6 +614,35 @@ class FrameBuffer(Object):
     def save_to_file(self, file_path):
         FrameBufferSaveToFile(self, encode(file_path))
 
+    def get_cl_mem(self):
+        cl_mem = ffi.new('rpr_cl_mem *')
+        FrameBufferGetInfo(self, CL_MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, ffi.NULL)
+        return cl_mem[0]
+
+
+class FrameBufferGL(FrameBuffer):
+    def __init__(self, context, width, height):
+        super().__init__(context, width, height)
+
+    def _create(self):
+        textures = bgl.Buffer(bgl.GL_INT, [1,])
+        bgl.glGenTextures(1, textures)
+        self.gl_texture = textures[0]
+
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.gl_texture)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_REPEAT)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
+        buf = bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, 4])
+        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA, self.width, self.height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, buf)
+
+        ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.gl_texture, self)
+
+    def delete(self):
+        super().delete()
+        textures = bgl.Buffer(bgl.GL_INT, [1,], [self.gl_texture,])
+        bgl.glDeleteTextures(1, textures)
 
 
 class Composite(Object):
@@ -619,10 +691,11 @@ class MaterialNode(Object):
         self.x_inputs = {}
         MaterialSystemCreateNode(self.mat_sys, in_type, self)
 
-    def __del__(self):
+    def delete(self):
         for param, x_mat in self.x_inputs.items():
             x_mat.detach_from_node(param, self)
-        super().__del__()
+        
+            super().delete()
 
     def set_input(self, in_input, in_value):
         if in_value is None or isinstance(in_value, MaterialNode):

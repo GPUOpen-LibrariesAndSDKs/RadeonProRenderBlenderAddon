@@ -24,9 +24,12 @@ def format_arg_decl(arg, default):
 
 
 def print_function_header(name, args_names, args_defaults, doc):
-    c_decl, comment = doc
     print('def', name + '(' + ', '.join(format_arg_decl(a, d) for a, d, in zip(args_names, args_defaults)) + '):')
-    # print('    print("hello!!!")')
+
+    if doc is None:
+        return
+
+    c_decl, comment = doc
     print('    """ C/C++:', c_decl)
     print('    '.join(clean_comment_line(line) for line in comment))
     print('    """')

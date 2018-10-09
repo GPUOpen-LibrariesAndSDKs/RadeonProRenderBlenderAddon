@@ -6,22 +6,15 @@ import time
 import weakref
 
 import numpy as np
-import pyrpr
 
-from pyrpr import ffi
-
-import rprblender.render
 import rprblender.render
 import rprblender.render.render_layers
 import rprblender.render.device
-from rprblender import helpers, config
+from rprblender import helpers
 from rprblender import logging
 from rprblender.helpers import CallLogger
-from rprblender import image_filter
+from rprblender import properties
 
-import pyrprimagefilters
-import pyrpropencl
-import numpy as np
 
 call_logger = CallLogger(tag='render.scene')
 
@@ -32,16 +25,13 @@ class SceneRenderer:
     def context(self):
         return self.render_device.context
 
-    render_targets = None
-    render_layers = None
 
     def __init__(self, render_device, rs, is_production=False):
         self.render_device = render_device
 
-        self.post_effect_manager = rprblender.render.device.PostEffectManager(self.context)
-        self.post_effect_manager.attach(pyrpr.POST_EFFECT_NORMALIZATION)
+        self.render_targets = None
+        self.render_layers = None
 
-        self.im = None
         self.im_tile = None
         self.im_iteration = None
         self.im_prepared = {}
@@ -64,93 +54,31 @@ class SceneRenderer:
         self.used_iterations = 1
         self.iteration_divider = 1
 
+        self.render_lock = threading.Lock()
+
     @call_logger.logged
     def __del__(self):
         if self.render_targets:
-            self.render_device.detach_render_target(self.render_targets)
+            self.render_targets.disable_aovs()
 
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
-        self.render_layers = None
-        if self.render_targets is not None:
-            self.render_device.detach_render_target(self.render_targets)
-            del self.render_targets
-
         self.resolution = render_resolution
-        self.render_targets = rprblender.render.device.RenderTargets(self.render_device, self.resolution)
+        if self.render_targets:
+            self.render_targets.resize(*self.resolution)
+            return
+
+        self.render_targets = self.render_device.create_render_targets(*self.resolution)
         self.render_layers = rprblender.render.render_layers.RenderLayers(
             self.aov_settings, self.render_targets, self.is_production)
         # update transparent background
         self.context.set_parameter("transparentbackground", int(self.render_layers.alpha_combine))
 
         if self.has_shadowcatcher:
-            self.render_layers.enable_aov('opacity')
-            self.render_layers.enable_aov('background')
-            self.render_layers.enable_aov('shadow_catcher')
-
-        self.render_device.attach_render_target(self.render_targets)
+            self.render_targets.enable_shadow_catcher()
 
         if self.has_denoiser:
-            self._setup_image_filter()
-
-    def _setup_image_filter(self):
-        def fb(name):
-            self.render_layers.enable_aov(name)
-            return self.render_targets.get_frame_buffer(name)
-
-        settings = self.render_settings.denoiser
-        width, height = self.render_targets.render_resolution
-
-        if settings.filter_type == 'bilateral':
-            self.image_filter = image_filter.ImageFilter(self.context, 
-                                        image_filter.RifFilterType.Bilateral, width, height)
-
-            fb_color = self.image_filter.resolved_framebuffer()
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, settings.color_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), settings.normal_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), settings.p_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb('object_id'), settings.trans_sigma)
-
-            self.image_filter.add_param('radius', settings.radius)
-
-        elif settings.filter_type == 'eaw':
-            self.image_filter = image_filter.ImageFilter(self.context, 
-                                        image_filter.RifFilterType.Eaw, width, height)
-
-            fb_color = self.image_filter.resolved_framebuffer()
-            fb_trans = fb_object_id = fb('object_id')
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, settings.color_sigma);
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), settings.normal_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.Depth, fb('depth'), settings.depth_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.Trans, fb_trans, settings.trans_sigma)
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb_object_id, 0.1)
-
-        elif settings.filter_type == 'lwr':
-            self.image_filter = image_filter.ImageFilter(self.context, 
-                                        image_filter.RifFilterType.Lwr, width, height)
-
-            fb_color = self.image_filter.resolved_framebuffer()
-            fb_trans = fb_object_id = fb('object_id')
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, fb_color, 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, fb('shading_normal'), 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.Depth, fb('depth'), 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, fb('world_coordinate'), 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, fb_object_id, 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.Trans, fb_trans, 0.1)
-
-            self.image_filter.add_param('samples', settings.samples);
-            self.image_filter.add_param('halfWindow', settings.half_window);
-            self.image_filter.add_param('bandwidth', settings.bandwidth);
-
-        self.image_filter.attach_filter()
-
-    
-    def _get_filtered_image(self, frame_buffer):
-        frame_buffer.resolve(self.image_filter.resolved_framebuffer())
-        self.image_filter.run()
-        return self.image_filter.get_data()
-
+            self.render_targets.enable_image_filter(self.render_settings.denoiser)
 
     @call_logger.logged
     def update_render_region(self, render_region):
@@ -166,8 +94,6 @@ class SceneRenderer:
         yield from self._render_proc()
 
     def _render_proc(self):
-        from rprblender import properties
-
         rs = self.render_settings
         limits = rs.rendering_limits if self.is_production else helpers.get_user_settings().viewport_render_settings.limits
 
@@ -254,8 +180,7 @@ class SceneRenderer:
         time_local_total += timstamp_operation - timestamp_operation_last
         timestamp_operation_last = timstamp_operation
 
-        with rprblender.render.core_operations(raise_error=True):
-            self.render_targets.clear()
+        self.render_targets.clear_frame_buffers()
 
         for i in itertools.count():
             if limits.enable:
@@ -271,11 +196,7 @@ class SceneRenderer:
             self.log_debug('render_proc inner loop iteration')
             timestamp_operation_last = time.perf_counter()
 
-            with rprblender.render.core_operations(raise_error=True):
-                if render_region is None:
-                    self.context.render()
-                else:
-                    self.context.render_tile(*render_region)
+            self.render_targets.render(render_region)
 
             self.cache_generated = True
 
@@ -309,68 +230,48 @@ class SceneRenderer:
 
     @call_logger.logged
     def get_image(self, aov_name='default'):
-
         if aov_name in self.im_prepared:
             return self.im_prepared[aov_name]
 
-        with rprblender.render.core_operations(raise_error=True):
-            if aov_name == 'default' and self.has_shadowcatcher:
-                im = self._get_shadow_catcher_image()
-            else:
-                im = self._get_aov_image(aov_name)
+        im = self.get_aov_image(aov_name)
+        if im is None:
+            return None
 
-            if im is None:
-                return
-
-            # dummy_render = False
-            #
-            # if dummy_render:  # render simple animated gradient
-            #     im = np.ones((height, width, 4), dtype=np.float32)
-            #     im[:, :, 2] = np.sin(10 * np.pi * (t + np.linspace(0, 1, height, dtype=np.float32)))[:, np.newaxis]
-            #     im[:, :, 0] = np.linspace(0, 1, height, dtype=np.float32)[:, np.newaxis]
-            #     im[:, :, 1] = np.linspace(0, 1, width, dtype=np.float32)[np.newaxis, :]
-            #     im[:, :, 3] = 1
-
-            opacity = self._get_aov_image('opacity') if self.render_layers.alpha_combine else None
-
-            self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
+        opacity = self.get_aov_image('opacity') if self.render_layers.alpha_combine else None
+        self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
 
         return self.im_prepared.get(aov_name)
 
     @call_logger.logged
     def iter_images(self):
-        with rprblender.render.core_operations(raise_error=True):
-            opacity = self._get_aov_image('opacity') if self.render_layers.alpha_combine else None
+        opacity = self.get_aov_image('opacity') if self.render_layers.alpha_combine else None
 
-            while True:
-                aov_name = yield
-                if not aov_name:
-                    return
+        while True:
+            aov_name = yield
+            if not aov_name:
+                return
 
-                if aov_name in self.im_prepared:
-                    yield self.im_prepared[aov_name]
+            if aov_name in self.im_prepared:
+                yield self.im_prepared[aov_name]
 
-                im = self._get_aov_image(aov_name)
-                if im is None:
-                    yield None
+            im = self.get_aov_image(aov_name)
+            if im is None:
+                yield None
 
-                self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
+            self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
 
-                yield self.im_prepared.get(aov_name)
+            yield self.im_prepared.get(aov_name)
 
     def _get_image(self, aov_name, opacity):
         if not aov_name:
-            return
+            return None
 
         if aov_name in self.im_prepared:
             return self.im_prepared[aov_name]
 
-        if aov_name == 'default' and self.has_shadowcatcher:
-            im = self._get_shadow_catcher_image()
-        else:
-            im = self._get_aov_image(aov_name)
+        im = self.get_aov_image(aov_name)
         if im is None:
-            return
+            return None
 
         self.im_prepared[aov_name] = self.render_layers.prepare_image_by_layer(aov_name, im, opacity=opacity)
 
@@ -385,91 +286,32 @@ class SceneRenderer:
             def __init__(self, scene_renderer):
                 rprblender.render._lock.acquire()
 
-                self.opacity = scene_renderer._get_aov_image('opacity') \
+                self.opacity = scene_renderer.get_aov_image('opacity') \
                     if scene_renderer.render_layers.alpha_combine else None
                 self.scene_renderer = scene_renderer
 
             def __del__(self):
                 rprblender.render._lock.release()
-                pass
 
             def get_image(self, aov_name):
                 return self.scene_renderer._get_image(aov_name, self.opacity)
 
+        self.resolve()
         return PassesImages(weakref.proxy(self))
 
-    def _get_aov_image(self, aov_name):
-        frame_buffer = self.render_targets.get_frame_buffer(aov_name)
-        if not frame_buffer:
-            return
+    def get_aov_image(self, aov_name):
+        try:
+            return self.render_targets.get_image(aov_name)
+        except KeyError:
+            logging.error("No such AOV %s" % aov_name, self, 'get_aov_image', tag='render.scene')
+            return None
 
-        if self.has_denoiser and aov_name == 'default':
-            return self._get_filtered_image(frame_buffer)
+    def get_frame_buffer(self, aov_name):
+        return self.render_targets.get_frame_buffer(aov_name)
 
-        return self.render_targets.get_resolved_image(frame_buffer)
+    def resolve(self):
+        self.render_targets.resolve()
 
-    def _get_shadow_catcher_image(self):
-        if self.has_denoiser:
-            return self._get_filtered_image(self.get_shadowcatcher_framebuffer())
-
-        return self.render_targets.get_resolved_image(self.get_shadowcatcher_framebuffer())
-
-    @call_logger.logged
-    def get_shadowcatcher_framebuffer(self):
-        # Frame buffer for shadow catcher
-        width, height = self.render_targets.render_resolution
-        render_buffer = pyrpr.FrameBuffer(self.context, width, height)
-
-        # Background composite
-        composite_background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        composite_background.set_input('framebuffer.input', self.render_targets.get_frame_buffer('background'))
-
-        composite_background_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
-        composite_background_normalize.set_input('normalize.color', composite_background)
-
-        # Color composite
-        composite_color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        composite_color.set_input('framebuffer.input', self.render_targets.get_frame_buffer('default'))
-
-        composite_color_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
-        composite_color_normalize.set_input('normalize.color', composite_color)
-
-        # Opacity composite
-        composite_opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        composite_opacity.set_input('framebuffer.input', self.render_targets.get_frame_buffer('opacity'))
-
-        composite_opacity_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
-        composite_opacity_normalize.set_input('normalize.color', composite_opacity)
-
-        # Combine color and background buffers using COMPOSITE_LERP_VALUE
-        composite_lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
-        composite_lerp1.set_input('lerp.color0', composite_background_normalize)
-        composite_lerp1.set_input('lerp.color1', composite_color_normalize)
-        composite_lerp1.set_input('lerp.weight', composite_opacity_normalize)
-
-        # Constant composites
-        composite_one = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
-        composite_one.set_input('constant.input', (1.0, 0.0, 0.0, 0.0))
-
-        composite_zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
-        composite_zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
-
-        # Composite shadow catcher
-        composite_shadowcatcher = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        composite_shadowcatcher.set_input('framebuffer.input', self.render_targets.get_frame_buffer('shadow_catcher'))
-
-        composite_shadowcatcher_normalize = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
-        composite_shadowcatcher_normalize.set_input('normalize.color', composite_shadowcatcher)
-        composite_shadowcatcher_normalize.set_input('normalize.shadowcatcher', composite_one)
-
-        # comboine lerp1 and shadow catcher normalize composite objects
-        composite_lerp2 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
-        composite_lerp2.set_input('lerp.color0', composite_lerp1)
-        composite_lerp2.set_input('lerp.color1', composite_zero)
-        composite_lerp2.set_input('lerp.weight', composite_shadowcatcher_normalize)
-
-        composite_lerp2.compute(render_buffer)
-        return render_buffer
 
 class RenderThread(threading.Thread):
 
@@ -487,6 +329,7 @@ class RenderThread(threading.Thread):
         while not self.terminate_event.wait(timeout=0.0001):
             self.renderer.render_proc()
         logging.debug(self, 'run complete', tag='render.scene')
+
 
 class UpdateBlock:
 
@@ -656,17 +499,6 @@ class SceneRendererThreaded:
 
     def check_updates(self):
         with self.update_data_lock:
-
-            if self.update_data.render_resolution.has_value:
-                logging.debug('resolution changed to ', self.update_data.render_resolution,  tag='render.proc.update')
-                self.render_resolution = self.update_data.render_resolution.pop_value()
-
-                # this partially duplicates code below for aov, only not if resolution changed there's no
-                # need to partially update aovs - all will be recreated
-                with self.image_lock:
-                    self.scene_renderer.update_render_resolution(self.render_resolution)
-                self.need_scene_redraw = True
-
             if self.update_data.aov.has_value:
                 self.aov = self.update_data.aov.pop_value()
                 self.scene_renderer.update_aov(self.aov)
@@ -728,4 +560,3 @@ class SceneRendererThreaded:
 
     def set_scene_synced(self, scene_synced):
         self.scene_synced = scene_synced
-

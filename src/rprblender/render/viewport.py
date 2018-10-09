@@ -40,9 +40,19 @@ class ViewportRenderer:
             referrers = gc.get_referrers(self.scene_synced)
             assert 1 == len(referrers), referrers
 
-    def get_image(self, pass_name='default'):
+    def resolve(self):
         with self.scene_renderer_threaded.image_lock:
-            return self.scene_renderer.get_image(pass_name)
+            return self.scene_renderer.resolve()
+
+    def get_image(self, aov_name):
+        return self.scene_renderer.get_image(aov_name)
+
+    def get_frame_buffer_gl(self, aov_name):
+        fb =self.scene_renderer.get_frame_buffer(aov_name)
+        if isinstance(fb, pyrpr.FrameBufferGL):
+            return fb
+
+        return None
 
     @call_logger.logged
     def start(self, scene, is_production=False):
@@ -51,9 +61,7 @@ class ViewportRenderer:
             self.scene_renderer_threaded.stop()
             self.scene_renderer_threaded = None
 
-        has_denoiser = scene.rpr.render.denoiser.enable and \
-                       (is_production or scene.rpr.render.denoiser.enable_viewport)
-        render_device = rprblender.render.get_render_device(is_production=is_production)
+        render_device = rprblender.render.get_render_device(is_production=is_production, is_viewport=True)
         self.scene_renderer = rprblender.render.scene.SceneRenderer(render_device, scene.rpr.render, is_production=is_production)
         self.scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(self.scene_renderer)
 
@@ -64,7 +72,7 @@ class ViewportRenderer:
                 self.scene_renderer.has_shadowcatcher = True
                 break
 
-        self.scene_renderer.has_denoiser = has_denoiser
+        self.scene_renderer.has_denoiser = scene.rpr.render.denoiser.enable
 
         self.scene_renderer_threaded.set_aov(self.render_aov)
         self.scene_renderer_threaded.set_render_resolution(self.render_resolution)
@@ -160,7 +168,7 @@ class ViewportRenderer:
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
         self.render_resolution = render_resolution
-        self.scene_renderer_threaded.update_render_resolution(render_resolution)
+        self.scene_renderer.update_render_resolution(render_resolution)
 
     @call_logger.logged
     def update_render_region(self, render_region):

@@ -176,7 +176,7 @@ def load(fpath):
     return api
 
 
-def export(rpr_header, json_file_name, prefixes, castxml):
+def export(header_file, includes, json_file_name, prefixes, castxml):
     import xml.etree.ElementTree
     import subprocess
 
@@ -185,17 +185,17 @@ def export(rpr_header, json_file_name, prefixes, castxml):
     if bindingsOk.exists():
          bindingsOk.unlink()
 
-    if "Windows" == platform.system():
-        subprocess.check_call([castxml, '-I', 'ThirdParty/RadeonProRender SDK/Win/inc', '-E', '-dD', '-x' , 'c++', rpr_header, '-o', 'rprapi.pp'])        
-        subprocess.check_call([castxml, '-I', 'ThirdParty/RadeonProRender SDK/Win/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
+    cmd = [castxml,]
+    for inc in includes:
+        cmd.extend(['-I', inc])
+    cmd.extend(['-E', '-dD', '-x' , 'c++', header_file, '-o', 'rprapi.pp'])
+    subprocess.check_call(cmd)
 
-    if "Linux" == platform.system():
-        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc', '-E', '-dD', '-x', 'c++', rpr_header, '-o', 'rprapi.pp'])
-        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
-
-    if "Darwin" == platform.system():
-        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Mac/inc', '-E', '-dD', '-x', 'c++', rpr_header, '-o', 'rprapi.pp'])
-        subprocess.check_call([castxml, '-I','ThirdParty/RadeonProRender SDK/Mac/inc', '--castxml-gccxml', '-x', 'c++', rpr_header, '-o', 'rprapi.xml'])
+    cmd = [castxml,]
+    for inc in includes:
+        cmd.extend(['-I', inc])
+    cmd.extend(['--castxml-gccxml', '-x', 'c++', header_file, '-o', 'rprapi.xml'])
+    subprocess.check_call(cmd)
 
     t = xml.etree.ElementTree.parse('rprapi.xml')
 
@@ -560,7 +560,7 @@ def export(rpr_header, json_file_name, prefixes, castxml):
                 yield 'function', (name, (restype, tuple(arg.strip() for arg in args_rest.split(')')[0].split(',')), [line_cleaned, comment]))
 
 
-    for type, (name, sig) in extract_function_comments(open(rpr_header)):
+    for type, (name, sig) in extract_function_comments(open(header_file)):
         if name.startswith('rpr'):
             local_name = name[len('rpr'):]
             api.functions[name].docs = sig[2]
@@ -578,70 +578,77 @@ if __name__=='__main__':
     castxml = sys.argv[1]
 
     # RPR
+    rpr_header_rpr_wrap = 'src/bindings/pyrpr/rprwrap.h'
     rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender.h'
+    includes_rpr = ['ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc']
+    json_file_name_rpr_wrap = 'src/bindings/pyrpr/src/pyrprwrapapi.json'
     json_file_name_rpr = 'src/bindings/pyrpr/src/pyrprapi.json'
 
     rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
     json_file_name_rpr_support = 'src/bindings/pyrpr/src/pyrprsupportapi.json'
 
-    rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender_CL.h'
-    json_file_name_rpr_opencl = 'src/bindings/pyrpr/src/pyrpropenclapi.json'
-
     # ImageProcessing
-    rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include/RadeonImageFilters_cl.h'
+    rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap.h'
     json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
+    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include']
 
     # GLTF
     rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc/ProRenderGLTF.h'
+    includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc']
     json_file_name_gltf = 'src/bindings/pyrpr/src/pyrprgltfapi.json'
 
     if "Darwin" == platform.system():
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender.h'
+        includes_rpr = ['ThirdParty/RadeonProRender SDK/Mac/inc']
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Mac/inc/RprSupport.h'
-        rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender_CL.h'
-        rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Mac/inc/RadeonImageFilters_cl.h'
+        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Mac/inc']
+        rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Mac/inc/ProRenderGLTF.h'
+        includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Mac/inc']
 
     if "Windows" == platform.system():
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
+        includes_rpr = ['ThirdParty/RadeonProRender SDK/Win/inc']
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
-        rpr_header_rpr_opencl = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender_CL.h'
-        rpr_header_image_filters = 'ThirdParty/RadeonProImageProcessing/Win/inc/RadeonImageFilters_cl.h'
+        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Win/inc']
         rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
+        includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Win/inc']
 
-    export(rpr_header_rpr, json_file_name_rpr,
+    export(rpr_header_rpr, includes_rpr, json_file_name_rpr,
            {
-               'type':['rpr_', '_rpr', 'fr_', '_fr'],
-               'function':['rpr', 'fr'],
-               'constant':['RPR_', 'FR_']
+               'type':['rpr_', '_rpr'],
+               'function':['rpr',],
+               'constant':['RPR_',]
            },
         castxml)
-    export(rpr_header_rpr_support, json_file_name_rpr_support,
+
+    export(rpr_header_rpr_wrap, includes_rpr, json_file_name_rpr_wrap,
+           {
+               'type':['rpr_', '_rpr'],
+               'function':['rpr',],
+               'constant':['RPR_',]
+           },
+        castxml)
+
+    export(rpr_header_rpr_support, includes_rpr, json_file_name_rpr_support,
            {
                'type': ['rprx_', '_rprx'],
                'function': ['rprx'],
                'constant': ['RPRX_']
            },
            castxml)
-    export(rpr_header_image_filters, json_file_name_image_filters,
+
+    export(rpr_header_image_filters, includes_image_filters, json_file_name_image_filters,
            {
                'type': ['rif_', '_rif'],
                'function': ['rif'],
                'constant': ['RIF_']
            },
            castxml)
-    export(rpr_header_rpr_opencl, json_file_name_rpr_opencl,
-           {
-               'type': ['rpr_cl_', 'fr_cl_'],
-               'function': ['rpr_cl'],
-               'constant': ['RPR_CL_', 'FR_CL_']
-           },
-           castxml)
 
-    export(rpr_header_gltf, json_file_name_gltf,
+    export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
            {
                'type': ['rprgltf_'],
                'function': ['rprExport', 'rprImport', 'rprGLTF'],
                'constant': []
            },
            castxml)
-
