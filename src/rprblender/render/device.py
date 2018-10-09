@@ -1,172 +1,295 @@
-import gc
+import sys
+import threading
 
-import numpy as np
+import bpy
 
 import pyrpr
-from pyrpr import ffi
 import pyrprx
-import pyrpropencl
-import pyrprimagefilters
-
-import rprblender.render
-from rprblender import config, logging, images
-import rprblender.render.render_layers
+from rprblender import config
+from rprblender import logging
+from rprblender import images
+from rprblender import render
+from rprblender import image_filter
+from rprblender.render import render_layers
 import rprblender.helpers as helpers
 
-import sys
-import bpy
 
 logged = helpers.CallLogger(tag='render.device').logged
 
-
-class AOV:
-
-    def __init__(self, aov_name, context, render_resolution):
-        self.context = context
-        self.aov = rprblender.render.render_layers.aov_info[aov_name]['rpr']
-        self.width, self.height = render_resolution
-        self.render_buffer = pyrpr.FrameBuffer(self.context, self.width, self.height)
-
-        self.attached = False
-
-    def attach(self):
-        self.context.set_aov(self.aov, self.render_buffer)
-        self.attached = True
-
-    def detach(self):
-        if self.attached:
-            self.context.set_aov(self.aov, None)
-            self.attached = False
-
-    def clear(self):
-        self.render_buffer.clear()
-
-    def get_core_frame_buffer_image(self):
-        return self.render_buffer.get_data()
-
-    def __del__(self):
-        self.detach()
-
-
-class PostEffectManager:
-    def __init__(self, context):
-        self._core_context = context
-        self._post_effects = {}
-
-    def attach(self, pe_type, params = None):
-        post_effect = pyrpr.PostEffect(self._core_context, pe_type)
-        self._post_effects[pe_type] = post_effect
-
-        if params:
-            for key, value in params.items():
-                post_effect.set_parameter(key, value)
-
-        post_effect.attach()
-
-    def clear(self):
-        for post_effect in self._post_effects.values():
-            post_effect.detach()
-
-        self._post_effects.clear()
-
-    def __del__(self):
-        self.clear()
-
-
 class RenderTargets:
+    def __init__(self, context, is_preview, width, height):
+        self.context = context
+        self.width = width
+        self.height = height
+        self.gl_interop = is_preview and (self.context.get_creation_flags() & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
+        self.render_lock = threading.Lock()
+        self.iterations = 0
+        self.resolved_iterations = 0
 
-    def __init__(self, render_device, render_resolution):
-        self.render_device = render_device
+        # list of frame buffers for AOVs
+        self.frame_buffers_aovs = {}
 
-        self.frame_buffer_tonemapped = None
+        # shadow catcher
+        self.sc_composite = None
 
-        self.aovs = {}
-
-        self.attached = False
-
-        self.render_resolution = render_resolution
-
-        # create fb for applying posteffects
-        self.frame_buffer_tonemapped = pyrpr.FrameBuffer(self.render_device.context, *render_resolution)
-
-    def attach(self):
-        assert not self.attached
-        for aov in self.aovs.values():
-            aov.attach()
-        self.attached = True
-
-    def detach(self):
-        if self.attached:
-            for aov in self.aovs.values():
-                aov.detach()
-            self.attached = False
-
-    def clear(self):
-        for aov in self.aovs.values():
-            aov.clear()
-
-    def get_image(self, aov_name='default'):
-        name = aov_name
-        if name not in self.aovs:
-            return None
-        with rprblender.render.core_operations(raise_error=True):
-            fb_image = self.aovs[name].get_core_frame_buffer_image()
-
-        return fb_image
-
-    def get_frame_buffer(self, aov_name='default'):
-        name = aov_name
-        if name not in self.aovs:
-            # logging.info("Looking for unknown aov",name)
-            return None
-        return self.aovs[aov_name].render_buffer
-
-    def get_resolved_image(self, fb):
-        self.frame_buffer_tonemapped.clear()
-        fb.resolve(self.frame_buffer_tonemapped)
-        return self.get_frame_buffer_image(self.frame_buffer_tonemapped)
-
-    def get_frame_buffer_image(self, fb):
-        return get_image(*self.render_resolution, fb)
-
-    def enable_aov(self, aov_name):
-        if aov_name in self.aovs:
-            return
-
-        aov = AOV(aov_name, self.render_device.context, self.render_resolution)
-        self.aovs[aov_name] = aov
-
-        if self.attached:
-            aov.attach()
-
-        logging.info('added aov:', aov_name)
-
-    def disable_aov(self, aov_name):
-        if aov_name in self.aovs:
-            logging.info('removing aov:', aov_name)
-            self.aovs.pop(aov_name).detach()
-
-    def is_aov_enabled(self, aov_name):
-        return aov_name in self.aovs
-
-
-class RenderDevice:
-
-    @logged
-    def __init__(self, is_production, context_flags, context_props=None):
-        self.context = rprblender.render.create_context(rprblender.render.ensure_core_cache_folder(),
-                                                             context_flags, context_props)
+        # image filter
+        self.image_filter = None
+        self.image_filter_settings = None
+        
+        # context settings
         self.context.set_parameter('xflip', False)
         self.context.set_parameter('yflip', True)
-        self.context.set_parameter('preview', not is_production)
-
+        self.context.set_parameter('preview', is_preview)
         if helpers.use_mps():
             self.context.set_parameter('metalperformanceshader', True)
 
-        self.core_material_system = pyrpr.MaterialSystem(self.context)
-        self.core_uber_rprx_context = pyrprx.Context(self.core_material_system)
+        self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
+        self.post_effect.attach()
 
-        self.render_target = None  # type:RenderTargets
+    def __del__(self):
+        self.post_effect.detach()
+
+    def clear_frame_buffers(self):
+        with self.render_lock:
+            for fbs in self.frame_buffers_aovs.values():
+                fbs['aov'].clear()
+            self.iterations = 0
+            self.resolved_iterations = 0
+  
+    def render(self, region=None):
+        with self.render_lock:
+            if region is None:
+                self.context.render()
+            else:
+                self.context.render_tile(*region)
+            self.iterations += 1
+
+    def get_image(self, aov_name):
+        if aov_name == 'default' and self.image_filter:
+            return self.image_filter.get_data()
+
+        return self.get_frame_buffer(aov_name).get_data()
+
+    def get_frame_buffer(self, aov_name):
+        if aov_name == 'default':
+            if self.gl_interop and \
+                    self.image_filter and self.image_filter.rif_filter_type != image_filter.RifFilterType.Eaw:
+                    # temporary fix of EAW filter cause it doesn't work with gl_interop
+                return self.frame_buffers_aovs['default']['gl']
+            if self.image_filter:
+                return None
+            if self.sc_composite:
+                return self.frame_buffers_aovs['default']['sc']
+
+        return self.frame_buffers_aovs[aov_name]['res']
+
+    def resolve(self):
+        with self.render_lock:
+            if self.iterations == self.resolved_iterations:
+                return
+
+            for fbs in self.frame_buffers_aovs.values():
+                fbs['aov'].resolve(fbs['res'])
+            
+            self.resolved_iterations = self.iterations
+
+        if self.sc_composite:
+            self.sc_composite.compute(self.frame_buffers_aovs['default']['sc'])
+            if self.gl_interop and not self.image_filter:
+                self.frame_buffers_aovs['default']['sc'].resolve(self.frame_buffers_aovs['default']['gl'])
+
+        if self.image_filter:
+            self.image_filter.run()
+
+    def enable_aov(self, aov_name):
+        if self.is_aov_enabled(aov_name):
+            return
+
+        aov_type = render_layers.aov_info[aov_name]['rpr']
+        fbs = {}
+        fbs['aov'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+        fbs['aov'].set_name(aov_name + '_aov')
+        self.context.attach_aov(aov_type, fbs['aov'])
+        if aov_type == pyrpr.AOV_COLOR and self.gl_interop:
+            fbs['res'] = pyrpr.FrameBufferGL(self.context, self.width, self.height)
+            fbs['gl'] = fbs['res']      # resolved and gl framebuffers are the same
+            fbs['gl'].set_name(aov_name + '_gl')
+        else:
+            fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+            fbs['res'].set_name(aov_name + '_res')
+
+        self.frame_buffers_aovs[aov_name] = fbs
+
+    def disable_aov(self, aov_name):
+        aov_type = render_layers.aov_info[aov_name]['rpr']
+        self.context.detach_aov(aov_type)
+        del self.frame_buffers_aovs[aov_name]
+
+    def disable_aovs(self):
+        for aov_name in tuple(self.frame_buffers_aovs.keys()):
+            self.disable_aov(aov_name)
+
+    def is_aov_enabled(self, aov_name):
+        return aov_name in self.frame_buffers_aovs
+
+    def resize(self, width, height):
+        if self.width == width and self.height == height:
+            return
+
+        rif_settings = self.image_filter_settings
+        if rif_settings:
+            self.disable_image_filter()
+
+        sc = self.sc_composite is not None
+        if sc:
+            self.disable_shadow_catcher()
+
+        self.width = width
+        self.height = height
+        with self.render_lock:
+            for fbs in self.frame_buffers_aovs.values():
+                for fb in fbs.values():
+                    fb.resize(self.width, self.height)
+
+        if sc:
+            self.enable_shadow_catcher()
+
+        if rif_settings:
+            self.enable_image_filter(rif_settings)
+        
+    def enable_image_filter(self, settings):
+        self.image_filter_settings = settings
+
+        self.enable_aov('default')
+        self.enable_aov('world_coordinate')
+        self.enable_aov('object_id')
+        self.enable_aov('shading_normal')
+        self.enable_aov('depth')
+
+        if self.gl_interop and not self.sc_composite:
+            # splitting resolved and gl framebuffers
+            self.frame_buffers_aovs['default']['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+            self.frame_buffers_aovs['default']['res'].set_name('default_res')
+
+        color_fb = self.frame_buffers_aovs['default']['sc'] if self.sc_composite else self.frame_buffers_aovs['default']['res']
+        world_fb = self.frame_buffers_aovs['world_coordinate']['res']
+        object_fb = self.frame_buffers_aovs['object_id']['res']
+        shading_fb = self.frame_buffers_aovs['shading_normal']['res']
+        depth_fb = self.frame_buffers_aovs['depth']['res']
+        frame_buffer_gl = self.frame_buffers_aovs['default'].get('gl', None)
+
+        if settings.filter_type == 'bilateral':
+            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Bilateral,
+                                                         self.width, self.height, frame_buffer_gl)
+
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb, settings.color_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb, settings.normal_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb, settings.p_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb, settings.trans_sigma)
+
+            self.image_filter.add_param('radius', settings.radius)
+
+        elif settings.filter_type == 'eaw':
+            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Eaw,
+                                                         self.width, self.height, None)
+                                                         # temporary fix of EAW filter cause it doesn't work with gl_interop
+
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb, settings.color_sigma);
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb, settings.normal_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Depth, depth_fb, settings.depth_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.Trans, object_fb, settings.trans_sigma)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb, 0.1)
+
+        elif settings.filter_type == 'lwr':
+            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Lwr,
+                                                         self.width, self.height, frame_buffer_gl)
+
+            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Depth, depth_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb, 0.1)
+            self.image_filter.add_input(image_filter.RifFilterInput.Trans, object_fb, 0.1)
+
+            self.image_filter.add_param('samples', settings.samples);
+            self.image_filter.add_param('halfWindow', settings.half_window);
+            self.image_filter.add_param('bandwidth', settings.bandwidth);
+
+        self.image_filter.attach_filter()
+
+    def disable_image_filter(self):
+        self.image_filter = None
+        self.image_filter_settings = None
+        if self.gl_interop and not self.sc_composite:
+            # set resolved framebuffer be the same as gl
+            self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
+
+    def enable_shadow_catcher(self):
+        self.enable_aov('default')
+        self.enable_aov('opacity')
+        self.enable_aov('background')
+        self.enable_aov('shadow_catcher')
+
+        self.frame_buffers_aovs['default']['sc'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+        self.frame_buffers_aovs['default']['sc'].set_name('default_sc')
+        if self.gl_interop:
+            # splitting resolved and gl framebuffers
+            self.frame_buffers_aovs['default']['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+            self.frame_buffers_aovs['default']['res'].set_name('default_res')
+
+        one = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        one.set_input('constant.input', (1.0, 0.0, 0.0, 0.0))
+        
+        zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
+
+        color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        color.set_input('framebuffer.input', self.frame_buffers_aovs['default']['res'])
+        
+        background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        background.set_input('framebuffer.input', self.frame_buffers_aovs['background']['res'])
+        
+        opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        opacity.set_input('framebuffer.input', self.frame_buffers_aovs['opacity']['res'])
+
+        sc = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        sc.set_input('framebuffer.input', self.frame_buffers_aovs['shadow_catcher']['res'])
+
+        sc_norm = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
+        sc_norm.set_input('normalize.color', sc)
+        sc_norm.set_input('normalize.shadowcatcher', one)
+
+        # Combine color and background buffers using COMPOSITE_LERP_VALUE
+        lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        lerp1.set_input('lerp.color0', background)
+        lerp1.set_input('lerp.color1', color)
+        lerp1.set_input('lerp.weight', opacity)
+
+        lerp2 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        lerp2.set_input('lerp.color0', lerp1)
+        lerp2.set_input('lerp.color1', zero)
+        lerp2.set_input('lerp.weight', sc_norm)
+
+        self.sc_composite = lerp2
+
+    def disable_shadow_catcher(self):
+        self.sc_composite = None
+        if self.gl_interop:
+            # set resolved framebuffer be the same as gl
+            self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
+        del self.frame_buffers_aovs['default']['sc']
+
+
+class RenderDevice:
+    @logged
+    def __init__(self, is_production, context_flags, context_props=None):
+        self.context = render.create_context(render.ensure_core_cache_folder(),
+                                             context_flags, context_props)
+        self.material_system = pyrpr.MaterialSystem(self.context)
+        self.x_context = pyrprx.Context(self.material_system)
+        self.is_production = is_production
+        self.render_targets = None
 
         self.core_image_cache = images.core_image_cache
         self.core_downscaled_image_cache = images.core_downscaled_image_cache
@@ -174,26 +297,14 @@ class RenderDevice:
 
         self.update_downscaled_image_size(is_production)
 
-
-    @logged
     def __del__(self):
         self.core_image_cache.purge_for_context(self.context)
         self.core_downscaled_image_cache.purge_for_context(self.context)
         del self.downscaled_image_size[self.context]
 
-        if config.debug:
-            referrers = gc.get_referrers(self.context)
-            assert 1 == len(referrers), (referrers, self.context)
-
-    def attach_render_target(self, render_target):
-        if self.render_target:
-            self.render_target.detach()
-        self.render_target = render_target
-        self.render_target.attach()
-
-    def detach_render_target(self, render_target):
-        self.render_target.detach()
-        self.render_target = None
+    def create_render_targets(self, width, height):
+        self.render_targets = RenderTargets(self.context, not self.is_production, width, height)
+        return self.render_targets
 
     def update_downscaled_image_size(self, is_production):
         settings = bpy.context.scene.rpr.render
@@ -206,12 +317,4 @@ class RenderDevice:
             else:
                 size = int(viewport_settings.downscale_textures_size)
         self.downscaled_image_size[self.context] = size
-
-
-@logged
-def get_core_frame_buffer_image(width, height, render_buffer):
-    return render_buffer.get_data()
-
-def get_image(width, height, render_buffer):
-    return get_core_frame_buffer_image(width, height, render_buffer)
 

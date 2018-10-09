@@ -700,18 +700,11 @@ class DenoiserSettings(bpy.types.PropertyGroup):
         default='eaw'
     )
 
-    enable_viewport = bpy.props.BoolProperty(
-        name="Denoiser in Render Preview",
-        description="Please Note: Enabling this functionality in the render preview\nmay cause your screen to go black for some of the first iterations",
-        default=True
-    )
-
     scale_by_iterations = bpy.props.BoolProperty(
         name="Scale Denoising Iterations",
         description="Scale the amount of denoiser blur by number of iterations.  This will give more blur for renders with less samples, and become sharper as more samples are added.",
         default=True
     )
-
 
     # bilateral props
     radius = bpy.props.IntProperty(
@@ -948,7 +941,7 @@ class ViewportSettings(bpy.types.PropertyGroup):
 
     resolution_scale = bpy.props.IntProperty(
         name="Resolution Scale", 
-        min=0, max=100, default=100,
+        min=5, max=100, default=100, subtype='PERCENTAGE'
     )
 
     gi_settings = bpy.props.PointerProperty(type=GlobalIlluminationSettings)

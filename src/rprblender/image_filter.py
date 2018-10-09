@@ -1,12 +1,8 @@
 import pyrpr
-import pyrpropencl
 import pyrprimagefilters as rif
 import sys
 import numpy as np
-
-
-class ImageFilterError(RuntimeError):
-    pass
+import bgl
 
 
 class RifFilterType:
@@ -24,24 +20,27 @@ class RifFilterInput:
     Trans = 5
 
 
-class RifContextWrapper():
-    def __init__(self):
-        self._rif_context = rif.RifContext()
-        self._rif_command_queue = rif.RifCommandQueue()
-        self._rif_output_image = rif.RifImage()
+class RifContext():
+    def __init__(self, rpr_context):
+        def is_gpu_enabled(creation_flags):
+            for i in range(16):
+                if getattr(pyrpr, 'CREATION_FLAGS_ENABLE_GPU%d' % i) & creation_flags:
+                    return True
 
-    def __del__(self):
-        self._rif_output_image.delete()
-        self._rif_command_queue.delete()
-        self._rif_context.delete()
+            return False
 
+        creation_flags = rpr_context.get_creation_flags()
+        if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
+            self._rif_context = rif.ContextMetal(rpr_context)
+        elif is_gpu_enabled(creation_flags):
+            self._rif_context = rif.ContextGPU(rpr_context)
+        elif creation_flags & pyrpr.CREATION_FLAGS_ENABLE_CPU:
+            self._rif_context = rif.ContextCPU(rpr_context)
+        else:
+            raise ValueError("Not supported CONTEXT_CREATION_FLAGS")
 
-    def _check_devices(backend_api_type, processor_type):
-        deviceCount = rif.ffi.new('rif_int *', 0)
-        rif.GetDeviceCount(backend_api_type, processor_type, deviceCount)
-
-        if deviceCount[0] == 0:
-            raise ImageFilterError("RPR denoiser hasn't found compatible devices")
+        self._rif_command_queue = self._rif_context.create_command_queue()
+        self._rif_output_image = None
 
 
     def context(self):
@@ -56,104 +55,21 @@ class RifContextWrapper():
         return self._rif_output_image
 
 
-    def create_output(self, rif_image_desc):
-        rif.ContextCreateImage(self._rif_context, rif_image_desc, rif.ffi.NULL, self._rif_output_image)
+    def create_output(self, width, height):
+        self._rif_output_image = self._rif_context.create_image(width, height)
 
 
-    def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        raise NotImplementedError()
+    def create_output_gl(self, frame_buffer_gl):
+        self._rif_output_image = self._rif_context.create_frame_buffer_image_gl(frame_buffer_gl)
 
 
-    def update_inputs(self, rif_filter):
-        raise NotImplementedError()
+    def create_rif_image(self, rpr_framebuffer):
+        return self._rif_context.create_frame_buffer_image(rpr_framebuffer)
 
 
-class RifContextGPU(RifContextWrapper):
-    def __init__(self, rpr_context):
-        super(RifContextGPU, self).__init__()
-        RifContextWrapper._check_devices(rif.BACKEND_API_OPENCL, rif.PROCESSOR_GPU)
-
-        cl_context = pyrpropencl.get_cl_context(rpr_context)
-        cl_device = pyrpropencl.get_cl_device(rpr_context)
-        cl_command_queue = pyrpropencl.get_cl_command_queue(rpr_context)
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-
-        rif.CreateContextFromOpenClContext(rif.API_VERSION, cl_context, cl_device, cl_command_queue, 
-                                           pyrpr.encode(cache_path), self._rif_context)
-        rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
-
-
-    def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        cl_mem = pyrpropencl.get_mem_object(rpr_framebuffer)
-
-        rif_image = rif.RifImage()
-        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem, False, rif_image)
-
-        return rif_image
-
-    
-    def update_inputs(self, rif_filter):
-        # image filter processes buffers directly in GPU mode
-        pass
-
-
-class RifContextCPU(RifContextWrapper):
-    def __init__(self, rpr_context):
-        super(RifContextCPU, self).__init__()
-        RifContextWrapper._check_devices(rif.BACKEND_API_OPENCL, rif.PROCESSOR_CPU)
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-
-        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_OPENCL, rif.PROCESSOR_CPU, 0, 
-                          pyrpr.encode(cache_path), self._rif_context)
-        rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
-
-
-    def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        rif_image = rif.RifImage()
-        rif.ContextCreateImage(self._rif_context, rif_image_desc, rif.ffi.NULL, rif_image)
-
-        return rif_image
-
-    
     def update_inputs(self, rif_filter):
         for input_data in rif_filter.inputs().values():
-            size_in_bytes = rif.ffi.new('size_t *', 0)
-            ret_size = rif.ffi.new('size_t *', 0)
-            rif.ImageGetInfo(input_data.rif_image, rif.IMAGE_DATA_SIZEBYTE, sys.getsizeof(size_in_bytes), rif.ffi.cast('void *', size_in_bytes), ret_size)
-
-            if size_in_bytes[0] != input_data.rpr_framebuffer.size():
-                raise ImageFilterError("RPR denoiser failed to match RIF image and frame buffer sizes")
-
-            # resolve framebuffer data to rif_image
-            image_data = rif.ffi.new('void **')
-            rif.ImageMap(input_data.rif_image, rif.IMAGE_MAP_WRITE, image_data)
-            input_data.rpr_framebuffer.get_data(image_data[0])
-            rif.ImageUnmap(input_data.rif_image, image_data[0])
-
-
-class RifContextGPUMetal(RifContextWrapper):
-    def __init__(self, rpr_context):
-        super(RifContextGPUMetal, self).__init__()
-        RifContextWrapper._check_devices(rif.BACKEND_API_METAL, rif.PROCESSOR_GPU)
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-
-        rif.CreateContext(rif.API_VERSION, rif.BACKEND_API_METAL, rif.PROCESSOR_GPU, 0, 
-                          pyrpr.encode(cache_path), self._rif_context)
-        rif.ContextCreateCommandQueue(self._rif_context, self._rif_command_queue)
-
-
-    def create_rif_image(self, rpr_framebuffer, rif_image_desc):
-        cl_mem = pyrpropencl.get_mem_object(rpr_framebuffer)
-
-        rif_image = rif.RifImage()
-        rif.ContextCreateImageFromOpenClMemory(self._rif_context, rif_image_desc, cl_mem, False, rif_image)
-
-        return rif_image
-
-    
-    def update_inputs(self, rif_filter):
-        # image filter processes buffers directly in METAL mode
-        pass
+            input_data.rif_image.update()
 
 
 class RifFilterWrapper():
@@ -164,25 +80,13 @@ class RifFilterWrapper():
             self.sigma = sigma
 
 
-    def __init__(self, rif_context: RifContextWrapper):
+    def __init__(self, rif_context):
         self._rif_context = rif_context
-        self._rif_image_filter = rif.RifImageFilter()
+        self._rif_image_filter = None
         self._aux_filters = []
         self._aux_images = []
         self._inputs = {}
         self._params = {}
-
-    def __del__(self):
-        for input in self._inputs.values():
-            input.rif_image.delete()
-
-        for aux_image in self._aux_images:
-            aux_image.delete()
-
-        for aux_filter in self._aux_filters:
-            aux_filter.delete()
-
-        self._rif_image_filter.delete()
 
 
     def inputs(self):
@@ -203,26 +107,21 @@ class RifFilterWrapper():
 
     def detach_filter(self):
         for filter in self._aux_filters:
-            rif.CommandQueueDetachImageFilter(self._rif_context.queue(), filter)
+            self._rif_context.queue().detach(filter)
 
-        rif.CommandQueueDetachImageFilter(self._rif_context.queue(), self._rif_image_filter)
+        self._rif_context.queue().detach(self._rif_image_filter)
 
 
     def apply_parameters(self):
         for name, param in self._params.items():
-            if type(param) == int:
-                rif.ImageFilterSetParameter1u(self._rif_image_filter, name.encode('latin1'), param)
-            elif type(param) == float:
-                rif.ImageFilterSetParameter1f(self._rif_image_filter, name.encode('latin1'), param)
-            else:
-                raise ImageFilterError("Not supported param type with name=%s" % name)
+            self._rif_image_filter.set_parameter(name, param)
 
 
     def _setup_variance_image_filter(self, input_filter, out_variance_image):
-        rif.ImageFilterSetParameterImage(input_filter, b'positionsImg', self._inputs[RifFilterInput.WorldCoordinate].rif_image)
-        rif.ImageFilterSetParameterImage(input_filter, b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
-        rif.ImageFilterSetParameterImage(input_filter, b'meshIdsImg', self._inputs[RifFilterInput.ObjectId].rif_image)
-        rif.ImageFilterSetParameterImage(input_filter, b'outVarianceImg', out_variance_image)
+        input_filter.set_parameter('positionsImg', self._inputs[RifFilterInput.WorldCoordinate].rif_image)
+        input_filter.set_parameter('normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
+        input_filter.set_parameter('meshIdsImg', self._inputs[RifFilterInput.ObjectId].rif_image)
+        input_filter.set_parameter('outVarianceImg', out_variance_image)
 
 
     def create_rif_image_descr(width, height):
@@ -244,25 +143,15 @@ class RifFilterBilateral(RifFilterWrapper):
         self._input_images = []
         self._sigmas = []
 
-        rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_BILATERAL_DENOISE, self._rif_image_filter)
+        self._rif_image_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_BILATERAL_DENOISE)
 
 
     def attach_filter(self):
-        input_images = []
-        sigmas = []
-        for input in self._inputs.values():
-            input_images.append(input.rif_image._get_handle())
-            sigmas.append(input.sigma)
+        self._rif_image_filter.set_parameter('inputs', [input.rif_image for input in self._inputs.values()])
+        self._rif_image_filter.set_parameter('sigmas', [input.sigma for input in self._inputs.values()])
+        self._rif_image_filter.set_parameter('inputsNum', len(self._inputs))
 
-        self._input_images = rif.ArrayObject('rif_image[]', input_images)
-        rif.ImageFilterSetParameterImageArray(self._rif_image_filter, b'inputs', self._input_images, len(input_images))
-
-        self._sigmas = rif.ffi.new('float[]', sigmas)
-        rif.ImageFilterSetParameterFloatArray(self._rif_image_filter, b'sigmas', self._sigmas, len(sigmas))
-
-        rif.ImageFilterSetParameter1u(self._rif_image_filter, b'inputsNum', len(input_images))
-
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._rif_image_filter, self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
+        self._rif_context.queue().attach(self._rif_image_filter, self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
 
 
 class RifFilterLwr(RifFilterWrapper):
@@ -276,17 +165,15 @@ class RifFilterLwr(RifFilterWrapper):
     def __init__(self, rif_context, width, height):
         super(RifFilterLwr, self).__init__(rif_context)
 
-        rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_LWR_DENOISE, self._rif_image_filter)
+        self._rif_image_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_LWR_DENOISE)
 
         desc = RifFilterWrapper.create_rif_image_descr(width, height)
 
         for i in range(RifFilterLwr._AuxInput.AuxInputMax):
-            aux_filter = rif.RifImageFilter()
-            rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR, aux_filter)
+            aux_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR)
             self._aux_filters.append(aux_filter)
 
-            aux_image = rif.RifImage()
-            rif.ContextCreateImage(self._rif_context.context(), desc, rif.ffi.NULL, aux_image)
+            aux_image = self._rif_context.context().create_image(width, height)
             self._aux_images.append(aux_image)
 
 
@@ -296,28 +183,28 @@ class RifFilterLwr(RifFilterWrapper):
             self._setup_variance_image_filter(self._aux_filters[i], self._aux_images[i])
 
         # configure Filter
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'vColorImg', self._aux_images[RifFilterLwr._AuxInput.Color])
+        self._rif_image_filter.set_parameter('vColorImg', self._aux_images[RifFilterLwr._AuxInput.Color])
         
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'vNormalsImg', self._aux_images[RifFilterLwr._AuxInput.Normal])
+        self._rif_image_filter.set_parameter('normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
+        self._rif_image_filter.set_parameter('vNormalsImg', self._aux_images[RifFilterLwr._AuxInput.Normal])
 
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'depthImg', self._inputs[RifFilterInput.Depth].rif_image)
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'vDepthImg', self._aux_images[RifFilterLwr._AuxInput.Depth])
+        self._rif_image_filter.set_parameter('depthImg', self._inputs[RifFilterInput.Depth].rif_image)
+        self._rif_image_filter.set_parameter('vDepthImg', self._aux_images[RifFilterLwr._AuxInput.Depth])
 
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'transImg', self._inputs[RifFilterInput.Trans].rif_image)
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'vTransImg', self._aux_images[RifFilterLwr._AuxInput.Trans])
+        self._rif_image_filter.set_parameter('transImg', self._inputs[RifFilterInput.Trans].rif_image)
+        self._rif_image_filter.set_parameter('vTransImg', self._aux_images[RifFilterLwr._AuxInput.Trans])
 
         # attach filters
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterLwr._AuxInput.Trans], 
-                                          self._inputs[RifFilterInput.Trans].rif_image, self._aux_images[RifFilterLwr._AuxInput.Trans])
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterLwr._AuxInput.Depth], 
-                                          self._inputs[RifFilterInput.Depth].rif_image, self._aux_images[RifFilterLwr._AuxInput.Depth])
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterLwr._AuxInput.Normal], 
-                                          self._inputs[RifFilterInput.Normal].rif_image, self._aux_images[RifFilterLwr._AuxInput.Normal])
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterLwr._AuxInput.Color], 
-                                          self._inputs[RifFilterInput.Color].rif_image, self._aux_images[RifFilterLwr._AuxInput.Color])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterLwr._AuxInput.Trans], 
+                                         self._inputs[RifFilterInput.Trans].rif_image, self._aux_images[RifFilterLwr._AuxInput.Trans])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterLwr._AuxInput.Depth], 
+                                         self._inputs[RifFilterInput.Depth].rif_image, self._aux_images[RifFilterLwr._AuxInput.Depth])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterLwr._AuxInput.Normal], 
+                                         self._inputs[RifFilterInput.Normal].rif_image, self._aux_images[RifFilterLwr._AuxInput.Normal])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterLwr._AuxInput.Color], 
+                                         self._inputs[RifFilterInput.Color].rif_image, self._aux_images[RifFilterLwr._AuxInput.Color])
 
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._rif_image_filter, self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
+        self._rif_context.queue().attach(self._rif_image_filter, self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
 
 
 class RifFilterEaw(RifFilterWrapper):
@@ -330,95 +217,69 @@ class RifFilterEaw(RifFilterWrapper):
     def __init__(self, rif_context, width, height):
         super(RifFilterEaw, self).__init__(rif_context)
 
-        rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_EAW_DENOISE, self._rif_image_filter)
+        self._rif_image_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_EAW_DENOISE)
 
         desc = RifFilterWrapper.create_rif_image_descr(width, height)
 
         for i in range(RifFilterEaw._AuxInput.AuxInputMax):
-            aux_filter = rif.RifImageFilter()
             if i == RifFilterEaw._AuxInput.Color:
-                rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR, aux_filter)
+                aux_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_TEMPORAL_ACCUMULATOR)
             elif i == RifFilterEaw._AuxInput.Depth:
-                rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_NORMALIZATION, aux_filter)
+                aux_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_NORMALIZATION)
             else:
-                rif.ContextCreateImageFilter(self._rif_context.context(), rif.IMAGE_FILTER_MLAA, aux_filter)
+                aux_filter = self._rif_context.context().create_filter(rif.IMAGE_FILTER_MLAA)
 
             self._aux_filters.append(aux_filter)
 
-            aux_image = rif.RifImage()
-            rif.ContextCreateImage(self._rif_context.context(), desc, rif.ffi.NULL, aux_image)
+            aux_image = self._rif_context.context().create_image(width, height)
             self._aux_images.append(aux_image)
 
 
     def attach_filter(self):
         # setup inputs
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'transImg', self._inputs[RifFilterInput.Trans].rif_image)
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'depthImg', self._aux_images[RifFilterEaw._AuxInput.Depth])
-        rif.ImageFilterSetParameterImage(self._rif_image_filter, b'colorVar', self._inputs[RifFilterInput.Color].rif_image)
+        self._rif_image_filter.set_parameter('normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
+        self._rif_image_filter.set_parameter('transImg', self._inputs[RifFilterInput.Trans].rif_image)
+        self._rif_image_filter.set_parameter('depthImg', self._aux_images[RifFilterEaw._AuxInput.Depth])
+        self._rif_image_filter.set_parameter('colorVar', self._inputs[RifFilterInput.Color].rif_image)
 
         # setup sigmas
-        rif.ImageFilterSetParameter1f(self._rif_image_filter, b'colorSigma', self._inputs[RifFilterInput.Color].sigma)
-        rif.ImageFilterSetParameter1f(self._rif_image_filter, b'normalSigma', self._inputs[RifFilterInput.Normal].sigma)
-        rif.ImageFilterSetParameter1f(self._rif_image_filter, b'depthSigma', self._inputs[RifFilterInput.Depth].sigma)
-        rif.ImageFilterSetParameter1f(self._rif_image_filter, b'transSigma', self._inputs[RifFilterInput.Trans].sigma)
+        self._rif_image_filter.set_parameter('colorSigma', self._inputs[RifFilterInput.Color].sigma)
+        self._rif_image_filter.set_parameter('normalSigma', self._inputs[RifFilterInput.Normal].sigma)
+        self._rif_image_filter.set_parameter('depthSigma', self._inputs[RifFilterInput.Depth].sigma)
+        self._rif_image_filter.set_parameter('transSigma', self._inputs[RifFilterInput.Trans].sigma)
 
         # setup color variance filter
         self._setup_variance_image_filter(self._aux_filters[RifFilterEaw._AuxInput.Color], self._aux_images[RifFilterEaw._AuxInput.Color])
 
         # setup MLAA filter
-        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
-        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'meshIDImg', self._inputs[RifFilterInput.ObjectId].rif_image)
-        rif.ImageFilterSetParameterImage(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], b'depthImg', self._inputs[RifFilterInput.Depth].rif_image)
+        self._aux_filters[RifFilterEaw._AuxInput.Mlaa].set_parameter('normalsImg', self._inputs[RifFilterInput.Normal].rif_image)
+        self._aux_filters[RifFilterEaw._AuxInput.Mlaa].set_parameter('meshIDImg', self._inputs[RifFilterInput.ObjectId].rif_image)
+        self._aux_filters[RifFilterEaw._AuxInput.Mlaa].set_parameter('depthImg', self._inputs[RifFilterInput.Depth].rif_image)
 
         # attach filters
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterEaw._AuxInput.Depth],
-                                          self._inputs[RifFilterInput.Depth].rif_image, self._aux_images[RifFilterEaw._AuxInput.Depth])
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterEaw._AuxInput.Color], 
-                                          self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._rif_image_filter, 
-                                          self._rif_context.output(), self._aux_images[RifFilterEaw._AuxInput.Mlaa])
-        rif.CommandQueueAttachImageFilter(self._rif_context.queue(), self._aux_filters[RifFilterEaw._AuxInput.Mlaa], 
-                                          self._aux_images[RifFilterEaw._AuxInput.Mlaa], self._rif_context.output())
+        self._rif_context.queue().attach(self._aux_filters[RifFilterEaw._AuxInput.Depth],
+                                         self._inputs[RifFilterInput.Depth].rif_image, self._aux_images[RifFilterEaw._AuxInput.Depth])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterEaw._AuxInput.Color], 
+                                         self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
+        self._rif_context.queue().attach(self._rif_image_filter, 
+                                         self._rif_context.output(), self._aux_images[RifFilterEaw._AuxInput.Mlaa])
+        self._rif_context.queue().attach(self._aux_filters[RifFilterEaw._AuxInput.Mlaa], 
+                                         self._aux_images[RifFilterEaw._AuxInput.Mlaa], self._rif_context.output())
 
 
 
 class ImageFilter():
-    def __init__(self, rpr_context, rif_filter_type: RifFilterType, width, height):
-        def is_gpu_enabled(creation_flags):
-            gpu_flags = [pyrpr.CREATION_FLAGS_ENABLE_GPU0,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU1,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU2,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU3,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU4,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU5,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU6,
-                         pyrpr.CREATION_FLAGS_ENABLE_GPU7]
-
-            for flag in gpu_flags:
-                if creation_flags & flag:
-                    return True
-
-            return False
-
+    def __init__(self, rpr_context, rif_filter_type: RifFilterType, width, height, frame_buffer_gl):
         self._rpr_context = rpr_context
         self._width = width
         self._height = height
-        self._resolved_framebuffer = None
+        self._rif_context = RifContext(self._rpr_context)
+        self.rif_filter_type = rif_filter_type
 
-        creation_flags = rpr_context.get_creation_flags()
-
-        if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
-            self._rif_context = RifContextGPUMetal(self._rpr_context)
-        elif is_gpu_enabled(creation_flags):
-            self._rif_context = RifContextGPU(self._rpr_context)
-        elif creation_flags & pyrpr.CREATION_FLAGS_ENABLE_CPU:
-            self._rif_context = RifContextCPU(self._rpr_context)
+        if frame_buffer_gl:
+            self._rif_context.create_output_gl(frame_buffer_gl)
         else:
-            raise ImageFilterError("Not supported CONTEXT_CREATION_FLAGS")
-
-        desc = RifFilterWrapper.create_rif_image_descr(self._width, self._height)
-        self._rif_context.create_output(desc)
+            self._rif_context.create_output(self._width, self._height)
 
         if rif_filter_type == RifFilterType.Bilateral:
             self._rif_filter = RifFilterBilateral(self._rif_context)
@@ -434,8 +295,7 @@ class ImageFilter():
 
 
     def add_input(self, input_id, rpr_framebuffer, sigma):
-        desc = RifFilterWrapper.create_rif_image_descr(self._width, self._height)
-        rif_image = self._rif_context.create_rif_image(rpr_framebuffer, desc)
+        rif_image = self._rif_context.create_rif_image(rpr_framebuffer)
         self._rif_filter.add_input(input_id, rif_image, rpr_framebuffer, sigma)
 
 
@@ -450,24 +310,7 @@ class ImageFilter():
 
     def run(self):
         self._rif_context.update_inputs(self._rif_filter)
-        rif.ContextExecuteCommandQueue(self._rif_context.context(), self._rif_context.queue(), rif.ffi.NULL, rif.ffi.NULL, rif.ffi.NULL)
-
+        self._rif_context.queue().execute()
 
     def get_data(self):
-        mapped_data = rif.ffi.new('void **')
-        rif.ImageMap(self._rif_context.output(), rif.IMAGE_MAP_READ, mapped_data)
-
-        float_data = rif.ffi.cast("float*", mapped_data[0])
-        buffer_size = self._width*self._height*4*4    # 4*4 is the size in bytes of pixel as RGBA color as 4 floats (every color component is float value)
-        output = np.frombuffer(rif.ffi.buffer(float_data, buffer_size), dtype=np.float32).reshape(self._height, self._width, 4)
-
-        rif.ImageUnmap(self._rif_context.output(), mapped_data[0])
-
-        return output
-
-    def resolved_framebuffer(self):
-        if not self._resolved_framebuffer:
-            self._resolved_framebuffer = pyrpr.FrameBuffer(self._rpr_context, self._width, self._height)
-            self._resolved_framebuffer.clear()
-
-        return self._resolved_framebuffer
+        return self._rif_context.output().get_data()

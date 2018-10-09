@@ -74,8 +74,8 @@ class RPREngine(bpy.types.RenderEngine):
     def __init__(self):
         super().__init__()
         logging.debug(self, "__init__")
-        self.im = None
         self.texture = None
+        self.frame_buffer_gl = None
         self.prev_sc = False
 
     @call_logger.logged
@@ -367,6 +367,7 @@ class RPREngine(bpy.types.RenderEngine):
 
     def get_rendered_iteration(self, scene_renderer):
         with TimedContext("scene_renderer.get_image"):
+            scene_renderer.resolve()
             if scene_renderer.get_image() is None:
                 return None
             return scene_renderer.im_iteration
@@ -545,9 +546,6 @@ class RPREngine(bpy.types.RenderEngine):
             for obj in context.scene.objects:
                 if obj.rpr_object.shadowcatcher:
                     self.is_shadowcatcher = True
-                    viewport_renderer.scene_renderer.render_layers.enable_aov('opacity')
-                    viewport_renderer.scene_renderer.render_layers.enable_aov('background')
-                    viewport_renderer.scene_renderer.render_layers.enable_aov('shadow_catcher')
                     break
 
             viewport_renderer.scene_renderer.has_shadowcatcher = self.is_shadowcatcher
@@ -556,33 +554,38 @@ class RPREngine(bpy.types.RenderEngine):
                 self.prev_sc = self.is_shadowcatcher
                 viewport_renderer.scene_reset(context.scene)
 
-            im = viewport_renderer.get_image(viewport_renderer.render_aov.pass_displayed)
-            if im is not None:
-                logging.debug("pass image retrieved", tag='render.viewport.draw')
-                assert im.flags['C_CONTIGUOUS']
-                self.im = im
             settings = bpy.context.scene.rpr.render
             limits = helpers.get_user_settings().viewport_render_settings.limits if self.is_preview else settings.rendering_limits
             self.update_scene_render_stats(self, viewport_renderer.scene_renderer, limits)
 
-            if self.im is not None:
-                logging.debug("draw_image", tag='render.viewport.draw')
-                # image from viewport_renderer can be older(before resolution was changed)
-                # so that's why we are passing current resolution along with image itself(to scale)
-                if not self.texture:
-                    self.texture = viewportdraw.create_texture(self.im)
-                else:
-                    self.texture.update(self.im)
+            viewport_renderer.resolve()
+            
+            self.frame_buffer_gl = viewport_renderer.get_frame_buffer_gl(viewport_renderer.render_aov.pass_displayed)
+            if not self.frame_buffer_gl:
+                im = viewport_renderer.get_image(viewport_renderer.render_aov.pass_displayed)
+                if im is not None:
+                    logging.debug("draw_image", tag='render.viewport.draw')
+                    # image from viewport_renderer can be older(before resolution was changed)
+                    # so that's why we are passing current resolution along with image itself(to scale)
+                    if not self.texture:
+                        self.texture = viewportdraw.create_texture(im)
+                    else:
+                        self.texture.update(im)
 
-        if self.texture:
-            zoom = viewport_renderer.scene_renderer.get_image_tile()
+        gl_texture = None
+        if self.frame_buffer_gl:
+            gl_texture = self.frame_buffer_gl.gl_texture
+        elif self.texture:
+            gl_texture = self.texture.name
 
+        if gl_texture is not None:
             if self.support_display_space_shader(context.scene):
                 # This is the fragment shader that applies Blender color management
                 self.bind_display_space_shader(context.scene)
 
-            viewportdraw.draw_image_texture(self.texture, render_resolution,
-                                            zoom if zoom is not None else (1, 1))
+            zoom = viewport_renderer.scene_renderer.get_image_tile()
+            viewportdraw.draw_image_texture(gl_texture, render_resolution,
+                                            zoom if zoom is not None else (1, 1), self.frame_buffer_gl is not None)
 
             if self.support_display_space_shader(context.scene):
                 self.unbind_display_space_shader()

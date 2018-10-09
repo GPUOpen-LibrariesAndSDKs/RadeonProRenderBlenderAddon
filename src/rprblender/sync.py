@@ -98,12 +98,12 @@ class SceneSynced:
         return self.render_device.context
 
     @property
-    def core_material_system(self):
-        return self.render_device.core_material_system
+    def material_system(self):
+        return self.render_device.material_system
 
     @property
-    def core_uber_rprx_context(self):
-        return self.render_device.core_uber_rprx_context
+    def x_context(self):
+        return self.render_device.x_context
 
     def __init__(self, render_device, settings):
         self.render_device = render_device
@@ -164,13 +164,13 @@ class SceneSynced:
         return self.context
 
     def get_uber_rprx_context(self):
-        return self.core_uber_rprx_context
+        return self.x_context
 
     def get_core_scene(self):
         return self.core_scene
 
     def get_material_system(self):
-        return self.core_material_system
+        return self.material_system
 
     def add_synced_obj(self, obj_key, core_obj):
         self.objects_synced[obj_key] = ObjectSynced(core_obj)
@@ -749,7 +749,7 @@ class SceneSynced:
     @call_logger.logged
     def mesh_set_autosubdivision(self, obj_key, factor, boundary, crease_weight):
         core_shape = self.core_shape(obj_key)
-        core_shape.set_auto_adapt_subdivision_factor(self.render_device.render_target.get_frame_buffer(), self.core_render_camera, factor)
+        core_shape.set_auto_adapt_subdivision_factor(self.render_device.render_targets.get_frame_buffer('default'), self.core_render_camera, factor)
         core_shape.set_subdivision_boundary_interop(boundary)
         core_shape.set_subdivision_crease_weight(crease_weight)
 

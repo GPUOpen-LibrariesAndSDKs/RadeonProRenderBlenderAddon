@@ -27,27 +27,37 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64', 'ProRenderGLTF']
 
     if "Windows" == platform.system():
-        platform_folder = 'Win'
+        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
+                   str(rprsdk_path / "Win/inc"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Win/inc"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Win/inc")]
+        lib_dir = [str(rprsdk_path / "Win/lib"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Win/lib"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Win/lib")]
     elif "Linux" == platform.system():
         assert 'Ubuntu-16.04' in platform.platform()
-        platform_folder = 'Linux/Ubuntu'
+        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
+                   str(rprsdk_path / "Linux-Ubuntu/inc"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Linux/Ubuntu/include"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Linux-Ubuntu/inc")]
+        lib_dir = [str(rprsdk_path / "Linux-Ubuntu/lib"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Linux/Ubuntu/lib64"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Linux-Ubuntu/lib")]
     elif "Darwin" == platform.system():
-        platform_folder = 'Mac'
+        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
+                   str(rprsdk_path / "Mac/inc"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Mac/inc"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Mac/inc")]
+        lib_dir = [str(rprsdk_path / "Mac/lib"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Mac/lib"),
+                   str(rprsdk_path / "../RadeonProRender-GLTF/Mac/lib")]
     else:
         assert False
 
-    inc_dir = [str(rprsdk_path / platform_folder / 'inc'),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'inc'),
-               str(rprsdk_path / "../RadeonProRender-GLTF/" / platform_folder / 'inc')]
-    lib_dir = [str(rprsdk_path / platform_folder / 'lib' ),str(rprsdk_path / "../RadeonProImageProcessing" / platform_folder / 'lib' ),
-               str(rprsdk_path / "../RadeonProRender-GLTF/" / platform_folder / 'lib')]
     for d in inc_dir:
-        if not os.path.isfile:
-            print("Bad include path: '%s'" % d)
-            assert False
+        assert os.path.isdir(d), "Bad include path: '%s'" % d
     for d in lib_dir:
-        if not os.path.isfile:
-            print("Bad lib path: '%s'" % d)
-            assert False
+        assert os.path.isdir(d), "Bad lib path: '%s'" % d
 
     if abi_mode:
         ffi.set_source(cffi_name, None)
@@ -139,17 +149,15 @@ if __name__ == "__main__":
         abi_mode = True
         
                 
-    export('pyrprapi.json', [], 'RadeonProRender.h', '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py', abi_mode)
+    export('pyrprwrapapi.json', [], 'rprwrap.h', 
+           '__rpr', 'pyrprwrap.py', 'pyrprwrap_make.py', abi_mode)
 
-    export('pyrprsupportapi.json', ['pyrprapi.json'],
-           'RprSupport.h', '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py', abi_mode)
+    export('pyrprsupportapi.json', ['pyrprapi.json'], 'RprSupport.h',
+           '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py', abi_mode)
 
-    export('pyrprimagefiltersapi.json', [], 'RadeonImageFilters_cl.h',
+    export('pyrprimagefiltersapi.json', [], 'imagefilterswrap.h',
            '__imagefilters', 'pyrprimagefilterswrap.py', 'pyrprimagefilterswrap_make.py', abi_mode)
 
-    export('pyrpropenclapi.json', ['pyrprapi.json'],
-           'RadeonProRender_CL.h', '__rprcl', 'pyrpropenclwrap.py', 'pyrpropenclwrap_make.py', abi_mode)
-
-    export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'],
-           'ProRenderGLTF.h', '__gltf', 'gltfwrap.py', 'pyrprgltfwrap_make.py', abi_mode)
+    export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'], 'ProRenderGLTF.h',
+           '__gltf', 'gltfwrap.py', 'pyrprgltfwrap_make.py', abi_mode)
 

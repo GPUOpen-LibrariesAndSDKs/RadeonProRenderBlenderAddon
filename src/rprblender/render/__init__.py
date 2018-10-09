@@ -64,13 +64,9 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
         pyrprimagefilters.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
-        import pyrpropencl
-        pyrpropencl.init()
-
         import pyrprgltf
         pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
         pyrprgltf.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
-
     except:
         logging.critical(traceback.format_exc(), tag='')
         return False
@@ -152,7 +148,7 @@ def ensure_core_trace_folder():
 from rprblender import helpers
 
 
-def get_context_creation_flags(is_production):
+def get_context_creation_flags(is_production, is_viewport):
     settings = helpers.get_device_settings(is_production)
     flags = 0
     if settings.use_cpu:
@@ -170,6 +166,10 @@ def get_context_creation_flags(is_production):
             logging.info("Enabling Metal GPU rendering")
         if (settings.use_cpu) and (is_production):
             logging.info('Using GPU+CPU')
+        if is_viewport:
+            flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
+            logging.info('Using GL_INTEROP')
+
     return flags
 
 
@@ -207,10 +207,10 @@ if support_path not in sys.path:
 render_devices = {}
 
 
-def get_render_device(is_production=True, persistent=False):
+def get_render_device(is_production=True, is_viewport=False, persistent=False):
     import rprblender.render.device
 
-    flags = rprblender.render.get_context_creation_flags(is_production)
+    flags = rprblender.render.get_context_creation_flags(is_production, is_viewport)
     logging.debug("get_render_device(is_production=%s), flags: %s" %(is_production, hex(flags)), tag='render.device')
 
     cpu_threads_number = 0

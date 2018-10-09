@@ -369,7 +369,7 @@ class Shader(Node):
     def __init__(self, mat, type):
         if type == ShaderType.UBER2:
             super().__init__(mat.create_uber_material())
-            super().set_rprx_context(mat.manager.core_uber_rprx_context)
+            super().set_rprx_context(mat.manager.x_context)
         else:
             super().__init__(mat.create_material_node(type))
         self.type = type
@@ -1822,7 +1822,7 @@ class Material:
         return core_node
 
     def create_uber_material(self):
-        uber_material = pyrprx.Material(self.manager.core_uber_rprx_context, pyrprx.MATERIAL_UBER)
+        uber_material = pyrprx.Material(self.manager.x_context, pyrprx.MATERIAL_UBER)
         self.node_list.append(uber_material)
         return uber_material
 

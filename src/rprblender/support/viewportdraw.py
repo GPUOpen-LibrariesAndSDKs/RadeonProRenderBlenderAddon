@@ -100,7 +100,7 @@ def draw_image_pixels(im, viewport_size, tile=(1, 1)):
             assert not glGetError()
 
 
-def draw_image_texture(texture, viewport_size, tile=(1, 1)):
+def draw_image_texture(gl_texture, viewport_size, tile=(1, 1), flipy=False):
 
     scale = 1.0/np.array(tile, dtype=np.float32)
 
@@ -116,15 +116,21 @@ def draw_image_texture(texture, viewport_size, tile=(1, 1)):
 
     gl.glColor3f(1,1,1)
     gl.glEnable(GL_TEXTURE_2D)
-    gl.glBindTexture(GL_TEXTURE_2D, texture.name)
+    gl.glBindTexture(GL_TEXTURE_2D, gl_texture)
 
     gl.glBegin(GL_QUADS)
     uv = [[-(tile[0]-1)*0.5, -(tile[1]-tile[1]/tile[0])*0.5],
           [(tile[0]+1)*0.5, (tile[1]+tile[1]/tile[0])*0.5]]
-    gl.glTexCoord2f(uv[0][0], uv[0][1]); gl.glVertex3f(-0.5, -0.5, 0)
-    gl.glTexCoord2f(uv[0][0], uv[1][1]); gl.glVertex3f(-0.5, viewport_size[1], 0)
-    gl.glTexCoord2f(uv[1][0], uv[1][1]); gl.glVertex3f(viewport_size[0], viewport_size[1], 0)
-    gl.glTexCoord2f(uv[1][0], uv[0][1]); gl.glVertex3f(viewport_size[0], -0.5, 0)
+    if flipy:
+        gl.glTexCoord2f(uv[0][0], uv[1][1]); gl.glVertex3f(-0.5, -0.5, 0)
+        gl.glTexCoord2f(uv[0][0], uv[0][1]); gl.glVertex3f(-0.5, viewport_size[1], 0)
+        gl.glTexCoord2f(uv[1][0], uv[0][1]); gl.glVertex3f(viewport_size[0], viewport_size[1], 0)
+        gl.glTexCoord2f(uv[1][0], uv[1][1]); gl.glVertex3f(viewport_size[0], -0.5, 0)
+    else:
+        gl.glTexCoord2f(uv[0][0], uv[0][1]); gl.glVertex3f(-0.5, -0.5, 0)
+        gl.glTexCoord2f(uv[0][0], uv[1][1]); gl.glVertex3f(-0.5, viewport_size[1], 0)
+        gl.glTexCoord2f(uv[1][0], uv[1][1]); gl.glVertex3f(viewport_size[0], viewport_size[1], 0)
+        gl.glTexCoord2f(uv[1][0], uv[0][1]); gl.glVertex3f(viewport_size[0], -0.5, 0)
     gl.glEnd()
 
     gl.glDisable(GL_TEXTURE_2D)
