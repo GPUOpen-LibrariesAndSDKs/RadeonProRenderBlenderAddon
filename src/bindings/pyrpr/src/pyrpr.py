@@ -286,6 +286,23 @@ class Context(Object):
     def get_cl_command_queue(self):
         return self._get_cl_info(CL_COMMAND_QUEUE, 'rpr_cl_command_queue')
 
+    def get_first_gpu_id_used(self):
+        creation_flags = self.get_creation_flags()
+        gpuids = [CREATION_FLAGS_ENABLE_GPU0, CREATION_FLAGS_ENABLE_GPU1, CREATION_FLAGS_ENABLE_GPU2,
+                CREATION_FLAGS_ENABLE_GPU3, CREATION_FLAGS_ENABLE_GPU4, CREATION_FLAGS_ENABLE_GPU5,
+                CREATION_FLAGS_ENABLE_GPU6, CREATION_FLAGS_ENABLE_GPU7, CREATION_FLAGS_ENABLE_GPU8,
+                CREATION_FLAGS_ENABLE_GPU9, CREATION_FLAGS_ENABLE_GPU10, CREATION_FLAGS_ENABLE_GPU11,
+                CREATION_FLAGS_ENABLE_GPU12, CREATION_FLAGS_ENABLE_GPU13, CREATION_FLAGS_ENABLE_GPU14,
+                CREATION_FLAGS_ENABLE_GPU15
+                ]
+
+        for i,flag in enumerate(gpuids):
+            if creation_flags & flag:
+                return i
+        else:
+            # undefined here.  Should this mean use CPU?
+            return -1
+
 
 class Scene(Object):
     core_type_name = 'rpr_scene'
