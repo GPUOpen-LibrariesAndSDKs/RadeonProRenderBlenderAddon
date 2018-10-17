@@ -14,17 +14,20 @@ import ctypes
 import bpy
 
 import pyrpr
+import winreg
 from pyrpr import ffi
 from enum import IntEnum
 
 from rprblender import config, logging, render
 
+
 def settings_changed(self, context):
     save_user_settings()
 
+
 devices_types_desc = (('gpu', "GPU", "Use GPU only"),
                       ('cpu', "CPU", "Use CPU only"))
-                      # ('gpu_cpu', "GPU + CPU", "Use GPU + CPU (coming soon)"))
+
 
 def get_device_type_index(device_type_name):
     for i, val in enumerate(devices_types_desc):
@@ -33,14 +36,17 @@ def get_device_type_index(device_type_name):
     assert False
     return 0
 
+
 def get_user_settings():
     if __package__ in bpy.context.user_preferences.addons.keys():
         return bpy.context.user_preferences.addons[__package__].preferences.settings
     else:
         return bpy.context.scene.rpr.fake_user_settings;
 
+
 def get_device_settings(production_render=True):
     return get_user_settings().final_device_settings if production_render else get_user_settings().viewport_device_settings
+
 
 def save_user_settings():
     if __package__ in bpy.context.user_preferences.addons.keys():
@@ -64,12 +70,24 @@ def is_osx_mojave():
     else:
         return False
 
+
 def use_mps():
     ''' determines if metal MPS should be used. Only on OSX 10.14 or greater '''
     if is_osx_mojave():
         return get_user_settings().use_mps
     else:
         return False
+
+
+def get_cpu_name():
+    try:
+        registry_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
+                                      0, winreg.KEY_READ)
+        value, regtype = winreg.QueryValueEx(registry_key, 'ProcessorNameString')
+        winreg.CloseKey(registry_key)
+        return value.strip()
+    except WindowsError:
+        return None
 
 
 class DeviceId(IntEnum):  # sync with RprTools.h
@@ -229,6 +247,16 @@ class RenderResourcesHelper:
         return flags
 
     def get_used_devices(self):
+        devices = ''
+        settings = get_device_settings()
+        if settings.use_cpu:
+            cpu_name = get_cpu_name()
+            devices = "CPU '{}'".format(cpu_name) if cpu_name else "CPU0"
+        if settings.use_gpu:
+            devices += self.get_used_GPU_devices()
+        return devices
+
+    def get_used_GPU_devices(self):
         settings = get_device_settings()
         devices = ''
         used = 0
@@ -342,7 +370,7 @@ def set_gpu_count(self, value):
     if value == 0:
         device_cpu = 1
         assert devices_types_desc[device_cpu][0] == 'cpu'
-        set_device_type(self,device_cpu)
+        set_device_type(self, device_cpu)
 
 
 def get_cpu_cores_count():
@@ -381,6 +409,7 @@ def get_device_type(self):
 
 
 def set_device_type(self, value):
+    settings = get_user_settings()
     render_resources_helper.update_gpu_states_in_settings(settings.gpu_states, self)
     device_cpu = 1
     assert devices_types_desc[device_cpu][0] == 'cpu'
@@ -549,3 +578,15 @@ def convert_K_to_RGB(colour_temperature):
             blue = tmp_blue
 
     return red / 255.0, green / 255.0, blue / 255.0
+
+
+def get_current_scene():
+    if bpy.context.scene and bpy.context.scene.name:
+        return bpy.context.scene.name, bpy.data.scenes[bpy.context.scene.name]
+    logging.warn("get_current_scene: no scene found!")
+
+
+def set_render_devices(use_cpu, use_gpu):
+    settings = get_device_settings(True)
+    settings.use_cpu = use_cpu
+    settings.use_gpu = use_gpu
