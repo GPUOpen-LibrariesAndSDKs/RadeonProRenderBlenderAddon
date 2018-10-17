@@ -61,8 +61,16 @@ def render_stamp(text, context, image, image_width, image_height, channels, iter
     settings = helpers.get_device_settings()
     hardware = ''
     render_mode = ''
+    selected_gpu_names = ''
+    gpus = helpers.render_resources_helper.get_used_GPU_devices()
+    for gpu in gpus:
+        if selected_gpu_names:
+            selected_gpu_names += " + {}".format(gpu)
+        else:
+            selected_gpu_names += gpu
+
     if settings.use_gpu:
-        hardware = helpers.render_resources_helper.get_used_GPU_devices()
+        hardware = selected_gpu_names
         render_mode = "GPU"
         if settings.use_cpu:
             hardware = hardware + " / "
@@ -76,7 +84,7 @@ def render_stamp(text, context, image, image_width, image_height, channels, iter
     text = text.replace("%so", str(len(bpy.data.meshes)))
     text = text.replace("%sl", str(len(bpy.data.lamps)))
     text = text.replace("%c", cpu_name)
-    text = text.replace("%g", helpers.render_resources_helper.get_used_GPU_devices())
+    text = text.replace("%g", selected_gpu_names)
     text = text.replace("%r", render_mode)  # rendering mode
     text = text.replace("%h", hardware)  # used hardware
     text = text.replace("%i", socket.gethostname())            
