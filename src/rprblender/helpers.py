@@ -251,19 +251,24 @@ class RenderResourcesHelper:
         settings = get_device_settings()
         if settings.use_cpu:
             cpu_name = get_cpu_name()
-            devices = "CPU '{}'".format(cpu_name) if cpu_name else "CPU0"
+            devices = "CPU {}".format(cpu_name) if cpu_name else "CPU0"
         if settings.use_gpu:
-            devices += self.get_used_GPU_devices()
+            gpus_used = self.get_used_GPU_devices()
+            for gpu in gpus_used:
+                if devices:
+                    devices += " | {}".format(gpu)
+                else:
+                    devices += gpu
         return devices
 
     def get_used_GPU_devices(self):
         settings = get_device_settings()
-        devices = ''
+        devices = []
         used = 0
         for i in range(len(settings.gpu_states)):
             if settings.gpu_states[i] is True and i < len(self.devices):
                 gpu = self.devices[i]
-                devices = devices + gpu['name']
+                devices.append(gpu['name'])
                 used += 1
 
         return devices
