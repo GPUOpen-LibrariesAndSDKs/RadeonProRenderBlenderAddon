@@ -829,6 +829,10 @@ node_categories = [
         NodeItem("rpr_arithmetics_node_math"),
     ]),
 
+    RPRNodeCategory("RPR_COLOR_OPS", "Color Management", items=[
+            NodeItem("ShaderNodeRGBToBW"),
+    ]),
+
     RPRNodeCategory("RPR_TEXTURE", "Texture", items=[
         NodeItem("rpr_texture_node_image_map"),
         NodeItem("rpr_texture_node_noise2d"),

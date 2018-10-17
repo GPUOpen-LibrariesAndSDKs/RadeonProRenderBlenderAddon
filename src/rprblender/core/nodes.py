@@ -1169,7 +1169,7 @@ class Material:
 
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, val)
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT,
-                                self.get_value(blender_node, blender_node.emissive_weight))
+                                  self.get_value(blender_node, blender_node.emissive_weight))
 
             is_double_sided = blender_node.emissive_double_sided
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_EMISSION_MODE,
@@ -1255,7 +1255,7 @@ class Material:
                 socket = self.get_socket(blender_node, blender_node.normal_in)
             return socket
 
-        log_mat('parse_shader_node_uber2...')
+        log_mat('parse_shader_node_uber3...')
         
         shader = UberShader2(self)
         nul_value_vector = ValueVector(0, 0, 0, 0)
@@ -1383,7 +1383,7 @@ class Material:
 
         shader = UberShader2(self)
 
-        nul_value_vector = ValueVector(0,0,0,0)
+        nul_value_vector = ValueVector(0, 0, 0, 0)
         one_vector = ValueVector(1.0, 1.0, 1.0, 1.0)
 
         # DIFFUSE:
@@ -1460,7 +1460,7 @@ class Material:
 
         shader = UberShader2(self)
 
-        nul_value_vector = ValueVector(0,0,0,0)
+        nul_value_vector = ValueVector(0, 0, 0, 0)
         one_vector = ValueVector(1.0, 1.0, 1.0, 1.0)
 
         normal_socket = self.get_socket(blender_node, blender_node.normal)
@@ -1622,6 +1622,13 @@ class Material:
         socket = self.get_socket(blender_node, 'Color')
         res = self.parse_node(socket) if socket else Value()
         return res
+
+    def parse_cycles_RGBToBW(self, blender_node):
+        """RGB input to Grayscale output conversion node"""
+        log_mat('parse_cycles_RGBToBW...')
+        socket = self.get_socket(blender_node, 'Color')
+        res = self.parse_node(socket) if socket else Value()
+        return self.convert_rgb_to_grayscale(res)
 
     def parse_cycles_HueSaturation(self, blender_node):
         log_mat('parse_cycles_HueSaturation...')
@@ -2028,6 +2035,7 @@ class Material:
             'ShaderNodeRGBCurve': self.parse_cycles_RGBCurve,
             'ShaderNodeHueSaturation': self.parse_cycles_HueSaturation,
             'ShaderNodeMixRGB': self.parse_cycles_MixRGB,
+            'ShaderNodeRGBToBW': self.parse_cycles_RGBToBW,
 
         }
         if name in registered_nodes:
@@ -2371,3 +2379,18 @@ class Material:
         if socket.is_linked and len(socket.links) > 0:
             return self.get_value(blender_node, blender_node.mapping_in)
         return Value()
+
+    def convert_rgb_to_grayscale(self, value):
+        """Convert input value or texture node from RGB to grayscale"""
+        log_mat("convert_rgb_to_grayscale")
+        if value.is_vector():
+            val = value.x * 0.2126 + value.y * 0.7152 + value.z * 0.0722
+            return ValueVector(val, val, val, value.w)
+        r_val = self.mul_value(self.select_x_value(value), ValueVector(0.2126, 0.2126, 0.2126, 0.0))
+        g_val = self.mul_value(self.select_y_value(value), ValueVector(0.7152, 0.7152, 0.7152, 0.0))
+        b_val = self.mul_value(self.select_z_value(value), ValueVector(0.0722, 0.0722, 0.0722, 0.0))
+        a_val = self.mul_value(self.select_w_value(value), ValueVector(0.0, 0.0, 0.0, 1.0))
+        res = self.add_value(r_val, g_val)
+        res = self.add_value(res, b_val)
+        res = self.add_value(res, a_val)
+        return res
