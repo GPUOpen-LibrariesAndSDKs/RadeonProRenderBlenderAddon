@@ -8,7 +8,6 @@ from ctypes.wintypes import BYTE, WORD, LONG, DWORD, HWND, HANDLE, LPCWSTR, WPAR
 import socket
 from . import helpers
 from rprblender.versions import get_addon_version
-import winreg
 
 
 FW_NORMAL = 400
@@ -55,25 +54,15 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
-def get_cpu_name():
-    try:
-        registry_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0,winreg.KEY_READ)
-        value, regtype = winreg.QueryValueEx(registry_key, 'ProcessorNameString')
-        winreg.CloseKey(registry_key)
-        return value.strip()
-    except WindowsError:
-        return None
-
-
-def render_stamp( text, context,  image, image_width, image_height,channels, iter, frame_time ):
+def render_stamp(text, context, image, image_width, image_height, channels, iter, frame_time):
     ver = get_addon_version()
 
-    cpu_name = get_cpu_name()
+    cpu_name = helpers.get_cpu_name()
     settings = helpers.get_device_settings()
     hardware = ''
     render_mode = ''
     if settings.use_gpu:
-        hardware = helpers.render_resources_helper.get_used_devices()
+        hardware = helpers.render_resources_helper.get_used_GPU_devices()
         render_mode = "GPU"
         if settings.use_cpu:
             hardware = hardware + " / "
@@ -87,14 +76,14 @@ def render_stamp( text, context,  image, image_width, image_height,channels, ite
     text = text.replace("%so", str(len(bpy.data.meshes)))
     text = text.replace("%sl", str(len(bpy.data.lamps)))
     text = text.replace("%c", cpu_name)
-    text = text.replace("%g", helpers.render_resources_helper.get_used_devices())
-    text = text.replace("%r", render_mode) # rendering mode
-    text = text.replace("%h", hardware) # used hardware
+    text = text.replace("%g", helpers.render_resources_helper.get_used_GPU_devices())
+    text = text.replace("%r", render_mode)  # rendering mode
+    text = text.replace("%h", hardware)  # used hardware
     text = text.replace("%i", socket.gethostname())            
     text = text.replace("%d", time.strftime("%a, %d %b %Y", time.localtime()))
     text = text.replace("%b", "v%d.%d.%d" % (ver[0], ver[1], ver[2]))
             
-    render_text(text,image,image_width, image_height, channels)
+    render_text(text, image, image_width, image_height, channels)
 
 
 def render_text( text, image, image_width, image_height,channels ):
