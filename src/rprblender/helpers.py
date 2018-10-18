@@ -14,11 +14,14 @@ import ctypes
 import bpy
 
 import pyrpr
-import winreg
 from pyrpr import ffi
 from enum import IntEnum
 
 from rprblender import config, logging, render
+
+# Windows-only
+if platform.system() == 'Windows':
+    import winreg
 
 
 def settings_changed(self, context):
@@ -80,6 +83,8 @@ def use_mps():
 
 
 def get_cpu_name():
+    if platform.system() == 'Windows':
+        return ""
     try:
         registry_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
                                       0, winreg.KEY_READ)
