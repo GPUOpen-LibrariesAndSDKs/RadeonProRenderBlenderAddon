@@ -585,10 +585,9 @@ def convert_K_to_RGB(colour_temperature):
     return red / 255.0, green / 255.0, blue / 255.0
 
 
+# Automated tests runner support methods
 def get_current_scene():
-    if bpy.context.scene and bpy.context.scene.name:
-        return bpy.context.scene.name, bpy.data.scenes[bpy.context.scene.name]
-    logging.warn("get_current_scene: no scene found!")
+    return bpy.context.scene.name, bpy.data.scenes[bpy.context.scene.name]
 
 
 def set_render_devices(use_cpu, use_gpu):
