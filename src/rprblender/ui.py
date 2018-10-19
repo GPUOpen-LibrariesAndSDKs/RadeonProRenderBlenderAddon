@@ -809,8 +809,41 @@ class OpExportRPRModel(Operator, ExportHelper):
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
 
+    export_animation = bpy.props.BoolProperty(
+        default=False,
+        name="Export Animation"
+    )
+
+    start_frame = bpy.props.IntProperty(
+        default=0,
+        name="Start Frame"
+    )
+
+    end_frame = bpy.props.IntProperty(
+        default=0,
+        name="End Frame"
+    )
+
     def execute(self, context):
-        return export_rpr_model(context, self.filepath)
+        if self.export_animation and self.start_frame <= self.end_frame:
+            scene = bpy.context.scene
+            orig_frame = scene.frame_current
+            for i in range(self.start_frame, self.end_frame + 1):
+                scene.frame_set(i)
+                begin, end = self.filepath.rsplit('.', 1)
+                filepath_frame = "%s.%04d.%s" % (begin, i, end)
+                export_rpr_model(context, filepath_frame) 
+
+            scene.frame_set(orig_frame)
+            return {'FINISHED'}
+        else:
+            return export_rpr_model(context, self.filepath)
+
+    def draw(self, context):
+        self.layout.prop(self, 'export_animation')
+        row = self.layout.row(align=True)
+        row.prop(self, 'start_frame')
+        row.prop(self, 'end_frame')
 
 
 def export_rpr_model(context, filepath):
