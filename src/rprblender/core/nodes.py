@@ -44,6 +44,7 @@ class MaterialError(RuntimeError):
 
 class ShaderType(IntEnum):
     DIFFUSE = pyrpr.MATERIAL_NODE_DIFFUSE
+    FLATCOLOR = pyrpr.MATERIAL_NODE_PASSTHROUGH
     EMISSIVE = pyrpr.MATERIAL_NODE_EMISSIVE
     DOUBLESIDED = pyrpr.MATERIAL_NODE_TWOSIDED
     VOLUME = pyrpr.MATERIAL_NODE_VOLUME
@@ -389,6 +390,14 @@ class DiffuseShader(Shader):
         self.set_value("normal", value)
 
 
+class FlatColorShader(Shader):
+    def __init__(self, mat):
+        super().__init__(mat, ShaderType.FLATCOLOR)
+
+    def set_color(self, value):
+        self.set_value("color", value)
+
+
 class EmissiveShader(Shader):
     def __init__(self, mat):
         super().__init__(mat, ShaderType.EMISSIVE)
@@ -658,7 +667,7 @@ class Material:
     def create_error_shader(self):
         val = self.create_error_value()
         if self.is_error_show():
-            shader = EmissiveShader(self)
+            shader = FlatColorShader(self)
         else:
             shader = DiffuseShader(self)
 
@@ -705,6 +714,14 @@ class Material:
         socket = self.get_socket(blender_node, blender_node.normal_in)
         if socket is not None:
             shader.set_normal(self.parse_node(socket))
+        return shader
+
+    def parse_shader_node_flat_color(self, blender_node):
+        log_mat('parse_shader_node_flat_color...')
+        shader = FlatColorShader(self)
+        color = self.get_value(blender_node, blender_node.color_in)
+        log_mat("   flat_color: %s" % color)
+        shader.set_color(color)
         return shader
 
     def parse_shader_node_subsurface(self, blender_node):
@@ -1981,6 +1998,7 @@ class Material:
         registered_nodes = {
             'rpr_shader_node_output': self.parse_shader_node_output,
             'rpr_shader_node_diffuse': self.parse_shader_node_diffuse,
+            'rpr_shader_node_flat_color': self.parse_shader_node_flat_color,
             'rpr_shader_node_double_sided': self.parse_shader_node_double_sided,
             'rpr_shader_node_emissive': self.parse_shader_node_emissive,
             'rpr_shader_node_microfacet': self.parse_shader_node_microfacet,
