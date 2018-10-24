@@ -174,6 +174,19 @@ class RPRShaderNode_Diffuse(RPRNodeType_Shader):
 
 
 @rpraddon.register_class
+class RPRShaderNode_FlatColor(RPRNodeType_Shader):
+    bl_idname = 'rpr_shader_node_flat_color'
+    bl_label = 'RPR Flat Color'
+
+    color_in = 'Color'
+
+    def init(self, context):
+        super(RPRShaderNode_FlatColor, self).init()
+        input_color = self.inputs.new('rpr_socket_color', self.color_in)
+        input_color.default_value = (1.0, 1.0, 1.0, 1.0)
+
+
+@rpraddon.register_class
 class RPRShaderNode_DiffuseRefraction(RPRNodeType_Shader):
     bl_idname = 'rpr_shader_node_diffuse_refraction'
     bl_label = 'RPR Diffuse Refraction'
