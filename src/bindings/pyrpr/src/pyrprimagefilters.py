@@ -151,6 +151,9 @@ class ContextGPU(ContextCPU):
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageCL(self, frame_buffer)
 
+    def _check_devices(self):
+        return get_device_count(BACKEND_API_OPENCL, PROCESSOR_GPU) > 0
+
 
 class ContextMetal(ContextCPU):
     def _create(self, rpr_context):
@@ -160,6 +163,9 @@ class ContextMetal(ContextCPU):
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageCL(self, frame_buffer)
+
+    def _check_devices(self):
+        return get_device_count(BACKEND_API_METAL, PROCESSOR_GPU) > 0
 
 
 class Image(Object):
