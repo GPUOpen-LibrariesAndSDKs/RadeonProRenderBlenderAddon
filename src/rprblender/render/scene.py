@@ -47,7 +47,6 @@ class SceneRenderer:
         self.aov_settings = None
         self.tile_image = None
         self.has_shadowcatcher = False
-        self.has_denoiser = False
         self.image_filter = None
 
         self.is_production = is_production
@@ -64,8 +63,22 @@ class SceneRenderer:
     @call_logger.logged
     def update_render_resolution(self, render_resolution):
         self.resolution = render_resolution
+        denoiser_settings = {
+            'enable': self.render_settings.denoiser.enable,
+            'filter_type': self.render_settings.denoiser.filter_type,
+            'color_sigma': self.render_settings.denoiser.color_sigma,
+            'normal_sigma': self.render_settings.denoiser.normal_sigma,
+            'p_sigma': self.render_settings.denoiser.p_sigma,
+            'depth_sigma': self.render_settings.denoiser.depth_sigma,
+            'trans_sigma': self.render_settings.denoiser.trans_sigma,
+            'radius': self.render_settings.denoiser.radius,
+            'samples': self.render_settings.denoiser.samples,
+            'half_window': self.render_settings.denoiser.half_window,
+            'bandwidth': self.render_settings.denoiser.bandwidth,
+            }
         if self.render_targets:
             self.render_targets.resize(*self.resolution)
+            self.render_targets.setup_image_filter(denoiser_settings)
             return
 
         self.render_targets = self.render_device.create_render_targets(*self.resolution)
@@ -77,8 +90,7 @@ class SceneRenderer:
         if self.has_shadowcatcher:
             self.render_targets.enable_shadow_catcher()
 
-        if self.has_denoiser:
-            self.render_targets.enable_image_filter(self.render_settings.denoiser)
+        self.render_targets.setup_image_filter(denoiser_settings)
 
     @call_logger.logged
     def update_render_region(self, render_region):

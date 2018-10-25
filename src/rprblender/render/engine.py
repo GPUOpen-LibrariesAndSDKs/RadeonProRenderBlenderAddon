@@ -146,8 +146,6 @@ class RPREngine(bpy.types.RenderEngine):
                 scene_renderer.has_shadowcatcher = True
                 break
 
-        scene_renderer.has_denoiser = settings.denoiser.enable
-
         scene_synced = sync.SceneSynced(scene_renderer.render_device, settings)
         # if this is a preview render and motion blur is off don't even try to cache matrices
         # note:  if viewport MB is on and scene MB is off it still wont cache
