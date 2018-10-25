@@ -74,9 +74,8 @@ class RifContext():
 
 class RifFilterWrapper():
     class _InputTraits():
-        def __init__(self, rif_image, rpr_framebuffer, sigma):
+        def __init__(self, rif_image, sigma):
             self.rif_image = rif_image
-            self.rpr_framebuffer = rpr_framebuffer
             self.sigma = sigma
 
 
@@ -93,8 +92,12 @@ class RifFilterWrapper():
         return self._inputs
 
 
-    def add_input(self, input_id, rif_image, rpr_framebuffer, sigma):
-        self._inputs[input_id] = RifFilterWrapper._InputTraits(rif_image, rpr_framebuffer, sigma)
+    def add_input(self, input_id, rif_image, sigma):
+        self._inputs[input_id] = RifFilterWrapper._InputTraits(rif_image, sigma)
+
+
+    def update_sigma(self, input_id, sigma):
+        self._inputs[input_id].sigma = sigma
 
 
     def add_param(self, name, param):
@@ -152,6 +155,11 @@ class RifFilterBilateral(RifFilterWrapper):
         self._rif_image_filter.set_parameter('inputsNum', len(self._inputs))
 
         self._rif_context.queue().attach(self._rif_image_filter, self._inputs[RifFilterInput.Color].rif_image, self._rif_context.output())
+
+
+    def apply_parameters(self):
+        super().apply_parameters()
+        self._rif_image_filter.set_parameter('sigmas', [input.sigma for input in self._inputs.values()])
 
 
 class RifFilterLwr(RifFilterWrapper):
@@ -267,6 +275,13 @@ class RifFilterEaw(RifFilterWrapper):
                                          self._aux_images[RifFilterEaw._AuxInput.Mlaa], self._rif_context.output())
 
 
+    def apply_parameters(self):
+        super().apply_parameters()
+        self._rif_image_filter.set_parameter('colorSigma', self._inputs[RifFilterInput.Color].sigma)
+        self._rif_image_filter.set_parameter('normalSigma', self._inputs[RifFilterInput.Normal].sigma)
+        self._rif_image_filter.set_parameter('depthSigma', self._inputs[RifFilterInput.Depth].sigma)
+        self._rif_image_filter.set_parameter('transSigma', self._inputs[RifFilterInput.Trans].sigma)
+
 
 class ImageFilter():
     def __init__(self, rpr_context, rif_filter_type: RifFilterType, width, height, frame_buffer_gl):
@@ -294,10 +309,12 @@ class ImageFilter():
             self._rif_filter.detach_filter()
 
 
-    def add_input(self, input_id, rpr_framebuffer, sigma):
+    def add_input(self, input_id, rpr_framebuffer, sigma = 0.0):
         rif_image = self._rif_context.create_rif_image(rpr_framebuffer)
-        self._rif_filter.add_input(input_id, rif_image, rpr_framebuffer, sigma)
+        self._rif_filter.add_input(input_id, rif_image, sigma)
 
+    def update_sigma(self, input_id, sigma):
+        self._rif_filter.update_sigma(input_id, sigma)
 
     def add_param(self, name, param):
         self._rif_filter.add_param(name, param)
@@ -305,10 +322,10 @@ class ImageFilter():
     
     def attach_filter(self):
         self._rif_filter.attach_filter()
-        self._rif_filter.apply_parameters()
 
 
     def run(self):
+        self._rif_filter.apply_parameters()
         self._rif_context.update_inputs(self._rif_filter)
         self._rif_context.queue().execute()
 

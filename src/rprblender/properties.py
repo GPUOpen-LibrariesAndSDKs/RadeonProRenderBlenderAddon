@@ -740,7 +740,7 @@ class DenoiserSettings(bpy.types.PropertyGroup):
     # LWR props
     samples = bpy.props.IntProperty(
         name="Samples", description="Number of samples used, more will give better results while being longer",
-        min = 1, soft_max = 10, max = 100, default = 4
+        min = 2, soft_max = 10, max = 100, default = 4
     )
 
     half_window = bpy.props.IntProperty(

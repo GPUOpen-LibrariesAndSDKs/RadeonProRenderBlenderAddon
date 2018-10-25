@@ -247,11 +247,17 @@ class ImageFilter(Object):
         ContextCreateImageFilter(self.context, filter_type, self)
 
     def set_parameter(self, name, value):
+        if name in self.parameters and self.parameters[name] == value:
+            return
+
         if isinstance(value, int):
             ImageFilterSetParameter1u(self, pyrpr.encode(name), value)
             self.parameters[name] = value
         elif isinstance(value, float):
             ImageFilterSetParameter1f(self, pyrpr.encode(name), value)
+            self.parameters[name] = value
+        elif isinstance(value, str):
+            ImageFilterSetParameterString(self, pyrpr.encode(name), pyrpr.encode(value))
             self.parameters[name] = value
         elif isinstance(value, Image):
             ImageFilterSetParameterImage(self, pyrpr.encode(name), value)
@@ -267,6 +273,8 @@ class ImageFilter(Object):
             arr = ArrayObject('rif_image[]', handles)
             ImageFilterSetParameterImageArray(self,pyrpr.encode(name), arr, len(value))
             self.parameters[name] = (value, arr)
+        else:
+            raise TypeError("Incorrect type for ImageFilterSetParameter*", self, name, value)
 
 
 class CommandQueue(Object):
