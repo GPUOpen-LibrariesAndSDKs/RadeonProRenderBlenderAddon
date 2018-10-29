@@ -85,7 +85,7 @@ def load_post(dummy):
     versions.check_old_passes_aov_settings()
 
     versions.check_old_rpr_image_nodes()
-    versions.check_old_rpr_uber2_nodes()
+    versions.check_old_rpr_uber2_nodes(update=False, convert=True)
     versions.check_old_rpr_uber3_nodes()
     versions.check_old_rpr_ibl_images()
 

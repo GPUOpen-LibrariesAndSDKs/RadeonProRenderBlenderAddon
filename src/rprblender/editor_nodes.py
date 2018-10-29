@@ -56,9 +56,11 @@ class RPRNodeType_Shader(RPRTreeNode):
         Adds socket if it's missing, in case of loading scene with previous version of Uber2 and Uber3 materials
         """
         if socket_name not in self.inputs:
-            log_mat("Adding '{}' Uber3 material node socket of type '{}'".format(socket_name, socket_type))
+            log_mat("[{}] Adding '{}' node socket of type '{}'".
+                    format(self.bl_idname, socket_name, socket_type))
+            self.inputs.new(socket_type, socket_name)
             if default_value is not None:
-                self.inputs.new(socket_type, socket_name).default_value = default_value
+                self.inputs[socket_name].default_value = default_value
             if enabled is not None:
                 self.inputs[socket_name].enabled = enabled
 
@@ -611,6 +613,10 @@ class RPRShaderNode_Uber2(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.displacement_min).default_value = 0.0
         self.inputs.new('rpr_socket_float_softMinN1_softMax1', self.displacement_max).default_value = 1.0
 
+        self.total_update(context)
+
+    def total_update(self, context):
+        self.diffuse_changed(context)
         self.reflection_changed(context)
         self.refraction_changed(context)
         self.coating_changed(context)
@@ -932,6 +938,18 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
             if self.subdivision_show:
                 col2 = col1.column()
                 add_subdivision_properties(col2, bpy.context.active_object)
+
+    def total_update(self):
+        self.diffuse_changed(None)
+        self.reflection_changed(None)
+        self.refraction_changed(None)
+        self.coating_changed(None)
+        self.emissive_changed(None)
+        self.subsurface_changed(None)
+        self.subsurface_use_diffuse_color_changed(None)
+        self.normal_changed(None)
+        self.transparency_changed(None)
+        self.diffuse_changed(None)
 
 
 ########################################################################################################################
