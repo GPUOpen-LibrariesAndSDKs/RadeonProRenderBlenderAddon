@@ -279,9 +279,6 @@ class RenderTargets:
             # splitting resolved and gl framebuffers
             self.frame_buffers_aovs['default']['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             self.frame_buffers_aovs['default']['res'].set_name('default_res')
-
-        one = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
-        one.set_input('constant.input', (1.0, 0.0, 0.0, 0.0))
         
         zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
         zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
@@ -300,7 +297,7 @@ class RenderTargets:
 
         sc_norm = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
         sc_norm.set_input('normalize.color', sc)
-        sc_norm.set_input('normalize.shadowcatcher', one)
+        sc_norm.set_input('normalize.aovtype', pyrpr.AOV_SHADOW_CATCHER)
 
         # Combine color and background buffers using COMPOSITE_LERP_VALUE
         lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
