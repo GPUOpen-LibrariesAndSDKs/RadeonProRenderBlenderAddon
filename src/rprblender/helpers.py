@@ -82,6 +82,15 @@ def use_mps():
         return False
 
 
+def get_ooc_cache_size(preview_render):
+    ''' return texture cache size if > 0 and enabled, else return 0.  Only for preview '''
+    viewport_settings = get_user_settings().viewport_render_settings
+    if preview_render and viewport_settings.ooc_tex_cache:
+        return viewport_settings.ooc_cache_size
+    else:
+        return 0
+
+
 def get_cpu_name():
     if platform.system() == 'Windows':
         return ""

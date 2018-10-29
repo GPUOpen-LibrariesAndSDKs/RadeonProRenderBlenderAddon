@@ -958,6 +958,18 @@ class ViewportSettings(bpy.types.PropertyGroup):
         default=False, 
     )
 
+    ooc_tex_cache = bpy.props.BoolProperty(
+        name="Enable Texture Cache",
+        description="Enable out of core texture cache",
+        default=False, 
+    )
+
+    ooc_cache_size = bpy.props.IntProperty(
+        name="Cache size",
+        description="Out of core texture cache size (in mb)",
+        default=512, min=0,
+    )
+
     render_mode, rendermode_remap = create_core_enum_property(
         None,
         'RENDER_MODE_',
