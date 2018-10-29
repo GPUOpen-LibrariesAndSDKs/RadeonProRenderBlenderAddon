@@ -1071,15 +1071,11 @@ def get_dof_data(camera, blender_camera, settings, is_preview=False):
         return
 
     focus_distance = get_focus_distance(blender_camera)
-    camera.dof_enable = settings.dof.enable if not is_preview else settings.dof.enable and get_user_settings().viewport_render_settings.dof
+    camera.dof_enable = settings.dof.enable
     if camera.dof_enable:
         camera.dof_f_stop = blender_camera.data.gpu_dof.fstop
         camera.dof_blades = blender_camera.data.gpu_dof.blades
         camera.dof_focus_distance = focus_distance
-
-
-# bpy.data.scenes[0].render.border_min_x
-# bpy.data.scenes[0].render.use_border
 
 
 @call_logger.logged
