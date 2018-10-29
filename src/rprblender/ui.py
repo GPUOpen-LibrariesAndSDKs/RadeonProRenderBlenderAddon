@@ -306,6 +306,10 @@ class RPRRender_PT_viewport_settings(RPRPanel, Panel):
             text = "Downscale Textures:"
         row.prop(viewport_settings, 'downscale_textures_size', text=text)
 
+        row = layout.row()
+        row.prop(viewport_settings, 'ooc_tex_cache')
+        row.prop(viewport_settings, 'ooc_cache_size')
+
         layout.separator()
         layout.prop(viewport_settings, 'thumbnail_iterations')
         

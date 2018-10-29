@@ -42,6 +42,7 @@ class RenderTargets:
         self.context.set_parameter('preview', is_preview)
         if helpers.use_mps():
             self.context.set_parameter('metalperformanceshader', True)
+        self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
 
         self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
         self.post_effect.attach()
