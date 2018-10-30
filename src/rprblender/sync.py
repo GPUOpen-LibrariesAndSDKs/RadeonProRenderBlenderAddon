@@ -47,6 +47,8 @@ class EnvironmentLight:
         self.scene_synced.get_core_scene().attach(self.core_environment_light)
         self.attached = True
         self.scene_synced.ibls_attached.add(self)
+        # Environment Lights are harcoded to group 0
+        self.core_environment_light.set_light_group_id(0)
 
     def detach(self):
         logging.debug('EnvironmentLight detach', self.name, tag='sync')
@@ -641,6 +643,9 @@ class SceneSynced:
         self.shape_set_transform(core_shape, matrix_world)
         self.add_synced_obj(obj_key, core_shape)
         self.meshes.add(core_shape)
+
+        # all meshes are set to light group 3 for emissive objects
+        core_shape.set_light_group_id(3)
 
         logging.debug('add mesh done')
         return True

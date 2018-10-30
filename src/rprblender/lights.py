@@ -15,6 +15,11 @@ class LightError(RuntimeError):
     pass
 
 class Light:
+    def set_light_group(self, lamp):
+        rpr_lamp = lamp.rpr_lamp
+        group_id = 1 if rpr_lamp.group == 'KEY' else 2
+        self.light.set_light_group_id(group_id)
+
     def set_transform(self, transform):
         self.light.set_transform(transform)
 
@@ -103,6 +108,7 @@ class IESLight(Light):
         power = self._get_radiant_power(lamp)
         self.light.set_radiant_power(*power)
         self.light.set_image_from_file(lamp.rpr_lamp.ies_file_name, 256, 256)
+        self.set_light_group(lamp)
 
 
 class PointLight(Light):
@@ -110,6 +116,7 @@ class PointLight(Light):
         self.light = pyrpr.PointLight(context)
         power = self._get_radiant_power(lamp)
         self.light.set_radiant_power(*power)
+        self.set_light_group(lamp)
 
 
 class DirectionalLight(Light):
@@ -118,6 +125,7 @@ class DirectionalLight(Light):
         power = self._get_radiant_power(lamp)
         self.light.set_radiant_power(*power)
         self.light.set_shadow_softness(lamp.rpr_lamp.shadow_softness)
+        self.set_light_group(lamp)
 
 
 class SpotLight(Light):
@@ -128,6 +136,7 @@ class SpotLight(Light):
         oangle = 0.5 * lamp.spot_size   # half of spot_size
         iangle = oangle * (1.0 - lamp.spot_blend * lamp.spot_blend)   # square dependency of spot_blend
         self.light.set_cone_shape(iangle, oangle)
+        self.set_light_group(lamp)
 
 
 class AreaLight(Light):
@@ -178,6 +187,7 @@ class AreaLight(Light):
 
         self.light.set_visibility_ex('visible.light', lamp.rpr_lamp.visible)
         self.light.set_shadow(lamp.rpr_lamp.visible and lamp.rpr_lamp.cast_shadows)
+        self.set_light_group(lamp)
 
 
     def _get_mesh_prop(self, rpr_lamp, size_1, size_2, segments=32):
