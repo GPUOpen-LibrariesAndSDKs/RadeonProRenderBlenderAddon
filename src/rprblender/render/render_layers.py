@@ -272,6 +272,26 @@ aov_info = {'default':
                  'channel': 'A', 
                  'rpr': pyrpr.AOV_OPACITY,
                  'order': 23},
+            'environment_lighting': 
+                {'name': 'Environment Lighting', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_LIGHT_GROUP0,
+                 'order': 24},
+            'key_lighting': 
+                {'name': 'Key Lighting', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_LIGHT_GROUP1,
+                 'order': 25},
+            'fill_lighting': 
+                {'name': 'Fill Lighting', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_LIGHT_GROUP2,
+                 'order': 26},
+            'emissive_lighting': 
+                {'name': 'Emissive Lighting', 
+                 'channel': 'RGB', 
+                 'rpr': pyrpr.AOV_LIGHT_GROUP3,
+                 'order': 27},
             }
 
 if versions.is_blender_support_aov():

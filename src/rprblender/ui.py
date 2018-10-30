@@ -186,6 +186,8 @@ def draw_lamp_settings(self, context):
     if lamp.type != 'HEMI':
         draw_intensity(self.layout.box())
 
+    self.layout.row(align=True).prop(lamp.rpr_lamp, 'group')
+
 
 from . import helpers
 

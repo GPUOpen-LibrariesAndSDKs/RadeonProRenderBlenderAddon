@@ -1515,6 +1515,16 @@ class RPRLamp(bpy.types.PropertyGroup):
         min=0.0, max=1.0, default = 0.0
     )
 
+    # LIGHT GROUP
+    group = bpy.props.EnumProperty(
+        name="Light Group",
+        items=(('KEY', "Key", "Key"),
+               ('FILL', "Fill", "Fill")),
+        description="Light group for doing split lighting AOVs",
+        default='KEY',
+    )
+
+
     @classmethod
     def register(cls):
         bpy.types.Lamp.rpr_lamp = bpy.props.PointerProperty(

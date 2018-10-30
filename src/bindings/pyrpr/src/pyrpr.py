@@ -431,6 +431,9 @@ class Shape(Object):
     def set_subdivision_crease_weight(self, factor):
         ShapeSetSubdivisionCreaseWeight(self, factor)
 
+    def set_light_group_id(self, group_id):
+        ShapeSetLightGroupID(self, group_id)
+
 
 
 class Mesh(Shape):
@@ -757,6 +760,9 @@ class Light(Object):
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         LightSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
+
+    def set_light_group_id(self, group_id):
+        LightSetGroupId(self, group_id)
 
 
 class EnvironmentLight(Light):
