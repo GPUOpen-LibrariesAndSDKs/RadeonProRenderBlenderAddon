@@ -1349,6 +1349,16 @@ class Material:
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_COATING_WEIGHT, nul_value_vector)
 
+        # SHEEN
+        # check for existance of sheen prop for backwards compatibility.
+        if hasattr(blender_node, 'sheen') and blender_node.sheen:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SHEEN, get_value('sheen_color'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SHEEN_WEIGHT, get_value('sheen_weight'))
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SHEEN_TINT, get_value('sheen_tint'))
+        else:
+            shader.set_value_rprx(pyrprx.UBER_MATERIAL_SHEEN_WEIGHT, nul_value_vector)
+
+
         # EMISSIVE:
         if blender_node.emissive:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_EMISSION_COLOR, 

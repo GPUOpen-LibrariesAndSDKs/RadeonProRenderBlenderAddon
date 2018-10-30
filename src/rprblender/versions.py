@@ -442,6 +442,9 @@ def check_old_rpr_uber3_nodes():
 
             node.add_socket_if_missed(node.refraction_absorption_color, 'rpr_socket_color',
                                       (1.0, 1.0, 1.0, 1.0), node.refraction)
+            node.add_socket_if_missed(node.sheen_color, 'rpr_socket_color', (0.5, 0.5, 0.5, 1.0), node.sheen)
+            node.add_socket_if_missed(node.sheen_weight, 'rpr_socket_weight_soft', 1.0, node.sheen) 
+            node.add_socket_if_missed(node.sheen_tint, 'rpr_socket_weight', 0.5, node.sheen)
 
 
 # convert old RPR Environment settings image paths to image datablock references
