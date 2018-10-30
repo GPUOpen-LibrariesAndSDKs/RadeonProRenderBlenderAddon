@@ -678,6 +678,10 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     diffuse_roughness = 'Diffuse Roughness'
     diffuse_normal = 'Diffuse Normal'
 
+    sheen_color = 'Sheen Color'
+    sheen_weight = 'Sheen Weight'
+    sheen_tint = 'Sheen Tint'
+    
     reflection_color = 'Reflection Color'
     reflection_weight = 'Reflection Weight'
     reflection_roughness = 'Reflection Roughness'
@@ -725,6 +729,11 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.diffuse_use_shader_normal_changed(context)
         self.backscatter_separate_color_changed(context)
 
+    def sheen_changed(self, context):
+        self.inputs[self.sheen_color].enabled = self.sheen
+        self.inputs[self.sheen_weight].enabled = self.sheen
+        self.inputs[self.sheen_tint].enabled = self.sheen
+    
     def diffuse_use_shader_normal_changed(self, context):
         self.inputs[self.diffuse_normal].enabled = self.diffuse and not self.diffuse_use_shader_normal
 
@@ -809,6 +818,8 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     coating = bpy.props.BoolProperty(name='Coating', update=coating_changed)
     coating_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=coating_use_shader_normal_changed, default=True)
 
+    sheen = bpy.props.BoolProperty(name='Sheen', update=sheen_changed, default=False)
+
     emissive = bpy.props.BoolProperty(name='Emissive', update=emissive_changed)
     emissive_double_sided = bpy.props.BoolProperty(name='Emissive Double Sided')
     emissive_intensity = bpy.props.FloatProperty(name='Emissive Intensity', min=0.0, default=1.0)
@@ -860,6 +871,10 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_color', self.coating_transmission_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_link', self.coating_normal).hide_value=True
 
+        self.inputs.new('rpr_socket_color', self.sheen_color).default_value = (0.5, 0.5, 0.5, 1.0)
+        self.inputs.new('rpr_socket_weight_soft', self.sheen_weight).default_value = 1.0
+        self.inputs.new('rpr_socket_weight', self.sheen_tint).default_value = 0.5
+
         self.inputs.new('rpr_socket_color', self.emissive_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_weight', self.emissive_weight).default_value = 1.0
 
@@ -876,6 +891,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.reflection_changed(context)
         self.refraction_changed(context)
         self.coating_changed(context)
+        self.sheen_changed(context)
         self.emissive_changed(context)
         self.subsurface_changed(context)
         self.normal_changed(context)
@@ -905,6 +921,8 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         col.prop(self, 'coating', toggle=True)
         if self.coating:
             col.prop(self, 'coating_use_shader_normal', toggle=False)
+
+        col.prop(self, 'sheen', toggle=True)
         
         col.prop(self, 'emissive', toggle=True)
         if self.emissive:
