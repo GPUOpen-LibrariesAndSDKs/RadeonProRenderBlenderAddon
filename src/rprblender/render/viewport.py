@@ -109,6 +109,7 @@ class ViewportRenderer:
         logging.debug('ViewportRenderer.update done')
 
     def export_scene(self, scene):
+        export.prev_world_matrices_cache.update(scene, False)
         self.scene_exporter = export.SceneExport(scene, self.scene_synced, preview=True)
 
         self.scene_exporter.sync_environment_settings(scene.world.rpr_data.environment if scene.world else None)

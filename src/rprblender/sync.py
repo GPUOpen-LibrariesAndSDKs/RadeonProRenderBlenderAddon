@@ -142,23 +142,20 @@ class SceneSynced:
         # Delete material nodes BEFORE deleting shapes
         # deleting materials uses imlicitly shapes object
         # so shapes must exists during deleting material nodes
-
         if self.core_scene:
             self.core_scene.clear()
-
         self.materialsNodes = {}
-
+        for mesh in self.meshes:
+            if hasattr(mesh, 'x_material') and mesh.x_material:
+                mesh.x_material.detach(mesh)
         self.meshes = set()
         self.volumes = set()
         self.portal_lights_meshes = set()
-
         self.core_scene = None
-
         self.objects_synced = {}
         self.core_render_camera = None
         self.lamps = {}
         self._make_core_environment_light_cached = None
-
         self.ibls_attached = set()
         self.background = None
 
