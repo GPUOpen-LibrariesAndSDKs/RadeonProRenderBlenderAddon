@@ -146,7 +146,7 @@ class RenderTargets:
 
             sc = self.sc_composite is not None
             if sc:
-                self.disable_shadow_catcher()
+                self._disable_shadow_catcher()
 
             for fbs in self.frame_buffers_aovs.values():
                 for fb in fbs.values():
@@ -156,7 +156,7 @@ class RenderTargets:
             self.resolved_iterations = 0
 
             if sc:
-                self.enable_shadow_catcher()
+                self._enable_shadow_catcher()
 
             if rif_settings:
                 self._enable_image_filter(rif_settings)
@@ -267,7 +267,32 @@ class RenderTargets:
             self.image_filter.add_param('halfWindow', settings['half_window']);
             self.image_filter.add_param('bandwidth', settings['bandwidth']);
 
-    def enable_shadow_catcher(self):
+    def setup_shadow_catcher(self, use_shadow_catcher):
+        with self.render_lock:
+            if use_shadow_catcher:
+                if not self.sc_composite:
+                    # enable shadow catcher with recreating image filter if needed
+                    rif_settings = self.image_filter_settings
+                    if rif_settings:
+                        self._disable_image_filter()
+
+                    self._enable_shadow_catcher()
+
+                    if rif_settings:
+                        self._enable_image_filter(rif_settings)
+            else:
+                if self.sc_composite:
+                    # disable shadow catcher with recreating image filter if needed
+                    rif_settings = self.image_filter_settings
+                    if rif_settings:
+                        self._disable_image_filter()
+
+                    self._disable_shadow_catcher()
+
+                    if rif_settings:
+                        self._enable_image_filter(rif_settings)
+
+    def _enable_shadow_catcher(self):
         self.enable_aov('default')
         self.enable_aov('opacity')
         self.enable_aov('background')
@@ -312,7 +337,7 @@ class RenderTargets:
 
         self.sc_composite = lerp2
 
-    def disable_shadow_catcher(self):
+    def _disable_shadow_catcher(self):
         self.sc_composite = None
         if self.gl_interop:
             # set resolved framebuffer be the same as gl
