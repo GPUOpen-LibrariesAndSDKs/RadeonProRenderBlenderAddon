@@ -78,6 +78,7 @@ class SceneRenderer:
             }
         if self.render_targets:
             self.render_targets.resize(*self.resolution)
+            self.render_targets.setup_shadow_catcher(self.has_shadowcatcher)
             self.render_targets.setup_image_filter(denoiser_settings)
             return
 
@@ -87,9 +88,7 @@ class SceneRenderer:
         # update transparent background
         self.context.set_parameter("transparentbackground", int(self.render_layers.alpha_combine))
 
-        if self.has_shadowcatcher:
-            self.render_targets.enable_shadow_catcher()
-
+        self.render_targets.setup_shadow_catcher(self.has_shadowcatcher)
         self.render_targets.setup_image_filter(denoiser_settings)
 
     @call_logger.logged
