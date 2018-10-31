@@ -845,6 +845,9 @@ node_categories = [
 
     RPRNodeCategory("RPR_MAPPING", "Mapping", items=[
         NodeItem("rpr_mapping_node"),
+        NodeItem("rpr_procedural_mapping_node"),
+        NodeItem("rpr_projection_mapping_node"),
+        NodeItem("rpr_triplanar_mapping_node"),
     ]),
 
     RPRNodeCategory("RPR_FRESNEL", "Fresnel", items=[
