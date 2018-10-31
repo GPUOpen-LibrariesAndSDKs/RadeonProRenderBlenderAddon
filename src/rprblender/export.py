@@ -131,7 +131,7 @@ class PrevWorldMatricesCache:
         if scene.frame_current == self._cur_frame:
             return
 
-        self._matrices = {}
+        #self._matrices = {}
         self._cur_frame = scene.frame_current
     
         scene.frame_set(self._cur_frame - 1)
