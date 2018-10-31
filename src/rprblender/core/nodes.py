@@ -7,6 +7,7 @@ from rprblender import config
 
 import bpy
 import pyrpr
+import mathutils
 
 from rprblender import logging
 from enum import Enum, IntEnum
@@ -76,6 +77,8 @@ class NodeType(IntEnum):
     FRESNEL = pyrpr.MATERIAL_NODE_FRESNEL
     BUFFER_SAMPLER = pyrpr.MATERIAL_NODE_BUFFER_SAMPLER
     AO_MAP = pyrpr.MATERIAL_NODE_AO_MAP
+    PROCEDURAL = pyrpr.MATERIAL_NODE_UV_PROCEDURAL
+    TRIPLANAR = pyrpr.MATERIAL_NODE_UV_TRIPLANAR
 
 
 class OperatorType(IntEnum):
@@ -263,6 +266,26 @@ class LookupNode(Node):
         super().__init__(mat.create_material_node(NodeType.INPUT_LOOKUP))
         self.set_int('value', type)
 
+class ProceduralNode(Node):
+    def __init__(self, mat, type, origin, z_axis, x_axis, scale, threshold = None):
+        super().__init__(mat.create_material_node(NodeType.PROCEDURAL))
+        self.set_int('uv_type', type)
+        self.set_value('origin', origin)
+        self.set_value('xaxis', x_axis)
+        self.set_value('zaxis', z_axis)
+        self.set_value('uv_scale', scale)
+        # only used on the PROJECT type
+        if threshold:
+            self.set_value('threshold', threshold)
+
+class TriplanarNode(Node):
+    def __init__(self, mat, origin, z_axis, x_axis, weight):
+        super().__init__(mat.create_material_node(NodeType.TRIPLANAR))
+        self.set_value('offset', origin)
+        self.set_value('xaxis', x_axis)
+        self.set_value('zaxis', z_axis)
+        self.set_value('weight', weight)
+        
 
 class NormalMapNode(Node):
     def __init__(self, mat):
@@ -1742,6 +1765,49 @@ class Material:
             res = self.add_value(res, offset)
         return res
 
+    def parse_procedural_mapping_node(self, blender_node):
+        log_mat('parse_procedural_mapping_node...')
+        origin = ValueVector(*blender_node.location, 1.0)
+        matrix = mathutils.Euler(blender_node.rotation, 'XYZ').to_matrix()
+        z_axis = ValueVector(*(matrix.col[2]), 0.0)
+        x_axis = ValueVector(*(matrix.col[0]), 0.0)
+        scale = ValueVector(*blender_node.scale, 1.0)
+        node = ProceduralNode(self, getattr(pyrpr, blender_node.shape_type), origin, z_axis, x_axis, scale)
+        return ValueNode(node)
+
+    def parse_triplanar_mapping_node(self, blender_node):
+        log_mat('parse_triplanar_mapping_node...')
+        origin = ValueVector(*blender_node.location, 1.0)
+        matrix = mathutils.Euler(blender_node.rotation, 'XYZ').to_matrix()
+        z_axis = ValueVector(*(matrix.col[2]), 0.0)
+        x_axis = ValueVector(*(matrix.col[0]), 0.0)
+        weight = ValueVector(blender_node.weight, blender_node.weight, blender_node.weight, 1.0)
+        node = TriplanarNode(self, origin, z_axis, x_axis, weight)
+        return ValueNode(node)
+
+
+    def parse_projection_mapping_node(self, blender_node):
+        log_mat('parse_projection_mapping_node...')
+        # if no camera set use scene camera
+        # we have to get the actual OBJECT from the camera data
+        if blender_node.camera:
+            camera =  bpy.data.cameras[blender_node.camera]
+            for obj in bpy.data.objects:
+                if obj.type == 'CAMERA' and obj.data == camera:
+                    camera = obj
+                    break
+        else:
+            camera = bpy.data.scenes[0].camera
+        
+        origin = ValueVector(*camera.location, 0.0)
+        z_axis = ValueVector(*camera.matrix_world.col[2])
+        x_axis = ValueVector(*camera.matrix_world.col[0])
+        scale = ValueVector(*camera.scale, 1.0)
+        threshold = ValueVector(blender_node.threshold, blender_node.threshold, blender_node.threshold, 1.0)
+        
+        node = ProceduralNode(self, pyrpr.MATERIAL_NODE_UVTYPE_PROJECT, origin, z_axis, x_axis, scale, threshold)
+        return ValueNode(node)
+
     def parse_input_node_lookup(self, blender_node):
         log_mat('parse_lookup_node...')
         node = LookupNode(self, getattr(pyrpr, 'MATERIAL_NODE_LOOKUP_' + blender_node.type))
@@ -2028,6 +2094,9 @@ class Material:
 
             'rpr_texture_node_image_map': self.parse_texture_node_image_map,
             'rpr_mapping_node': self.parse_mapping_node,
+            'rpr_procedural_mapping_node': self.parse_procedural_mapping_node,
+            'rpr_projection_mapping_node': self.parse_projection_mapping_node,
+            'rpr_triplanar_mapping_node': self.parse_triplanar_mapping_node,
             'rpr_arithmetics_node_value_blend': self.parse_arithmetics_node_value_blend,
             'rpr_arithmetics_node_math': self.parse_arithmetics_node_math,
             'rpr_input_node_constant': self.parse_input_node_constant,

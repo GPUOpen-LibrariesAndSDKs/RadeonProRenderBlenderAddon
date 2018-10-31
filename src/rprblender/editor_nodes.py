@@ -1543,6 +1543,104 @@ class RPRMaterialNode_Mapping(RPRNodeType_Mapping):
         scale_uv.default_value = (1.0, 1.0)
 
 
+@rpraddon.register_class
+class RPRMaterialNode_ProceduralMapping(RPRNodeType_Mapping):
+    bl_idname = 'rpr_procedural_mapping_node'
+    bl_label = 'RPR Procedural Texture Mapping'
+    bl_width_min = 195
+
+    items = (('MATERIAL_NODE_UVTYPE_PLANAR', 'Plane', 'Planar projection'),
+             ('MATERIAL_NODE_UVTYPE_CYLINDICAL', 'Cylinder', 'Cylidrical projection'),
+             ('MATERIAL_NODE_UVTYPE_SPHERICAL', 'Sphere', 'Spherical projection'),
+            )
+
+    shape_type = bpy.props.EnumProperty(name='Shape',
+                                  items=items,
+                                  default='MATERIAL_NODE_UVTYPE_SPHERICAL')
+
+    rotation = bpy.props.FloatVectorProperty(
+        name="Rotation",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='EULER'
+    )
+
+    scale = bpy.props.FloatVectorProperty(
+        name="Scale",
+        default=(1.0, 1.0, 1.0),
+        size=3, subtype='XYZ'
+    )
+
+    location = bpy.props.FloatVectorProperty(
+        name="Location",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='XYZ'
+    )
+
+    def init(self, context):
+        super(RPRMaterialNode_ProceduralMapping, self).init()
+    
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'shape_type')
+        layout.prop(self, 'location')
+        layout.prop(self, 'rotation')
+        layout.prop(self, 'scale')
+
+@rpraddon.register_class
+class RPRMaterialNode_TriplanarMapping(RPRNodeType_Mapping):
+    bl_idname = 'rpr_triplanar_mapping_node'
+    bl_label = 'RPR Triplanar Texture Mapping'
+    bl_width_min = 195
+
+    rotation = bpy.props.FloatVectorProperty(
+        name="Rotation",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='EULER'
+    )
+
+    location = bpy.props.FloatVectorProperty(
+        name="Location",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='XYZ'
+    )
+
+    weight = bpy.props.FloatProperty(
+        name="Blend Weight",
+        default=0.0,
+        description='Amount to blend edges',
+    )
+
+    def init(self, context):
+        super(RPRMaterialNode_TriplanarMapping, self).init()
+    
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'location')
+        layout.prop(self, 'rotation')
+        layout.prop(self, 'weight')
+
+
+@rpraddon.register_class
+class RPRMaterialNode_ProjectionMapping(RPRNodeType_Mapping):
+    bl_idname = 'rpr_projection_mapping_node'
+    bl_label = 'RPR Projection Texture Mapping'
+    bl_width_min = 195
+
+    camera = bpy.props.StringProperty(name='camera',
+                                  description="Camera to project from",
+                                  default='')
+
+    threshold = bpy.props.FloatProperty(
+        name="Threshold",
+        default=999999,
+        description='Distance from camera to cutoff projection'
+    )
+
+    def init(self, context):
+        super(RPRMaterialNode_ProjectionMapping, self).init()
+    
+    def draw_buttons(self, context, layout):
+        layout.prop_search(self, 'camera', bpy.data, 'cameras')
+        layout.prop(self, 'threshold')
+
 ########################################################################################################################
 # Texture nodes
 ########################################################################################################################
