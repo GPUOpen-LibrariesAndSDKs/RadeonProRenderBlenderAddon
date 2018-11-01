@@ -1570,7 +1570,7 @@ class RPRMaterialNode_ProceduralMapping(RPRNodeType_Mapping):
         size=3, subtype='XYZ'
     )
 
-    location = bpy.props.FloatVectorProperty(
+    origin = bpy.props.FloatVectorProperty(
         name="Location",
         default=(0.0, 0.0, 0.0),
         size=3, subtype='XYZ'
@@ -1581,7 +1581,7 @@ class RPRMaterialNode_ProceduralMapping(RPRNodeType_Mapping):
     
     def draw_buttons(self, context, layout):
         layout.prop(self, 'shape_type')
-        layout.prop(self, 'location')
+        layout.prop(self, 'origin')
         layout.prop(self, 'rotation')
         layout.prop(self, 'scale')
 
@@ -1597,7 +1597,7 @@ class RPRMaterialNode_TriplanarMapping(RPRNodeType_Mapping):
         size=3, subtype='EULER'
     )
 
-    location = bpy.props.FloatVectorProperty(
+    origin = bpy.props.FloatVectorProperty(
         name="Location",
         default=(0.0, 0.0, 0.0),
         size=3, subtype='XYZ'
@@ -1613,7 +1613,7 @@ class RPRMaterialNode_TriplanarMapping(RPRNodeType_Mapping):
         super(RPRMaterialNode_TriplanarMapping, self).init()
     
     def draw_buttons(self, context, layout):
-        layout.prop(self, 'location')
+        layout.prop(self, 'origin')
         layout.prop(self, 'rotation')
         layout.prop(self, 'weight')
 
