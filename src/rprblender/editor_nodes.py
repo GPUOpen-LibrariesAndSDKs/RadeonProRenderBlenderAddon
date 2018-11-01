@@ -51,7 +51,7 @@ class RPRNodeType_Shader(RPRTreeNode):
     def init(self):
         self.outputs.new('NodeSocketShader', self.shader_out)
 
-    def add_socket_if_missed(self, socket_name, socket_type, default_value=None, enabled=None):
+    def add_socket_if_missed(self, socket_name, socket_type, default_value=None, enabled=None, hide_value=False):
         """
         Adds socket if it's missing, in case of loading scene with previous version of Uber2 and Uber3 materials
         """
@@ -63,6 +63,8 @@ class RPRNodeType_Shader(RPRTreeNode):
                 self.inputs[socket_name].default_value = default_value
             if enabled is not None:
                 self.inputs[socket_name].enabled = enabled
+            if hide_value:
+                self.inputs[socket_name].hide_value = True
 
 
 class RPRNodeType_Volume(RPRTreeNode):
@@ -697,6 +699,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     refraction_ior = 'Refraction IOR'
     refraction_absorption_distance = 'Refraction Absorption Distance'
     refraction_absorption_color = 'Refraction Absorption Color'
+    refraction_normal = 'Refraction Normal'
 
     coating_color = 'Coating Color'
     coating_weight = 'Coating Weight'
@@ -763,6 +766,10 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs[self.refraction_ior].enabled = self.refraction
         self.inputs[self.refraction_absorption_distance].enabled = self.refraction
         self.inputs[self.refraction_absorption_color].enabled = self.refraction
+        self.refraction_use_shader_normal_changed(context)
+
+    def refraction_use_shader_normal_changed(self, context):
+        self.inputs[self.refraction_normal].enabled = self.refraction and not self.refraction_use_shader_normal
 
     def coating_changed(self, context):
         self.inputs[self.coating_color].enabled = self.coating
@@ -814,6 +821,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     refraction = bpy.props.BoolProperty(name='Refraction', update=refraction_changed)
     refraction_thin_surface = bpy.props.BoolProperty(name='Refraction Thin Surface', default=False)
     refraction_caustics = bpy.props.BoolProperty(name='Allow Caustics', default=False)
+    refraction_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=refraction_use_shader_normal_changed, default=True)
 
     coating = bpy.props.BoolProperty(name='Coating', update=coating_changed)
     coating_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=coating_use_shader_normal_changed, default=True)
@@ -862,6 +870,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         self.inputs.new('rpr_socket_ior', self.refraction_ior).default_value = 1.5
         self.inputs.new('rpr_socket_float_Min0_softMax10', self.refraction_absorption_distance).default_value = 0.0
         self.inputs.new('rpr_socket_color', self.refraction_absorption_color).default_value = (1.0, 1.0, 1.0, 1.0)
+        self.inputs.new('rpr_socket_link', self.refraction_normal).hide_value = True
 
         self.inputs.new('rpr_socket_color', self.coating_color).default_value = (1.0, 1.0, 1.0, 1.0)
         self.inputs.new('rpr_socket_weight', self.coating_weight).default_value =1.0
@@ -917,6 +926,7 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
         if self.refraction:
             col.prop(self, 'refraction_thin_surface', toggle=False)
             col.prop(self, 'refraction_caustics', toggle=False)
+            col.prop(self, 'refraction_use_shader_normal', toggle=False)
 
         col.prop(self, 'coating', toggle=True)
         if self.coating:
