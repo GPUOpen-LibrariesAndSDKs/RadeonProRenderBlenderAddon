@@ -442,6 +442,8 @@ def check_old_rpr_uber3_nodes():
 
             node.add_socket_if_missed(node.refraction_absorption_color, 'rpr_socket_color',
                                       (1.0, 1.0, 1.0, 1.0), node.refraction)
+            node.add_socket_if_missed(node.refraction_normal, 'rpr_socket_link',
+                                      enabled=not node.refraction_use_shader_normal, hide_value=True)
             node.add_socket_if_missed(node.sheen_color, 'rpr_socket_color', (0.5, 0.5, 0.5, 1.0), node.sheen)
             node.add_socket_if_missed(node.sheen_weight, 'rpr_socket_weight_soft', 1.0, node.sheen) 
             node.add_socket_if_missed(node.sheen_tint, 'rpr_socket_weight', 0.5, node.sheen)

@@ -1350,6 +1350,11 @@ class Material:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_ABSORPTION_COLOR, get_value('refraction_absorption_color'))
             shader.set_int_rprx(pyrprx.UBER_MATERIAL_REFRACTION_CAUSTICS,
                                 pyrpr.TRUE if blender_node.refraction_caustics else pyrpr.FALSE)
+
+            if pyrpr.API_VERSION >= 0x010032000:
+                normal_socket = get_normal_socket("refraction_use_shader_normal", 'refraction_normal')
+                if normal_socket:
+                    shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_NORMAL, self.parse_node(normal_socket))
         else:
             shader.set_value_rprx(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, nul_value_vector)
 
