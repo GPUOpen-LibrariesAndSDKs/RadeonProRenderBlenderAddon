@@ -1767,7 +1767,7 @@ class Material:
 
     def parse_procedural_mapping_node(self, blender_node):
         log_mat('parse_procedural_mapping_node...')
-        origin = ValueVector(*blender_node.location, 1.0)
+        origin = ValueVector(*blender_node.origin, 1.0)
         matrix = mathutils.Euler(blender_node.rotation, 'XYZ').to_matrix()
         z_axis = ValueVector(*(matrix.col[2]), 0.0)
         x_axis = ValueVector(*(matrix.col[0]), 0.0)
@@ -1777,7 +1777,7 @@ class Material:
 
     def parse_triplanar_mapping_node(self, blender_node):
         log_mat('parse_triplanar_mapping_node...')
-        origin = ValueVector(*blender_node.location, 1.0)
+        origin = ValueVector(*blender_node.origin, 1.0)
         matrix = mathutils.Euler(blender_node.rotation, 'XYZ').to_matrix()
         z_axis = ValueVector(*(matrix.col[2]), 0.0)
         x_axis = ValueVector(*(matrix.col[0]), 0.0)
