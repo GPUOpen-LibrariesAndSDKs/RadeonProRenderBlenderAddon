@@ -4,7 +4,7 @@ bl_info = {
     "name": "Radeon ProRender",
     "description": "Radeon ProRender rendering plugin for Blender.",
     "author": "AMD",
-    "version": (1, 7, 242),
+    "version": (1, 7, 243),
     "blender": (2, 78, 0),
     "location": "Info header, render engine menu",
     "warning": "",  # used for warning icon and text in addons panel
@@ -85,6 +85,7 @@ def load_post(dummy):
     versions.check_old_passes_aov_settings()
 
     versions.check_old_rpr_image_nodes()
+    versions.check_old_mapping_nodes()
     versions.check_old_rpr_uber2_nodes(update=False, convert=True)
     versions.check_old_rpr_uber3_nodes()
     versions.check_old_rpr_ibl_images()

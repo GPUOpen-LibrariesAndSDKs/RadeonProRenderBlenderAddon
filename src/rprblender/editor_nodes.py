@@ -805,6 +805,21 @@ class RPRShaderNode_Uber3(RPRNodeType_Shader):
     def displacement_changed(self, context):
         self.inputs[self.displacement_map].enabled = self.displacement
 
+    def total_update(self):
+        """
+        Check for all states for Uber3 material imported from Material Library
+        """
+        self.diffuse_changed(None)
+        self.reflection_changed(None)
+        self.refraction_changed(None)
+        self.coating_changed(None)
+        self.emissive_changed(None)
+        self.subsurface_changed(None)
+        self.subsurface_use_diffuse_color_changed(None)
+        self.normal_changed(None)
+        self.transparency_changed(None)
+        self.diffuse_changed(None)
+        self.sheen_changed(None)
 
     diffuse = bpy.props.BoolProperty(name='Diffuse', update=diffuse_changed, default=True)
     diffuse_use_shader_normal = bpy.props.BoolProperty(name='Use Shader Normal', update=diffuse_use_shader_normal_changed, default=True)
@@ -1536,21 +1551,31 @@ class RPRNodeType_Mapping(RPRTreeNode):
     def init(self):
         self.outputs.new('rpr_socket_transform', self.value_out)
 
+    def add_socket_if_missed(self, socket_name, socket_type, default_value, enabled):
+        """
+        Adds socket if it's missing, in case of loading scene with previous version of material
+        """
+        if socket_name not in self.inputs:
+            log_mat("Node '{}': adding '{}' socket of type '{}'".format(self.bl_label, socket_name, socket_type))
+            self.inputs.new(socket_type, socket_name).default_value = default_value
+            self.inputs[socket_name].enabled = enabled
 
 @rpraddon.register_class
 class RPRMaterialNode_Mapping(RPRNodeType_Mapping):
     bl_idname = 'rpr_mapping_node'
     bl_label = 'RPR Texture Mapping'
-    bl_width_min = 195
+    bl_width_min = 215
 
     scale_in = 'Scale UV'
     offset_in = 'Offset UV'
+    angle_in = 'Rotation angle'
 
     def init(self, context):
         super(RPRMaterialNode_Mapping, self).init()
         scale_uv = self.inputs.new('rpr_socket_uv', self.scale_in)
         self.inputs.new('rpr_socket_uv', self.offset_in)
         scale_uv.default_value = (1.0, 1.0)
+        self.inputs.new('rpr_socket_float', self.angle_in).default_value = 0.0
 
 
 @rpraddon.register_class
@@ -1711,7 +1736,6 @@ class RPRMaterialNode_ImageMap(RPRNodeType_Texture):
     color_space_type = bpy.props.EnumProperty(name='Color Space',
                                   items=items,
                                   default='Linear')
-
 
     # items for texture wrap
     wrap_items = (('REPEAT', "Repeat", "Repeating Texture"),
