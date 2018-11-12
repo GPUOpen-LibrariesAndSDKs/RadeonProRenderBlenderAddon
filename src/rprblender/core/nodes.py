@@ -1762,9 +1762,20 @@ class Material:
         log_mat('parse_mapping_node...')
         node = LookupNode(self, LookupType.uv)
         res = ValueNode(node)
+
+        angle = self.get_value(blender_node, blender_node.angle_in)
+        if angle and angle.x:
+            res = self.add_value(res, ValueVector(-0.5, -0.5, 0.0, 0.0))
+            angle = math.radians(angle.x)
+            part1 = self.dot3_value(res, ValueVector(math.cos(angle), math.sin(angle), 0.0))
+            part2 = self.dot3_value(res, ValueVector(-math.sin(angle), math.cos(angle), 0.0))
+            res = self.combine_value(part1, part2, ValueVector(1.0, 1.0, 1.0))
+            res = self.add_value(res, ValueVector(0.5, 0.5, 0.0, 0.0))
+
         scale = self.get_value(blender_node, blender_node.scale_in)
         if scale.is_vector() and (scale.x != 1.0 or scale.y != 1.0):
             res = self.mul_value(res, scale)
+
         offset = self.get_value(blender_node, blender_node.offset_in)
         if offset.is_vector() and (offset.x != 0.0 or offset.y != 0.0):
             res = self.add_value(res, offset)
