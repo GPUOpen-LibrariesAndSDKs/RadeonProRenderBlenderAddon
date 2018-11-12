@@ -584,8 +584,11 @@ class ObjectsSync:
                     )
                 else:
                     # convert factor from size of subdiv in pixel to RPR
-                    # rpr does size in pixel = 2^factor  / 16.0
-                    # guard against 0. 
+                    # RPR wants the subdiv factor as the "number of faces per pixel"
+                    # the setting gives user the size of face in number pixels.   
+                    # rpr internally does:  subdiv size in pixel = 2^factor  / 16.0
+                    # The log2 is reversing that for us to get the factor we want.
+                    # also, guard against 0. 
                     adaptive_subdivision = .0001 if object_settings.adaptive_subdivision == 0 else object_settings.adaptive_subdivision
                     factor = int(math.log2(1.0/adaptive_subdivision * 16.0))
                     
