@@ -449,6 +449,21 @@ def check_old_rpr_uber3_nodes():
             node.add_socket_if_missed(node.sheen_tint, 'rpr_socket_weight', 0.5, node.sheen)
 
 
+def check_old_mapping_nodes():
+    for mat in bpy.data.materials:
+        tree = mat.node_tree
+
+        if not tree:
+            continue
+
+        for node in mat.node_tree.nodes:
+            if node.bl_idname != 'rpr_mapping_node':
+                continue
+
+            node.add_socket_if_missed(node.angle_in, 'rpr_socket_float',
+                                      0.0, True)
+
+
 # convert old RPR Environment settings image paths to image datablock references
 def check_old_rpr_ibl_images():
     # skip check for newest saved settings version

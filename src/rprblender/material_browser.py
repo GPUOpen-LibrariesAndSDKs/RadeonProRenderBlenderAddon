@@ -124,20 +124,41 @@ class RPRMaterialLibrary:
             import winreg
 
             # Open the key.
-            try:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\AMD\\Radeon ProRender for Blender")
-
-                # Read the value.
-                result = winreg.QueryValueEx(key, "MaterialLibraryPath")
-
-                # Close the key.
-                winreg.CloseKey(key)
-
-                # Return value from the resulting tuple.
-                return result[0]
-
-            except Exception:
+            key = None
+            try:  # try ML2.0 registry path
+                key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                     "SOFTWARE\\AMD\\RadeonProRender\\MaterialLibrary\\Blender")
+            except OSError as e:
+                logging.debug("Unable to find ML2.0 registry key: {}".format(e))
                 pass
+            except Exception as e:
+                logging.debug("Unable to find ML2.0 registry key: {}".format(e))
+
+            if not key:  # try the ML1.0 path
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\AMD\\Radeon ProRender for Blender")
+                except OSError as e:
+                    logging.debug("Unable to find ML1.0 registry key: {}".format(e))
+                    pass
+                except Exception as e:
+                    logging.debug("Unable to find ML1.0 registry key: {}".format(e))
+
+            if key:
+                try:
+                    # Read the value.
+                    result = winreg.QueryValueEx(key, "MaterialLibraryPath")
+
+                    # Close the key.
+                    winreg.CloseKey(key)
+
+                    # Return value from the resulting tuple.
+                    return result[0]
+                except OSError as e:
+                    logging.debug("Unable to load Material Library path from registry: {}".format(e))
+                    pass
+                except Exception as e:
+                    logging.debug("Unable to load Material Library path from registry: {}".format(e))
+
         elif 'Linux' == platform.system():
             home = Path.home()
             install_dir_for_files = Path(os.environ.get('XDG_DATA_HOME', home / '.local/share')) / 'rprblender'
@@ -166,6 +187,9 @@ class RPRMaterialLibrary:
 
         for i, category in enumerate(categories):
             name = category["name"]
+            if not category["materials"]:
+                logging.debug("Ignoring empty material library category '{}'".format(name))
+                continue
             self.category_items.append((str(i), name, "", 0, i))
 
         self.categories_loaded = True
@@ -573,7 +597,7 @@ def import_xml_material(fpath, material, copy_textures=False):
     activate_shader_editor()
 
     # we need few times update scene before call nodes arrange, because node dimension hasn't updated yet
-    bpy.ops.rpr.node_arrange(margin=150)
+    bpy.ops.rpr.node_arrange(margin_vertical=350, margin_horizontal=550)
 
 
 @rpraddon.register_class

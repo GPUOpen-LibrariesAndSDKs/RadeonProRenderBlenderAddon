@@ -18,7 +18,11 @@ class Node:
         self.get_input_socket_by_name(name).default_value = value
 
     def set_input_socket_value(self, socket, value):
-        socket.default_value = value
+        try:
+            socket.default_value = value
+        except Exception:
+            logging.error("Failure setting socket {}:{} to value {}".format(socket.name, socket, value))
+            raise
 
     # new
     def get_input_socket(self, socket_name):
@@ -77,6 +81,12 @@ class WardMaterial(Material):
         return self.get_input_socket_by_name('rotation')
 
 
+class Uber3Material(Material):
+    def get_input_socket(self, socket_name):
+        socket = self.node.inputs.get(socket_name)
+        return socket
+
+
 from . import versions
 
 class ImageTexture(ValueNode):
@@ -100,6 +110,10 @@ class MathNode(ValueNode):
 
     def set_operand_value(self, i, value):
         self.node.inputs[i].default_value = value
+
+    def set_operands_type(self, type_name):
+        assert type_name in ('color', 'float', 'vector'), "Unknown RPR Math node operands type '{}'!".format(type_name)
+        self.node.type = type_name
 
     def get_input_operand_socket(self, i):
         return self.node.inputs[i]
@@ -126,6 +140,9 @@ class MaterialEditor:
     def create_output_node(self):
         return OutputNode(self.tree.nodes.new(type='rpr_shader_node_output'), self)
 
+    def create_uber_material_node(self):
+        return Material(self.tree.nodes.new(type='rpr_shader_node_uber3'), self)
+
     def create_emissive_material_node(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_emissive'), self)
 
@@ -145,7 +162,7 @@ class MaterialEditor:
         return Material(self.tree.nodes.new(type='rpr_shader_node_uber2'), self)
 
     def create_uber_material_node3(self):
-        return Material(self.tree.nodes.new(type='rpr_shader_node_uber3'), self)
+        return Uber3Material(self.tree.nodes.new(type='rpr_shader_node_uber3'), self)
 
     def create_pbr_material_node(self):
         return Material(self.tree.nodes.new(type='rpr_shader_node_pbr'), self)
