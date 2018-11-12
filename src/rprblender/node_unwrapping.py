@@ -45,19 +45,19 @@ class Node(object):
             for l in output.links:
                 yield self._nodes._nodes[l.to_node.name]
 
-    def arrange(self, margin):
+    def arrange(self, margin_vertical, margin_horizontal):
         children = list(self.children)
         if len(children):
-            height = sum([c.h for c in children]) + margin * (len(children) - 1.0)
+            height = sum([c.h for c in children]) + margin_vertical * (len(children) - 1.0)
             starty = self.y - (self.h / 2.0) + height / 2.0
-            startx = self.x - margin - max([n.w for n in children])
+            startx = self.x - margin_horizontal - max([n.w for n in children])
             for c in children:
                 if not c.pin:
                     c.y = starty
                     c.x = startx
-                    starty -= c.h + margin
+                    starty -= c.h + margin_vertical
                     c.pin = True
-                    c.arrange(margin)
+                    c.arrange(margin_vertical, margin_horizontal)
 
         self.pin = True
 
@@ -121,17 +121,17 @@ class Nodes:
                 if d < margin:
                     n2.y = n1.y - n1.h - margin
 
-    def arrange(self, margin):
+    def arrange(self, margin_vertical, margin_horizontal):
         for r in self.roots:
-            r.arrange(margin)
+            r.arrange(margin_vertical, margin_horizontal)
 
         self.set_levels()
         levels = set(n.level for n in self._nodes.values())
         for l in levels:
-            d = -l * 250 + self.roots[0].x
+            d = -l * margin_vertical + self.roots[0].x
             for n in self.levels[l]:
                 n.x = d
-        self.sort_levels(margin)
+        self.sort_levels(margin_vertical)
 
 
 @rpraddon.register_class
@@ -139,7 +139,8 @@ class OpNodeArrange(bpy.types.Operator):
     bl_idname = "rpr.node_arrange"
     bl_label = "RPR Node Arrange"
 
-    margin = bpy.props.FloatProperty(default=50)
+    margin_vertical = bpy.props.FloatProperty(default=350)
+    margin_horizontal = bpy.props.FloatProperty(default=550)
 
     @classmethod
     def poll(cls, context):
@@ -150,7 +151,7 @@ class OpNodeArrange(bpy.types.Operator):
         obj = context.object
         mat = obj.active_material
         nodes = Nodes(mat.node_tree)
-        nodes.arrange(self.margin)
+        nodes.arrange(self.margin_vertical, self.margin_horizontal)
         return {"FINISHED"}
 
 
