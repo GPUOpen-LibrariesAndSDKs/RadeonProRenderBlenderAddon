@@ -1428,6 +1428,19 @@ class RPRImage_PT_Tools(RPRPanel, bpy.types.Panel):
         self.layout.operator('rpr.refresh_image')
         self.layout.operator('rpr.image_cache_purge')
 
+# Header menus
+@rpraddon.register_class
+class RPRView3DMenu(bpy.types.Header):
+    bl_space_type = "VIEW_3D"
+
+    def draw(self, context):
+        if context.scene.render.engine != "RPR":
+            return
+        
+        layout = self.layout
+        viewport_settings = helpers.get_user_settings().viewport_render_settings
+        layout.prop(viewport_settings, 'render_mode')
+
 
 ########################################################################################################################
 # Others
