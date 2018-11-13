@@ -5,15 +5,14 @@ import weakref
 import ctypes
 
 import bpy
-import bmesh
 import numpy as np
 import mathutils
-from mathutils import Matrix, Euler, Quaternion
 import itertools
 
 from rprblender import helpers, versions
 from rprblender.timing import TimedContext
 from rprblender import config
+from rprblender.properties import environment_override_categories
 from . import logging
 from rprblender.helpers import CallLogger
 import rprblender.images
@@ -148,50 +147,92 @@ class PrevWorldMatricesCache:
     def purge(self):
         self._matrices = {}
         self._cur_frame = None
-    
-prev_world_matrices_cache = PrevWorldMatricesCache()
 
 
 class EnvironmentExportState:
-    ibl = None
-    background_override = None
-    ibl_background_override_proxy_name = None
-    scene_synced = None
+    def __init__(self, scene_synced):
+        self.ibl = None
+        self.overrides = {}
+        self.scene_synced = scene_synced
 
-    sun_sky = None
-    sun_sky_image_buffer = None
+        self.sun_sky = None
+        self.sun_sky_image_buffer = None
 
-    SKY_TEXTURE_BITS_COUNT = 3
+        self.SKY_TEXTURE_BITS_COUNT = 3
 
-    def get_sun_sky_size(self, texture_resolution):
-        if texture_resolution == 'high':
-            return 4096
-        if texture_resolution == 'small':
-            return 256
+        self.sun_sky_size = None
 
-        return 1024
+    def crate_sun_sky_buffer(self, texture_resolution: str):
+        size = {"small": 256, "normal": 1024, "high": 4096}[texture_resolution]
 
-    sun_sky_size = None
-
-    def sun_sky_create_buffer(self, texture_resolution):
-        size = self.get_sun_sky_size(texture_resolution)
         if self.sun_sky_size != size or not self.sun_sky_image_buffer:
             self.sun_sky_image_buffer = np.ones((size, size, self.SKY_TEXTURE_BITS_COUNT), dtype=np.float32)
             self.sun_sky_size = size
 
-    def sun_sky_destroy_buffer(self):
+    def destroy_sun_sky_buffer(self):
         self.sun_sky_image_buffer = None
 
-    def sun_sky_detach(self):
-        if self.sun_sky and self.sun_sky.attached:
+    def detach_sun_sky(self):
+        if self.sun_sky and self.sun_sky.is_attached:
             self.sun_sky.detach()
 
-    def ibl_detach(self):
-        if self.ibl and self.ibl.attached:
+    @property
+    def is_ibl(self):
+        return self.ibl
+
+    @property
+    def is_ibl_attached(self):
+        return self.ibl and self.ibl.is_attached
+
+    def set_ibl(self, ibl):
+        self.ibl = ibl
+
+    def attach_ibl(self):
+        if self.ibl and not self.ibl.is_attached:
+            self.ibl.attach()
+
+    def detach_ibl(self):
+        if self.ibl and self.ibl.is_attached:
             self.ibl.detach()
 
-    def background_disable(self):
-        self.scene_synced.background_set(None)
+    def set_ibl_intensity(self, intensity):
+        self.ibl.set_intensity(intensity)
+
+    def set_override(self, category, override):
+        if category in self.overrides:
+            self.disable_override(category)
+            del self.overrides[category]
+        self.overrides[category] = override
+
+    def disable_all_overrides(self):
+        for category in self.overrides:
+            self.disable_override(category)
+
+    def disable_override(self, category):
+        if category in self.overrides:
+            self.scene_synced.remove_environment_override(category)
+
+    def remove_override(self, category):
+        if category not in self.overrides:
+            return
+        self.disable_override(category)
+        del self.overrides[category]
+
+    def set_rotation(self, rotation_gizmo):
+        if self.ibl:
+            self.ibl.set_rotation(rotation_gizmo)
+        for key, override in self.overrides.items():
+            override.set_rotation(rotation_gizmo)
+
+    def set_sun_sky_transform(self, transform_matrix):
+        if self.sun_sky:
+            self.sun_sky.set_transform(transform_matrix)
+
+    def overrides_update_needed_state(self):
+        return dict((key, True if entry and not entry.is_enabled else False) for key, entry in self.overrides.items())
+
+
+prev_world_matrices_cache = PrevWorldMatricesCache()
 
 
 class Prototype:
@@ -706,7 +747,7 @@ class SceneExport:
 
         self.environment_settings_pre = self.environment_settings
 
-        self.environment_exporter = EnvironmentExportState()
+        self.environment_exporter = EnvironmentExportState(scene_synced)
         self.environment_exporter.scene_synced = scene_synced
 
     @call_logger.logged
@@ -1100,7 +1141,7 @@ class SceneExport:
 
         # create environment light
         if attach:
-            self.environment_exporter.sun_sky = self.scene_synced.environment_light_create_empty()
+            self.environment_exporter.sun_sky = self.scene_synced.create_environment_light_empty()
 
         # we have to flip the IBL image upside down
         ibl_data = np.ascontiguousarray(np.flipud(self.environment_exporter.sun_sky_image_buffer))
@@ -1127,7 +1168,7 @@ class SceneExport:
                               [0, 1, 0]], dtype=np.float32)
             matrix = np.identity(4, dtype=np.float32)
             matrix[:3, :3] = np.dot(fixup, mat_rot)
-            self.environment_exporter.sun_sky.core_environment_light.set_transform(matrix, False)
+            self.environment_exporter.set_sun_sky_transform(matrix)
 
         if attach:
             self.environment_exporter.sun_sky.attach()
@@ -1148,6 +1189,14 @@ class SceneExport:
                     'override_background_type': None,
                     ('background_image' if versions.is_blender_support_ibl_image() else 'background_map'): None,
                     'background_color': tuple,
+                    'override_reflection': None,
+                    'override_reflection_type': None,
+                    ('reflection_image' if versions.is_blender_support_ibl_image() else 'reflection_map'): None,
+                    'reflection_color': tuple,
+                    'override_refraction': None,
+                    'override_refraction_type': None,
+                    ('refraction_image' if versions.is_blender_support_ibl_image() else 'refraction_map'): None,
+                    'refraction_color': tuple,
                 }
             },
             'sun_sky': {
@@ -1314,13 +1363,12 @@ class SceneExport:
         for obj in objects_sync_frame.duplicators_added:
             yield 'adding new duplicators:'+str(obj)
             try:
-                for key, dupli in self.iter_dupli_from_duplicator(obj):
-                    self.objects_sync.add_dupli_instance(key, dupli, obj)
-                    self.objects_sync.update_instance_materials(key)
+                    for key, dupli in self.iter_dupli_from_duplicator(obj):
+                        self.objects_sync.add_dupli_instance(key, dupli, obj)
+                        self.objects_sync.update_instance_materials(key)
 
             except ExportError as err:
                 logging.warn(err, tag='sync')
-
 
         yield 'updating duplicators'
         log_sync('duplicators_updated:', objects_sync_frame.duplicators_updated)
@@ -1331,8 +1379,9 @@ class SceneExport:
         yield 'objects ok'
 
     def filter_environment_light_settings_changes(self, settings_old, environment_settings):
-        """"Leave only changes in settings that affect result render(i.e. don't bother with maps
-        is whole environment is disabled"""
+        """"
+        Leave only changes in settings that affect result render(don't bother with maps if environment is disabled)
+        """
         sync = SettingsSyncer(settings_old, environment_settings)
         enable = sync.get('enable')
 
@@ -1343,89 +1392,94 @@ class SceneExport:
             # don't change anything except one flag if environment is disabled
             return sync
 
-        type = sync.get('type')
-        type.use_new_value()
+        environment_type = sync.get('type')
+        environment_type.use_new_value()
 
         sync.get('gizmo_rotation').use_new_value()
 
-        if type.get_updated_value() == 'IBL':
-            sync.get('ibl', 'intensity').use_new_value()
+        if environment_type.get_updated_value() == 'IBL':
+            self._sync_update_environment_ibl(sync)
 
-            ibl_type = sync.get('ibl', 'type')
-            ibl_type.use_new_value()
-
-            if ibl_type.get_updated_value() == 'IBL':
-                # change map only when it's enabled
-                ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
-                ibl_map.use_new_value()
-            else:
-                color = sync.get('ibl', 'color')
-                color.use_new_value()
-
-            override_background = sync.get('ibl', 'maps', 'override_background')
-            override_background.use_new_value()
-
-            if override_background.get_updated_value():
-
-                override_background_type = sync.get('ibl', 'maps', "override_background_type")
-                override_background_type.use_new_value()
-
-                if override_background_type.get_updated_value() == 'image':
-                    background_map = sync.get('ibl', 'maps', 'background_image' if versions.is_blender_support_ibl_image() else 'background_map')
-                    background_map.use_new_value()
-                else:
-                    background_color = sync.get('ibl', 'maps', 'background_color')
-                    background_color.use_new_value()
-
+            self._sync_update_environment_overrides(sync)
         else:
-            sun_sky_type = sync.get('sun_sky', 'type')
-            sun_sky_type.use_new_value()
-
-            if sun_sky_type.get_updated_value() == 'analytical_sky':
-                sync.get('sun_sky', 'azimuth').use_new_value()
-                sync.get('sun_sky', 'altitude').use_new_value()
-            else:
-                sync.get('sun_sky', 'latitude').use_new_value()
-                sync.get('sun_sky', 'longitude').use_new_value()
-                sync.get('sun_sky', 'date_year').use_new_value()
-                sync.get('sun_sky', 'date_month').use_new_value()
-                sync.get('sun_sky', 'date_day').use_new_value()
-                sync.get('sun_sky', 'time_hours').use_new_value()
-                sync.get('sun_sky', 'time_minutes').use_new_value()
-                sync.get('sun_sky', 'time_seconds').use_new_value()
-                sync.get('sun_sky', 'time_zone').use_new_value()
-                sync.get('sun_sky', 'daylight_savings').use_new_value()
-
-            sync.get('sun_sky', 'turbidity').use_new_value()
-            sync.get('sun_sky', 'intensity').use_new_value()
-            sync.get('sun_sky', 'sun_glow').use_new_value()
-            sync.get('sun_sky', 'sun_disc').use_new_value()
-            sync.get('sun_sky', 'saturation').use_new_value()
-            sync.get('sun_sky', 'horizon_height').use_new_value()
-            sync.get('sun_sky', 'horizon_blur').use_new_value()
-            sync.get('sun_sky', 'filter_color').use_new_value()
-            sync.get('sun_sky', 'ground_color').use_new_value()
-            sync.get('sun_sky', 'texture_resolution').use_new_value()
+            self._sync_update_sun_and_sky_settings(sync)
 
         return sync
 
-    def set_environment_light(self, sync):
-        logging.debug("settings to sync:", sync.synced, tag='sync')
+    def _sync_update_environment_overrides(self, sync):
+        for category in environment_override_categories:
+            enabled = sync.get('ibl', 'maps', 'override_{}'.format(category))
+            enabled.use_new_value()
+            if enabled.get_updated_value():
+                override_type = sync.get('ibl', 'maps', "override_{}_type".format(category))
+                override_type.use_new_value()
+                if override_type.get_updated_value() == 'image':
+                    if versions.is_blender_support_ibl_image():
+                        field_name = '{}_image'.format(category)
+                    else:
+                        field_name = '{}_map'.format(category)
+                    sync.get('ibl', 'maps', field_name).use_new_value()
+                else:
+                    sync.get('ibl', 'maps', '{}_color'.format(category)).use_new_value()
 
-        enable = sync.get('enable')
-        type = sync.get('type')
+    def _sync_update_environment_ibl(self, sync):
+        sync.get('ibl', 'intensity').use_new_value()
+        ibl_type = sync.get('ibl', 'type')
+        ibl_type.use_new_value()
+        if ibl_type.get_updated_value() == 'IBL':
+            # change map only when it's enabled
+            ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
+            ibl_map.use_new_value()
+        else:
+            color = sync.get('ibl', 'color')
+            color.use_new_value()
+
+    def _sync_update_sun_and_sky_settings(self, sync):
+        sun_sky_type = sync.get('sun_sky', 'type')
+        sun_sky_type.use_new_value()
+        if sun_sky_type.get_updated_value() == 'analytical_sky':
+            sync.get('sun_sky', 'azimuth').use_new_value()
+            sync.get('sun_sky', 'altitude').use_new_value()
+        else:
+            sync.get('sun_sky', 'latitude').use_new_value()
+            sync.get('sun_sky', 'longitude').use_new_value()
+            sync.get('sun_sky', 'date_year').use_new_value()
+            sync.get('sun_sky', 'date_month').use_new_value()
+            sync.get('sun_sky', 'date_day').use_new_value()
+            sync.get('sun_sky', 'time_hours').use_new_value()
+            sync.get('sun_sky', 'time_minutes').use_new_value()
+            sync.get('sun_sky', 'time_seconds').use_new_value()
+            sync.get('sun_sky', 'time_zone').use_new_value()
+            sync.get('sun_sky', 'daylight_savings').use_new_value()
+        sync.get('sun_sky', 'turbidity').use_new_value()
+        sync.get('sun_sky', 'intensity').use_new_value()
+        sync.get('sun_sky', 'sun_glow').use_new_value()
+        sync.get('sun_sky', 'sun_disc').use_new_value()
+        sync.get('sun_sky', 'saturation').use_new_value()
+        sync.get('sun_sky', 'horizon_height').use_new_value()
+        sync.get('sun_sky', 'horizon_blur').use_new_value()
+        sync.get('sun_sky', 'filter_color').use_new_value()
+        sync.get('sun_sky', 'ground_color').use_new_value()
+        sync.get('sun_sky', 'texture_resolution').use_new_value()
+
+    def set_environment_light(self, env_sync):
+        logging.debug("settings to sync:", env_sync.synced, tag='sync')
+
+        enable = env_sync.get('enable')
+        environment_type = env_sync.get('type')
 
         ibl_needs_attach = False
-        background_needs_enable = False
 
         detach_ibl = False
         detach_sun_sky = False
         attach_ibl = False
         attach_sun_sky = False
 
-        if enable.updated() or type.updated():
-            if enable.get_updated_value() or type.updated():
-                if type.get_updated_value() == 'IBL':
+        overrides_to_update = {}
+
+        if enable.updated() or environment_type.updated():
+            if enable.get_updated_value() or environment_type.updated():
+                if environment_type.get_updated_value() == 'IBL':
                     attach_ibl = True
                     detach_sun_sky = True
                 else:
@@ -1435,107 +1489,103 @@ class SceneExport:
                 detach_ibl = True
                 detach_sun_sky = True
 
-        logging.debug('detach_ibl: %s, detach_sun_sky: %s, attach_ibl: %s, attach_sun_sky: %s' % (
-        detach_ibl, detach_sun_sky, attach_ibl, attach_sun_sky), tag='sync')
+        logging.debug("detach_ibl: {}, detach_sun_sky: {}, attach_ibl: {}, attach_sun_sky: {}".
+                      format(detach_ibl, detach_sun_sky, attach_ibl, attach_sun_sky),
+                      tag='sync')
 
         if detach_ibl:
-            self.environment_exporter.ibl_detach()
-            self.environment_exporter.background_disable()
+            self.environment_exporter.detach_ibl()
+            self.environment_exporter.disable_all_overrides()
 
         if detach_sun_sky:
-            self.environment_exporter.sun_sky_destroy_buffer()
-            self.environment_exporter.sun_sky_detach()
+            self.environment_exporter.destroy_sun_sky_buffer()
+            self.environment_exporter.detach_sun_sky()
 
         if not enable.get_updated_value():
             return
 
         assert not (attach_ibl and attach_sun_sky)
 
-        if attach_ibl:
-            if self.environment_exporter.ibl and not self.environment_exporter.ibl.attached:
-                ibl_needs_attach = True
-            if self.environment_exporter.background_override and not self.environment_exporter.background_override.enabled:
-                background_needs_enable = True
-
-        texture_resolution = sync.get('sun_sky', 'texture_resolution')
-
-        if attach_sun_sky or texture_resolution.updated():
-            self.environment_exporter.sun_sky_create_buffer(texture_resolution.get_updated_value())
-
-        if type.get_updated_value() != 'IBL':
-            self.sun_and_sky_sync(attach_sun_sky, sync)
-            return
-
-        use_ibl_map = sync.get('ibl', 'type')
-        ibl_map = sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
-        intensity = sync.get('ibl', 'intensity')
-
-        rotation = sync.get('gizmo_rotation')
-
-        if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'IBL'):
-            self.environment_exporter.ibl_detach()
-            self.environment_exporter.ibl = self.scene_synced.environment_light_create(ibl_map.get_updated_value())
-            ibl_needs_attach = True
-
-        color = sync.get('ibl', 'color')
-        if color.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'COLOR'):
-            self.environment_exporter.ibl_detach()
-            self.environment_exporter.ibl = \
-                self.scene_synced.environment_light_create_color(color.get_updated_value())
-            ibl_needs_attach = True
-        else:
-            if use_ibl_map.updated():
-                if use_ibl_map.get_updated_value() == 'IBL':
-                    ibl_needs_attach = True
-                else:
-                    self.environment_exporter.ibl_detach()
-
-        if ibl_needs_attach:
-            self.environment_exporter.ibl.attach()
-            logging.debug("ibl.attach ok", tag='sync')
-
-        if self.environment_exporter.ibl:
-            ibl = self.environment_exporter.ibl
-            ibl.set_intensity(intensity.get_updated_value())
-
-        override_background = sync.get('ibl', 'maps', 'override_background')
-        override_background_type = sync.get('ibl', 'maps', "override_background_type")
-        background_map = sync.get('ibl', 'maps', 'background_image' if versions.is_blender_support_ibl_image() else 'background_map')
-        background_color = sync.get('ibl', 'maps', 'background_color')
-
-        if override_background.updated() \
-            or override_background_type.updated() \
-            or background_map.updated() \
-            or background_color.updated():
-
-            if override_background.get_updated_value():
-
-                if override_background_type.updated() or background_map.updated() or background_color.updated():
-                    self.environment_exporter.background_disable()
-                    if override_background_type.get_updated_value() == "image":
-                        self.environment_exporter.background_override = \
-                            self.scene_synced.background_create(background_map.get_updated_value())
-                    else:
-                        self.environment_exporter.background_override = \
-                            self.scene_synced.background_create_color(background_color.get_updated_value())
-
-                background_needs_enable = True
-
-            else:
-                background_needs_enable = False
-                self.environment_exporter.background_disable()
-
-        if background_needs_enable:
-            self.scene_synced.background_set(self.environment_exporter.background_override)
-
+        rotation = env_sync.get('gizmo_rotation')
         rotation_value = rotation.get_updated_value()
         rotation_updated_value = (rotation_value[0], rotation_value[1], rotation_value[2]+np.pi)
 
-        if self.environment_exporter.ibl:
-            self.environment_exporter.ibl.set_rotation(rotation_updated_value)
+        if attach_ibl:
+            if self.environment_exporter.is_ibl and not self.environment_exporter.is_ibl_attached:
+                ibl_needs_attach = True
 
-        if self.environment_exporter.background_override:
-            self.environment_exporter.background_override.set_rotation(rotation_updated_value)
+            overrides_to_update = self.environment_exporter.overrides_update_needed_state()
+
+        texture_resolution = env_sync.get('sun_sky', 'texture_resolution')
+
+        if attach_sun_sky or texture_resolution.updated():
+            self.environment_exporter.crate_sun_sky_buffer(texture_resolution.get_updated_value())
+
+        if environment_type.get_updated_value() == 'SUN_SKY':
+            self.sun_and_sky_sync(attach_sun_sky, env_sync)
+            return
+
+        elif environment_type.get_updated_value() == 'IBL':
+            use_ibl_map = env_sync.get('ibl', 'type')
+            ibl_map = env_sync.get('ibl', 'ibl_image' if versions.is_blender_support_ibl_image() else 'ibl_map')
+            intensity = env_sync.get('ibl', 'intensity')
+
+            if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'IBL'):
+                self.environment_exporter.detach_ibl()
+                ibl = self.scene_synced.create_environment_light(ibl_map.get_updated_value())
+                self.environment_exporter.set_ibl(ibl)
+                ibl_needs_attach = True
+
+            color = env_sync.get('ibl', 'color')
+            if color.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'COLOR'):
+                self.environment_exporter.detach_ibl()
+                ibl = self.scene_synced.create_environment_light_color(color.get_updated_value())
+                self.environment_exporter.set_ibl(ibl)
+                ibl_needs_attach = True
+            else:
+                if use_ibl_map.updated():
+                    if use_ibl_map.get_updated_value() == 'IBL':
+                        ibl_needs_attach = True
+                    else:
+                        self.environment_exporter.detach_ibl()
+
+            if ibl_needs_attach:
+                self.environment_exporter.attach_ibl()
+                logging.debug("ibl.attach ok", tag='sync')
+
+            if self.environment_exporter.is_ibl:
+                self.environment_exporter.set_ibl_intensity(intensity.get_updated_value())
+
+        for category in environment_override_categories:
+            category_enabled = env_sync.get('ibl', 'maps', 'override_{}'.format(category))
+            override_type = env_sync.get('ibl', 'maps', "override_{}_type".format(category))
+            image_map = env_sync.get('ibl', 'maps',
+                                     '{}_image'.format(category) if versions.is_blender_support_ibl_image()
+                                     else '{}_map'.format(category))
+            color = env_sync.get('ibl', 'maps', '{}_color'.format(category))
+            logging.debug("Environment override \"{}\":\n\tenabled {},\n\ttype {},\n\tmap {},\n\tcolor {}".
+                         format(category, category_enabled, override_type, image_map, color))
+
+            if category_enabled.updated() or override_type.updated() or image_map.updated() or color.updated():
+                if category_enabled.get_updated_value():
+                    if override_type.get_updated_value() == "image":
+                        override = self.scene_synced.create_environment_override(category,
+                                                                                 image_map.get_updated_value())
+                    else:
+                        override = self.scene_synced.create_environment_override_from_color(category,
+                                                                                            color.get_updated_value())
+                    self.environment_exporter.set_override(category, override)
+
+                    overrides_to_update[category] = True
+                else:
+                    self.environment_exporter.remove_override(category)
+
+                    overrides_to_update[category] = False
+
+            if category in overrides_to_update and overrides_to_update[category]:
+                self.scene_synced.set_environment_override(category, self.environment_exporter.overrides[category])
+
+        self.environment_exporter.set_rotation(rotation_updated_value)
 
 
 class SettingsSyncer:

@@ -5,13 +5,13 @@ import sys
 import bpy
 import numpy as np
 import pyrpr
-from pyrpr import ffi
 
 import rprblender
 from rprblender import logging, versions
 from rprblender.core.nodes import log_mat, Material, ShaderType
 from rprblender.export import extract_mesh, get_blender_mesh, prev_world_matrices_cache
 from rprblender.helpers import CallLogger, get_user_settings
+from rprblender.properties import environment_override_categories
 from rprblender.timing import TimedContext
 import rprblender.core.image
 
@@ -20,77 +20,46 @@ import mathutils
 from rprblender import lights
 
 
-def rotation_env(env, rot):
-    rot = (-rot[0], -rot[1], -rot[2])
-    euler = mathutils.Euler(rot)
-    mat_rot = np.array(euler.to_matrix(), dtype=np.float32)
-    fixup = np.array([[1, 0, 0],
-                      [0, 0, 1],
-                      [0, 1, 1]], dtype=np.float32)
-    matrix = np.identity(4, dtype=np.float32)
-    matrix[:3, :3] = np.dot(fixup, mat_rot)
-
-    env.set_transform(matrix, False)
+call_logger = CallLogger(tag='export.sync.scene')
 
 
-class EnvironmentLight:
-    def __init__(self, scene_synced, name, core_environment_light, image=None):
-        self.core_environment_light = core_environment_light
+class EnvironmentOverride:
+    core_override_id = {"background": pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND,
+                        "reflection": pyrpr.SCENE_ENVIRONMENT_OVERRIDE_REFLECTION,
+                        "refraction": pyrpr.SCENE_ENVIRONMENT_OVERRIDE_REFRACTION,
+                        "transparency": pyrpr.SCENE_ENVIRONMENT_OVERRIDE_TRANSPARENCY,
+                        }
+
+    def __init__(self, category: str, scene_synced, file_name, core_environment, core_image):
+        self.category = category
+        self.core_environment = core_environment
         self.scene_synced = scene_synced
-        self.name = name
-        self.attached = False
-        self.image = image
-
-    def attach(self):
-        logging.debug('EnvironmentLight re-attach', self.name, tag='sync')
-        self.core_environment_light.set_name("Environment")
-        self.scene_synced.get_core_scene().attach(self.core_environment_light)
-        self.attached = True
-        self.scene_synced.ibls_attached.add(self)
-        # Environment Lights are harcoded to group 0
-        self.core_environment_light.set_light_group_id(0)
-
-    def detach(self):
-        logging.debug('EnvironmentLight detach', self.name, tag='sync')
-        self.scene_synced.get_core_scene().detach(self.core_environment_light)
-        self.attached = False
-        self.scene_synced.ibls_attached.remove(self)
-
-    def set_intensity(self, value):
-        self.core_environment_light.set_intensity_scale(value)
-
-    def set_rotation(self, value):
-        rotation_env(self.core_environment_light, value)
-
-    def set_image_from_buffer(self, im):
-        self.image = pyrpr.Image(self.scene_synced.context, data=im)
-        self.core_environment_light.set_image(self.image)
-
-
-class Background:
-    def __init__(self, scene_synced, name, core_background, image=None):
-        self.core_background = core_background
-        self.scene_synced = scene_synced
-        self.name = name
-        self.image = image
+        self.name = file_name
+        self.image = core_image
 
     @property
-    def enabled(self):
-        return self.scene_synced.background_is_enabled(self)
+    def is_enabled(self):
+        return self.scene_synced.is_environment_override_enabled(self.category, self)
 
-    def _enable(self):
-        logging.debug('background enable', self.name, tag='sync')
-        self.scene_synced.get_core_scene().add_environment(pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND, self.core_background)
+    def enable(self):
+        if not self.core_override_id[self.category]:
+            return
+        self.scene_synced.add_scene_environment_override(self.core_override_id[self.category], self.core_environment)
 
-    def _disable(self):
-        logging.debug('background disable', tag='sync')
-        self.scene_synced.get_core_scene().remove_environment(pyrpr.SCENE_ENVIRONMENT_OVERRIDE_BACKGROUND)
+    def disable(self):
+        self.scene_synced.remove_scene_environment_override(self.core_override_id[self.category])
 
-    def set_rotation(self, value):
-        rotation_env(self.core_background, value)
+    def set_rotation(self, rotation_gizmo):
+        rot = (-rotation_gizmo[0], -rotation_gizmo[1], -rotation_gizmo[2])
+        euler = mathutils.Euler(rot)
+        mat_rot = np.array(euler.to_matrix(), dtype=np.float32)
+        fixup = np.array([[1, 0, 0],
+                          [0, 0, 1],
+                          [0, 1, 1]], dtype=np.float32)
+        matrix = np.identity(4, dtype=np.float32)
+        matrix[:3, :3] = np.dot(fixup, mat_rot)
 
-
-call_logger = CallLogger(tag='export.sync.scene')
+        self.core_environment.set_transform(matrix, False)
 
 
 class SceneSynced:
@@ -115,7 +84,7 @@ class SceneSynced:
         self.settings = settings
         self.render_camera = None  # type: RenderCamera
 
-        self.objects_synced = {}  # type: Dict[ObjectSynced]
+        self.objects_synced = {}  # type: dict[ObjectSynced]
         self.meshes = set()
         self.volumes = set()
         self.portal_lights_meshes = set()
@@ -130,7 +99,7 @@ class SceneSynced:
         self._make_core_environment_light_cached = functools.lru_cache(8)(self._make_core_environment_light)
 
         self.ibls_attached = set()
-        self.background = None
+        self.environment_overrides = dict([(key, None) for key in environment_override_categories])
 
     @call_logger.logged
     def __del__(self):
@@ -142,22 +111,22 @@ class SceneSynced:
         # Delete material nodes BEFORE deleting shapes
         # deleting materials uses imlicitly shapes object
         # so shapes must exists during deleting material nodes
+        self.environment_overrides.clear()
+        self.ibls_attached.clear()
         if self.core_scene:
             self.core_scene.clear()
-        self.materialsNodes = {}
+        self.materialsNodes.clear()
         for mesh in self.meshes:
             if hasattr(mesh, 'x_material') and mesh.x_material:
                 mesh.x_material.detach(mesh)
-        self.meshes = set()
-        self.volumes = set()
-        self.portal_lights_meshes = set()
-        self.core_scene = None
-        self.objects_synced = {}
+        self.meshes.clear()
+        self.volumes.clear()
+        self.portal_lights_meshes.clear()
+        self.lamps.clear()
+        self.objects_synced.clear()
         self.core_render_camera = None
-        self.lamps = {}
         self._make_core_environment_light_cached = None
-        self.ibls_attached = set()
-        self.background = None
+        self.core_scene = None
 
     def get_core_context(self):
         return self.context
@@ -167,6 +136,18 @@ class SceneSynced:
 
     def get_core_scene(self):
         return self.core_scene
+
+    def set_scene_environment(self, light):
+        self.core_scene.attach(light)
+
+    def remove_scene_environment(self, light):
+        self.core_scene.detach(light)
+
+    def add_scene_environment_override(self, core_flag, override):
+        self.core_scene.add_environment(core_flag, override)
+
+    def remove_scene_environment_override(self, core_flag):
+        self.core_scene.remove_environment(core_flag)
 
     def get_material_system(self):
         return self.material_system
@@ -242,17 +223,17 @@ class SceneSynced:
             self.update_camera_transform(camera, self.render_camera.matrix_world)
             camera.set_lens_shift(*self.render_camera.shift)
 
-            logging.info('camera.focal_length: ', self.render_camera.lens)
-            logging.info('camera.sensor_size: %s' % (self.render_camera.sensor_size,))
+            logging.debug('camera.focal_length: ', self.render_camera.lens)
+            logging.debug('camera.sensor_size: %s' % (self.render_camera.sensor_size,))
             camera.set_focal_length(self.render_camera.lens)
             camera.set_sensor_size(*self.render_camera.sensor_size)
 
             if self.render_camera.dof_enable:
                 fd = self.render_camera.dof_focus_distance
 
-                logging.info('camera.dof_f_stop: ', self.render_camera.dof_f_stop)
-                logging.info('camera.dof_blades: ', self.render_camera.dof_blades)
-                logging.info('camera.dof_focus_distance (m): ', fd)
+                logging.debug('camera.dof_f_stop: ', self.render_camera.dof_f_stop)
+                logging.debug('camera.dof_blades: ', self.render_camera.dof_blades)
+                logging.debug('camera.dof_focus_distance (m): ', fd)
 
                 camera.set_f_stop(self.render_camera.dof_f_stop)
                 camera.set_aperture_blades(self.render_camera.dof_blades)
@@ -280,32 +261,28 @@ class SceneSynced:
         camera.set_mode(mode)
         self.core_scene.set_camera(camera)
 
-    def environment_light_create_color(self, color):
+    def create_environment_light_color(self, color):
         im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
-        return self.environment_light_create_from_core_image(
+        return self.create_environment_light_from_core_image(
             'ibl', self._make_core_image_from_image_data(self.context, im))
 
-    def environment_light_create(self, ibl_map):
+    def create_environment_light(self, ibl_map):
         logging.debug('ibl create', ibl_map, tag='sync')
-        return self.environment_light_create_from_core_image(
+        return self.create_environment_light_from_core_image(
             ibl_map, self.get_core_environment_image_for_blender_image(ibl_map))
 
-    def environment_light_create_from_core_light(self, ibl_map, core_light, core_image):
-        return EnvironmentLight(self, ibl_map, core_light, image=core_image)
+    def crate_environment_light_from_core_light(self, ibl_map, core_light: pyrpr.Light, core_image: pyrpr.Image):
+        return lights.EnvironmentLight(self, ibl_map, core_light, core_image=core_image)
 
-    def environment_light_create_from_core_image(self, name, core_image):
+    def create_environment_light_from_core_image(self, name, core_image):
         core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
 
         for obj_key in self.portal_lights_meshes:
             core_light.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
-        return EnvironmentLight(self, name, core_light, image=core_image)
+        return lights.EnvironmentLight(self, name, core_light, core_image=core_image)
 
-    def background_create_from_core_image(self, name, core_image):
-        core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
-        return Background(self, name, core_light, image=core_image)
-
-    def environment_light_create_empty(self):
+    def create_environment_light_empty(self):
         logging.debug('environment_light_create_sun_sky', tag='sync')
 
         with TimedContext("environment_light_create_empty"):
@@ -316,28 +293,41 @@ class SceneSynced:
             for obj_key in self.portal_lights_meshes:
                 ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
-        return EnvironmentLight(self, '', ibl)
+        return lights.EnvironmentLight(self, '', ibl)
 
-    def background_create(self, ibl_map):
-        logging.debug('background create', ibl_map, tag='sync')
-        core_image = self.get_core_environment_image_for_blender_image(ibl_map)
-        return self.background_create_from_core_image(ibl_map, core_image)
-
-    def background_create_color(self, color):
+    def create_environment_from_color(self, color):
         im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
         ibl, image = self._make_core_environment_light_from_image_data(im)
-        return Background(self, '', ibl, image=image)
+        return ibl, image
 
-    def background_set(self, background):
-        if background:
-            background._enable()
-        else:
-            if self.background:
-                self.background._disable()
-        self.background = background
+    def create_environment_override(self, category, ibl_map):
+        core_image = self.get_core_environment_image_for_blender_image(ibl_map)
+        return self.create_environment_override_from_core_image(category, ibl_map, core_image)
 
-    def background_is_enabled(self, background):
-        return self.background is background
+    def create_environment_override_from_core_image(self, category, name, core_image):
+        core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
+        return EnvironmentOverride(category, self, name, core_light, core_image=core_image)
+
+    def create_environment_override_from_color(self, category, color):
+        im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
+        ibl, image = self._make_core_environment_light_from_image_data(im)
+        return EnvironmentOverride(category, self, '', ibl, core_image=image)
+
+    def set_environment_override(self, category, override):
+        if override:
+            if self.environment_overrides.get(category):
+                self.environment_overrides[category].disable()
+                del (self.environment_overrides[category])
+            self.environment_overrides[category] = override
+            override.enable()
+
+    def remove_environment_override(self, category):
+        if self.environment_overrides[category]:
+            self.environment_overrides[category].disable()
+        del self.environment_overrides[category]
+
+    def is_environment_override_enabled(self, category, override):
+        return self.environment_overrides.get(category) and self.environment_overrides[category] == override
 
     def _make_core_environment_light(self, image):
         img = self.get_core_environment_image_for_blender_image(image)
@@ -372,21 +362,21 @@ class SceneSynced:
     def _extract_image_pixels(self, image):
         return np.array(image.pixels[:], dtype=np.float32)
 
-    def _make_core_environment_light_from_image_data(self, im):
+    def _make_core_environment_light_from_image_data(self, image: np.ndarray):
         with TimedContext("make_core_envmap"):
             context = self.context
-            img = self._make_core_image_from_image_data(context, im)
-            ibl = self._make_core_environment_light_from_core_image(context, img)
+            core_image = self._make_core_image_from_image_data(context, image)
+            ibl = self._make_core_environment_light_from_core_image(context, core_image)
 
-        return ibl, img
+        return ibl, core_image
 
-    def _make_core_environment_light_from_core_image(self, context, img):
+    def _make_core_environment_light_from_core_image(self, context, core_image):
         ibl = pyrpr.EnvironmentLight(context)
-        ibl.set_image(img)
+        ibl.set_image(core_image)
         return ibl
 
-    def _make_core_image_from_image_data(self, context, im):
-        return pyrpr.Image(context, data=im)
+    def _make_core_image_from_image_data(self, context, image: np.ndarray):
+        return pyrpr.Image(context, data=image)
 
     def add_lamp(self, obj_key, blender_obj):
         logging.debug('add_lamp', obj_key, tag='sync')
@@ -761,8 +751,9 @@ class SceneSynced:
             return
         self.portal_lights_meshes.add(obj_key)
 
+        logging.info("mesh_attach_portallight: self.ibls_attached {}".format(self.ibls_attached))
         for ibl in self.ibls_attached:
-            ibl.core_environment_light.attach_portal(self.core_scene, self.core_shape(obj_key))
+            ibl.attach_portal(self.core_scene, self.core_shape(obj_key))
 
     def core_shape(self, obj_key):
         return self.get_synced_obj(obj_key).core_obj
@@ -772,8 +763,9 @@ class SceneSynced:
         if obj_key not in self.portal_lights_meshes:
             return
         self.portal_lights_meshes.discard(obj_key)
+        logging.info("mesh_detach_portallight: self.ibls_attached {}".format(self.ibls_attached))
         for ibl in self.ibls_attached:
-            ibl.core_environment_light.detach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
+            ibl.detach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
     preview_mesh_data = None
 

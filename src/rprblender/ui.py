@@ -17,6 +17,7 @@ from pathlib import Path
 from bpy_extras.io_utils import ExportHelper
 from rprblender.node_editor import shader_node_output_name, find_node
 from rprblender.versions import get_render_passes_aov, is_blender_support_aov
+from rprblender.properties import environment_override_categories
 from . import version_checking
 from rprblender.images import get_automatic_compression_size
 
@@ -462,26 +463,7 @@ class RPRRender_PT_environment(RPRPanel, Panel):
     def poll(cls, context):
         return context.scene.world and super().poll(context)
 
-    def draw_maps(self, col, maps):
-        col.prop(maps, "override_background")
-        row = col.row()
-
-        if maps.override_background:
-            row.prop(maps, "override_background_type", expand=True)
-
-            if maps.override_background_type == "image":
-                if versions.is_blender_support_ibl_image():
-                    col.template_ID(maps, "background_image", open="image.open")
-                else:
-                    col.prop(maps, "background_map", text='')
-            else:
-                row = col.row()
-                row.prop(maps, "background_color")
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.world.rpr_data.environment, "enable", text="")
-
-    def draw(self, context):
+    def draw(self, context: bpy.types.Context):
         layout = self.layout
         env = context.scene.world.rpr_data.environment
         col = layout.column()
@@ -490,98 +472,124 @@ class RPRRender_PT_environment(RPRPanel, Panel):
         row.prop(env, "type", expand=True)
 
         if env.type == 'IBL':
-            box = col.box()
-            row = box.row()
-            row.prop(env.ibl, 'type', expand=True)
-            row = box.row()
-
-            if env.ibl.type == 'COLOR':
-                row.prop(env.ibl, "color")
-            else:
-                if versions.is_blender_support_ibl_image():
-                    row.template_ID(env.ibl, "ibl_image", open="image.open")
-                else:
-                    row.prop(env.ibl, "ibl_map", text='')
-
-            row = box.row()
-            row.prop(env.ibl, "intensity")
+            self.draw_ibl(col, env)
 
             self.draw_maps(col, env.ibl.maps)
 
+            self.draw_environment_gizmo(col, context, env)
+
         elif env.type == 'SUN_SKY':
-            box = col.box()
-            col_base = box.column()
-            col_base.label("Generic Sun & Sky parameters:")
-            row1 = col_base.row()
+            self.draw_sun_sky(col, env)
 
-            row = row1.column(align=True)
-            row.alignment = 'EXPAND'
-            row.prop(env.sun_sky, "turbidity")
-            row.prop(env.sun_sky, "intensity")
-            row.prop(env.sun_sky, "sun_glow")
-            row.prop(env.sun_sky, "sun_disc")
+        layout.separator()
+        layout.prop(get_render_passes_aov(context), "transparent", text="Transparent Background")
 
-            row = row1.column(align=True)
-            row.alignment = 'EXPAND'
-            row.prop(env.sun_sky, "saturation")
-            row.prop(env.sun_sky, "horizon_height")
-            row.prop(env.sun_sky, "horizon_blur")
+    def draw_ibl(self, col, env):
+        box = col.box()
+        row = box.row()
+        row.prop(env.ibl, 'type', expand=True)
+        row = box.row()
+        if env.ibl.type == 'COLOR':
+            row.prop(env.ibl, "color")
+        else:
+            if versions.is_blender_support_ibl_image():
+                row.template_ID(env.ibl, "ibl_image", open="image.open")
+            else:
+                row.prop(env.ibl, "ibl_map", text='')
+        row = box.row()
+        row.prop(env.ibl, "intensity")
 
-            row = col_base.row()
-            row1 = row.column()
-            row1.prop(env.sun_sky, "filter_color")
-            row1 = row.column()
-            row1.prop(env.sun_sky, "ground_color")
-
-            row = col_base.row()
-            row.label('Texture resolution:')
-            row = col_base.row()
-            row.prop(env.sun_sky, "texture_resolution", expand=True)
-
-            box = col.box()
-            row = box.row()
-            row.label("Sun & Sky System:")
-            row = box.row()
-            row.prop(env.sun_sky, "type", expand=True)
-            if env.sun_sky.type == 'analytical_sky':
-                row1 = box.row(align=True)
-                row1.alignment = 'EXPAND'
-                row1.prop(env.sun_sky, "azimuth")
-                row1.prop(env.sun_sky, "altitude")
-            elif env.sun_sky.type == 'date_time_location':
-                row1 = box.row()
-                row = row1.column(align=True)
-                row.alignment = 'EXPAND'
-                row.prop(env.sun_sky, "time_hours")
-                row.prop(env.sun_sky, "time_minutes")
-                row.prop(env.sun_sky, "time_seconds")
-
-                row = row1.column(align=True)
-                row.alignment = 'EXPAND'
-                row.prop(env.sun_sky, "date_month")
-                row.prop(env.sun_sky, "date_day")
-                row.prop(env.sun_sky, "date_year")
-
-                row = box.row()
-                col1 = row.column()
-                col1.prop(env.sun_sky, "time_zone")
-                col1 = row.column()
-                col1.operator('rpr.op_get_time_now', text='Now', icon='TIME')
-                row = box.row()
-                row.prop(env.sun_sky, "daylight_savings")
-
+    def draw_maps(self, col, maps):
+        for category in environment_override_categories:
+            col.prop(maps, "override_{}".format(category))
+            if getattr(maps, "override_{}".format(category)):
                 box = col.box()
-                row = box.row(align=True)
-                row.label("Location")
-                row1 = box.row(align=True)
-                row1.alignment = 'EXPAND'
-                row1.prop(env.sun_sky, "latitude")
-                row1.prop(env.sun_sky, "longitude")
-
+                row = box.row()
                 row.alignment = 'EXPAND'
-                row.operator("view3d.location_select", text="By Map", icon='WORLD')
-                row.operator("rpr.location_select_by_city", text="By City", icon="SYNTAX_ON")
+                row.prop(maps, "override_{}_type".format(category), expand=True)
 
+                row = box.row()
+                if getattr(maps, "override_{}_type".format(category)) == 'image':
+                    if versions.is_blender_support_ibl_image():
+                        row.template_ID(maps, "{}_image".format(category), open="image.open")
+                    else:
+                        row.prop(maps, "{}_map".format(category), text='')
+                else:
+                    row.prop(maps, "{}_color".format(category))
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.world.rpr_data.environment, "enable", text="")
+
+    def draw_sun_sky(self, col, env):
+        box = col.box()
+        col_base = box.column()
+        col_base.label("Generic Sun & Sky parameters:")
+        row1 = col_base.row()
+        row = row1.column(align=True)
+        row.alignment = 'EXPAND'
+        row.prop(env.sun_sky, "turbidity")
+        row.prop(env.sun_sky, "intensity")
+        row.prop(env.sun_sky, "sun_glow")
+        row.prop(env.sun_sky, "sun_disc")
+        row = row1.column(align=True)
+        row.alignment = 'EXPAND'
+        row.prop(env.sun_sky, "saturation")
+        row.prop(env.sun_sky, "horizon_height")
+        row.prop(env.sun_sky, "horizon_blur")
+        row = col_base.row()
+        row1 = row.column()
+        row1.prop(env.sun_sky, "filter_color")
+        row1 = row.column()
+        row1.prop(env.sun_sky, "ground_color")
+        row = col_base.row()
+        row.label('Texture resolution:')
+        row = col_base.row()
+        row.prop(env.sun_sky, "texture_resolution", expand=True)
+        box = col.box()
+        row = box.row()
+        row.label("Sun & Sky System:")
+        row = box.row()
+        row.prop(env.sun_sky, "type", expand=True)
+        if env.sun_sky.type == 'analytical_sky':
+            row1 = box.row(align=True)
+            row1.alignment = 'EXPAND'
+            row1.prop(env.sun_sky, "azimuth")
+            row1.prop(env.sun_sky, "altitude")
+        elif env.sun_sky.type == 'date_time_location':
+            row1 = box.row()
+            row = row1.column(align=True)
+            row.alignment = 'EXPAND'
+            row.prop(env.sun_sky, "time_hours")
+            row.prop(env.sun_sky, "time_minutes")
+            row.prop(env.sun_sky, "time_seconds")
+
+            row = row1.column(align=True)
+            row.alignment = 'EXPAND'
+            row.prop(env.sun_sky, "date_month")
+            row.prop(env.sun_sky, "date_day")
+            row.prop(env.sun_sky, "date_year")
+
+            row = box.row()
+            col1 = row.column()
+            col1.prop(env.sun_sky, "time_zone")
+            col1 = row.column()
+            col1.operator('rpr.op_get_time_now', text='Now', icon='TIME')
+            row = box.row()
+            row.prop(env.sun_sky, "daylight_savings")
+
+            box = col.box()
+            row = box.row(align=True)
+            row.label("Location")
+            row1 = box.row(align=True)
+            row1.alignment = 'EXPAND'
+            row1.prop(env.sun_sky, "latitude")
+            row1.prop(env.sun_sky, "longitude")
+
+            row.alignment = 'EXPAND'
+            row.operator("view3d.location_select", text="By Map", icon='WORLD')
+            row.operator("rpr.location_select_by_city", text="By City", icon="SYNTAX_ON")
+
+    def draw_environment_gizmo(self, col, context, env):
         box = col.box()
         col1, col2, is_row = create_ui_autosize_column(context, box)
         col1.label('Object:')
@@ -590,9 +598,6 @@ class RPRRender_PT_environment(RPRPanel, Panel):
         if not env.gizmo:
             row.operator("rpr.op_create_environment_gizmo", icon='ZOOMIN', text="").rotation = env.gizmo_rotation
         col2.prop(env, 'gizmo_rotation')
-
-        layout.separator()
-        layout.prop(get_render_passes_aov(context), "transparent", text="Transparent Background")
 
 
 @rpraddon.register_class

@@ -159,7 +159,6 @@ class RPREngine(bpy.types.RenderEngine):
         border = rprblender.sync.extract_render_border_from_scene(scene)
         render_border_resolution = rprblender.sync.get_render_resolution_for_border(border, render_resolution)
 
-
         render_camera = sync.RenderCamera()
         sync.extract_render_camera_from_blender_camera(scene.camera, render_camera, render_resolution, 1, settings,
                                                        scene, border=border, 
@@ -203,16 +202,16 @@ class RPREngine(bpy.types.RenderEngine):
 
                     environment_light_image = rprblender.core.image.create_core_image_from_image_file(
                         scene_renderer.context, str(Path(rprblender.__file__).parent / 'img/env.hdr'))
-                    environment_light = scene_synced.environment_light_create_from_core_image(
+                    environment_light = scene_synced.create_environment_light_from_core_image(
                         "preview_ibl", environment_light_image)
                     environment_light.attach()
 
                     if is_icon:
                         background_image = rprblender.core.image.create_core_image_from_image_file(
                             scene_renderer.context, str(Path(rprblender.__file__).parent / 'img/gray.jpg'))
-                        background = scene_synced.background_create_from_core_image(
-                            "preview_background", background_image)
-                        background._enable()
+                        background = scene_synced.create_environment_override_from_core_image(
+                            category="background", name="preview_background", core_image=background_image)
+                        background.enable()
                 else:
                     settings_environment = scene.world.rpr_data.environment if scene.world else None
                     scene_exporter.sync_environment_settings(settings_environment)
@@ -236,7 +235,6 @@ class RPREngine(bpy.types.RenderEngine):
             scene_renderer_threaded = rprblender.render.scene.SceneRendererThreaded(scene_renderer)
             scene_renderer_threaded.start_noninteractive()
 
-            
             if not self.is_preview and versions.is_blender_support_aov():
                 self.add_passes(passes_aov_list)
 

@@ -96,6 +96,14 @@ def check_old_environment_settings():
                 'override_background_type': 'image',
                 'background_map': '',
                 'background_color': (0.5, 0.5, 0.5),
+                'override_reflection': False,
+                'override_reflection_type': 'image',
+                'reflection_map': '',
+                'reflection_color': (0.5, 0.5, 0.5),
+                'override_refraction': False,
+                'override_refraction_type': 'image',
+                'refraction_map': '',
+                'refraction_color': (0.5, 0.5, 0.5),
             }
         },
         'sun_sky': {
