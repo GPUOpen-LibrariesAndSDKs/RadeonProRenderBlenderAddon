@@ -118,7 +118,8 @@ class SceneRenderer:
                 if numGPUs > samples_per_iteration and self.is_production:
                     samples_per_iteration = numGPUs
                 
-                self.used_iterations = int(limits.iterations / samples_per_iteration)
+                min_iterations = limits.iterations if limits.iterations > samples_per_iteration else samples_per_iteration
+                self.used_iterations = int(min_iterations / samples_per_iteration)
                 self.iteration_divider = 1 / samples_per_iteration
         
         time_start = time.perf_counter()
