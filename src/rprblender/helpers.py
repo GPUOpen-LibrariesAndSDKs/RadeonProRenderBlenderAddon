@@ -25,7 +25,11 @@ if platform.system() == 'Windows':
 
 
 def settings_changed(self, context):
-    save_user_settings()
+    # Checking that bpy.context.scene exists, because this function is called during plugin registration
+    # while scene could not be created yet. This prevents following exception be raised:
+    # AttributeError: '_RestrictContext' object has no attribute 'scene'
+    if hasattr(bpy.context, 'scene'):
+        save_user_settings()
 
 
 devices_types_desc = (('gpu', "GPU", "Use GPU only"),
