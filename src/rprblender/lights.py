@@ -6,13 +6,19 @@ import numpy as np
 import bmesh
 import mathutils
 import rprblender.core.image
-from rprblender.helpers import convert_K_to_RGB
+from rprblender.helpers import convert_K_to_RGB, CallLogger
+from rprblender import logging
 import rprblender.versions as versions
 
 MAX_LUMINOUS_EFFICACY = 684.0
 
+
+call_logger = CallLogger(tag='export.sync.lights')
+
+
 class LightError(RuntimeError):
     pass
+
 
 class Light:
     def set_light_group(self, lamp):
@@ -290,6 +296,66 @@ class AreaLight(Light):
             bm.free()
 
         return (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area)
+
+
+class EnvironmentLight:
+    def __init__(self, scene_synced, name, core_environment_light, core_image=None):
+        self.core_environment_light = core_environment_light
+        self.scene_synced = scene_synced
+        self.name = name
+        self.attached = False
+        self.core_image = core_image
+
+    @property
+    def is_attached(self):
+        return self.attached
+
+    @call_logger.logged
+    def attach(self):
+        logging.debug('EnvironmentLight re-attach', self.name, tag='sync')
+        self.core_environment_light.set_name("Environment")
+        self.scene_synced.set_scene_environment(self.core_environment_light)
+        self.attached = True
+        self.scene_synced.ibls_attached.add(self)
+        # Environment Lights are harcoded to group 0
+        self.core_environment_light.set_light_group_id(0)
+
+    @call_logger.logged
+    def detach(self):
+        logging.debug('EnvironmentLight detach', self.name, tag='sync')
+        self.scene_synced.remove_scene_environment(self.core_environment_light)
+        self.attached = False
+        self.scene_synced.ibls_attached.remove(self)
+
+    @call_logger.logged
+    def attach_portal(self, core_scene, core_shape):
+        self.core_environment_light.attach_portal(core_scene, core_shape)
+
+    @call_logger.logged
+    def detach_portal(self, core_scene, core_object):
+        self.core_environment_light.detach_portal(core_scene, core_object)
+
+    def set_intensity(self, value: float):
+        self.core_environment_light.set_intensity_scale(value)
+
+    def set_image_from_buffer(self, image: np.ndarray):
+        self.core_image = pyrpr.Image(self.scene_synced.context, data=image)
+        self.core_environment_light.set_image(self.core_image)
+
+    def set_rotation(self, rotation_gizmo):
+        rotation_gizmo = (-rotation_gizmo[0], -rotation_gizmo[1], -rotation_gizmo[2])
+        euler = mathutils.Euler(rotation_gizmo)
+        rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
+        fixup = np.array([[1, 0, 0],
+                          [0, 0, 1],
+                          [0, 1, 1]], dtype=np.float32)
+        matrix = np.identity(4, dtype=np.float32)
+        matrix[:3, :3] = np.dot(fixup, rotation_matrix)
+
+        self.core_environment_light.set_transform(matrix, False)
+
+    def set_transform(self, transform_matrix):
+        self.core_environment_light.set_transform(transform_matrix, False)
 
 
 def callback_light_draw():

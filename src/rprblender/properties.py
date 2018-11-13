@@ -107,6 +107,8 @@ class RenderPassesAov(bpy.types.PropertyGroup):
 # Environment
 ########################################################################################################################
 
+environment_override_categories = ("background", "reflection", "refraction")
+
 @rpraddon.register_class
 class RenderEnvironmentMaps(bpy.types.PropertyGroup):
     override_background = bpy.props.BoolProperty(
@@ -120,30 +122,62 @@ class RenderEnvironmentMaps(bpy.types.PropertyGroup):
         description="Background override type",
         default='image',
     )
+
+    override_reflection = bpy.props.BoolProperty(
+        name="Override Reflection", description="Override the IBL background for reflection channel",
+        default=False,
+    )
+    override_reflection_type = bpy.props.EnumProperty(
+        name="Override Type",
+        items=(("image", "Image", "Override the background for reflections with an image"),
+               ("color", "Color", "Override the background for reflections with a color")),
+        description="Reflection override type",
+        default='image',
+    )
+
+    override_refraction = bpy.props.BoolProperty(
+        name="Override Refraction", description="Override the IBL background for refraction channel",
+        default=False,
+    )
+    override_refraction_type = bpy.props.EnumProperty(
+        name="Override Type",
+        items=(("image", "Image", "Override the background for refraction with an image"),
+               ("color", "Color", "Override the background for refraction with a color")),
+        description="Refraction override type",
+        default='image',
+    )
+
     if versions.is_blender_support_ibl_image():
         background_image = bpy.props.PointerProperty(type=bpy.types.Image)
+        reflection_image = bpy.props.PointerProperty(type=bpy.types.Image)
+        refraction_image = bpy.props.PointerProperty(type=bpy.types.Image)
     else:
         background_map = bpy.props.StringProperty(
             name='Background Map', description='Background Map', subtype='FILE_PATH'
         )
+        reflection_map = bpy.props.StringProperty(
+            name='Reflection Map', description='Reflection Map', subtype='FILE_PATH'
+        )
+        refraction_map = bpy.props.StringProperty(
+            name='Refraction Map', description='Refraction Map', subtype='FILE_PATH'
+        )
+
     background_color = bpy.props.FloatVectorProperty(
         name='Background Color', description="The background override color",
         subtype='COLOR', min=0.0, max=1.0, size=3,
         default=(0.5, 0.5, 0.5)
     )
-    override_reflection_map = bpy.props.BoolProperty(
-        name="Override Reflection Map", description="Override Reflection Map",
-        default=False,
+
+    reflection_color = bpy.props.FloatVectorProperty(
+        name='Reflection Color', description="The reflection override color",
+        subtype='COLOR', min=0.0, max=1.0, size=3,
+        default=(0.5, 0.5, 0.5)
     )
-    reflection_map = bpy.props.StringProperty(
-        name='Reflection Map', description='Reflection Map', subtype='FILE_PATH'
-    )
-    override_refraction_map = bpy.props.BoolProperty(
-        name="Override Refraction Map", description="Override Refraction Map",
-        default=False,
-    )
-    refraction_map = bpy.props.StringProperty(
-        name='Refraction Map', description='Refraction Map', subtype='FILE_PATH'
+
+    refraction_color = bpy.props.FloatVectorProperty(
+        name='Refraction Color', description="The refraction override color",
+        subtype='COLOR', min=0.0, max=1.0, size=3,
+        default=(0.5, 0.5, 0.5)
     )
 
 
@@ -403,13 +437,13 @@ class RenderEnvironment(bpy.types.PropertyGroup):
 
     def switch_sun_helper(self):
         if self.enable and self.type == 'SUN_SKY' and self.sun_sky.type == 'analytical_sky':
-            logging.info('draw_handler_add...')
+            logging.debug('draw_handler_add...')
             RenderEnvironment.handle_sun_draw = bpy.types.SpaceView3D.draw_handler_add(callback_draw_sun,
                                                                                        (self, bpy.context), 'WINDOW',
                                                                                        'POST_PIXEL')
         else:
             if RenderEnvironment.handle_sun_draw:
-                logging.info('draw_handler_remove...')
+                logging.debug('draw_handler_remove...')
                 bpy.types.SpaceView3D.draw_handler_remove(RenderEnvironment.handle_sun_draw, 'WINDOW')
 
     def update_enable(self, context):
