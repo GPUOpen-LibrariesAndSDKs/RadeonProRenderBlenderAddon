@@ -685,12 +685,19 @@ class MaterialImageLoader:
         else:
             if '\\' in fpath or '/' in fpath:  # texture is in common textures folder?
                 fpath_full = self.root_folder + '/' + fpath
-                fpath_relative = fpath
+                fpath_relative = fpath.split("..")[-1]
             else:
                 fpath_full = self.material_folder + '/' + fpath
                 fpath_relative = os.path.basename(self.material_folder) + '/' + fpath
 
-            return self._load_image(self._copy_image(fpath_full, 'rprmaterials' + '/' + fpath_relative))
+            fpath_relative = 'rprmaterials' + '/' + fpath_relative
+
+            try:
+                copied_image = self._copy_image(fpath_full, fpath_relative)
+                return self._load_image(copied_image)
+            except PermissionError:  # access denied, most likely user hasn't saved new scene yet
+                # TODO: inform user she should save scene .blend file first
+                return self._load_image(fpath_full)
 
 
 def iter_materials(root):

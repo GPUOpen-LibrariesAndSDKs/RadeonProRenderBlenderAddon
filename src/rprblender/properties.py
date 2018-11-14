@@ -1285,7 +1285,8 @@ class RPRRenderSettings(bpy.types.PropertyGroup):
         cls.copy_textures = bpy.props.EnumProperty(
             name="Copy textures",
             items=(('DEFAULT', "Don't copy textures", "Reference original texture images of material library"),
-                   ('LOCAL', "Copy textures locally", "Copy texture images under blend file folder")),
+                   ('LOCAL', "Copy textures locally", "Copy texture images under blend file folder if scene is saved.\n"
+                                                      "Reference original texture images if not.")),
             description="Choose to copy texture images to blend file folder",
             default='DEFAULT',
         )
