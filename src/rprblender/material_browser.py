@@ -77,7 +77,7 @@ class RPRMaterialLibrary:
         manifest_file = self.path + "/manifest.json"
 
         if not os.path.isfile(manifest_file):
-            print("Material library manifest not found at " + self.path)
+            logging.info("Material library manifest not found at {}".format(self.path), tag='material')
             return
 
         # Read the manifest.
@@ -166,10 +166,17 @@ class RPRMaterialLibrary:
             matlib_installed = install_dir_for_files / '.matlib_installed'
             if matlib_installed.exists():
                 matlib_path = Path(matlib_installed.read_text())
-                return str(matlib_path)
+                matlib_path = str(matlib_path)
+                if matlib_path and os.path.exists(matlib_path + "/Xml"):  # Material Library 2.0
+                    logging.info("Material Library 2.0 found", tag='material')
+                    return matlib_path + "/Xml"
+                logging.info("Material Library 1.0 found", tag='material')
+                return matlib_path  # Material Library 1.0
 
         elif 'Darwin' == platform.system():
-            return "/Users/Shared/RadeonProRender/Blender/matlib/"
+            if os.path.exists("/Users/Shared/RadeonProRender/Blender/matlib/Xml"):  # Material Library 2.0
+                return "/Users/Shared/RadeonProRender/Blender/matlib/Xml"
+            return "/Users/Shared/RadeonProRender/Blender/matlib"  # Material Library 1.0
 
         return ""
 
@@ -573,19 +580,19 @@ def import_xml_material(fpath, material, copy_textures=False):
         if not os.path.isdir(dst_folder):
             os.makedirs(dst_folder)
         if not os.path.exists(dst_full_path):
-            shutil.copyfile(bpy.path.native_pathsep(src),
-                            dst_full_path)
+            source_path = bpy.path.native_pathsep(src)
+            shutil.copyfile(source_path, dst_full_path)
         return '//' + dst.replace(os.path.sep, '/')
 
     with open(fpath) as xml:
         logging.info('loading material...', fpath)
+        loader = material_import.MaterialImageLoader(load_image=material_editor.load_image,
+                                                     root_folder=rpr_material_library.path,
+                                                     material_folder=os.path.dirname(fpath),
+                                                     copy_image=copy_image if copy_textures else None)
         shader = material_import.compile_material_from_xml(
             xml.read(), material_editor,
-            material_import.MaterialImageLoader(
-                material_editor.load_image,
-                root_folder=rpr_material_library.path,
-                material_folder=os.path.dirname(fpath),
-                copy_image=copy_image if copy_textures else None))
+            loader)
     logging.info('finish loading material...')
 
     shader.node.location = 300, 400
@@ -622,7 +629,8 @@ class RPRImportMaterialOperator(bpy.types.Operator):
     copy_textures = bpy.props.EnumProperty(
         name="XXX",
         items=(('DEFAULT', "Don't copy textures", "Reference original texture images of material library"),
-               ('LOCAL', "Copy textures locally", "Copy texture images under blend file folder")),
+               ('LOCAL', "Copy textures locally", "Copy texture images under blend file folder if scene is saved.\n"
+                                                  "Reference original texture images if not.")),
         description="Choose to copy texture images to blend file folder",
         default='DEFAULT',
     )
