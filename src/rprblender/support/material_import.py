@@ -171,11 +171,11 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
     def get_input_socket(self, name):
         if name == 'reflection.ior':
             mode = self.get_ui_socket_value('reflection.mode')
-            if mode is not None and mode == "METALNESS":
+            if mode is not None and mode == 'METALNESS':
                 name = 'reflection.metalness'
         elif name == 'coating.ior':
             mode = self.get_ui_socket_value('coating.mode')
-            if mode is not None and mode == "METALNESS":
+            if mode is not None and mode == 'METALNESS':
                 name = 'coating.metalness'
 
         socket_info = self.input_sockets_info.get(name)
@@ -195,6 +195,8 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
             return
         if name in ('reflection.mode', 'coating.mode'):
             value = {'1': 'IOR', '2': 'METALNESS'}[value]
+        elif name == 'emission.mode':
+            value = {'1': False, '2': True}[value]
         elif socket_info.type_name == 'bool':
             value = bool(int(value))
 
@@ -234,13 +236,13 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
         socket_info = self.input_sockets_info.get(name)
         if socket_info is None or socket_info.name is None:
             return None
-        if socket_info.type_name == "float3":
+        if socket_info.type_name == 'float3':
             return get_float4_as_float3(value)
-        if socket_info.type_name == "float":
+        if socket_info.type_name == 'float':
             return get_float4_first_component(value)
-        if socket_info.type_name == "int":
+        if socket_info.type_name == 'int':
             return int(get_float4_first_component(value))
-        if socket_info.type_name == "bool":
+        if socket_info.type_name == 'bool':
             return bool(get_float4_first_component(value))
         return super().compile_input_value(name, value)
 
@@ -251,7 +253,7 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
     
     def set_socket_value(self, input_socket, value):
         # Coating Transmission Color passed as inverted, convert it back
-        if input_socket.name == self.input_sockets_info["coating.transmissionColor"].name:
+        if input_socket.name == self.input_sockets_info['coating.transmissionColor'].name:
             value = (1.0 - value[0], 1.0 - value[1], 1.0 - value[2], 1.0)
         super(Uber3MaterialCompiler, self).set_socket_value(input_socket, value)
 
@@ -264,8 +266,8 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
                 self.set_ui_socket_value(input_socket_name, enabled)
 
         # check for "Separate Backscatter Color": compare "diffuse.color" and "backscatter.color"
-        diffuse_color = self.get_input_socket("diffuse.color").default_value
-        backscatter_color = self.get_input_socket("backscatter.color").default_value
+        diffuse_color = self.get_input_socket('diffuse.color').default_value
+        backscatter_color = self.get_input_socket('backscatter.color').default_value
         not_equal = sum([1 for i in range(0, 4) if not diffuse_color[i] == backscatter_color[i]]) > 0
         if not_equal:
             info = self.get_update_socket_info('backscatter.separate.color')
@@ -273,7 +275,7 @@ class Uber3MaterialCompiler(BasicMaterialNodeCompiler):
                 self.set_ui_socket_value(info.name, True)
 
         # check for "Subsurface Use Diffuse Color": compare "diffuse.color" and "Subsurface Scattering Color"
-        subsurface_color = self.get_input_socket("sss.scatterColor").default_value
+        subsurface_color = self.get_input_socket('sss.scatterColor').default_value
         not_equal = sum([1 for i in range(0, 4) if not diffuse_color[i] == subsurface_color[i]]) > 0
         if not_equal:
             info = self.get_update_socket_info('sss.use.diffuse.color')
