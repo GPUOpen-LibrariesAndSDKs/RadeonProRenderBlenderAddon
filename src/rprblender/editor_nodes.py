@@ -1893,8 +1893,8 @@ class RPRMaterialNode_AO(RPRNodeType_Texture):
     bl_idname = 'rpr_texture_node_ao'
     bl_label = 'RPR Ambient Occlusion'
 
-    radius = bpy.props.FloatProperty(name='radius', min=-0.0, soft_max=10.0, default=0.1)
-    side = bpy.props.EnumProperty(name = 'side',
+    radius = bpy.props.FloatProperty(name='Radius', min=-0.0, soft_max=10.0, default=0.1)
+    side = bpy.props.EnumProperty(name = 'AO Side',
                                   items={('FRONT', 'Front', 'Front'),
                                          ('BACK', 'Back', 'Back')},
                                   default='FRONT')
