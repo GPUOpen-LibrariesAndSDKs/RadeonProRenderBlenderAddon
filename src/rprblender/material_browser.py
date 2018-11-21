@@ -174,7 +174,9 @@ class RPRMaterialLibrary:
                 return matlib_path  # Material Library 1.0
 
         elif 'Darwin' == platform.system():
-            if os.path.exists("/Users/Shared/RadeonProRender/Blender/matlib/Xml"):  # Material Library 2.0
+            if os.path.exists("/Users/Shared/RadeonProRender//MaterialLibrary/2.0.0/Xml"):  # Material Library 2.0 separate lib
+                return "/Users/Shared/RadeonProRender//MaterialLibrary/2.0.0/Xml"
+            elif os.path.exists("/Users/Shared/RadeonProRender/Blender/matlib/Xml"):  # Material Library 2.0 embedded lib
                 return "/Users/Shared/RadeonProRender/Blender/matlib/Xml"
             return "/Users/Shared/RadeonProRender/Blender/matlib"  # Material Library 1.0
 
