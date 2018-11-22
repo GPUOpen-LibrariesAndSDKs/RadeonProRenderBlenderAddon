@@ -19,7 +19,7 @@ cycles_convert_enabled = True
 image_cache_blender = True
 image_cache_core = True
 
-image_dont_load_use_small = False
+replace_images_with_placeholders = False
 
 url_json_version = 'https://radeon-prorender.github.io/rpr_renderer_plugin_blender_latest_version.json'
 

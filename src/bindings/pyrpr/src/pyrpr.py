@@ -761,7 +761,7 @@ class Light(Object):
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         LightSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
-    def set_light_group_id(self, group_id):
+    def set_group_id(self, group_id):
         LightSetGroupId(self, group_id)
 
 
@@ -833,32 +833,41 @@ class DirectionalLight(Light):
         DirectionalLightSetShadowSoftness(self, coeff)
 
 
-
 class Image(Object):
     core_type_name = 'rpr_image'
 
-    def __init__(self, context, data:np.array=None, path=None):
+    def __init__(self, context):
         super().__init__()
         self.context = context
-        
-        if path:
-            ContextCreateImageFromFile(self.context, encode(path), self)
-        else:
-            components = data.shape[2]
-            desc = ffi.new("rpr_image_desc*")
-            desc.image_width = data.shape[1]
-            desc.image_height = data.shape[0]
-            desc.image_depth = 0
-            desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * components
-            desc.image_slice_pitch = 0
-
-            ContextCreateImage(self.context, (components, COMPONENT_TYPE_FLOAT32), desc, ffi.cast("float *", data.ctypes.data), self)
 
     def set_gamma(self, gamma):
         ImageSetGamma(self, gamma)
 
     def set_wrap(self, wrap_type):
         ImageSetWrap(self, wrap_type)
+
+
+class ImageData(Image):
+    def __init__(self, context, data: np.array):
+        super().__init__(context)
+
+        components = data.shape[2]
+        desc = ffi.new("rpr_image_desc*")
+        desc.image_width = data.shape[1]
+        desc.image_height = data.shape[0]
+        desc.image_depth = 0
+        desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * components
+        desc.image_slice_pitch = 0
+
+        ContextCreateImage(self.context, (components, COMPONENT_TYPE_FLOAT32), desc, ffi.cast("float *", data.ctypes.data), self)
+
+
+class ImageFile(Image):
+    def __init__(self, context, path):
+        super().__init__(context)
+
+        self.path = path
+        ContextCreateImageFromFile(self.context, encode(self.path), self)
 
 
 class Buffer(Object):

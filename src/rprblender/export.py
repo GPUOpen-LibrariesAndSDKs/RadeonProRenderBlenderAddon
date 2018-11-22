@@ -16,7 +16,7 @@ from rprblender.properties import environment_override_categories
 from . import logging
 from rprblender.helpers import CallLogger
 import rprblender.images
-
+from rprblender import lights
 
 call_logger = CallLogger(tag='export')
 
@@ -848,8 +848,11 @@ class SceneExport:
     @call_logger.logged
     def add_lamp(self, obj):
         key = get_object_key(obj)
-        self.lamps_added.add(key)
-        self.scene_synced.add_lamp(key, obj)
+        try:
+            self.scene_synced.add_lamp(key, obj)
+            self.lamps_added.add(key)
+        except lights.LightError as e:
+            logging.error(e.args[0] + ". Empty light will be used.")
 
     @call_logger.logged
     def remove_lamp(self, key):
@@ -1141,12 +1144,12 @@ class SceneExport:
 
         # create environment light
         if attach:
-            self.environment_exporter.sun_sky = self.scene_synced.create_environment_light_empty()
+            self.environment_exporter.sun_sky = self.scene_synced.create_environment_light()
 
         # we have to flip the IBL image upside down
         ibl_data = np.ascontiguousarray(np.flipud(self.environment_exporter.sun_sky_image_buffer))
 
-        self.environment_exporter.sun_sky.set_image_from_buffer(ibl_data)
+        self.environment_exporter.sun_sky.set_image_data(ibl_data)
         intensity = sync.get('sun_sky', 'intensity').get_updated_value()
         self.environment_exporter.sun_sky.set_intensity(intensity)
 
@@ -1532,14 +1535,14 @@ class SceneExport:
 
             if ibl_map.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'IBL'):
                 self.environment_exporter.detach_ibl()
-                ibl = self.scene_synced.create_environment_light(ibl_map.get_updated_value())
+                ibl = self.scene_synced.create_environment_light(ibl_map=ibl_map.get_updated_value())
                 self.environment_exporter.set_ibl(ibl)
                 ibl_needs_attach = True
 
             color = env_sync.get('ibl', 'color')
             if color.updated() or (use_ibl_map.updated() and use_ibl_map.get_updated_value() == 'COLOR'):
                 self.environment_exporter.detach_ibl()
-                ibl = self.scene_synced.create_environment_light_color(color.get_updated_value())
+                ibl = self.scene_synced.create_environment_light(color=color.get_updated_value())
                 self.environment_exporter.set_ibl(ibl)
                 ibl_needs_attach = True
             else:
