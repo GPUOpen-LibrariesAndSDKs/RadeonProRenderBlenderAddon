@@ -246,7 +246,7 @@ class NodeThumbnailManager:
         return self.environment_light_from_image_data(im)
 
     def environment_light_from_image_data(self, im):
-        img = pyrpr.Image(self.context, data=im)
+        img = pyrpr.ImageData(self.context, im)
         ibl = pyrpr.EnvironmentLight(self.context)
         ibl.set_image(img)
         envmap_transform_fixup = [[1, 0, 0, 0],

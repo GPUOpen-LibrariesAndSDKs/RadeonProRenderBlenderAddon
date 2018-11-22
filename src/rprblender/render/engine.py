@@ -202,8 +202,7 @@ class RPREngine(bpy.types.RenderEngine):
 
                     environment_light_image = rprblender.core.image.create_core_image_from_image_file(
                         scene_renderer.context, str(Path(rprblender.__file__).parent / 'img/env.hdr'))
-                    environment_light = scene_synced.create_environment_light_from_core_image(
-                        "preview_ibl", environment_light_image)
+                    environment_light = scene_synced.create_environment_light(image=environment_light_image)
                     environment_light.attach()
 
                     if is_icon:

@@ -54,7 +54,7 @@ def create_core_downscaled_image_from_blender_image(context, blender_image, imag
     # scaling existing blender image and leave it in this state
     blender_image.scale(new_size[0], new_size[1])
 
-    return create_core_image_from_pixels(context, get_pixels_for_blender_image(context, blender_image))
+    return pyrpr.ImageData(context, get_pixels_for_blender_image(context, blender_image))
 
 
 @logged
@@ -92,7 +92,7 @@ def create_core_image_from_blender_image(context, blender_image, image_size):
             logging.debug("create_core_image_from_blender_image: after reload size=(%d, %d)" % 
                           (blender_image.size[0], blender_image.size[1]))
 
-        core_image = create_core_image_from_pixels(context, get_pixels_for_blender_image(context, blender_image))
+        core_image = pyrpr.ImageData(context, get_pixels_for_blender_image(context, blender_image))
 
         if image_size:
             # scaling image back to downscaled size because we don't want to store it in Blender's memory
@@ -130,18 +130,12 @@ def get_cached_pixels_for_blender_image(context, blender_image):
 
 
 @logged
-def create_core_image_from_pixels(context, pixels):
-    logging.debug("create_core_image_from_pixels:", pixels.shape, tag="core.image")
-    return pyrpr.Image(context, data=pixels)
-
-
-@logged
 def create_core_image_from_image_file(context, filename):
     logging.debug("create_core_image_from_image_file:", filename, tag="core.image")
-    if config.image_dont_load_use_small:
-        return create_core_image_from_pixels(context, get_tiny_image())
+    if config.replace_images_with_placeholders:
+        return pyrpr.ImageData(context, get_tiny_image())
 
-    return pyrpr.Image(context, path=filename)
+    return pyrpr.ImageFile(context, filename)
 
 
 def get_tiny_image():
@@ -152,8 +146,8 @@ def get_tiny_image():
 
 @logged
 def create_core_image_from_image_file_via_blender(context, filename, flipud):
-    if config.image_dont_load_use_small:
-        return create_core_image_from_pixels(context, get_tiny_image())
+    if config.replace_images_with_placeholders:
+        return pyrpr.ImageData(context, get_tiny_image())
 
     image = None
     try:
@@ -165,7 +159,7 @@ def create_core_image_from_image_file_via_blender(context, filename, flipud):
     finally:
         if image:
             bpy.data.images.remove(image)
-    return create_core_image_from_pixels(context, pixels)
+    return pyrpr.ImageData(context, pixels)
 
 @logged
 def extract_pixels_from_blender_downscaled_image(image, image_size, flipud=True):
@@ -173,7 +167,7 @@ def extract_pixels_from_blender_downscaled_image(image, image_size, flipud=True)
         # this is small image we will not downscale it
         return extract_pixels_from_blender_image(image, flipud)
 
-    if config.image_dont_load_use_small:
+    if config.replace_images_with_placeholders:
         return get_tiny_image()
 
     new_size = (min(image.size[0], image_size), 
@@ -199,7 +193,7 @@ def extract_pixels_from_blender_downscaled_image(image, image_size, flipud=True)
 
 @logged
 def extract_pixels_from_blender_image(image, flipud=True):
-    if config.image_dont_load_use_small:
+    if config.replace_images_with_placeholders:
         return get_tiny_image()
 
     logging.debug("extract_pixels_from_blender_image: %s, size=(%d, %d)", 

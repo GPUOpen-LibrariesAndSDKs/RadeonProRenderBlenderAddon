@@ -13,18 +13,41 @@ import rprblender.versions as versions
 MAX_LUMINOUS_EFFICACY = 684.0
 
 
-call_logger = CallLogger(tag='export.sync.lights')
+call_logger = CallLogger(tag='lights')
 
 
 class LightError(RuntimeError):
     pass
 
-
 class Light:
-    def set_light_group(self, lamp):
-        rpr_lamp = lamp.rpr_lamp
-        group_id = 1 if rpr_lamp.group == 'KEY' else 2
-        self.light.set_light_group_id(group_id)
+    def __init__(self, lamp: bpy.types.Lamp, material_system):
+        if lamp.type == 'AREA':
+            self._create_area_light(lamp, material_system)
+            self.light.set_light_group_id(1 if lamp.rpr_lamp.group == 'KEY' else 2)
+        else:
+            context = material_system.context
+            if lamp.type == 'SPOT':
+                self.light = pyrpr.SpotLight(context)
+                oangle = 0.5 * lamp.spot_size   # half of spot_size
+                iangle = oangle * (1.0 - lamp.spot_blend * lamp.spot_blend)   # square dependency of spot_blend
+                self.light.set_cone_shape(iangle, oangle)
+            elif lamp.type == 'SUN':
+                self.light = pyrpr.DirectionalLight(context)
+                self.light.set_shadow_softness(lamp.rpr_lamp.shadow_softness)
+            elif lamp.type == 'POINT':
+                if lamp.rpr_lamp.ies_file_name:
+                    self.light = pyrpr.IESLight(context)
+                    self.light.set_image_from_file(lamp.rpr_lamp.ies_file_name, 256, 256)
+                else:
+                    self.light = pyrpr.PointLight(context)
+            else: # 'HEMI'
+                assert lamp.type == 'HEMI'
+                raise LightError("Hemi lamp is not supported")
+
+            self.light.set_name(lamp.name)
+            power = self._get_radiant_power(lamp)
+            self.light.set_radiant_power(*power)
+            self.light.set_group_id(1 if lamp.rpr_lamp.group == 'KEY' else 2)
 
     def set_transform(self, transform):
         self.light.set_transform(transform)
@@ -38,7 +61,8 @@ class Light:
     def get_core_obj(self):
         return self.light
 
-    def _get_radiant_power(self, lamp, area=0):
+    @staticmethod
+    def _get_radiant_power(lamp, area=0):
         rpr_lamp = lamp.rpr_lamp
 
         # calculating color intensity
@@ -46,9 +70,6 @@ class Light:
         if rpr_lamp.use_temperature:
             color *= convert_K_to_RGB(rpr_lamp.temperature)
         intensity = color * rpr_lamp.intensity
-
-        # calculate luminous efficiency
-        luminous_efficiency = rpr_lamp.luminous_efficacy / MAX_LUMINOUS_EFFICACY
 
         # calculating radian power for core
         if lamp.type in ('POINT', 'SPOT'):
@@ -60,8 +81,8 @@ class Light:
             if units == 'LUMEN':
                 lumens = intensity
             elif units == 'WATTS':
-                lumens = intensity * luminous_efficiency
-            return lumens
+                lumens = intensity * rpr_lamp.luminous_efficacy
+            return lumens / MAX_LUMINOUS_EFFICACY
 
         elif lamp.type == 'SUN':
             units = rpr_lamp.intensity_units_dir
@@ -72,8 +93,8 @@ class Light:
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * luminous_efficiency
-            return luminance
+                luminance = intensity * rpr_lamp.luminous_efficacy
+            return luminance / MAX_LUMINOUS_EFFICACY
 
         else: 
             assert lamp.type == 'AREA'
@@ -88,65 +109,14 @@ class Light:
             if units == 'LUMEN':
                 luminance = intensity / area
             if units == 'WATTS':
-                luminance = intensity * luminous_efficiency / area
+                luminance = intensity * rpr_lamp.luminous_efficacy / area
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * luminous_efficiency
-            return luminance
+                luminance = intensity * rpr_lamp.luminous_efficacy
+            return luminance / MAX_LUMINOUS_EFFICACY
 
-
-class EmptyLight(Light):
-    def set_transform(self, transform):
-        pass
-
-    def attach(self, scene):
-        pass
-
-    def detach(self, scene):
-        pass
-
-
-class IESLight(Light):
-    def __init__(self, lamp, context):
-        self.light = pyrpr.IESLight(context)
-        self.light.set_name(lamp.name)
-        power = self._get_radiant_power(lamp)
-        self.light.set_radiant_power(*power)
-        self.light.set_image_from_file(lamp.rpr_lamp.ies_file_name, 256, 256)
-        self.set_light_group(lamp)
-
-
-class PointLight(Light):
-    def __init__(self, lamp, context):
-        self.light = pyrpr.PointLight(context)
-        power = self._get_radiant_power(lamp)
-        self.light.set_radiant_power(*power)
-        self.set_light_group(lamp)
-
-
-class DirectionalLight(Light):
-    def __init__(self, lamp, context):
-        self.light = pyrpr.DirectionalLight(context)
-        power = self._get_radiant_power(lamp)
-        self.light.set_radiant_power(*power)
-        self.light.set_shadow_softness(lamp.rpr_lamp.shadow_softness)
-        self.set_light_group(lamp)
-
-
-class SpotLight(Light):
-    def __init__(self, lamp, context):
-        self.light = pyrpr.SpotLight(context)
-        power = self._get_radiant_power(lamp)
-        self.light.set_radiant_power(*power)
-        oangle = 0.5 * lamp.spot_size   # half of spot_size
-        iangle = oangle * (1.0 - lamp.spot_blend * lamp.spot_blend)   # square dependency of spot_blend
-        self.light.set_cone_shape(iangle, oangle)
-        self.set_light_group(lamp)
-
-
-class AreaLight(Light):
-    def __init__(self, lamp, context, material_system):
+    def _create_area_light(self, lamp, material_system):
 
         def create_image_shader(power, color_map):
             if versions.is_blender_support_custom_datablock():
@@ -154,7 +124,7 @@ class AreaLight(Light):
             else:
                 blender_image = bpy.data.images.load(color_map)
 
-            core_image = rprblender.core.image.get_core_image_for_blender_image(context, blender_image)
+            core_image = rprblender.core.image.get_core_image_for_blender_image(material_system.context, blender_image)
 
             self.tex_shader = pyrpr.MaterialNode(material_system, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE) 
             self.tex_shader.set_input('data', core_image)
@@ -176,15 +146,117 @@ class AreaLight(Light):
             self.shader.set_name("EmmisiveMaterial")
             self.light.set_material(self.shader)
 
+        def get_mesh_prop(rpr_lamp, size_1, size_2, segments=32):
+            bm = bmesh.new()
+            try:
+                if rpr_lamp.shape == 'RECTANGLE':
+                    matrix=mathutils.Matrix.Scale(size_1, 4, (1, 0, 0)) * mathutils.Matrix.Scale(size_2, 4, (0, 1, 0))
+                    bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5, 
+                                            matrix=matrix)
 
-        (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area) = self._get_mesh_prop(lamp.rpr_lamp, lamp.rpr_lamp.size_1, lamp.rpr_lamp.size_2)
+                elif rpr_lamp.shape == 'DISC':
+                    bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, 
+                                            segments=segments, diameter=size_1)     # Blender's bug: here diameter is radius
+
+                elif rpr_lamp.shape == 'SPHERE':
+                    bmesh.ops.create_icosphere(bm, subdivisions=3, diameter=size_1) # Blender's bug: here diameter is radius
+
+                elif rpr_lamp.shape == 'CYLINDER':
+                    bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True, 
+                                          segments=segments, 
+                                          diameter1=size_1, diameter2=size_1,       # Blender's bug: here diameter is radius
+                                          depth=size_2)
+                else: # 'MESH'
+                    assert rpr_lamp.shape == 'MESH'
+
+                    if not rpr_lamp.mesh_obj:
+                        raise LightError("Mesh object for area light not selected")
+
+                    if versions.is_blender_support_custom_datablock():
+                        mesh_obj = rpr_lamp.mesh_obj
+                    else:
+                        mesh_obj = bpy.data.objects.get(rpr_lamp.mesh_obj, None)
+                        if not mesh_obj:
+                            raise LightError("Mesh object '%s' for area light not exists" % rpr_lamp.mesh_obj)
+
+                    if mesh_obj.type != 'MESH':
+                        raise LightError("Mesh object for area light is not a 'MESH'")
+
+                    bm.from_object(mesh_obj, bpy.context.scene)
+                    bmesh.ops.triangulate(bm, faces=bm.faces)
+
+                if len(bm.faces) == 0:
+                    raise LightError("No faces for area light mesh")
+
+                # rotate mesh around Y axis
+                bmesh.ops.rotate(bm, matrix=mathutils.Matrix.Rotation(math.pi, 4, 'Y'), verts=bm.verts)
+
+                bm.faces.ensure_lookup_table()
+                num_face_verts = np.zeros((len(bm.faces),), dtype=np.int32)
+                normals = np.zeros((len(bm.faces), 3), dtype=np.float32)
+                vert_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
+                norm_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
+            
+                uvs = None
+                uvs_ind = None
+                uv_lay = None
+                if rpr_lamp.shape == 'MESH' and len(bm.loops.layers.uv) > 0:
+                    uvs = np.zeros((len(bm.faces)*4, 2), dtype=np.float32)
+                    uvs_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
+                    uv_lay = bm.loops.layers.uv.active
+
+                ind = 0
+                area = 0.0
+                for i in range(len(bm.faces)):
+                    bm_face = bm.faces[i]
+                    num_face_verts[i] = len(bm_face.verts)
+                    normals[i] = bm_face.normal
+               
+                    for j in range(num_face_verts[i]):
+                        vert_ind[ind] = bm_face.verts[j].index
+                        norm_ind[ind] = i
+                        if uv_lay:
+                            uvs[ind] = bm_face.loops[j][uv_lay].uv
+                            uvs_ind[ind] = ind
+                        ind += 1
+
+                    area += bm.faces[i].calc_area()
+
+                vert_ind = vert_ind[:ind]
+                norm_ind = norm_ind[:ind]
+                if uv_lay:
+                    uvs = uvs[:ind]
+                    uvs_ind = uvs_ind[:ind]
+
+
+                bm.verts.ensure_lookup_table()
+                vertices = np.zeros((len(bm.verts), 3), dtype=np.float32)
+                if rpr_lamp.shape == 'RECTANGLE' or rpr_lamp.shape == 'DISC':
+                    uvs = np.zeros((len(bm.verts), 2), dtype=np.float32)
+                    uvs_ind = vert_ind
+                
+                for i in range(len(bm.verts)):
+                    vertices[i] = bm.verts[i].co
+                    if rpr_lamp.shape == 'RECTANGLE':
+                        uvs[i] = ((vertices[i][0] + size_1*0.5)/size_1, (vertices[i][1] + size_2*0.5)/size_2)
+                    elif rpr_lamp.shape == 'DISC':
+                        uvs[i] = ((vertices[i][0] + size_1)/(2*size_1), (vertices[i][1] + size_1)/(2*size_1))
+
+            finally:
+                bm.free()
+
+            return (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area)
+
+        ## Body of function
+
+        (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area) = get_mesh_prop(lamp.rpr_lamp, lamp.rpr_lamp.size_1, lamp.rpr_lamp.size_2)
 
         if area < np.finfo(dtype=np.float32).eps: 
             raise LightError("Surface area of mesh is equal to zero")
 
         power = self._get_radiant_power(lamp, area)
 
-        self.light = pyrpr.Mesh(context, vertices, normals, uvs, 
+        self.light = pyrpr.Mesh(material_system.context, vertices, normals, uvs, 
                                 vert_ind, norm_ind, uvs_ind, 
                                 num_face_verts)
         self.light.set_name(lamp.name)
@@ -193,154 +265,45 @@ class AreaLight(Light):
 
         self.light.set_visibility_ex('visible.light', lamp.rpr_lamp.visible)
         self.light.set_shadow(lamp.rpr_lamp.visible and lamp.rpr_lamp.cast_shadows)
-        self.set_light_group(lamp)
-
-
-    def _get_mesh_prop(self, rpr_lamp, size_1, size_2, segments=32):
-        bm = bmesh.new()
-        try:
-            if rpr_lamp.shape == 'RECTANGLE':
-                matrix=mathutils.Matrix.Scale(size_1, 4, (1, 0, 0)) * mathutils.Matrix.Scale(size_2, 4, (0, 1, 0))
-                bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5, 
-                                        matrix=matrix)
-
-            elif rpr_lamp.shape == 'DISC':
-                bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, 
-                                        segments=segments, diameter=size_1)     # Blender's bug: here diameter is radius
-
-            elif rpr_lamp.shape == 'SPHERE':
-                bmesh.ops.create_icosphere(bm, subdivisions=3, diameter=size_1) # Blender's bug: here diameter is radius
-
-            elif rpr_lamp.shape == 'CYLINDER':
-                bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True, 
-                                      segments=segments, 
-                                      diameter1=size_1, diameter2=size_1,       # Blender's bug: here diameter is radius
-                                      depth=size_2)
-            else: # 'MESH'
-                assert rpr_lamp.shape == 'MESH'
-
-                if not rpr_lamp.mesh_obj:
-                    raise LightError("Mesh object for area light not selected")
-
-                if versions.is_blender_support_custom_datablock():
-                    mesh_obj = rpr_lamp.mesh_obj
-                else:
-                    mesh_obj = bpy.data.objects.get(rpr_lamp.mesh_obj, None)
-                    if not mesh_obj:
-                        raise LightError("Mesh object '%s' for area light not exists" % rpr_lamp.mesh_obj)
-
-                if mesh_obj.type != 'MESH':
-                    raise LightError("Mesh object for area light is not a 'MESH'")
-
-                bm.from_object(mesh_obj, bpy.context.scene)
-                bmesh.ops.triangulate(bm, faces=bm.faces)
-
-            if len(bm.faces) == 0:
-                raise LightError("No faces for area light mesh")
-
-            # rotate mesh around Y axis
-            bmesh.ops.rotate(bm, matrix=mathutils.Matrix.Rotation(math.pi, 4, 'Y'), verts=bm.verts)
-
-            bm.faces.ensure_lookup_table()
-            num_face_verts = np.zeros((len(bm.faces),), dtype=np.int32)
-            normals = np.zeros((len(bm.faces), 3), dtype=np.float32)
-            vert_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
-            norm_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
-            
-            uvs = None
-            uvs_ind = None
-            uv_lay = None
-            if rpr_lamp.shape == 'MESH' and len(bm.loops.layers.uv) > 0:
-                uvs = np.zeros((len(bm.faces)*4, 2), dtype=np.float32)
-                uvs_ind = np.zeros((len(bm.faces)*4,), dtype=np.int32)
-                uv_lay = bm.loops.layers.uv.active
-
-            ind = 0
-            area = 0.0
-            for i in range(len(bm.faces)):
-                bm_face = bm.faces[i]
-                num_face_verts[i] = len(bm_face.verts)
-                normals[i] = bm_face.normal
-               
-                for j in range(num_face_verts[i]):
-                    vert_ind[ind] = bm_face.verts[j].index
-                    norm_ind[ind] = i
-                    if uv_lay:
-                        uvs[ind] = bm_face.loops[j][uv_lay].uv
-                        uvs_ind[ind] = ind
-                    ind += 1
-
-                area += bm.faces[i].calc_area()
-
-            vert_ind = vert_ind[:ind]
-            norm_ind = norm_ind[:ind]
-            if uv_lay:
-                uvs = uvs[:ind]
-                uvs_ind = uvs_ind[:ind]
-
-
-            bm.verts.ensure_lookup_table()
-            vertices = np.zeros((len(bm.verts), 3), dtype=np.float32)
-            if rpr_lamp.shape == 'RECTANGLE' or rpr_lamp.shape == 'DISC':
-                uvs = np.zeros((len(bm.verts), 2), dtype=np.float32)
-                uvs_ind = vert_ind
-                
-            for i in range(len(bm.verts)):
-                vertices[i] = bm.verts[i].co
-                if rpr_lamp.shape == 'RECTANGLE':
-                    uvs[i] = ((vertices[i][0] + size_1*0.5)/size_1, (vertices[i][1] + size_2*0.5)/size_2)
-                elif rpr_lamp.shape == 'DISC':
-                    uvs[i] = ((vertices[i][0] + size_1)/(2*size_1), (vertices[i][1] + size_1)/(2*size_1))
-
-        finally:
-            bm.free()
-
-        return (vertices, normals, uvs, vert_ind, norm_ind, uvs_ind, num_face_verts, area)
 
 
 class EnvironmentLight:
-    def __init__(self, scene_synced, name, core_environment_light, core_image=None):
-        self.core_environment_light = core_environment_light
+    def __init__(self, scene_synced):
         self.scene_synced = scene_synced
-        self.name = name
+        self.light = pyrpr.EnvironmentLight(self.scene_synced.context)
         self.attached = False
-        self.core_image = core_image
 
     @property
     def is_attached(self):
         return self.attached
 
-    @call_logger.logged
     def attach(self):
-        logging.debug('EnvironmentLight re-attach', self.name, tag='sync')
-        self.core_environment_light.set_name("Environment")
-        self.scene_synced.set_scene_environment(self.core_environment_light)
+        self.light.set_name("Environment")
+        self.scene_synced.set_scene_environment(self.light)
         self.attached = True
         self.scene_synced.ibls_attached.add(self)
         # Environment Lights are harcoded to group 0
-        self.core_environment_light.set_light_group_id(0)
+        self.light.set_group_id(0)
 
-    @call_logger.logged
     def detach(self):
-        logging.debug('EnvironmentLight detach', self.name, tag='sync')
-        self.scene_synced.remove_scene_environment(self.core_environment_light)
+        self.scene_synced.remove_scene_environment(self.light)
         self.attached = False
         self.scene_synced.ibls_attached.remove(self)
 
-    @call_logger.logged
     def attach_portal(self, core_scene, core_shape):
-        self.core_environment_light.attach_portal(core_scene, core_shape)
+        self.light.attach_portal(core_scene, core_shape)
 
-    @call_logger.logged
     def detach_portal(self, core_scene, core_object):
-        self.core_environment_light.detach_portal(core_scene, core_object)
+        self.light.detach_portal(core_scene, core_object)
 
     def set_intensity(self, value: float):
-        self.core_environment_light.set_intensity_scale(value)
+        self.light.set_intensity_scale(value)
 
-    def set_image_from_buffer(self, image: np.ndarray):
-        self.core_image = pyrpr.Image(self.scene_synced.context, data=image)
-        self.core_environment_light.set_image(self.core_image)
+    def set_image_data(self, data: np.array):
+        self.light.set_image(pyrpr.ImageData(self.scene_synced.context, data))
+
+    def set_image(self, image: pyrpr.Image):
+        self.light.set_image(image)
 
     def set_rotation(self, rotation_gizmo):
         rotation_gizmo = (-rotation_gizmo[0], -rotation_gizmo[1], -rotation_gizmo[2])
@@ -352,10 +315,10 @@ class EnvironmentLight:
         matrix = np.identity(4, dtype=np.float32)
         matrix[:3, :3] = np.dot(fixup, rotation_matrix)
 
-        self.core_environment_light.set_transform(matrix, False)
+        self.light.set_transform(matrix, False)
 
     def set_transform(self, transform_matrix):
-        self.core_environment_light.set_transform(transform_matrix, False)
+        self.light.set_transform(transform_matrix, False)
 
 
 def callback_light_draw():

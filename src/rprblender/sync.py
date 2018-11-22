@@ -96,8 +96,6 @@ class SceneSynced:
 
         self.has_error = False
 
-        self._make_core_environment_light_cached = functools.lru_cache(8)(self._make_core_environment_light)
-
         self.ibls_attached = set()
         self.environment_overrides = dict([(key, None) for key in environment_override_categories])
 
@@ -125,7 +123,6 @@ class SceneSynced:
         self.lamps.clear()
         self.objects_synced.clear()
         self.core_render_camera = None
-        self._make_core_environment_light_cached = None
         self.core_scene = None
 
     def get_core_context(self):
@@ -261,44 +258,20 @@ class SceneSynced:
         camera.set_mode(mode)
         self.core_scene.set_camera(camera)
 
-    def create_environment_light_color(self, color):
-        im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
-        return self.create_environment_light_from_core_image(
-            'ibl', self._make_core_image_from_image_data(self.context, im))
-
-    def create_environment_light(self, ibl_map):
-        logging.debug('ibl create', ibl_map, tag='sync')
-        return self.create_environment_light_from_core_image(
-            ibl_map, self.get_core_environment_image_for_blender_image(ibl_map))
-
-    def crate_environment_light_from_core_light(self, ibl_map, core_light: pyrpr.Light, core_image: pyrpr.Image):
-        return lights.EnvironmentLight(self, ibl_map, core_light, core_image=core_image)
-
-    def create_environment_light_from_core_image(self, name, core_image):
-        core_light = self._make_core_environment_light_from_core_image(self.context, core_image)
+    def create_environment_light(self, color=None, image=None, ibl_map=None):
+        ibl = lights.EnvironmentLight(self)
 
         for obj_key in self.portal_lights_meshes:
-            core_light.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
+            ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
-        return lights.EnvironmentLight(self, name, core_light, core_image=core_image)
+        if color is not None:
+            ibl.set_image_data(np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32))
+        elif image is not None:
+            ibl.set_image(image)
+        elif ibl_map is not None:
+            ibl.set_image(self.get_core_environment_image_for_blender_image(ibl_map))
 
-    def create_environment_light_empty(self):
-        logging.debug('environment_light_create_sun_sky', tag='sync')
-
-        with TimedContext("environment_light_create_empty"):
-            context = self.context
-
-            ibl = pyrpr.EnvironmentLight(context)
-
-            for obj_key in self.portal_lights_meshes:
-                ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
-
-        return lights.EnvironmentLight(self, '', ibl)
-
-    def create_environment_from_color(self, color):
-        im = np.full((2, 2, 4), tuple(color) + (1,), dtype=np.float32)
-        ibl, image = self._make_core_environment_light_from_image_data(im)
-        return ibl, image
+        return ibl
 
     def create_environment_override(self, category, ibl_map):
         core_image = self.get_core_environment_image_for_blender_image(ibl_map)
@@ -329,11 +302,6 @@ class SceneSynced:
     def is_environment_override_enabled(self, category, override):
         return self.environment_overrides.get(category) and self.environment_overrides[category] == override
 
-    def _make_core_environment_light(self, image):
-        img = self.get_core_environment_image_for_blender_image(image)
-        ibl = self._make_core_environment_light_from_core_image(self.context, img)
-        return ibl, img
-
     def get_core_environment_image_for_blender_image(self, image):
         """ Environment has an issue that it's flipped the other way then usual textures without a way
         to use ibl transform to fix it - thus we need a separate method for loading it's image"""
@@ -347,12 +315,10 @@ class SceneSynced:
             # TODO: RPR(as of 1.272) IBL seems to be flipped vertically and this can't be fixed by IBL transform
             # - scaling by -1 doesn't work, only rotation is used. So we extract pixels from Blender image
             # and flip them(again, actuall - they are once flipped inside to match RPR's CreateImageFromFile)
-            img = rprblender.core.image.create_core_image_from_pixels(
-                self.context, rprblender.core.image.extract_pixels_from_blender_image(image, flipud=True))
+            img = pyrpr.ImageData(self.context, rprblender.core.image.extract_pixels_from_blender_image(image, flipud=True))
         except Exception as e:
             logging.warn("Cant's read environment image: ", image, ", reason:", str(e), tag="sync")
-            img = self._make_core_image_from_image_data(self.context,
-                                                        np.full((2, 2, 4), (1, 0, 1, 1,), dtype=np.float32))
+            img = pyrpr.ImageData(self.context, np.full((2, 2, 4), (1, 0, 1, 1,), dtype=np.float32))
         return img
 
     def extract_image(self, image):
@@ -364,9 +330,8 @@ class SceneSynced:
 
     def _make_core_environment_light_from_image_data(self, image: np.ndarray):
         with TimedContext("make_core_envmap"):
-            context = self.context
-            core_image = self._make_core_image_from_image_data(context, image)
-            ibl = self._make_core_environment_light_from_core_image(context, core_image)
+            core_image = pyrpr.ImageData(self.context, image)
+            ibl = self._make_core_environment_light_from_core_image(self.context, core_image)
 
         return ibl, core_image
 
@@ -375,19 +340,16 @@ class SceneSynced:
         ibl.set_image(core_image)
         return ibl
 
-    def _make_core_image_from_image_data(self, context, image: np.ndarray):
-        return pyrpr.Image(context, data=image)
-
     def add_lamp(self, obj_key, blender_obj):
         logging.debug('add_lamp', obj_key, tag='sync')
         assert obj_key not in self.lamps
 
-        extracted = self.extract_lamp(blender_obj)
-        lamp = self.core_make_lamp(blender_obj, extracted['matrix_world'])
-        lamp.attach(self.get_core_scene())
-        self.lamps[obj_key] = lamp
+        light = lights.Light(blender_obj.data, self.get_material_system())
+        light.set_transform(np.array(blender_obj.matrix_world, dtype=np.float32))
+        light.attach(self.get_core_scene())
+        self.lamps[obj_key] = light
 
-        self.add_synced_obj(obj_key, lamp.get_core_obj())
+        self.add_synced_obj(obj_key, light.get_core_obj())
 
     def remove_lamp(self, obj_key):
         logging.debug('remove_lamp', obj_key, tag='sync')
@@ -427,45 +389,6 @@ class SceneSynced:
         obj_synced.hidden = False
 
         self.lamps[obj_key].attach(self.get_core_scene())
-
-
-    def core_make_lamp(self, blender_obj, transform):
-        try:
-            lamp = blender_obj.data  # type: bpy.types.Lamp
-            if lamp.type == 'AREA':
-                light = lights.AreaLight(lamp, self.context, self.get_material_system())
-            elif lamp.type == 'SPOT':
-                light = lights.SpotLight(lamp, self.context)
-            elif lamp.type == 'SUN':
-                light = lights.DirectionalLight(lamp, self.context)
-            elif lamp.type == 'POINT':
-                if lamp.rpr_lamp.ies_file_name:
-                    light = lights.IESLight(lamp, self.context)
-                else:
-                    light = lights.PointLight(lamp, self.context)
-            else: # 'HEMI'
-                assert lamp.type == 'HEMI'
-                raise lights.LightError("Hemi lamp is not supported")
-
-            light.set_transform(transform)
-
-        except lights.LightError as e:
-            logging.error(e.args[0] + ". Empty light will be used.")
-            light = lights.EmptyLight()
-
-        return light
-
-
-    def extract_lamp(self, obj):
-        mw = np.array(obj.matrix_world, dtype=np.float32)
-
-        return dict(
-            type='LAMP',
-            matrix_world=mw,
-            data=dict(
-                radiant_power=np.array(obj.data.color, dtype=np.float32) * obj.data.energy * 100,
-            )
-        )
 
     @call_logger.logged
     def update_camera_transform_ortho(self, camera, matrix_world, depth):
