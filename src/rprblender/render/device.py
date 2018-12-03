@@ -74,7 +74,7 @@ class RenderTargets:
     def get_frame_buffer(self, aov_name):
         if aov_name == 'default':
             if self.gl_interop and \
-                    self.image_filter and self.image_filter.rif_filter_type != image_filter.RifFilterType.Eaw:
+                    self.image_filter and self.image_filter_settings['filter_type'] != 'eaw':
                     # temporary fix of EAW filter cause it doesn't work with gl_interop
                 return self.frame_buffers_aovs['default']['gl']
             if self.image_filter:
@@ -202,44 +202,54 @@ class RenderTargets:
         frame_buffer_gl = self.frame_buffers_aovs['default'].get('gl', None)
 
         if settings['filter_type'] == 'bilateral':
-            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Bilateral,
-                                                         self.width, self.height, frame_buffer_gl)
-
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb, settings['color_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb, settings['normal_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb, settings['p_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb, settings['trans_sigma'])
-
-            self.image_filter.add_param('radius', settings['radius'])
+            inputs = {
+                'color': color_fb,
+                'normal': shading_fb,
+                'world_coordinate': world_fb,
+                'object_id': object_fb,
+            }
+            sigmas = {
+                'color': settings['color_sigma'],
+                'normal': settings['normal_sigma'],
+                'world_coordinate': settings['p_sigma'],
+                'object_id': settings['trans_sigma'],
+            }
+            params = {'radius': settings['radius']}
+            self.image_filter = image_filter.ImageFilterBilateral(self.context, inputs, sigmas, params, self.width, self.height, frame_buffer_gl)
 
         elif settings['filter_type'] == 'eaw':
-            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Eaw,
-                                                         self.width, self.height, None)
+            inputs = {
+                'color': color_fb,
+                'normal': shading_fb,
+                'depth': depth_fb,
+                'trans': object_fb,
+                'world_coordinate': world_fb,
+                'object_id': object_fb,
+            }
+            sigmas = {
+                'color': settings['color_sigma'],
+                'normal': settings['normal_sigma'],
+                'depth': settings['depth_sigma'],
+                'trans': settings['trans_sigma'],
+            }
+            self.image_filter = image_filter.ImageFilterEaw(self.context, inputs, sigmas, {}, self.width, self.height, None)
                                                          # temporary fix of EAW filter cause it doesn't work with gl_interop
 
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb, settings['color_sigma']);
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb, settings['normal_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.Depth, depth_fb, settings['depth_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.Trans, object_fb, settings['trans_sigma'])
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb, 0.1)
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb, 0.1)
-
         elif settings['filter_type'] == 'lwr':
-            self.image_filter = image_filter.ImageFilter(self.context, image_filter.RifFilterType.Lwr,
-                                                         self.width, self.height, frame_buffer_gl)
-
-            self.image_filter.add_input(image_filter.RifFilterInput.Color, color_fb)
-            self.image_filter.add_input(image_filter.RifFilterInput.Normal, shading_fb)
-            self.image_filter.add_input(image_filter.RifFilterInput.Depth, depth_fb)
-            self.image_filter.add_input(image_filter.RifFilterInput.WorldCoordinate, world_fb)
-            self.image_filter.add_input(image_filter.RifFilterInput.ObjectId, object_fb)
-            self.image_filter.add_input(image_filter.RifFilterInput.Trans, object_fb)
-
-            self.image_filter.add_param('samples', settings['samples']);
-            self.image_filter.add_param('halfWindow', settings['half_window']);
-            self.image_filter.add_param('bandwidth', settings['bandwidth']);
-
-        self.image_filter.attach_filter()
+            inputs = {
+                'color': color_fb,
+                'normal': shading_fb,
+                'depth': depth_fb,
+                'trans': object_fb,
+                'world_coordinate': world_fb,
+                'object_id': object_fb,
+            }
+            params = {
+                'samples': settings['samples'],
+                'halfWindow': settings['half_window'],
+                'bandwidth': settings['bandwidth'],
+            }
+            self.image_filter = image_filter.ImageFilterLwr(self.context, inputs, {}, params, self.width, self.height, frame_buffer_gl)
 
     def _disable_image_filter(self):
         self.image_filter = None
@@ -252,20 +262,20 @@ class RenderTargets:
         self.image_filter_settings = settings
 
         if settings['filter_type'] == 'bilateral':
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Color, settings['color_sigma'])
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Normal, settings['normal_sigma'])
-            self.image_filter.update_sigma(image_filter.RifFilterInput.WorldCoordinate, settings['p_sigma'])
-            self.image_filter.update_sigma(image_filter.RifFilterInput.ObjectId, settings['trans_sigma'])
-            self.image_filter.add_param('radius', settings['radius'])
+            self.image_filter.update_sigma('color', settings['color_sigma'])
+            self.image_filter.update_sigma('normal', settings['normal_sigma'])
+            self.image_filter.update_sigma('world_coordinate', settings['p_sigma'])
+            self.image_filter.update_sigma('object_id', settings['trans_sigma'])
+            self.image_filter.update_param('radius', settings['radius'])
         elif settings['filter_type'] == 'eaw':
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Color, settings['color_sigma']);
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Normal, settings['normal_sigma'])
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Depth, settings['depth_sigma'])
-            self.image_filter.update_sigma(image_filter.RifFilterInput.Trans, settings['trans_sigma'])
+            self.image_filter.update_sigma('color', settings['color_sigma']);
+            self.image_filter.update_sigma('normal', settings['normal_sigma'])
+            self.image_filter.update_sigma('depth', settings['depth_sigma'])
+            self.image_filter.update_sigma('trans', settings['trans_sigma'])
         elif settings['filter_type'] == 'lwr':
-            self.image_filter.add_param('samples', settings['samples']);
-            self.image_filter.add_param('halfWindow', settings['half_window']);
-            self.image_filter.add_param('bandwidth', settings['bandwidth']);
+            self.image_filter.update_param('samples', settings['samples']);
+            self.image_filter.update_param('halfWindow', settings['half_window']);
+            self.image_filter.update_param('bandwidth', settings['bandwidth']);
 
     def setup_shadow_catcher(self, use_shadow_catcher):
         with self.render_lock:

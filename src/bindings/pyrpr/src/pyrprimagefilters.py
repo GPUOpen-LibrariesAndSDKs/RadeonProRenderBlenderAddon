@@ -1,6 +1,7 @@
 import platform
 import traceback
 import os
+from abc import ABCMeta, abstractmethod
 import numpy as np
 
 import pyrprimagefilterswrap
@@ -93,12 +94,10 @@ class Object:
     def _get_handle(self):
         return self._handle_ptr[0]
 
+
 class ArrayObject:
     def __init__(self, core_type_name, init_data):
         self._handle_ptr = ffi.new(core_type_name, init_data)
-
-    def __del__(self):
-        del self._handle_ptr
 
 
 def get_device_count(backend_api_type, proctype):
@@ -107,7 +106,7 @@ def get_device_count(backend_api_type, proctype):
     return device_count[0]
 
         
-class ContextCPU(Object):
+class Context(Object, metaclass=ABCMeta):
     core_type_name = 'rif_context'
 
     def __init__(self, rpr_context):
@@ -116,12 +115,13 @@ class ContextCPU(Object):
             raise RuntimeError("No compatible devices to create image filter")
         self._create(rpr_context)
 
+    @abstractmethod
     def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL, PROCESSOR_CPU) > 0
+        pass
 
+    @abstractmethod
     def _create(self, rpr_context):
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, PROCESSOR_CPU, 0, pyrpr.encode(cache_path), self)
+        pass
 
     def create_image(self, width, height):
         return Image(self, width, height)
@@ -138,8 +138,17 @@ class ContextCPU(Object):
     def create_filter(self, filter_type):
         return ImageFilter(self, filter_type)
 
+        
+class ContextCPU(Context):
+    def _create(self, rpr_context):
+        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
+        CreateContext(API_VERSION, BACKEND_API_OPENCL, PROCESSOR_CPU, 0, pyrpr.encode(cache_path), self)
 
-class ContextGPU(ContextCPU):
+    def _check_devices(self):
+        return get_device_count(BACKEND_API_OPENCL, PROCESSOR_CPU) > 0
+
+
+class ContextGPU(Context):
     def _create(self, rpr_context):
         cl_context = rpr_context.get_cl_context()
         cl_device = rpr_context.get_cl_device()
@@ -155,7 +164,7 @@ class ContextGPU(ContextCPU):
         return get_device_count(BACKEND_API_OPENCL, PROCESSOR_GPU) > 0
 
 
-class ContextMetal(ContextCPU):
+class ContextMetal(Context):
     def _create(self, rpr_context):
         cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
         metal_device = rpr_context.get_first_gpu_id_used()
@@ -283,16 +292,22 @@ class CommandQueue(Object):
     def __init__(self, context):
         super().__init__()
         self.context = context
-        self.filters = {}
+        self.image_filters = {}
         ContextCreateCommandQueue(self.context, self)
 
-    def attach(self, image_filter, input_image, output_image):
+    def attach_image_filter(self, image_filter, input_image, output_image):
         CommandQueueAttachImageFilter(self, image_filter, input_image, output_image)
-        self.filters[image_filter] = (input_image, output_image)
+        self.image_filters[image_filter] = (input_image, output_image)
 
-    def detach(self, image_filter):
-        CommandQueueDetachImageFilter(self, image_filter)
-        del self.filters[image_filter]
+    def detach_image_filters(self):
+        for image_filter in self.image_filters.keys():
+            CommandQueueDetachImageFilter(self, image_filter)
+
+        self.image_filters.clear()
 
     def execute(self):
         ContextExecuteCommandQueue(self.context, self, ffi.NULL, ffi.NULL, ffi.NULL)
+
+    def delete(self):
+        self.detach_image_filters()
+        super().delete()

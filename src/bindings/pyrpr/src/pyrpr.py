@@ -170,6 +170,14 @@ def register_plugin(path):
     return RegisterPlugin(encode(path))
 
 
+def is_gpu_enabled(creation_flags):
+    for i in range(16):
+        if getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i) & creation_flags:
+            return True
+
+    return False
+
+
 class Object:
     core_type_name = 'void*'
 
