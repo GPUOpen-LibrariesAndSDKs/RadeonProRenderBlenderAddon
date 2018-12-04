@@ -1,27 +1,29 @@
 import bpy
 from .engine.engine import Engine
-from . import properties, nodes
 
 
 bl_info = {
-    "name": "RPR Test Render Engine",
-    "author": "",
+    "name": "Radeon ProRender",
+    "author": "AMD",
+    "version": (2, 0, 1),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
-    "description": "RPR test Render Engine integration",
+    "description": "Radeon ProRender rendering plugin for Blender 2.8x",
     "warning": "",
     "tracker_url": "",
-    "category": "Render"}
+    "wiki_url": "",
+    "category": "Render"
+}
 
 
-class CustomRenderEngine(bpy.types.RenderEngine):
+class RPREngine(bpy.types.RenderEngine):
     ''' These members are used by blender to set up the
         RenderEngine; define its internal name, visible name and capabilities. '''
     bl_idname = "RPR"
-    bl_label = "RPR Test Renderer"
+    bl_label = "Radeon ProRender"
     bl_use_preview = True
     bl_use_shading_nodes = True
-    bl_info = "RPR Test Render"
+    bl_info = "Radeon ProRender rendering plugin"
 
     engine = None
 
@@ -62,15 +64,4 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.engine.draw(context.depsgraph) #, context.region, context.space_data, context.region_data)
 
 
-def register():
-    properties.register()
-    nodes.register()
-    # Register the RenderEngine
-    bpy.utils.register_class(CustomRenderEngine)
-
-
-def unregister():
-    properties.unregister()
-    nodes.unregister()
-    bpy.utils.unregister_class(CustomRenderEngine)
-
+register, unregister = bpy.utils.register_classes_factory({RPREngine})
