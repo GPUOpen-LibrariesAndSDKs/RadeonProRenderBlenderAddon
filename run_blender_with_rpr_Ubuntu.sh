@@ -52,7 +52,7 @@ function main()
 
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
-	python3 tests/commandline/run_blender.py "$BLENDER_EXE" tests/commandline/test_rpr.py
+	python3 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py
 
 }
 

@@ -18,7 +18,7 @@ if [ -x "${BLENDER_EXE}" ]; then
 
 	export LD_LIBRARY_PATH="$DIST_LIB"
 
-	python3 tests/commandline/run_blender.py "$BLENDER_EXE" tests/commandline/test_rpr.py "$DEBUGGER_EXE"
+	python3 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py "$DEBUGGER_EXE"
 
 	rm distlib
 
