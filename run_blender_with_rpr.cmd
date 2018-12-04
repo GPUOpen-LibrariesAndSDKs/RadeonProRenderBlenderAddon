@@ -1,6 +1,6 @@
 if ""=="%BLENDER_EXE%" goto error 
 
-py tests/commandline/run_blender.py "%BLENDER_EXE%" tests/commandline/test_rpr.py
+py cmd_tools/run_blender.py "%BLENDER_EXE%" cmd_tools/test_rpr.py
 exit
 
 :error

@@ -11,7 +11,7 @@ faulthandler.enable()
 
 from pathlib import Path
 
-src_path = str((Path(__file__).parent.parent.parent/'src').resolve())
+src_path = str((Path(__file__).parent.parent/'src').resolve())
 
 print(src_path)
 
