@@ -1,7 +1,7 @@
 import bpy
 
 from . import base
-from rprblender.utils import logging
+from rprblender import logging
 
 
 class RPR_RenderProperties(base.PropertyBase):

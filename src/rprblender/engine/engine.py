@@ -5,20 +5,22 @@ Other modules in this directory could be viewport, etc.
 '''
 
 ''' main Render object '''
+
+
 class Engine:
 
-    def __init__(self, render_engine, data):
-        self.bl_engine = render_engine
+    def __init__(self, rpr_engine, data):
+        self.rpr_engine = rpr_engine
         self.data = data
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
         print('Engine.render')
 
-    def sync(self, data, depsgraph):
+
+    def sync(self, depsgraph):
         ''' sync all data ''' 
         print('Engine.sync')
-        self.data = data
 
         # export scene data, set denoisers, etc
         # scene = self.data.scene
@@ -41,12 +43,12 @@ class Engine:
             else:
                 print('not exporting', obj.name)
 
-    def sync_updated(self, data, depsgraph):
+    def sync_updated(self, depsgraph):
         ''' sync just the updated things ''' 
         print('Engine.sync_updated')
         for updated_obj in depsgraph.updates:
             print(updated_obj.id.name, updated_obj.is_dirty_geometry, updated_obj.is_dirty_transform)
 
-    def draw(self, depsgraph):
+    def draw(self, depsgraph, region, space_data, region_data):
         ''' viewport draw ''' 
         print('Engine.draw')
