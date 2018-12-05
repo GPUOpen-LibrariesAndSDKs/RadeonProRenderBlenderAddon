@@ -1,5 +1,7 @@
 import bpy
 from .engine.engine import Engine
+from . import properties
+from .utils import logging
 
 
 bl_info = {
@@ -15,6 +17,8 @@ bl_info = {
     "category": "Render"
 }
 
+logging.info("Loading RPR addon {}".format(bl_info['version']))
+
 
 class RPREngine(bpy.types.RenderEngine):
     ''' These members are used by blender to set up the
@@ -25,12 +29,12 @@ class RPREngine(bpy.types.RenderEngine):
     bl_use_shading_nodes = True
     bl_info = "Radeon ProRender rendering plugin"
 
-    engine = None
+    engine: Engine = None
 
     # final render
     def update(self, data, depsgraph):
         ''' Called for final render '''
-        print('render_engine.update')
+        logging.info('render_engine.update')
 
         if not self.engine:
             self.engine = Engine(self, data)
@@ -39,19 +43,18 @@ class RPREngine(bpy.types.RenderEngine):
 
     def render(self, depsgraph):
         ''' Called with both final render and viewport '''
-        print('render_engine.render')
-        
-        self.engine.render(depsgraph)
+        logging.info("render_engine.render")
 
+        self.engine.render(depsgraph)
 
     # viewport render
     def view_update(self, context):
         ''' called when data is updated for viewport '''
-        print('render_engine.view_update')
-        
+        logging.info('render_engine.view_update')
+
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
-            self.engine = Engine(self, context.blend_data) #,context.region, context.space_data, context.region_data)
+            self.engine = Engine(self, context.blend_data)  # ,context.region, context.space_data, context.region_data)
             self.engine.sync(context.blend_data, context.depsgraph)
         # else just update updated stuff
         else:
@@ -59,9 +62,16 @@ class RPREngine(bpy.types.RenderEngine):
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
-        print('render_engine.view_draw')
-        
-        self.engine.draw(context.depsgraph) #, context.region, context.space_data, context.region_data)
+        logging.info('render_engine.view_draw')
+
+        self.engine.draw(context.depsgraph)  # , context.region, context.space_data, context.region_data)
 
 
-register, unregister = bpy.utils.register_classes_factory({RPREngine})
+def register():
+    bpy.utils.register_class(RPREngine)
+    properties.register()
+
+
+def unregister():
+    properties.unregister()
+    bpy.utils.unregister_class(RPREngine)
