@@ -1,14 +1,34 @@
 import bpy
+from bpy.props import (
+    BoolProperty,
+    EnumProperty,
+    FloatProperty,
+    IntProperty,
+    PointerProperty,
+    StringProperty,
+)
 
-from . import base
+from .base import PropertyBase, PanelBase
 from rprblender import logging
 
 
-class RPR_RenderProperties(base.PropertyBase):
+class RPR_RenderProperties(PropertyBase):
     pass
 
+    @classmethod
+    def register(cls):
+        bpy.types.Scene.rpr = PointerProperty(
+            name="RPR Render Settings",
+            description="RPR render settings",
+            type=cls,
+        )
 
-class RPR_PT_RenderPanel(base.PanelBase):
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Scene.rpr
+
+
+class RPR_PT_RenderPanel(PanelBase):
     bl_idname = "RPR_PT_render_properties"
     bl_label = "RPR Render Properties"
     bl_space_type = "PROPERTIES"
