@@ -1,7 +1,7 @@
 import bpy
 from .engine.engine import Engine
 from . import properties
-from .utils import logging
+from . import logging
 
 
 bl_info = {
@@ -29,7 +29,8 @@ class RPREngine(bpy.types.RenderEngine):
     bl_use_shading_nodes = True
     bl_info = "Radeon ProRender rendering plugin"
 
-    engine: Engine = None
+    def __init__(self):
+        self.engine: Engine = None
 
     # final render
     def update(self, data, depsgraph):
@@ -39,7 +40,7 @@ class RPREngine(bpy.types.RenderEngine):
         if not self.engine:
             self.engine = Engine(self, data)
 
-        self.engine.sync(data, depsgraph)
+        self.engine.sync(depsgraph)
 
     def render(self, depsgraph):
         ''' Called with both final render and viewport '''
@@ -55,16 +56,15 @@ class RPREngine(bpy.types.RenderEngine):
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
             self.engine = Engine(self, context.blend_data)  # ,context.region, context.space_data, context.region_data)
-            self.engine.sync(context.blend_data, context.depsgraph)
-        # else just update updated stuff
+            self.engine.sync(context.depsgraph)
         else:
-            self.engine.sync_updated(context.blend_data, context.depsgraph)
+            self.engine.sync_updated(context.depsgraph)
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
         logging.info('render_engine.view_draw')
 
-        self.engine.draw(context.depsgraph)  # , context.region, context.space_data, context.region_data)
+        self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 
 
 def register():

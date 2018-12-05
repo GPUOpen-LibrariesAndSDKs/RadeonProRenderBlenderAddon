@@ -1,6 +1,6 @@
 import bpy
 
-from rprblender.utils import logging
+from rprblender import logging
 
 from . import Object
 from . import Mesh

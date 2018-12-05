@@ -11,14 +11,11 @@
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <InterpreterId>{3a4447f3-5f9d-4365-a4c1-163a90bfc55f}</InterpreterId>
-    <InterpreterVersion>3.5</InterpreterVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
   <PropertyGroup>
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
-    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="bindings\pyrpr\.build\gltfwrap.py" />
@@ -42,6 +39,9 @@
     <Compile Include="bindings\pyrpr\src\pyrpr_load_store.py" />
     <Compile Include="bindings\pyrpr\test_.py" />
     <Compile Include="rprblender\config.py" />
+    <Compile Include="rprblender\configdev.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="rprblender\engine\engine.py" />
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
@@ -53,8 +53,12 @@
     <Compile Include="rprblender\properties\base.py" />
     <Compile Include="rprblender\properties\Mesh.py" />
     <Compile Include="rprblender\properties\Object.py" />
+    <Compile Include="rprblender\properties\Render.py" />
     <Compile Include="rprblender\properties\__init__.py" />
-    <Compile Include="rprblender\utils\logging.py" />
+    <Compile Include="rprblender\logging.py" />
+    <Compile Include="rprblender\utils\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="rprblender\__init__.py" />
     <Compile Include="tools\load_addon.py" />
   </ItemGroup>
@@ -116,6 +120,9 @@
     <Content Include="bindings\pyrpr\readme.txt" />
     <Content Include="bindings\pyrpr\rprinfo.txt" />
     <Content Include="bindings\pyrpr\test_trace\CMakeLists.txt" />
+    <Content Include="rprblender\nodes\blender_nodes\ShaderNodeMixRGB.json" />
+    <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
+    <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="bindings\" />
@@ -127,13 +134,12 @@
     <Folder Include="rprblender" />
     <Folder Include="rprblender\engine" />
     <Folder Include="rprblender\nodes" />
+    <Folder Include="rprblender\nodes\blender_nodes\" />
+    <Folder Include="rprblender\nodes\rpr_nodes\" />
     <Folder Include="rprblender\properties" />
     <Folder Include="rprblender\utils\" />
     <Folder Include="tools" />
   </ItemGroup>
-  <ItemGroup>
-    <InterpreterReference Include="{3a4447f3-5f9d-4365-a4c1-163a90bfc55f}\3.5" />
-  </ItemGroup>
-  <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />
+  <ItemGroup />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>
