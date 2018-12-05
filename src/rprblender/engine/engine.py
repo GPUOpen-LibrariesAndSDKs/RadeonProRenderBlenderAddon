@@ -6,12 +6,13 @@ Other modules in this directory could be viewport, etc.
 
 ''' main Render object '''
 
+import pyrpr
 
 class Engine:
-
     def __init__(self, rpr_engine, data):
         self.rpr_engine = rpr_engine
         self.data = data
+        self.context = pyrpr.Context()
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
@@ -39,7 +40,7 @@ class Engine:
             # run the "sync" method of the obj
             context = None # dummy rpr context
             if hasattr(obj, 'rpr'):
-                obj.rpr.sync(context)
+                obj.rpr.sync(obj, context)
             else:
                 print('not exporting', obj.name)
 

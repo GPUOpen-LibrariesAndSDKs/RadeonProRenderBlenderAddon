@@ -12,14 +12,17 @@
 '''
 
 import bpy
+import pyrpr
+
 
 class PropertyBase(bpy.types.PropertyGroup):
-	def sync(self, parent, context):
+	def sync(self, parent, context: pyrpr.Context):
 		''' Sync will update this object in the context.  
 			And call any sub-objects that need to be synced  
 			rpr_context object in the binding will be the only place we keep 
 			"lists of items synced." '''
 		pass
+
 
 class PanelBase(bpy.types.Panel):
     bl_space_type = "PROPERTIES"
