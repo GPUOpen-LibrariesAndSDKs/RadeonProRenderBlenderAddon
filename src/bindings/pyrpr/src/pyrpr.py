@@ -151,7 +151,7 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
             wrapped = wrap_core_sync(wrapped)
         if lib_wrapped_log_calls:
             wrapped = wrap_core_log_call(wrapped, log_fun, 'RPR')
-        if all(name not in wrapped.__name__ for name in ['RegisterPlugin', 'CreateContext']):
+        if wrapped.__name__ != 'RegisterPlugin':
             wrapped = wrap_core_check_success(wrapped, 'RPR')
         setattr(_module, name, wrapped)
 

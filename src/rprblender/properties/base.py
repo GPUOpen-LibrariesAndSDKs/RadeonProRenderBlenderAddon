@@ -18,7 +18,7 @@ from abc import abstractmethod
 
 class RPR_Property(bpy.types.PropertyGroup):
     @abstractmethod
-    def sync(self, parent, context: pyrpr.Context):
+    def sync(self, context: pyrpr.Context):
         ''' Sync will update this object in the context.
             And call any sub-objects that need to be synced
             rpr_context object in the binding will be the only place we keep

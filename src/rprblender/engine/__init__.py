@@ -124,15 +124,6 @@ if 'pyrpr' not in sys.modules:
 
 import pyrpr
 
-#def ensure_core_cache_folder():
-#    # TODO: set cache path to a user/temp folder?
-
-#    path = str(get_package_root_dir() / '.core_cache' / hex(pyrpr.API_VERSION))
-
-#    if not os.path.isdir(path):
-#        os.makedirs(path)
-#    return path
-
 
 #def ensure_core_trace_folder():
 #    if bpy.context.scene.rpr.dev.trace_dump_folder == '':
@@ -170,30 +161,27 @@ import pyrpr
 #    return flags
 
 
-#def create_context(cache_path, flags, props=None):
-#    # init trace dump settings
-#    from rprblender import properties
-#    properties.init_trace_dump(bpy.context.scene.rpr.dev)
+def create_context(flags, props=None):
+    #tahoe_path = get_core_render_plugin_path()
+    #plugin_id = pyrpr.register_plugin(tahoe_path)
+    #if plugin_id == -1:
+    #    raise RuntimeError("Plugin is not registered", tahoe_path)
 
-#    tahoe_path = get_core_render_plugin_path()
-#    plugin_id = pyrpr.register_plugin(tahoe_path)
-#    if plugin_id == -1:
-#        raise RuntimeError("Plugin is not registered", tahoe_path)
+    cache_path = str(get_package_root_dir() / '.core_cache' / hex(pyrpr.API_VERSION))
+    if not os.path.isdir(cache_path):
+        os.makedirs(cache_path)
 
-#    return pyrpr.Context([plugin_id,], flags, props, cache_path)
+    return pyrpr.Context([plugin_id,], flags, props, cache_path)
 
 
-#def get_core_render_plugin_path():
-#    if 'Windows' == platform.system():
-#        lib_name = 'Tahoe64.dll'
-#    elif 'Linux' == platform.system():
-#        lib_name = 'libTahoe64.so'
-#    elif 'Darwin' == platform.system():
-#        lib_name = 'libTahoe64.dylib'
-#    else:
-#        assert False, platform.system()
-#    tahoe_path = str(rprsdk_bin_path / lib_name)
-#    return tahoe_path
+def get_core_render_plugin_path():
+    lib_name = {
+        'Windows': 'Tahoe64.dll',
+        'Linux': 'libTahoe64.so',
+        'Darwin': 'libTahoe64.dylib' 
+        } [platform.system()]
+
+    return str(rprsdk_bin_path / lib_name)
 
 
 #support_path = str(get_package_root_dir() / 'support')
@@ -264,3 +252,9 @@ import pyrpr
 #                    except AttributeError:pass
 #            del referrers
 #        del render_device
+
+plugin_id = pyrpr.register_plugin(get_core_render_plugin_path())
+if plugin_id == -1:
+    raise RuntimeError("Plugin is not registered", get_core_render_plugin_path())
+
+logging.info("Plugin is registered with plugin_id=%d" % plugin_id, get_core_render_plugin_path())
