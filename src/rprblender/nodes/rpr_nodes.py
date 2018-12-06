@@ -1,4 +1,4 @@
-from ..properties.base import PropertyBase
+from ..properties.base import RPR_Property
 import bpy
 import json
 import os
@@ -59,7 +59,7 @@ from .export import export_blender_node
 
 
 
-class RPRShadingNode(bpy.types.ShaderNode, PropertyBase):
+class RPRShadingNode(bpy.types.ShaderNode, RPR_Property):
     meta_data = {} # holds the meta data from json
 
     def sync(context):

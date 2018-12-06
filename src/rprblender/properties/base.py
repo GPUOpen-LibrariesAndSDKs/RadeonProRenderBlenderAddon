@@ -13,10 +13,11 @@
 
 import bpy
 import pyrpr
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 
 class RPR_Property(bpy.types.PropertyGroup):
+    @abstractmethod
     def sync(self, parent, context: pyrpr.Context):
         ''' Sync will update this object in the context.
             And call any sub-objects that need to be synced
@@ -25,7 +26,7 @@ class RPR_Property(bpy.types.PropertyGroup):
         pass
 
 
-class RPR_Panel:
+class RPR_Panel(bpy.types.Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"

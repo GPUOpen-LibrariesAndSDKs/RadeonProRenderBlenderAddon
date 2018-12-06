@@ -49,12 +49,12 @@ class RPR_ObjectProperties(RPR_Property):
         del bpy.types.Object.rpr
 
 
-class RPR_OBJECT_PT_object(RPR_Panel, bpy.types.Panel):
+class RPR_OBJECT_PT_object(RPR_Panel):
     """
     panel to display above properties
     """
 
-    bl_idname = "rpr_object_PT_properties"
+    bl_idname = "rpr_object_PT_object"
     bl_label = "RPR Settings"
     bl_context = 'object'
 
@@ -68,6 +68,7 @@ class RPR_OBJECT_PT_object(RPR_Panel, bpy.types.Panel):
             self.layout.row().label(text="Just the test label")
             if rpr:
                 self.layout.row().prop(rpr, 'camera_visible')
+                self.layout.row().prop(rpr, 'shadowcatcher')
 
 
 classes = (RPR_ObjectProperties, RPR_OBJECT_PT_object)

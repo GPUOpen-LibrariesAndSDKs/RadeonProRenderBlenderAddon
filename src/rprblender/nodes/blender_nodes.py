@@ -1,4 +1,4 @@
-from ..properties.base import PropertyBase
+from ..properties.base import RPR_Property
 import bpy
 import json
 import os
