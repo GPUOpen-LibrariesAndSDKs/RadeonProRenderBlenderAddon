@@ -15,6 +15,7 @@ modules_to_register = (
     Render,
     Object,
     Mesh,
+    Light,
     Material,
 )
 

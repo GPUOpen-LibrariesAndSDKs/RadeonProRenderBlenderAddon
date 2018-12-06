@@ -14,14 +14,10 @@ class RPR_OBJECT_PT_light(RPR_Panel):
     """
     bl_idname = "rpr_object_PT_light"
     bl_label = "RPR Lamp Settings"
-    bl_context = 'light'
-
-    @classmethod
-    def poll(cls, context):
-        return context.object and super().poll(context)
+    bl_context = 'data'
 
     def draw(self, context):
-        layout = context.layout
+        layout = self.layout
 
         scene = context.scene
         light = context.light
