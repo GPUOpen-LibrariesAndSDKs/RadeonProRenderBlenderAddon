@@ -38,7 +38,7 @@ class RPREngine(bpy.types.RenderEngine):
         logging.info('render_engine.update')
 
         if not self.engine:
-            self.engine = Engine(self, data)
+            self.engine = Engine(self)
 
         self.engine.sync(depsgraph)
 
@@ -55,7 +55,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
-            self.engine = Engine(self, context.blend_data)  # ,context.region, context.space_data, context.region_data)
+            self.engine = Engine(self)  # ,context.region, context.space_data, context.region_data)
             self.engine.sync(context.depsgraph)
         else:
             self.engine.sync_updated(context.depsgraph)

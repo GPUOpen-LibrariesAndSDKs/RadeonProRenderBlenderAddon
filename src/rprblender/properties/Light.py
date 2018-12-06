@@ -4,6 +4,7 @@ from bpy.props import (
 )
 
 from .base import RPR_Property, RPR_Panel
+from rprblender import logging
 
 
 class RPR_PROPS_PhysicalLightSettings(RPR_Property):
@@ -11,7 +12,21 @@ class RPR_PROPS_PhysicalLightSettings(RPR_Property):
     def sync(self, context):
         ''' sync the mesh '''
         light = self.id_data
-        print("Syncing Light %s " % light.name)
+        print("Syncing light: %s" % light.name)
+
+    @classmethod
+    def register(cls):
+        logging.info("register", tag='Light')
+        bpy.types.Light.rpr = PointerProperty(
+            name="RPR Light Settings",
+            description="RPR light settings",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        logging.info("unregister", tag='Light')
+        del bpy.types.Light.rpr
 
 class RPR_DATA_PT_light(RPR_Panel):
     """

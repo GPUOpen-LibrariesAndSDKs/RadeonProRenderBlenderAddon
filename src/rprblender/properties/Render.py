@@ -25,8 +25,17 @@ class RPR_PROPS_DeviceSettings(RPR_Property):
 class RPR_PROPS_RenderSettings(RPR_Property):
     render: PointerProperty(type=RPR_PROPS_DeviceSettings)
 
+    def sync(self, context):
+        scene = self.id_data
+        print("Syncing scene: %s" % scene.name)
+
+        for obj in scene.objects:
+            obj.rpr.sync(context)
+
+
     @classmethod
     def register(cls):
+        logging.info("register", tag='Scene')
         bpy.types.Scene.rpr = PointerProperty(
             name="RPR Render Settings",
             description="RPR render settings",
@@ -35,6 +44,7 @@ class RPR_PROPS_RenderSettings(RPR_Property):
 
     @classmethod
     def unregister(cls):
+        logging.info("unregister", tag='Scene')
         del bpy.types.Scene.rpr
 
 
