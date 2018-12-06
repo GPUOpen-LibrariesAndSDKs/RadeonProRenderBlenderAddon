@@ -27,9 +27,9 @@ class RPR_Property(bpy.types.PropertyGroup):
 
 
 class RPR_Panel(bpy.types.Panel):
-    bl_space_type = "PROPERTIES"
-    bl_region_type = "WINDOW"
-    bl_context = "render"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'render'
     COMPAT_ENGINES = {'RPR'}
 
     @classmethod

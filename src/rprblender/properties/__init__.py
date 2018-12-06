@@ -4,18 +4,20 @@ from rprblender import logging
 
 from . import (
     Render,
-    Object,
     Mesh,
+    Object,
     Light,
+    Camera,
     Material,
 )
 
 
 modules_to_register = (
     Render,
-    Object,
     Mesh,
+    Object,
     Light,
+    Camera,
     Material,
 )
 
@@ -23,7 +25,7 @@ modules_to_register = (
 # Register/unregister all required classes of RPR properties in one go
 classes = []
 for module in modules_to_register:
-    module_classes = getattr(module, "classes", None)
+    module_classes = getattr(module, 'classes', None)
     if module_classes:
         classes.extend(module_classes)
 logging.debug("Classes to register are {}".format(classes), tag="properties")
@@ -74,6 +76,7 @@ def get_panels():
         'RENDER_PT_freestyle',
         'RENDER_PT_post_processing',
         'RENDER_PT_shading',
+        'RENDER_PT_simplify',
         'RENDER_PT_stamp',
         'SCENE_PT_simplify',
         'SCENE_PT_audio',

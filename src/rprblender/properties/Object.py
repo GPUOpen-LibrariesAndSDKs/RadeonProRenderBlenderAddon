@@ -13,12 +13,12 @@ import pyrpr
 from rprblender import logging
 
 
-class RPR_ObjectProperties(RPR_Property):
+class RPR_PROPS_Object(RPR_Property):
     """
     Properties for objects
     """
 
-    camera_visible: BoolProperty(name='Camera Visibility', default=True)
+    camera_visible: BoolProperty(name="Camera Visibility", default=True)
 
     shadowcatcher: BoolProperty(
         name="Shadow Catcher",
@@ -54,7 +54,7 @@ class RPR_OBJECT_PT_object(RPR_Panel):
     panel to display above properties
     """
 
-    bl_idname = "rpr_object_PT_object"
+    bl_idname = 'rpr_object_PT_object'
     bl_label = "RPR Settings"
     bl_context = 'object'
 
@@ -71,4 +71,4 @@ class RPR_OBJECT_PT_object(RPR_Panel):
                 self.layout.row().prop(rpr, 'shadowcatcher')
 
 
-classes = (RPR_ObjectProperties, RPR_OBJECT_PT_object)
+classes = (RPR_PROPS_Object, RPR_OBJECT_PT_object)
