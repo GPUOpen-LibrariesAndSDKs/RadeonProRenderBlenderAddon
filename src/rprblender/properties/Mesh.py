@@ -1,9 +1,9 @@
-from .base import PropertyBase
+from .base import RPR_Property
 from bpy.props import *
 import bpy
 
 
-class MeshProperties(PropertyBase):
+class MeshProperties(RPR_Property):
     ''' Properties for mesh '''
 
     def sync(self, context):

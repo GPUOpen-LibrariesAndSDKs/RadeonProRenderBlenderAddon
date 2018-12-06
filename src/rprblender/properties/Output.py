@@ -1,18 +1,11 @@
 import bpy
-from bpy.props import (
-    BoolProperty,
-    EnumProperty,
-    FloatProperty,
-    IntProperty,
-    PointerProperty,
-    StringProperty,
-)
+from bpy.types import PointerProperty
 
 from .base import RPR_Property, RPR_Panel
 from rprblender import logging
 
 
-class RPR_RenderSettings(RPR_Property):
+class RPR_OutputSettings(RPR_Property):
     @classmethod
     def register(cls):
         bpy.types.Scene.rpr = PointerProperty(
@@ -26,12 +19,12 @@ class RPR_RenderSettings(RPR_Property):
         del bpy.types.Scene.rpr
 
 
-class RPR_PT_RenderPanel(RPR_Panel, bpy.types.Panel):
+class RPR_PT_OutputPanel(RPR_Panel, bpy.types.Panel):
     bl_idname = "RPR_PT_render_properties"
     bl_label = "RPR Render Properties"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = 'render'
+    bl_context = "output"
 
     def draw(self, context):
         scene = context.scene
@@ -44,7 +37,5 @@ class RPR_PT_RenderPanel(RPR_Panel, bpy.types.Panel):
         layout.row().prop(scene, "frame_step")
         layout.row().prop(scene.render, "fps")
 
-        layout.row().label(text="Test label of the RENDER tab")
 
-
-classes = (RPR_PT_RenderPanel,)
+classes = (RPR_PT_OutputPanel,)

@@ -2,15 +2,22 @@ import bpy
 
 from rprblender import logging
 
-from . import Object
-from . import Mesh
-from . import Render
+from . import (
+    Render,
+    Output,
+    Object,
+    Mesh,
+    Lamp,
+    Material,
+)
 
 
 modules_to_register = (
+    Render,
+    Output,
     Object,
     Mesh,
-    Render,
+    Material,
 )
 
 
