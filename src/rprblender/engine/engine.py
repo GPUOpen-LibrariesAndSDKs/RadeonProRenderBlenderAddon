@@ -7,12 +7,15 @@ Other modules in this directory could be viewport, etc.
 ''' main Render object '''
 
 import pyrpr
+from . import context
+
 
 class Engine:
     def __init__(self, rpr_engine, data):
         self.rpr_engine = rpr_engine
         self.data = data
-        self.context = pyrpr.Context()
+        scene = self.data.scenes[0]
+        self.context = context.Context(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
@@ -23,9 +26,9 @@ class Engine:
         ''' sync all data ''' 
         print('Engine.sync')
 
-        # export scene data, set denoisers, etc
-        # scene = self.data.scene
-        # scene.rpr.sync(context)
+        ## export scene data, set denoisers, etc
+        #scene = self.data.scene
+        #scene.rpr.sync(self.context)
 
         # walk depsgraph
         for instance in depsgraph.object_instances:
@@ -40,7 +43,7 @@ class Engine:
             # run the "sync" method of the obj
             context = None # dummy rpr context
             if hasattr(obj, 'rpr'):
-                obj.rpr.sync(obj, context)
+                obj.rpr.sync(context)
             else:
                 print('not exporting', obj.name)
 

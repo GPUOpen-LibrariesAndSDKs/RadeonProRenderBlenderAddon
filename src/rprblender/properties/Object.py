@@ -26,7 +26,7 @@ class RPR_PROPS_Object(RPR_Property):
         default=False,
     )
 
-    def sync(self, parent: bpy.types.Object, context: pyrpr.Context):
+    def sync(self, context):
         ''' sync the object and any data attached '''
         obj = self.id_data
         print("Syncing Object %s " % obj.name)

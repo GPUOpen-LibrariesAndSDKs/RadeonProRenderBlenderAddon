@@ -7,8 +7,11 @@ from .base import RPR_Property, RPR_Panel
 
 
 class RPR_PROPS_PhysicalLightSettings(RPR_Property):
-    pass
 
+    def sync(self, context):
+        ''' sync the mesh '''
+        light = self.id_data
+        print("Syncing Light %s " % light.name)
 
 class RPR_DATA_PT_light(RPR_Panel):
     """
