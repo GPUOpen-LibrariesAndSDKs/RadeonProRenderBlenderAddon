@@ -14,7 +14,7 @@ class RPR_MATERIAL_OT_UseShadingNodes(Operator):
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
-        return getattr(context, 'material', False)
+        return hasattr(context, 'material')
 
     def execute(self, context: bpy.types.Context):
         logging.info("Enabling nodes for {}".format(context))
@@ -37,7 +37,7 @@ class RPR_MATERIAL_PT_material(RPR_Panel):
         layout = self.layout
 
         mat = context.material
-        layout.operator('rpr.use_shading_nodes', icon='NODETREE')
+        layout.operator('rpr.use_material_shading_nodes', icon='NODETREE')
 
 
 classes = (RPR_MATERIAL_OT_UseShadingNodes, RPR_MATERIAL_PT_material)

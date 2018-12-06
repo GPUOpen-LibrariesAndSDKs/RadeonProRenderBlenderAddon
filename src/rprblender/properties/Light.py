@@ -1,20 +1,26 @@
 import bpy
-from bpy.types import PointerProperty
+from bpy.props import (
+    PointerProperty,
+)
 
 from .base import RPR_Property, RPR_Panel
 
 
-class RPR_LightSettings(RPR_Property):
+class RPR_PROPS_PhysicalLightSettings(RPR_Property):
     pass
 
 
-class RPR_OBJECT_PT_light(RPR_Panel):
+class RPR_DATA_PT_light(RPR_Panel):
     """
     Physical light sources
     """
-    bl_idname = "rpr_object_PT_light"
-    bl_label = "RPR Lamp Settings"
+    bl_idname = 'rpr_data_PT_light'
+    bl_label = "Light Settings"
     bl_context = 'data'
+
+    @classmethod
+    def poll(cls, context):
+        return context.light and RPR_Panel.poll(context)
 
     def draw(self, context):
         layout = self.layout
@@ -25,4 +31,4 @@ class RPR_OBJECT_PT_light(RPR_Panel):
         layout.prop(light, "type", expand=True)
 
 
-classes = (RPR_LightSettings, RPR_OBJECT_PT_light)
+classes = (RPR_PROPS_PhysicalLightSettings, RPR_DATA_PT_light)
