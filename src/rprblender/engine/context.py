@@ -347,3 +347,4 @@ class Context:
             self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
         del self.frame_buffers_aovs['default']['sc']
 
+

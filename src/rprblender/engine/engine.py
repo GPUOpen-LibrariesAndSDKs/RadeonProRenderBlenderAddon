@@ -11,11 +11,9 @@ from . import context
 
 
 class Engine:
-    def __init__(self, rpr_engine, data):
+    def __init__(self, rpr_engine):
         self.rpr_engine = rpr_engine
-        self.data = data
-        scene = self.data.scenes[0]
-        self.context = context.Context(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
+        self.context: context.Context = None
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
@@ -26,26 +24,27 @@ class Engine:
         ''' sync all data ''' 
         print('Engine.sync')
 
-        ## export scene data, set denoisers, etc
-        #scene = self.data.scene
-        #scene.rpr.sync(self.context)
+        # export scene data, set denoisers, etc
+        scene = depsgraph.scene
+        self.context = context.Context(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
+        scene.rpr.sync(self.context)
 
-        # walk depsgraph
-        for instance in depsgraph.object_instances:
-            if instance.is_instance:  # Real dupli instance
-                obj = dup.instance_object.original
-            else:  # Usual object
-                obj = instance.object.original
+        ## walk depsgraph
+        #for instance in depsgraph.object_instances:
+        #    if instance.is_instance:  # Real dupli instance
+        #        obj = dup.instance_object.original
+        #    else:  # Usual object
+        #        obj = instance.object.original
             
-            # these ids are weird.  Needs more investigation
-            print("instance of %s" % obj.name, instance.random_id, instance.persistent_id)
+        #    # these ids are weird.  Needs more investigation
+        #    print("instance of %s" % obj.name, instance.random_id, instance.persistent_id)
 
-            # run the "sync" method of the obj
-            context = None # dummy rpr context
-            if hasattr(obj, 'rpr'):
-                obj.rpr.sync(context)
-            else:
-                print('not exporting', obj.name)
+        #    # run the "sync" method of the obj
+        #    context = None # dummy rpr context
+        #    if hasattr(obj, 'rpr'):
+        #        obj.rpr.sync(context)
+        #    else:
+        #        print('not exporting', obj.name)
 
     def sync_updated(self, depsgraph):
         ''' sync just the updated things ''' 

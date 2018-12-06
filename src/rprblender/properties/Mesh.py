@@ -3,6 +3,7 @@ from bpy.props import *
 import bpy
 
 import pyrpr
+from rprblender import logging
 
 class MeshProperties(RPR_Property):
     ''' Properties for mesh '''
@@ -10,10 +11,11 @@ class MeshProperties(RPR_Property):
     def sync(self, context):
         ''' sync the mesh '''
         mesh = self.id_data
-        print("Syncing Mesh %s " % mesh.name)
+        print("Syncing mesh: %s" % mesh.name)
 
     @classmethod
     def register(cls):
+        logging.info("register", tag='Mesh')
         bpy.types.Mesh.rpr = PointerProperty(
             name="RPR Mesh Settings",
             description="RPR object settings",
@@ -22,6 +24,7 @@ class MeshProperties(RPR_Property):
 
     @classmethod
     def unregister(cls):
+        logging.info("unregister", tag='Mesh')
         del bpy.types.Mesh.rpr
 
 

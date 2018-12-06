@@ -29,9 +29,9 @@ class RPR_PROPS_Object(RPR_Property):
     def sync(self, context):
         ''' sync the object and any data attached '''
         obj = self.id_data
-        print("Syncing Object %s " % obj.name)
+        print("Syncing object: %s" % obj.name)
 
-        if self.camera_visible and hasattr(obj.data, 'rpr'):
+        if self.camera_visible:
             obj.data.rpr.sync(context)
 
     @classmethod

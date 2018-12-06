@@ -10,23 +10,28 @@ from .base import RPR_Panel, RPR_Property
 
 
 class RPR_PROPS_CameraMotionBlur(RPR_Property):
-    motion_blur: BoolProperty = BoolProperty(
+    motion_blur: BoolProperty(
         name="Motion Blur",
         description="Enable Motion Blur",
         default=True
     )
 
-    motion_blur_exposure: FloatProperty = FloatProperty(
+    motion_blur_exposure: FloatProperty(
         name="Motion Blur Exposure",
         description="Motion Blur Exposure",
         min=0,
         default=1.0,
     )
 
+    def sync(self, context):
+        ''' sync the object and any data attached '''
+        camera = self.id_data
+        print("Syncing camera: %s" % camera.name)
+
     @classmethod
     def register(cls):
         logging.info("register", tag='Camera')
-        bpy.types.Camera.rpr_camera = PointerProperty(
+        bpy.types.Camera.rpr = PointerProperty(
             name="RPR Camera Settings",
             description="RPR Camera settings",
             type=cls,
@@ -35,7 +40,7 @@ class RPR_PROPS_CameraMotionBlur(RPR_Property):
     @classmethod
     def unregister(cls):
         logging.info("unregister", tag='Camera')
-        del bpy.types.Camera.rpr_camera
+        del bpy.types.Camera.rpr
 
 
 class RPR_DATA_PT_camera_motion_blur(RPR_Panel):
