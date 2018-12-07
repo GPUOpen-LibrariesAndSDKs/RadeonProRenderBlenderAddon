@@ -8,11 +8,11 @@ from bpy.props import (
     StringProperty,
 )
 
-from .base import RPR_Property, RPR_Panel
+from . import RPR_Properties, RPR_Panel
 from rprblender import logging
 
 
-class RPR_PROPS_DeviceSettings(RPR_Property):
+class RPR_RenderDeviceProperties(RPR_Properties):
     use_cpu: BoolProperty(default=False)
     use_gpu: BoolProperty(default=True)
 
@@ -22,8 +22,8 @@ class RPR_PROPS_DeviceSettings(RPR_Property):
     )
 
 
-class RPR_PROPS_RenderSettings(RPR_Property):
-    render: PointerProperty(type=RPR_PROPS_DeviceSettings)
+class RPR_RenderProperties(RPR_Properties):
+    render: PointerProperty(type=RPR_RenderDeviceProperties)
 
     def sync(self, context):
         scene = self.id_data
@@ -63,4 +63,4 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         layout.row().prop(render, 'use_gpu')
 
 
-classes = (RPR_PROPS_DeviceSettings, RPR_PROPS_RenderSettings, RPR_RENDER_PT_devices,)
+classes_to_register = (RPR_RenderDeviceProperties, RPR_RenderProperties, RPR_RENDER_PT_devices)

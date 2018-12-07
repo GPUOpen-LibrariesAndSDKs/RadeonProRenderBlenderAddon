@@ -3,11 +3,11 @@ from bpy.props import (
     PointerProperty,
 )
 
-from .base import RPR_Property, RPR_Panel
+from . import RPR_Properties, RPR_Panel
 from rprblender import logging
 
 
-class RPR_PROPS_PhysicalLightSettings(RPR_Property):
+class RPR_LightProperties(RPR_Properties):
 
     def sync(self, context, transform):
         ''' sync the mesh '''
@@ -33,7 +33,7 @@ class RPR_PROPS_PhysicalLightSettings(RPR_Property):
         logging.info("unregister", tag='Light')
         del bpy.types.Light.rpr
 
-class RPR_DATA_PT_light(RPR_Panel):
+class RPR_LIGHT_PT_light(RPR_Panel):
     """
     Physical light sources
     """
@@ -54,4 +54,4 @@ class RPR_DATA_PT_light(RPR_Panel):
         layout.prop(light, "type", expand=True)
 
 
-classes = (RPR_PROPS_PhysicalLightSettings, RPR_DATA_PT_light)
+classes_to_register = (RPR_LightProperties, RPR_LIGHT_PT_light)

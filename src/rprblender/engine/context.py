@@ -49,6 +49,7 @@ class Context:
 
     def __del__(self):
         self.post_effect.detach()
+        self.disable_aovs()
 
     def clear_frame_buffers(self):
         with self.render_lock:
