@@ -1,7 +1,41 @@
-import bpy
+''' property classes should be self contained.  They may include:
+    PropertyGroup class
+        with properties that can be attached to a blender ID type
+        methods for syncing these properties
+    And panel classes for displaying these properties
 
+    The idea here is to keep all the properties syncing, data, display etc in one place.
+    Basically a "model/view" type pattern where we bring them together for ease of maintenance.
+    Slightly inspired by vue.js
+
+    TODO could we use decorators to register???
+'''
+
+import bpy
 from rprblender import logging
 
+
+class RPR_Properties(bpy.types.PropertyGroup):
+    def sync(self, context):
+        ''' Sync will update this object in the context.
+            And call any sub-objects that need to be synced
+            rpr_context object in the binding will be the only place we keep
+        "lists of items synced." '''
+        pass
+
+
+class RPR_Panel(bpy.types.Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'render'
+    COMPAT_ENGINES = {'RPR'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
+
+
+# Register/unregister all required classes of RPR properties in one go
 from . import (
     Render,
     Mesh,
@@ -10,7 +44,6 @@ from . import (
     Camera,
     Material,
 )
-
 
 modules_to_register = (
     Render,
@@ -21,15 +54,14 @@ modules_to_register = (
     Material,
 )
 
-
-# Register/unregister all required classes of RPR properties in one go
-classes = []
+classes_to_register = []
 for module in modules_to_register:
-    module_classes = getattr(module, 'classes', None)
+    module_classes = getattr(module, 'classes_to_register', None)
     if module_classes:
-        classes.extend(module_classes)
-logging.debug("Classes to register are {}".format(classes), tag="properties")
-register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
+        classes_to_register.extend(module_classes)
+
+logging.debug("Classes to register are {}".format(classes_to_register), tag="properties")
+register_classes, unregister_classes = bpy.utils.register_classes_factory(classes_to_register)
 
 
 # Extend Blender panels to work with RPR

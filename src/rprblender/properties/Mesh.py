@@ -1,13 +1,13 @@
 import numpy as np
 
-from .base import RPR_Property
+from . import RPR_Properties
 from bpy.props import *
 import bpy
 
 import pyrpr
 from rprblender import logging
 
-class MeshProperties(RPR_Property):
+class RPR_MeshProperties(RPR_Properties):
     ''' Properties for mesh '''
 
     def sync(self, context, transform):
@@ -106,4 +106,4 @@ class MeshProperties(RPR_Property):
         del bpy.types.Mesh.rpr
 
 
-classes = (MeshProperties,)
+classes_to_register = (RPR_MeshProperties,)

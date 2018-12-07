@@ -1,7 +1,7 @@
 import bpy
 from bpy.types import Operator
 
-from .base import RPR_Panel
+from . import RPR_Panel
 from rprblender import logging
 
 
@@ -40,4 +40,4 @@ class RPR_MATERIAL_PT_material(RPR_Panel):
         layout.operator('rpr.use_material_shading_nodes', icon='NODETREE')
 
 
-classes = (RPR_MATERIAL_OT_UseShadingNodes, RPR_MATERIAL_PT_material)
+classes_to_register = (RPR_MATERIAL_OT_UseShadingNodes, RPR_MATERIAL_PT_material)

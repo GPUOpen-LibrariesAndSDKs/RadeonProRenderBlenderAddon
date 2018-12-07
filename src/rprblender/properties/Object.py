@@ -12,10 +12,10 @@ from bpy.props import (
 
 import pyrpr
 from rprblender import logging
-from .base import RPR_Property, RPR_Panel
+from . import RPR_Properties, RPR_Panel
 
 
-class RPR_PROPS_Object(RPR_Property):
+class RPR_ObjectProperites(RPR_Properties):
     """
     Properties for objects
     """
@@ -74,4 +74,4 @@ class RPR_OBJECT_PT_object(RPR_Panel):
                 self.layout.row().prop(rpr, 'shadowcatcher')
 
 
-classes = (RPR_PROPS_Object, RPR_OBJECT_PT_object)
+classes_to_register = (RPR_ObjectProperites, RPR_OBJECT_PT_object)

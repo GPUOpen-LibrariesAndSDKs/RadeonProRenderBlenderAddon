@@ -6,10 +6,10 @@ from bpy.props import (
 )
 
 from rprblender import logging
-from .base import RPR_Panel, RPR_Property
+from . import RPR_Panel, RPR_Properties
 
 
-class RPR_PROPS_CameraMotionBlur(RPR_Property):
+class RPR_CameraProperties(RPR_Properties):
     motion_blur: BoolProperty(
         name="Motion Blur",
         description="Enable Motion Blur",
@@ -53,7 +53,7 @@ class RPR_PROPS_CameraMotionBlur(RPR_Property):
         del bpy.types.Camera.rpr
 
 
-class RPR_DATA_PT_camera_motion_blur(RPR_Panel):
+class RPR_CAMERA_PT_motion_blur(RPR_Panel):
     bl_idname = 'rpr_data_PT_camera_motion_blur'
     bl_label = "Motion Blur"
     bl_context = 'data'
@@ -75,4 +75,4 @@ class RPR_DATA_PT_camera_motion_blur(RPR_Panel):
         row.prop(context.camera.rpr_camera, 'motion_blur_exposure')
 
 
-classes = (RPR_PROPS_CameraMotionBlur, RPR_DATA_PT_camera_motion_blur)
+classes_to_register = (RPR_CameraProperties, RPR_CAMERA_PT_motion_blur)
