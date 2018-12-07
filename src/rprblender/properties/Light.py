@@ -8,7 +8,6 @@ from rprblender import logging
 
 
 class RPR_LightProperties(RPR_Properties):
-
     def sync(self, context, transform):
         ''' sync the mesh '''
         light = self.id_data
@@ -33,12 +32,13 @@ class RPR_LightProperties(RPR_Properties):
         logging.info("unregister", tag='Light')
         del bpy.types.Light.rpr
 
+
 class RPR_LIGHT_PT_light(RPR_Panel):
     """
     Physical light sources
     """
     bl_idname = 'rpr_data_PT_light'
-    bl_label = "Light Settings"
+    bl_label = "RPR Settings"
     bl_context = 'data'
 
     @classmethod

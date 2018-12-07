@@ -5,6 +5,7 @@ from bpy.props import (
     BoolProperty,
 )
 
+import pyrpr
 from rprblender import logging
 from . import RPR_Panel, RPR_Properties
 
@@ -35,8 +36,19 @@ class RPR_CameraProperties(RPR_Properties):
         
         rpr_camera = context.create_camera()
         rpr_camera.set_name(camera.name)
+        
         pos, at, up = get_look_at(transform)
         rpr_camera.look_at(pos, at, up)
+
+        mode = {
+            'ORTHO': pyrpr.CAMERA_MODE_ORTHOGRAPHIC,
+            'PERSP': pyrpr.CAMERA_MODE_PERSPECTIVE,
+            'PANO': pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360,
+            }[camera.type]
+        rpr_camera.set_mode(mode)
+
+        rpr_camera.set_focal_length(camera.lens)
+        rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
 
     @classmethod
     def register(cls):
@@ -55,7 +67,7 @@ class RPR_CameraProperties(RPR_Properties):
 
 class RPR_CAMERA_PT_motion_blur(RPR_Panel):
     bl_idname = 'rpr_data_PT_camera_motion_blur'
-    bl_label = "Motion Blur"
+    bl_label = "RPR Motion Blur"
     bl_context = 'data'
 
     @classmethod
@@ -65,14 +77,14 @@ class RPR_CAMERA_PT_motion_blur(RPR_Panel):
     def draw_header(self, context):
         row = self.layout.row()
 #        row.active = context.scene.rpr.render.motion_blur
-        row.prop(context.camera.rpr_camera, 'motion_blur', text='')
+        row.prop(context.camera.rpr, 'motion_blur', text='')
 
     def draw(self, context):
         self.layout.use_property_split = True
         row = self.layout.row()
 #        row.active = context.scene.rpr.render.motion_blur
-        row.enabled = context.camera.rpr_camera.motion_blur
-        row.prop(context.camera.rpr_camera, 'motion_blur_exposure')
+        row.enabled = context.camera.rpr.motion_blur
+        row.prop(context.camera.rpr, 'motion_blur_exposure')
 
 
 classes_to_register = (RPR_CameraProperties, RPR_CAMERA_PT_motion_blur)
