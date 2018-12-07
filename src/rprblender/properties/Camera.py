@@ -23,10 +23,20 @@ class RPR_PROPS_CameraMotionBlur(RPR_Property):
         default=1.0,
     )
 
-    def sync(self, context):
-        ''' sync the object and any data attached '''
+    def sync(self, context, transform):
+        def get_look_at(m):
+            pos = m.dot([0, 0, 0, 1])[:3]
+            at = m.dot([0, 0, -1, 1])[:3]
+            up = m.dot([0, 1, 0, 0])[:3]
+            return pos, at, up
+
         camera = self.id_data
         print("Syncing camera: %s" % camera.name)
+        
+        rpr_camera = context.create_camera()
+        rpr_camera.set_name(camera.name)
+        pos, at, up = get_look_at(transform)
+        rpr_camera.look_at(pos, at, up)
 
     @classmethod
     def register(cls):

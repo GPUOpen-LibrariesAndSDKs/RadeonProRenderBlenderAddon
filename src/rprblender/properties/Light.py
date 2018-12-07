@@ -9,10 +9,15 @@ from rprblender import logging
 
 class RPR_PROPS_PhysicalLightSettings(RPR_Property):
 
-    def sync(self, context):
+    def sync(self, context, transform):
         ''' sync the mesh '''
         light = self.id_data
         print("Syncing light: %s" % light.name)
+
+        rpr_light = context.create_point_light()
+        rpr_light.set_name(light.name)
+        rpr_light.set_radiant_power(10.0, 10.0, 1.0)
+        rpr_light.set_transform(transform)
 
     @classmethod
     def register(cls):

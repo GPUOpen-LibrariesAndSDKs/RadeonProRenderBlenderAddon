@@ -6,19 +6,26 @@ Other modules in this directory could be viewport, etc.
 
 ''' main Render object '''
 
+import weakref
 import pyrpr
 from . import context
 
 
 class Engine:
     def __init__(self, rpr_engine):
-        self.rpr_engine = rpr_engine
+        self.rpr_engine = weakref.ref(rpr_engine)
         self.context: context.Context = None
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
         print('Engine.render')
 
+        for i in range(10):
+            self.context.render()
+
+    def get_image(self):
+        self.context.resolve()
+        return self.context.get_image()
 
     def sync(self, depsgraph):
         ''' sync all data ''' 
@@ -28,6 +35,8 @@ class Engine:
         scene = depsgraph.scene
         self.context = context.Context(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
         scene.rpr.sync(self.context)
+
+        self.context.enable_aov(pyrpr.AOV_COLOR)
 
         ## walk depsgraph
         #for instance in depsgraph.object_instances:

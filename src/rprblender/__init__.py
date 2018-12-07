@@ -47,6 +47,15 @@ class RPREngine(bpy.types.RenderEngine):
         logging.info("render_engine.render")
 
         self.engine.render(depsgraph)
+        image = self.engine.get_image()
+
+        result = self.begin_result(0, 0, image.shape[1], image.shape[0])
+        image = image.reshape((image.shape[1]*image.shape[0], 4))
+        layer = result.layers[0].passes["Combined"]
+        layer.rect = image
+        self.end_result(result)
+
+
 
     # viewport render
     def view_update(self, context):

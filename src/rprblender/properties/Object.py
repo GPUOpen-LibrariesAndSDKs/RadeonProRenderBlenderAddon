@@ -1,4 +1,5 @@
-from .base import RPR_Property, RPR_Panel
+import numpy as np
+
 import bpy
 from bpy.props import (
     BoolProperty,
@@ -8,9 +9,10 @@ from bpy.props import (
     PointerProperty,
     StringProperty,
 )
-import pyrpr
 
+import pyrpr
 from rprblender import logging
+from .base import RPR_Property, RPR_Panel
 
 
 class RPR_PROPS_Object(RPR_Property):
@@ -31,8 +33,9 @@ class RPR_PROPS_Object(RPR_Property):
         obj = self.id_data
         print("Syncing object: %s" % obj.name)
 
-        if self.camera_visible:
-            obj.data.rpr.sync(context)
+        if self.camera_visible and hasattr(obj.data, 'rpr'):
+            transform = np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+            obj.data.rpr.sync(context, transform)
 
     @classmethod
     def register(cls):
