@@ -33,7 +33,7 @@ class Context:
         
         # context settings
         self.context.set_parameter('xflip', False)
-        self.context.set_parameter('yflip', True)
+        self.context.set_parameter('yflip', False)
         self.context.set_parameter('preview', is_preview)
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
@@ -41,6 +41,11 @@ class Context:
 
         self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
         self.post_effect.attach()
+
+        self.scenes = []
+        self.scene = None
+        self.objects = []
+
 
     def __del__(self):
         self.post_effect.detach()
@@ -60,7 +65,7 @@ class Context:
                 self.context.render_tile(*region)
             self.iterations += 1
 
-    def get_image(self, aov_type):
+    def get_image(self, aov_type=pyrpr.AOV_COLOR):
         if aov_type == pyrpr.AOV_COLOR and self.image_filter:
             return self.image_filter.get_data()
 
@@ -103,15 +108,15 @@ class Context:
 
         fbs = {}
         fbs['aov'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-        fbs['aov'].set_name(aov_type + '_aov')
+        fbs['aov'].set_name("%d_aov" % aov_type)
         self.context.attach_aov(aov_type, fbs['aov'])
         if aov_type == pyrpr.AOV_COLOR and self.gl_interop:
             fbs['res'] = pyrpr.FrameBufferGL(self.context, self.width, self.height)
             fbs['gl'] = fbs['res']      # resolved and gl framebuffers are the same
-            fbs['gl'].set_name(aov_type + '_gl')
+            fbs['gl'].set_name("%d_gl" % aov_type)
         else:
             fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-            fbs['res'].set_name(aov_type + '_res')
+            fbs['res'].set_name("%d_res" % aov_type)
 
         self.frame_buffers_aovs[aov_type] = fbs
 
@@ -347,4 +352,56 @@ class Context:
             self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
         del self.frame_buffers_aovs['default']['sc']
 
+
+
+    def create_scene(self, set_default=True):
+        scene = pyrpr.Scene(self.context)
+        self.scenes.append(scene)
+
+        if set_default:
+            self.set_scene(scene)
+        
+        return scene
+
+    def set_scene(self, scene):
+        self.scene = scene
+        self.context.set_scene(self.scene)
+
+    def create_point_light(self, do_attach=True):
+        light = pyrpr.PointLight(self.context)
+        self.objects.append(light)
+
+        if do_attach:
+            self.attach(light)
+
+        return light
+
+    def create_mesh(self, vertices, normals, texcoords, 
+                 vertex_indices, normal_indices, texcoord_indices, 
+                 num_face_vertices, do_attach=True):
+
+        mesh = pyrpr.Mesh(self.context, vertices, normals, texcoords, 
+                 vertex_indices, normal_indices, texcoord_indices, 
+                 num_face_vertices)
+        self.objects.append(mesh)
+
+        if do_attach:
+            self.attach(mesh)
+
+        return mesh
+
+    def create_camera(self, set_default=True):
+        camera = pyrpr.Camera(self.context)
+        self.objects.append(camera)
+
+        if set_default:
+            self.set_camera(camera)
+
+        return camera
+
+    def set_camera(self, camera):
+        self.scene.set_camera(camera)
+
+    def attach(self, obj):
+        self.scene.attach(obj)
 

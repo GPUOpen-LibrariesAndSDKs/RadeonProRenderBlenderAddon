@@ -53,6 +53,7 @@
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\properties\base.py" />
+    <Compile Include="rprblender\properties\Camera.py" />
     <Compile Include="rprblender\properties\Light.py" />
     <Compile Include="rprblender\properties\Material.py" />
     <Compile Include="rprblender\properties\Mesh.py" />
