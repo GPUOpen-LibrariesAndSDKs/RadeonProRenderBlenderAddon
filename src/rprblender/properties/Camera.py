@@ -9,8 +9,10 @@ import pyrpr
 from rprblender import logging
 from . import RPR_Panel, RPR_Properties
 
+
 def log(*args):
     logging.info(*args, tag='Camera')
+
 
 class RPR_CameraProperties(RPR_Properties):
     motion_blur: BoolProperty(
@@ -64,7 +66,7 @@ class RPR_CameraProperties(RPR_Properties):
 
     @classmethod
     def unregister(cls):
-        logging.info("unregister", tag='Camera')
+        log("Unregister")
         del bpy.types.Camera.rpr
 
 

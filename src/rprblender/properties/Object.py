@@ -15,6 +15,10 @@ from rprblender import logging
 from . import RPR_Properties, RPR_Panel
 
 
+def log(*args):
+    logging.info(*args, tag='Object')
+
+
 class RPR_ObjectProperites(RPR_Properties):
     """
     Properties for objects
@@ -31,7 +35,7 @@ class RPR_ObjectProperites(RPR_Properties):
     def sync(self, context):
         ''' sync the object and any data attached '''
         obj = self.id_data
-        print("Syncing object: %s" % obj.name)
+        log("Syncing object: %s" % obj.name)
 
         if self.camera_visible and hasattr(obj.data, 'rpr'):
             transform = np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
@@ -39,7 +43,7 @@ class RPR_ObjectProperites(RPR_Properties):
 
     @classmethod
     def register(cls):
-        logging.info("register", tag='Object')
+        log("Register")
         bpy.types.Object.rpr = PointerProperty(
             name="RPR Object Settings",
             description="RPR Object settings",
@@ -48,7 +52,7 @@ class RPR_ObjectProperites(RPR_Properties):
 
     @classmethod
     def unregister(cls):
-        logging.info("unregister", tag='Object')
+        log("Unregister")
         del bpy.types.Object.rpr
 
 
