@@ -9,6 +9,8 @@ import pyrpr
 from rprblender import logging
 from . import RPR_Panel, RPR_Properties
 
+def log(*args):
+    logging.info(*args, tag='Camera')
 
 class RPR_CameraProperties(RPR_Properties):
     motion_blur: BoolProperty(
@@ -25,20 +27,15 @@ class RPR_CameraProperties(RPR_Properties):
     )
 
     def sync(self, context, transform):
-        def get_look_at(m):
-            pos = m.dot([0, 0, 0, 1])[:3]
-            at = m.dot([0, 0, -1, 1])[:3]
-            up = m.dot([0, 1, 0, 0])[:3]
-            return pos, at, up
-
         camera = self.id_data
-        print("Syncing camera: %s" % camera.name)
+        log("Syncing camera: %s" % camera.name)
         
         rpr_camera = context.create_camera()
         rpr_camera.set_name(camera.name)
         
-        pos, at, up = get_look_at(transform)
-        rpr_camera.look_at(pos, at, up)
+        rpr_camera.set_transform(transform)
+        rpr_camera.set_clip_plane(camera.clip_start, camera.clip_end)
+        rpr_camera.set_lens_shift(camera.shift_x, camera.shift_y)   # TODO: Shift has to be fixed
 
         mode = {
             'ORTHO': pyrpr.CAMERA_MODE_ORTHOGRAPHIC,
@@ -47,12 +44,18 @@ class RPR_CameraProperties(RPR_Properties):
             }[camera.type]
         rpr_camera.set_mode(mode)
 
+        # TODO: Currently we set only perspective parameters
         rpr_camera.set_focal_length(camera.lens)
-        rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
+        if camera.sensor_fit != 'VERTICAL':
+            ratio = context.width / context.height
+            rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_width / ratio)
+        else:
+            rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
+
 
     @classmethod
     def register(cls):
-        logging.info("register", tag='Camera')
+        log("Register")
         bpy.types.Camera.rpr = PointerProperty(
             name="RPR Camera Settings",
             description="RPR Camera settings",

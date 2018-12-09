@@ -601,6 +601,13 @@ class Camera(Object):
     def set_exposure(self, exposure):
         CameraSetExposure(self, exposure)
 
+    def set_clip_plane(self, near, far):
+        CameraSetNearPlane(self, near)
+        CameraSetFarPlane(self, far)
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        CameraSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
+
 
 class FrameBuffer(Object):
     core_type_name = 'rpr_framebuffer'
