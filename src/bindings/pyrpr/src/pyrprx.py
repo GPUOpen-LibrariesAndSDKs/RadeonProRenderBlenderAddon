@@ -1,4 +1,5 @@
 import platform
+import weakref
 
 import pyrprsupportwrap
 from pyrprsupportwrap import *
@@ -57,15 +58,13 @@ class Object:
     core_type_name = 'void*'
 
     def __init__(self, core_type_name=None):
-        self.ffi_type_name = (core_type_name if core_type_name is not None else self.core_type_name) + '*'
-        self._reset_handle()
-
-    def _reset_handle(self):
-        self._handle_ptr = ffi.new(self.ffi_type_name, ffi.NULL)
+        self._handle_ptr = ffi.new(self.core_type_name + '*', ffi.NULL)
 
     def _get_handle(self):
         return self._handle_ptr[0]
 
+    def _delete(self):
+        pass
 
 
 class Context(Object):
@@ -73,10 +72,17 @@ class Context(Object):
 
     def __init__(self, material_system):
         super().__init__()
-        self.material_system = material_system
-        CreateContext(self.material_system, 0, self)
+        CreateContext(material_system, 0, self)
 
-    def __del__(self):
+        self.materials = set()
+
+    def create_material(self, material_type):
+        return Material(self, material_type)
+
+    def _delete(self):
+        for mat in self.materials:
+            mat._delete()
+        self.materials.clear()
         DeleteContext(self)
 
 
@@ -85,24 +91,25 @@ class Material(Object):
 
     def __init__(self, context, material_type):
         super().__init__()
-        self.context = context
+        self.context = weakref.ref(context)
         self.parameters = {}
         self.material_nodes = {}
-        CreateMaterial(self.context, material_type, self)
+        CreateMaterial(context, material_type, self)
+        context.materials.add(self)
 
-    def __del__(self):
-        MaterialDelete(self.context, self)
+    def _delete(self):
+        MaterialDelete(self.context(), self)
 
     def commit(self):
-        MaterialCommit(self.context, self)
+        MaterialCommit(self.context(), self)
 
     def set_parameter(self, parameter, value):
         if value is None or isinstance(value, pyrpr.MaterialNode):
-            MaterialSetParameterN(self.context, self, parameter, value)
+            MaterialSetParameterN(self.context(), self, parameter, value)
         elif isinstance(value, int):
-            MaterialSetParameterU(self.context, self, parameter, value)
+            MaterialSetParameterU(self.context(), self, parameter, value)
         elif isinstance(value, tuple) and len(value) == 4:
-            MaterialSetParameterF(self.context, self, parameter, *value)
+            MaterialSetParameterF(self.context(), self, parameter, *value)
         else:
             raise TypeError("Incorrect type for MaterialSetParameter*", self, parameter, value)
 
@@ -110,23 +117,23 @@ class Material(Object):
 
     def attach(self, mesh):
         mesh.x_material = self
-        ShapeAttachMaterial(self.context, mesh, self)
+        ShapeAttachMaterial(self.context(), mesh, self)
         
     def detach(self, mesh):
         mesh.x_material = None
-        ShapeDetachMaterial(self.context, mesh, self)
+        ShapeDetachMaterial(self.context(), mesh, self)
 
     def attach_to_node(self, parameter, node):
         material = node.x_inputs.get(parameter, None)
         if material:
             # detaching existing material
-            MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), material)
+            MaterialAttachMaterial(self.context(), None, pyrpr.encode(parameter), material)
 
         node.x_inputs[parameter] = self
-        MaterialAttachMaterial(self.context, node, pyrpr.encode(parameter), self)
+        MaterialAttachMaterial(self.context(), node, pyrpr.encode(parameter), self)
         self.commit()
 
     def detach_from_node(self, parameter, node):
         del node.x_inputs[parameter]
-        MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), self)
+        MaterialAttachMaterial(self.context(), None, pyrpr.encode(parameter), self)
         self.commit()

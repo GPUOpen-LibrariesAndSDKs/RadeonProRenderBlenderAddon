@@ -1,6 +1,5 @@
 import sys
 import threading
-
 import pyrpr
 import pyrprx
 from rprblender import logging
@@ -39,17 +38,17 @@ class Context:
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
 
-        self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
-        self.post_effect.attach()
-
+        self.context.attach_post_effect(pyrpr.POST_EFFECT_NORMALIZATION)
+    
         self.scenes = []
         self.scene = None
         self.objects = []
 
-
     def __del__(self):
-        self.post_effect.detach()
         self.disable_aovs()
+
+    def __call__(self):
+        return self.context
 
     def clear_frame_buffers(self):
         with self.render_lock:
@@ -108,15 +107,15 @@ class Context:
             return
 
         fbs = {}
-        fbs['aov'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+        fbs['aov'] = self.context.create_frame_buffer(self.width, self.height)
         fbs['aov'].set_name("%d_aov" % aov_type)
         self.context.attach_aov(aov_type, fbs['aov'])
         if aov_type == pyrpr.AOV_COLOR and self.gl_interop:
-            fbs['res'] = pyrpr.FrameBufferGL(self.context, self.width, self.height)
+            fbs['res'] = self.context.create_frame_buffer(self.width, self.height, True)
             fbs['gl'] = fbs['res']      # resolved and gl framebuffers are the same
             fbs['gl'].set_name("%d_gl" % aov_type)
         else:
-            fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+            fbs['res'] = self.context.create_frame_buffer(self.width, self.height)
             fbs['res'].set_name("%d_res" % aov_type)
 
         self.frame_buffers_aovs[aov_type] = fbs
@@ -190,15 +189,15 @@ class Context:
 
         if self.gl_interop and not self.sc_composite:
             # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs['default']['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-            self.frame_buffers_aovs['default']['res'].set_name('default_res')
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.context.create_frame_buffer(self.width, self.height)
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
 
-        color_fb = self.frame_buffers_aovs['default']['sc'] if self.sc_composite else self.frame_buffers_aovs['default']['res']
-        world_fb = self.frame_buffers_aovs['world_coordinate']['res']
-        object_fb = self.frame_buffers_aovs['object_id']['res']
-        shading_fb = self.frame_buffers_aovs['shading_normal']['res']
-        depth_fb = self.frame_buffers_aovs['depth']['res']
-        frame_buffer_gl = self.frame_buffers_aovs['default'].get('gl', None)
+        color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] if self.sc_composite else self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
+        world_fb = self.frame_buffers_aovs[pyrpr.AOV_WORLD_COORDINATE]['res']
+        object_fb = self.frame_buffers_aovs[pyrpr.AOV_OBJECT_ID]['res']
+        shading_fb = self.frame_buffers_aovs[pyrpr.AOV_SHADING_NORMAL]['res']
+        depth_fb = self.frame_buffers_aovs[pyrpr.AOV_DEPTH]['res']
+        frame_buffer_gl = self.frame_buffers_aovs[pyrpr.AOV_COLOR].get('gl', None)
 
         if settings['filter_type'] == 'bilateral':
             inputs = {
@@ -255,7 +254,7 @@ class Context:
         self.image_filter_settings = None
         if self.gl_interop and not self.sc_composite:
             # set resolved framebuffer be the same as gl
-            self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
 
     def _update_image_filter(self, settings):
         self.image_filter_settings = settings
@@ -302,32 +301,32 @@ class Context:
                         self._enable_image_filter(rif_settings)
 
     def _enable_shadow_catcher(self):
-        self.enable_aov('default')
-        self.enable_aov('opacity')
-        self.enable_aov('background')
-        self.enable_aov('shadow_catcher')
+        self.enable_aov(pyrpr.AOV_COLOR)
+        self.enable_aov(pyrpr.AOV_OPACITY)
+        self.enable_aov(pyrpr.AOV_BACKGROUND)
+        self.enable_aov(pyrpr.AOV_SHADOW_CATCHER)
 
-        self.frame_buffers_aovs['default']['sc'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-        self.frame_buffers_aovs['default']['sc'].set_name('default_sc')
+        self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] = self.context.create_frame_buffer(self.width, self.height)
+        self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].set_name('default_sc')
         if self.gl_interop:
             # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs['default']['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-            self.frame_buffers_aovs['default']['res'].set_name('default_res')
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.context.create_frame_buffer(self.width, self.height)
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
         
         zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
         zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
 
         color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        color.set_input('framebuffer.input', self.frame_buffers_aovs['default']['res'])
+        color.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'])
         
         background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        background.set_input('framebuffer.input', self.frame_buffers_aovs['background']['res'])
+        background.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_BACKGROUND]['res'])
         
         opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        opacity.set_input('framebuffer.input', self.frame_buffers_aovs['opacity']['res'])
+        opacity.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res'])
 
         sc = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        sc.set_input('framebuffer.input', self.frame_buffers_aovs['shadow_catcher']['res'])
+        sc.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_SHADOW_CATCHER]['res'])
 
         sc_norm = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
         sc_norm.set_input('normalize.color', sc)
@@ -350,59 +349,5 @@ class Context:
         self.sc_composite = None
         if self.gl_interop:
             # set resolved framebuffer be the same as gl
-            self.frame_buffers_aovs['default']['res'] = self.frame_buffers_aovs['default']['gl']
-        del self.frame_buffers_aovs['default']['sc']
-
-
-
-    def create_scene(self, set_default=True):
-        scene = pyrpr.Scene(self.context)
-        self.scenes.append(scene)
-
-        if set_default:
-            self.set_scene(scene)
-        
-        return scene
-
-    def set_scene(self, scene):
-        self.scene = scene
-        self.context.set_scene(self.scene)
-
-    def create_point_light(self, do_attach=True):
-        light = pyrpr.PointLight(self.context)
-        self.objects.append(light)
-
-        if do_attach:
-            self.attach(light)
-
-        return light
-
-    def create_mesh(self, vertices, normals, texcoords, 
-                 vertex_indices, normal_indices, texcoord_indices, 
-                 num_face_vertices, do_attach=True):
-
-        mesh = pyrpr.Mesh(self.context, vertices, normals, texcoords, 
-                 vertex_indices, normal_indices, texcoord_indices, 
-                 num_face_vertices)
-        self.objects.append(mesh)
-
-        if do_attach:
-            self.attach(mesh)
-
-        return mesh
-
-    def create_camera(self, set_default=True):
-        camera = pyrpr.Camera(self.context)
-        self.objects.append(camera)
-
-        if set_default:
-            self.set_camera(camera)
-
-        return camera
-
-    def set_camera(self, camera):
-        self.scene.set_camera(camera)
-
-    def attach(self, obj):
-        self.scene.attach(obj)
-
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
+        del self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
