@@ -29,7 +29,9 @@ class RPR_RenderProperties(RPR_Properties):
         scene = self.id_data
         print("Syncing scene: %s" % scene.name)
 
-        rpr_scene = context.create_scene()
+        rpr_scene = context().create_scene()
+        context().set_scene(rpr_scene)
+
         for obj in scene.objects:
             obj.rpr.sync(context)
 

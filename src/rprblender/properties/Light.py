@@ -13,7 +13,8 @@ class RPR_LightProperties(RPR_Properties):
         light = self.id_data
         print("Syncing light: %s" % light.name)
 
-        rpr_light = context.create_point_light()
+        rpr_light = context().create_light('point')
+        context().scene.attach(rpr_light)
         rpr_light.set_name(light.name)
         rpr_light.set_radiant_power(10.0, 10.0, 1.0)
         rpr_light.set_transform(transform)

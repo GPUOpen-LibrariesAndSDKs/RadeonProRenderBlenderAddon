@@ -32,7 +32,8 @@ class RPR_CameraProperties(RPR_Properties):
         camera = self.id_data
         log("Syncing camera: %s" % camera.name)
         
-        rpr_camera = context.create_camera()
+        rpr_camera = context().create_camera()
+        context().scene.set_camera(rpr_camera)
         rpr_camera.set_name(camera.name)
         
         rpr_camera.set_transform(transform)

@@ -39,10 +39,10 @@ class RPR_MeshProperties(RPR_Properties):
         uv_indices = None   # normal_indices
 
         # creating RPR mesh
-        rpr_mesh = context.create_mesh(vertices, normals, uvs,
+        rpr_mesh = context().create_mesh(vertices, normals, uvs,
                                 vertex_indices, normal_indices, uv_indices,
                                 num_face_vertices)
-
+        context().scene.attach(rpr_mesh)
         rpr_mesh.set_name(mesh.name)
         rpr_mesh.set_transform(transform)
 
