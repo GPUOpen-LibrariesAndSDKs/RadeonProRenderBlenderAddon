@@ -8,7 +8,7 @@ from rprblender import logging
 
 
 class RPR_LightProperties(RPR_Properties):
-    def sync(self, context, transform):
+    def sync(self, context):
         ''' sync the mesh '''
         light = self.id_data
         print("Syncing light: %s" % light.name)
@@ -16,8 +16,8 @@ class RPR_LightProperties(RPR_Properties):
         rpr_light = context().create_light('point')
         context().scene.attach(rpr_light)
         rpr_light.set_name(light.name)
-        rpr_light.set_radiant_power(10.0, 10.0, 1.0)
-        rpr_light.set_transform(transform)
+        rpr_light.set_radiant_power(10.0, 10.0, 10.0)
+        return rpr_light
 
     @classmethod
     def register(cls):

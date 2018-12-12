@@ -10,8 +10,6 @@ from . import create_context
 class Context:
     def __init__(self, is_preview, width, height, context_flags, context_props=None):
         self.context = create_context(context_flags, context_props)
-        self.material_system = pyrpr.MaterialSystem(self.context)
-        self.x_context = pyrprx.Context(self.material_system)
 
         self.width = width
         self.height = height

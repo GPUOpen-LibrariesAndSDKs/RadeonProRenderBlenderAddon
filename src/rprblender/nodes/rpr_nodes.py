@@ -1,4 +1,4 @@
-from ..properties.base import RPR_Property
+from ..properties import RPR_Properties
 import bpy
 import json
 import os
@@ -58,11 +58,24 @@ from .export import export_blender_node
 '''
 
 
+class RPRShadingNode(bpy.types.ShaderNode):  # , RPR_Properties):
+    bl_compatibility = {'RPR'}
+    bl_idname = 'rpr_shader_node'
+    bl_label = 'RPR Shader Node'
+    bl_icon = 'MATERIAL'
 
-class RPRShadingNode(bpy.types.ShaderNode, RPR_Property):
-    meta_data = {} # holds the meta data from json
+    # shader meta data from json
+    meta_data = {
+        'settings': (),
+        'inputs': (),
+        'outputs': (),
+    }
 
-    def sync(context):
+    @classmethod
+    def poll(cls, tree: bpy.types.NodeTree):
+        return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
+
+    def sync(self, context):
         ''' generate rpr nodes based on the meta data and inputs '''
         export_blender_node(self, self.meta_data)
 
@@ -103,3 +116,6 @@ def generate_types():
             node_type = type(type_name, (RPRShadingNode,), type_dict)
 
             bpy.utils.register_class(node_type)
+
+
+classes = (RPRShadingNode,)

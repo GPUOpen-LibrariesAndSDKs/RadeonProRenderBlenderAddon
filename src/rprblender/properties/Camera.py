@@ -28,7 +28,7 @@ class RPR_CameraProperties(RPR_Properties):
         default=1.0,
     )
 
-    def sync(self, context, transform):
+    def sync(self, context):
         camera = self.id_data
         log("Syncing camera: %s" % camera.name)
         
@@ -36,7 +36,6 @@ class RPR_CameraProperties(RPR_Properties):
         context().scene.set_camera(rpr_camera)
         rpr_camera.set_name(camera.name)
         
-        rpr_camera.set_transform(transform)
         rpr_camera.set_clip_plane(camera.clip_start, camera.clip_end)
         rpr_camera.set_lens_shift(camera.shift_x, camera.shift_y)   # TODO: Shift has to be fixed
 
@@ -54,6 +53,8 @@ class RPR_CameraProperties(RPR_Properties):
             rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_width / ratio)
         else:
             rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
+
+        return rpr_camera
 
 
     @classmethod

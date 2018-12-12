@@ -14,7 +14,7 @@ def log(*args):
 class RPR_MeshProperties(RPR_Properties):
     ''' Properties for mesh '''
 
-    def sync(self, context, transform):
+    def sync(self, context: pyrpr.Context) -> pyrpr.Mesh:
         ''' sync the mesh '''
         mesh = self.id_data
         log("Syncing mesh: %s" % mesh.name)
@@ -26,7 +26,7 @@ class RPR_MeshProperties(RPR_Properties):
         # getting mesh export data
         tris_len = len(mesh.loop_triangles)
         if tris_len == 0:
-            return
+            return None
 
         vertices = np.array([vert.co for vert in mesh.vertices], dtype=np.float32)
         normals = np.array([norm for tri in mesh.loop_triangles
@@ -44,7 +44,8 @@ class RPR_MeshProperties(RPR_Properties):
                                 num_face_vertices)
         context().scene.attach(rpr_mesh)
         rpr_mesh.set_name(mesh.name)
-        rpr_mesh.set_transform(transform)
+
+        return rpr_mesh
 
     @classmethod
     def register(cls):
