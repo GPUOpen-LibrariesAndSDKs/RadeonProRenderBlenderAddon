@@ -8,6 +8,7 @@ from bpy.props import (
 import pyrpr
 from rprblender import logging
 from . import RPR_Panel, RPR_Properties
+from rprblender.utils import get_transform
 
 
 def log(*args):
@@ -28,13 +29,13 @@ class RPR_CameraProperties(RPR_Properties):
         default=1.0,
     )
 
-    def sync(self, context):
+    def sync(self, rpr_context, obj):
         camera = self.id_data
         log("Syncing camera: %s" % camera.name)
         
-        rpr_camera = context().create_camera()
-        context().scene.set_camera(rpr_camera)
+        rpr_camera = rpr_context.create_camera(obj.name)
         rpr_camera.set_name(camera.name)
+        rpr_camera.set_transform(get_transform(obj))
         
         rpr_camera.set_clip_plane(camera.clip_start, camera.clip_end)
         rpr_camera.set_lens_shift(camera.shift_x, camera.shift_y)   # TODO: Shift has to be fixed
@@ -49,13 +50,10 @@ class RPR_CameraProperties(RPR_Properties):
         # TODO: Currently we set only perspective parameters
         rpr_camera.set_focal_length(camera.lens)
         if camera.sensor_fit != 'VERTICAL':
-            ratio = context.width / context.height
+            ratio = rpr_context.width / rpr_context.height
             rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_width / ratio)
         else:
             rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
-
-        return rpr_camera
-
 
     @classmethod
     def register(cls):

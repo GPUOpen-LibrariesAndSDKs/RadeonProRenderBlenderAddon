@@ -16,7 +16,7 @@ from rprblender import logging
 
 
 class RPR_Properties(bpy.types.PropertyGroup):
-    def sync(self, context):
+    def sync(self, rpr_context):
         ''' Sync will update this object in the context.
             And call any sub-objects that need to be synced
             rpr_context object in the binding will be the only place we keep

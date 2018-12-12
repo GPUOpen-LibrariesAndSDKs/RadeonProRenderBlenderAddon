@@ -46,28 +46,17 @@ class RPR_ObjectProperites(RPR_Properties):
         default=True
     )
 
-    def sync(self, context: engine.context.Context):
+    def sync(self, rpr_context):
         ''' sync the object and any data attached '''
+
+        if not self.camera_visible:
+            return
+
         obj = self.id_data
         log("Syncing object: {}, type {}".format(obj.name, obj.type))
 
-        object = None
-        transform = np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
-        if obj.type in ('MESH',) and self.camera_visible:
-            object = obj.data.rpr.sync(context)
-            if object:
-                has_material = hasattr(obj, 'material_slots')
-                if has_material:
-                    for name, slot in obj.material_slots.items():
-                        log("Syncing material: \"{}\" {}".format(name, slot))
-                        material = slot.material.rpr.sync(context)
-                        if material:
-                            material.attach(object)
-                            material.commit()
-        elif obj.type in ('CAMERA', 'LIGHT'):
-            object = obj.data.rpr.sync(context)
-        if object:
-            object.set_transform(transform)
+        if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
+            obj.data.rpr.sync(rpr_context, obj)
 
     def fake_material(self):
         return None

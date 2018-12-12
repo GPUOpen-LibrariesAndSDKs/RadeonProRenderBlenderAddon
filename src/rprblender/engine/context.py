@@ -1,5 +1,6 @@
 import sys
 import threading
+
 import pyrpr
 import pyrprx
 from rprblender import logging
@@ -7,13 +8,23 @@ from . import image_filter
 from . import create_context
 
 
-class Context:
-    def __init__(self, is_preview, width, height, context_flags, context_props=None):
-        self.context = create_context(context_flags, context_props)
+class RPRContext:
+    def __init__(self):
+        self.context = None
+        self.material_system = None
+        self.x_context = None
+        self.width = None
+        self.height = None
+        self.gl_interop = None
 
-        self.width = width
-        self.height = height
-        self.gl_interop = is_preview and (context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
+        # scene and objects
+        self.scene = None
+        self.objects = {}
+        self.meshes = {}
+        self.materials = {}
+        self.post_effect = None
+
+        # render parameters
         self.render_lock = threading.Lock()
         self.iterations = 0
         self.resolved_iterations = 0
@@ -28,6 +39,15 @@ class Context:
         self.image_filter = None
         self.image_filter_settings = None
         
+
+    def init(self, is_preview, width, height, context_flags, context_props=None):
+        self.context = create_context(context_flags, context_props)
+        self.material_system = pyrpr.MaterialSystem(self.context)
+        self.x_context = pyrprx.Context(self.material_system)
+        self.width = width
+        self.height = height
+        self.gl_interop = is_preview and (context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
+
         # context settings
         self.context.set_parameter('xflip', False)
         self.context.set_parameter('yflip', False)
@@ -36,17 +56,14 @@ class Context:
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
 
-        self.context.attach_post_effect(pyrpr.POST_EFFECT_NORMALIZATION)
-    
-        self.scenes = []
-        self.scene = None
-        self.objects = []
+        self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
+
+        self.scene = pyrpr.Scene(self.context)
+        self.context.set_scene(self.scene)
 
     def __del__(self):
-        self.disable_aovs()
-
-    def __call__(self):
-        return self.context
+        if self.context:
+            self.disable_aovs()
 
     def clear_frame_buffers(self):
         with self.render_lock:
@@ -105,15 +122,15 @@ class Context:
             return
 
         fbs = {}
-        fbs['aov'] = self.context.create_frame_buffer(self.width, self.height)
+        fbs['aov'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
         fbs['aov'].set_name("%d_aov" % aov_type)
         self.context.attach_aov(aov_type, fbs['aov'])
         if aov_type == pyrpr.AOV_COLOR and self.gl_interop:
-            fbs['res'] = self.context.create_frame_buffer(self.width, self.height, True)
+            fbs['res'] = pyrpr.FrameBufferGL(self.context, self.width, self.height)
             fbs['gl'] = fbs['res']      # resolved and gl framebuffers are the same
             fbs['gl'].set_name("%d_gl" % aov_type)
         else:
-            fbs['res'] = self.context.create_frame_buffer(self.width, self.height)
+            fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             fbs['res'].set_name("%d_res" % aov_type)
 
         self.frame_buffers_aovs[aov_type] = fbs
@@ -187,8 +204,8 @@ class Context:
 
         if self.gl_interop and not self.sc_composite:
             # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.context.create_frame_buffer(self.width, self.height)
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('0_res')
 
         color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] if self.sc_composite else self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
         world_fb = self.frame_buffers_aovs[pyrpr.AOV_WORLD_COORDINATE]['res']
@@ -304,11 +321,11 @@ class Context:
         self.enable_aov(pyrpr.AOV_BACKGROUND)
         self.enable_aov(pyrpr.AOV_SHADOW_CATCHER)
 
-        self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] = self.context.create_frame_buffer(self.width, self.height)
+        self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
         self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].set_name('default_sc')
         if self.gl_interop:
             # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.context.create_frame_buffer(self.width, self.height)
+            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
         
         zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
@@ -349,3 +366,54 @@ class Context:
             # set resolved framebuffer be the same as gl
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
         del self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
+
+    #
+    # OBJECT'S CREATION FUNCTIONS
+    #
+    def create_light(self, key, light_type):
+        if light_type == 'point':
+            light = pyrpr.PointLight(self.context)
+        elif light_type == 'spot':
+            light = pyrpr.SpotLight(self.context)
+        elif light_type == 'directional':
+            light = pyrpr.DirectionalLight(self.context)
+        elif light_type == 'ies':
+            light = pyrpr.IESLight(self.context)
+        elif light_type == 'environment':
+            light = pyrpr.EnvironmentLight(self.context)
+        else:
+            raise KeyError("No such light type", light_type)
+
+        self.objects[key] = light
+        return light
+
+    def create_mesh(self, key,
+                    vertices, normals, texcoords,
+                    vertex_indices, normal_indices, texcoord_indices,
+                    num_face_vertices):
+
+        mesh = pyrpr.Mesh(self.context, vertices, normals, texcoords, 
+                 vertex_indices, normal_indices, texcoord_indices, 
+                 num_face_vertices)
+        self.meshes[key] = mesh
+        return mesh
+
+    def create_instance(self, key, mesh):
+        instance = pyrpr.Instance(self.context, mesh)
+        self.objects[key] = instance
+        return instance
+
+    def create_camera(self, key):
+        camera = pyrpr.Camera(self.context)
+        self.objects[key] = camera
+        return camera
+
+    def create_material_node(self, key, in_type):
+        node = pyrpr.MaterialNode(self.material_system, in_type)
+        self.materials[key] = node
+        return node
+
+    def create_material(self, key, material_type):
+        material = pyrprx.Material(self.x_context, material_type)
+        self.materials[key] = material
+        return material

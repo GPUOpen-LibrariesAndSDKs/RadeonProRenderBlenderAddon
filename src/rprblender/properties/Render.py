@@ -8,6 +8,7 @@ from bpy.props import (
     StringProperty,
 )
 
+import pyrpr
 from . import RPR_Properties, RPR_Panel
 from rprblender import logging
 
@@ -25,19 +26,23 @@ class RPR_RenderDeviceProperties(RPR_Properties):
 class RPR_RenderProperties(RPR_Properties):
     render: PointerProperty(type=RPR_RenderDeviceProperties)
 
-    def sync(self, context):
+    def sync(self, rpr_context):
         scene = self.id_data
-        print("Syncing scene: %s" % scene.name)
+        logging.info("Syncing scene: %s" % scene.name)
 
-        rpr_scene = context().create_scene()
-        context().set_scene(rpr_scene)
+        rpr_context.init(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
+        rpr_context.scene.set_name(scene.name)
 
         for obj in scene.objects:
-            obj.rpr.sync(context)
+            obj.rpr.sync(rpr_context)
+
+        rpr_context.scene.set_camera(rpr_context.objects[scene.camera.name])
+        rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        # TODO: setup other AOVs, image filters, shadow catcher
 
     @classmethod
     def register(cls):
-        logging.info("register", tag='Scene')
+        logging.info("Register", tag='Scene')
         bpy.types.Scene.rpr = PointerProperty(
             name="RPR Render Settings",
             description="RPR render settings",
@@ -46,7 +51,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     @classmethod
     def unregister(cls):
-        logging.info("unregister", tag='Scene')
+        logging.info("Unregister", tag='Scene')
         del bpy.types.Scene.rpr
 
 

@@ -14,7 +14,7 @@ from . import context
 class Engine:
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.ref(rpr_engine)
-        self.context: context.Context = None
+        self.context = context.RPRContext()
 
     def render(self, depsgraph):
         ''' handle the rendering process ''' 
@@ -33,10 +33,7 @@ class Engine:
 
         # export scene data, set denoisers, etc
         scene = depsgraph.scene
-        self.context = context.Context(False, scene.render.resolution_x, scene.render.resolution_y, pyrpr.CREATION_FLAGS_ENABLE_GPU0)
         scene.rpr.sync(self.context)
-
-        self.context.enable_aov(pyrpr.AOV_COLOR)
 
         ## walk depsgraph
         #for instance in depsgraph.object_instances:

@@ -32,32 +32,33 @@ class RPR_MATERIAL_OT_UseShadingNodes(Operator):
 
 
 class RPR_MATERIAL_parser(RPR_Properties):
-    def sync(self, context: engine.context.Context) -> pyrprx.Material:
+    def sync(self, rpr_context) -> pyrprx.Material:
         mat = self.id_data
-        logging.info("sync: material {}; context {}".format(mat, context))
+        logging.info("Syncing material: %s" % mat.name)
+        key = mat.as_pointer()
         tree = mat.get('node_tree', None)
 
         color = (0.8, 0.5, 0.5, 1.0)
         if not tree:
             # "ERROR" shader color
             color = (1.0, 0.0, 1.0, 1.0)
-#            return None
+            #return None
 
         # Fake material for tests
         null_vector = (0, 0, 0, 0)
-        material = context.context.material_system.create_material(pyrprx.MATERIAL_UBER)
-        material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color)
-        material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, (1.0, 1.0, 1.0, 1.0))
-        material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, (0.5, 0.5, 0.5, 0.5))
-        material.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_COATING_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_SSS_WEIGHT, null_vector)
+        rpr_mat = rpr_context.create_material(key, pyrprx.MATERIAL_UBER)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, (1.0, 1.0, 1.0, 1.0))
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, (0.5, 0.5, 0.5, 0.5))
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_COATING_WEIGHT, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, null_vector)
+        rpr_mat.set_parameter(pyrprx.UBER_MATERIAL_SSS_WEIGHT, null_vector)
 
-        return material
+        return rpr_mat
 
     @classmethod
     def register(cls):

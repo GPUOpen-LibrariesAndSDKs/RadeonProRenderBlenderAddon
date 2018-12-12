@@ -5,19 +5,19 @@ from bpy.props import (
 
 from . import RPR_Properties, RPR_Panel
 from rprblender import logging
-
+from rprblender.utils import get_transform
 
 class RPR_LightProperties(RPR_Properties):
-    def sync(self, context):
+    def sync(self, rpr_context, obj):
         ''' sync the mesh '''
         light = self.id_data
         print("Syncing light: %s" % light.name)
 
-        rpr_light = context().create_light('point')
-        context().scene.attach(rpr_light)
+        rpr_light = rpr_context.create_light(obj.name, 'point')
         rpr_light.set_name(light.name)
         rpr_light.set_radiant_power(10.0, 10.0, 10.0)
-        return rpr_light
+        rpr_light.set_transform(get_transform(obj))
+        rpr_context.scene.attach(rpr_light)
 
     @classmethod
     def register(cls):
