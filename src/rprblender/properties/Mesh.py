@@ -5,7 +5,7 @@ import bpy
 
 import pyrpr
 from rprblender import logging
-
+from rprblender.utils import get_transform
 
 def log(*args):
     logging.info(*args, tag='Mesh')
@@ -14,10 +14,18 @@ def log(*args):
 class RPR_MeshProperties(RPR_Properties):
     ''' Properties for mesh '''
 
-    def sync(self, context: pyrpr.Context) -> pyrpr.Mesh:
+    def sync(self, rpr_context, obj):
         ''' sync the mesh '''
         mesh = self.id_data
         log("Syncing mesh: %s" % mesh.name)
+
+        rpr_mesh = rpr_context.meshes.get(mesh.name, None)
+        if rpr_mesh:
+            rpr_instance = rpr_context.create_instance(obj.name, rpr_mesh)
+            rpr_instance.set_name(obj.name + ':' + mesh.name)
+            rpr_instance.set_transform(get_transform(obj))
+            rpr_context.scene.attach(rpr_instance)
+            return
 
         # preparing mesh to export
         mesh.calc_normals_split()
@@ -39,13 +47,21 @@ class RPR_MeshProperties(RPR_Properties):
         uv_indices = None   # normal_indices
 
         # creating RPR mesh
-        rpr_mesh = context().create_mesh(vertices, normals, uvs,
-                                vertex_indices, normal_indices, uv_indices,
-                                num_face_vertices)
-        context().scene.attach(rpr_mesh)
+        rpr_mesh = rpr_context.create_mesh(mesh.name,
+                                           vertices, normals, uvs,
+                                           vertex_indices, normal_indices, uv_indices,
+                                           num_face_vertices)
         rpr_mesh.set_name(mesh.name)
+        rpr_context.scene.attach(rpr_mesh)
+        rpr_mesh.set_transform(get_transform(obj))
 
-        return rpr_mesh
+        if hasattr(obj, 'material_slots'):
+            for name, slot in obj.material_slots.items():
+                log("Syncing material: \"{}\" {}".format(name, slot))
+                rpr_material = slot.material.rpr.sync(rpr_context)
+                if rpr_material:
+                    rpr_material.attach(rpr_mesh)
+                    rpr_material.commit()
 
     @classmethod
     def register(cls):

@@ -8,15 +8,14 @@ import time
 import functools
 import sys
 import numpy as np
-import weakref
 import bgl
 
 import pyrprwrap
 from pyrprwrap import *
 
-import pyrprx
 
 lib_wrapped_log_calls = False
+
 
 class CoreError(Exception):
     def __init__(self, status, func_name, argv, module_name):
@@ -190,18 +189,26 @@ def get_first_gpu_id_used(creation_flags):
 class Object:
     core_type_name = 'void*'
 
-    def __init__(self):
+    def __init__(self, core_type_name=None):
+        self.ffi_type_name = (core_type_name if core_type_name is not None else self.core_type_name) + '*'
         self._reset_handle()
         self.name = None
 
-    def _delete(self):
-        if lib_wrapped_log_calls:
-            _init_data._log_fun('delete: ', self.name, self)
-        ObjectDelete(self._get_handle())
-        self._reset_handle()
+    def __del__(self):
+        try:
+            self.delete()
+        except:
+            _init_data._log_fun('EXCEPTION:', traceback.format_exc())
+
+    def delete(self):
+        if self._handle_ptr and self._get_handle():
+            if lib_wrapped_log_calls:
+                _init_data._log_fun('delete: ', self.name, self)
+            ObjectDelete(self._get_handle())
+            self._reset_handle()
 
     def _reset_handle(self):
-        self._handle_ptr = ffi.new(self.core_type_name + '*', ffi.NULL)
+        self._handle_ptr = ffi.new(self.ffi_type_name, ffi.NULL)
 
     def _get_handle(self):
         return self._handle_ptr[0]
@@ -216,6 +223,7 @@ class Context(Object):
 
     def __init__(self, plugins, flags, props=None, cache_path=None):
         super().__init__()
+        self.aovs = {}
 
         props_ptr = ffi.NULL
         if props is not None:
@@ -226,121 +234,25 @@ class Context(Object):
             props_ptr, encode(cache_path) if cache_path else ffi.NULL,
             self)
 
-        # Currently we create only one material system
-        self.material_system = MaterialSystem(self)
-
-        self.aovs = {}
-        self.parameters = {}
-        self.scenes = set()
-        self.scene = None
-        self.cameras = set()
-        self.meshes = set()
-        self.instances = set()
-        self.lights = set()
-        self.hetero_volumes = set()
-        self.frame_buffers = set()
-        self.post_effects = set()
-        self.images = set()
-        self.composites = set()
-
-    def __del__(self):
-        self._delete()
-
-    def _delete(self):
-        for pe in self.post_effects:
-            ContextDetachPostEffect(self, pe)
-        
-        self.material_system._delete()
-            
-        self.set_scene(None)
-
-        for objects in [self.post_effects,
-                        self.scenes,
-                        self.composites, # before framebuffers
-                        self.frame_buffers,
-                        self.cameras,
-                        self.lights,
-                        self.instances,  # before meshes
-                        self.meshes,
-                        self.hetero_volumes,
-                        self.images,
-                        ]:
-            for obj in objects:
-                obj._delete()
-            objects.clear()
-
-        super()._delete()
-
-    #
-    # Creating objects functions
-    #
-
-    def create_scene(self):
-        return Scene(self)
+    def set_parameter(self, name, param):
+        if isinstance(param, int):
+            ContextSetParameter1u(self, encode(name), param)
+        elif isinstance(param, bool):
+            ContextSetParameter1u(self, encode(name), int(param))
+        elif isinstance(param, float):
+            ContextSetParameter1f(self, encode(name), param)
+        elif isinstance(param, str):
+            ContextSetParameterString(self, encode(name), encode(param))
+        elif isinstance(param, tuple) and len(param) == 3:
+            ContextSetParameter3f(self, encode(name), *param)
+        elif isinstance(param, tuple) and len(param) == 4:
+            ContextSetParameter4f(self, encode(name), *param)
+        else:
+            raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
 
     def set_scene(self, scene):
         ContextSetScene(self, scene)
-        self.scene = scene
-   
-    def create_camera(self):
-        return Camera(self)
 
-    def create_mesh(self, vertices, normals, texcoords, 
-                 vertex_indices, normal_indices, texcoord_indices, 
-                 num_face_vertices):
-        
-        return Mesh(self, vertices, normals, texcoords, 
-                    vertex_indices, normal_indices, texcoord_indices, 
-                    num_face_vertices)
-
-    def create_instance(self, mesh):
-        return Instance(self, mesh)
-
-    def create_hetero_volume(self, gridSizeX, gridSizeY, gridSizeZ, 
-                             indices:np.array, indicesListTopology, 
-                             grid_data:np.array):
-        return HeteroVolume(self, gridSizeX, gridSizeY, gridSizeZ, 
-                            indices, indicesListTopology, 
-                            grid_data)
-
-    def create_light(self, light_type):
-        if light_type == 'point':
-            return PointLight(self)
-        if light_type == 'spot':
-            return SpotLight(self)
-        if light_type == 'directional':
-            return DirectionalLight(self)
-        if light_type == 'ies':
-            return IESLight(self)
-        if light_type == 'environment':
-            return EnvironmentLight(self)
-
-        raise KeyError("No such light type", light_type)
-
-    def attach_post_effect(self, post_effect_type):
-        return PostEffect(self, post_effect_type)
-
-    def create_frame_buffer(self, width, height, use_gl=False):
-        if use_gl:
-            return FrameBufferGL(self, width, height)
-        else: 
-            return FrameBuffer(self, width, height)
-
-    def create_composite(self, in_type):
-        return Composite(self, in_type)
-
-    def create_image(self, data: np.array):
-        return Image(self, data)
-
-    def create_image_file(self, path):
-        return ImageFile(self, path)
-
-    def create_buffer(self, data: np.array, element_type):
-        return Buffer(self, data, element_type)
-
-    #
-    # Render functions
-    #
     def render(self):
         ContextRender(self)
 
@@ -360,32 +272,6 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
-    def set_parameter(self, name, param):
-        if self:
-            if self.parameters.get(name, None) == param:
-                return
-
-        if isinstance(param, int):
-            ContextSetParameter1u(self, encode(name), param)
-        elif isinstance(param, bool):
-            ContextSetParameter1u(self, encode(name), int(param))
-        elif isinstance(param, float):
-            ContextSetParameter1f(self, encode(name), param)
-        elif isinstance(param, str):
-            ContextSetParameterString(self, encode(name), encode(param))
-        elif isinstance(param, tuple) and len(param) == 3:
-            ContextSetParameter3f(self, encode(name), *param)
-        elif isinstance(param, tuple) and len(param) == 4:
-            ContextSetParameter4f(self, encode(name), *param)
-        else:
-            raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
-
-        if self:
-            self.parameters[name] = param
-
-    #
-    # Info functions
-    #
     def get_info_int(self, context_info):
         size = ffi.new('size_t *', 0)
         ContextGetInfo(self, context_info, 0, ffi.NULL, size)
@@ -422,15 +308,15 @@ class Scene(Object):
 
     def __init__(self, context):
         super().__init__()
+        self.context = context
         self.objects = set()
         self.camera = None
         self.environments = {}
-        ContextCreateScene(context, self)
-        context.scenes.add(self)
+        ContextCreateScene(self.context, self)
 
-    def _delete(self):
+    def delete(self):
         self.clear()
-        super()._delete()
+        super().delete()
 
     def attach(self, obj):
         if isinstance(obj, Shape):
@@ -480,6 +366,10 @@ class Scene(Object):
 
 class Shape(Object):
     core_type_name = 'rpr_shape'
+
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -549,7 +439,7 @@ class Mesh(Shape):
     def __init__(self, context, vertices, normals, texcoords, 
                  vertex_indices, normal_indices, texcoord_indices, 
                  num_face_vertices):
-        super().__init__()
+        super().__init__(context)
         self.material = None
         self.x_material = None    # pyrprx.Material
         self.volume_material = None
@@ -569,7 +459,7 @@ class Mesh(Shape):
             texcoords_ind_ptr = ffi.cast('rpr_int*', texcoord_indices.ctypes.data)
             texcoords_ind_nbytes = texcoord_indices[0].nbytes
 
-        ContextCreateMesh(context,
+        ContextCreateMesh(self.context,
                  ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
                  ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes, 
                  texcoords_ptr, texcoords_count, texcoords_nbytes, 
@@ -578,9 +468,8 @@ class Mesh(Shape):
                  texcoords_ind_ptr, texcoords_ind_nbytes, 
                  ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                  self)
-        context.meshes.add(self)
 
-    def _delete(self):
+    def delete(self):
         if self.material:
             self.set_material(None)
         if self.x_material:
@@ -592,7 +481,7 @@ class Mesh(Shape):
         if self.hetero_volume:
             self.set_hetero_volume(None)
 
-        super()._delete()
+        super().delete()
 
     def set_material(self, node):
         self.material = node
@@ -616,10 +505,9 @@ class Mesh(Shape):
 
 class Instance(Shape):
     def __init__(self, context, mesh):
-        super().__init__()
+        super().__init__(context)
         self.mesh = mesh
-        ContextCreateInstance(context, mesh, self)
-        context.instances.add(self)
+        ContextCreateInstance(self.context, mesh, self)
 
     def set_material(self, mat_node):
         pass
@@ -645,13 +533,13 @@ class HeteroVolume(Object):
                  indices:np.array, indicesListTopology, 
                  grid_data:np.array):
         super().__init__()
+        self.context = context
 
         ContextCreateHeteroVolume(
-            context, self,
+            self.context, self,
             gridSizeX, gridSizeY, gridSizeZ,
             ffi.cast('const size_t *', indices.ctypes.data), len(indices), indicesListTopology, 
             ffi.cast('const float *', grid_data.ctypes.data), grid_data.nbytes, 0)
-        context.hetero_volumes.add(self)
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         HeteroVolumeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -662,8 +550,8 @@ class Camera(Object):
 
     def __init__(self, context):
         super().__init__()
-        ContextCreateCamera(context, self)
-        context.cameras.add(self)
+        self.context = context
+        ContextCreateCamera(self.context, self)
 
     def set_mode(self, mode):
         CameraSetMode(self, mode)
@@ -717,43 +605,42 @@ class FrameBuffer(Object):
 
     def __init__(self, context, width, height):
         super().__init__()
-        self.context = weakref.ref(context)
+        self.context = context
         self.width = width
         self.height = height
         self.aov = None
         self._create()
-        context.frame_buffers.add(self)
 
-    def _delete(self):
+    def delete(self):
         if self.aov is not None:
-            self.context().detach_aov(self.aov)
+            self.context.detach_aov(self.aov)
              
-        return super()._delete()
+        return super().delete()
 
     def _create(self):
         desc = ffi.new("rpr_framebuffer_desc*")
         desc.fb_width, desc.fb_height = self.width, self.height
-        ContextCreateFrameBuffer(self.context(), (4, COMPONENT_TYPE_FLOAT32), desc, self)
+        ContextCreateFrameBuffer(self.context, (4, COMPONENT_TYPE_FLOAT32), desc, self)
 
     def resize(self, width, height):
         if self.width == width and self.height == height:
             return
 
         aov = self.aov
-        self._delete()
+        self.delete()
 
         self.width = width
         self.height = height
         self._create()
 
         if aov is not None:
-            self.context().attach_aov(aov, self)
+            self.context.attach_aov(aov, self)
 
     def clear(self):
         FrameBufferClear(self)
 
     def resolve(self, resolved_fb):
-        ContextResolveFrameBuffer(self.context(), self, resolved_fb, True)
+        ContextResolveFrameBuffer(self.context, self, resolved_fb, True)
 
     def get_data(self, buf=None):
         if buf:
@@ -777,6 +664,9 @@ class FrameBuffer(Object):
 
 
 class FrameBufferGL(FrameBuffer):
+    def __init__(self, context, width, height):
+        super().__init__(context, width, height)
+
     def _create(self):
         textures = bgl.Buffer(bgl.GL_INT, [1,])
         bgl.glGenTextures(1, textures)
@@ -790,10 +680,10 @@ class FrameBufferGL(FrameBuffer):
         buf = bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, 4])
         bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA, self.width, self.height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, buf)
 
-        ContextCreateFramebufferFromGLTexture2D(self.context(), bgl.GL_TEXTURE_2D, 0, self.gl_texture, self)
+        ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.gl_texture, self)
 
-    def _delete(self):
-        super()._delete()
+    def delete(self):
+        super().delete()
         textures = bgl.Buffer(bgl.GL_INT, [1,], [self.gl_texture,])
         bgl.glDeleteTextures(1, textures)
 
@@ -803,13 +693,9 @@ class Composite(Object):
 
     def __init__(self, context, in_type):
         super().__init__()
+        self.context = context
         self.inputs = {}
-        ContextCreateComposite(context, in_type, self)
-        context.composites.add(self)
-
-    def _delete(self):
-        # TODO: probably we need to unset compositors and frame_buffers from inputs
-        super()._delete()
+        ContextCreateComposite(self.context, in_type, self)
 
     def set_input(self, name, in_value):
         if isinstance(in_value, int):
@@ -834,24 +720,8 @@ class MaterialSystem(Object):
 
     def __init__(self, context):
         super().__init__()
-        ContextCreateMaterialSystem(context, 0, self)
-        self.nodes = set()
-        self.x_context = pyrprx.Context(self)
-
-    def _delete(self):
-        for node in self.nodes:
-            node._delete()
-        self.nodes.clear()
-
-        self.x_context._delete()
-
-        super()._delete()
-
-    def create_node(self, in_type):
-        return MaterialNode(self, in_type)
-
-    def create_material(self, material_type):
-       return self.x_context.create_material(material_type)
+        self.context = context
+        ContextCreateMaterialSystem(self.context, 0, self)
 
 
 class MaterialNode(Object):
@@ -859,18 +729,16 @@ class MaterialNode(Object):
 
     def __init__(self, mat_sys, in_type):
         super().__init__()
+        self.mat_sys = mat_sys
         self.inputs = {}
         self.x_inputs = {}
-        MaterialSystemCreateNode(mat_sys, in_type, self)
-        mat_sys.nodes.add(self)
+        MaterialSystemCreateNode(self.mat_sys, in_type, self)
 
-    def _delete(self):
+    def delete(self):
         for param, x_mat in self.x_inputs.items():
             x_mat.detach_from_node(param, self)
         
-            super()._delete()
-
-        # TODO: probably we need to unset images and buffers from inputs
+            super().delete()
 
     def set_input(self, in_input, in_value):
         if in_value is None or isinstance(in_value, MaterialNode):
@@ -892,6 +760,10 @@ class MaterialNode(Object):
 class Light(Object):
     core_type_name = 'rpr_light'
 
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
+
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         LightSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
@@ -901,11 +773,10 @@ class Light(Object):
 
 class EnvironmentLight(Light):
     def __init__(self, context):
-        super().__init__()
+        super().__init__(context)
         self.portals = set()
         self.image = None
-        ContextCreateEnvironmentLight(context, self)
-        context.lights.add(self)
+        ContextCreateEnvironmentLight(self.context, self)
 
     def set_image(self, image):
         self.image = image
@@ -925,9 +796,8 @@ class EnvironmentLight(Light):
 
 class IESLight(Light):
     def __init__(self, context):
-        super().__init__()
-        ContextCreateIESLight(context, self)
-        context.lights.add(self)
+        super().__init__(context)
+        ContextCreateIESLight(self.context, self)
 
     def set_radiant_power(self, r, g, b):
         IESLightSetRadiantPower3f(self, r, g, b)
@@ -938,9 +808,8 @@ class IESLight(Light):
 
 class PointLight(Light):
     def __init__(self, context):
-        super().__init__()
-        ContextCreatePointLight(context, self)
-        context.lights.add(self)
+        super().__init__(context)
+        ContextCreatePointLight(self.context, self)
 
     def set_radiant_power(self, r, g, b):
         PointLightSetRadiantPower3f(self, r, g, b)
@@ -948,9 +817,8 @@ class PointLight(Light):
 
 class SpotLight(Light):
     def __init__(self, context):
-        super().__init__()
-        ContextCreateSpotLight(context, self)
-        context.lights.add(self)
+        super().__init__(context)
+        ContextCreateSpotLight(self.context, self)
 
     def set_radiant_power(self, r, g, b):
         SpotLightSetRadiantPower3f(self, r, g, b)
@@ -961,9 +829,8 @@ class SpotLight(Light):
 
 class DirectionalLight(Light):
     def __init__(self, context):
-        super().__init__()
-        ContextCreateDirectionalLight(context, self)
-        context.lights.add(self)
+        super().__init__(context)
+        ContextCreateDirectionalLight(self.context, self)
 
     def set_radiant_power(self, r, g, b):
         DirectionalLightSetRadiantPower3f(self, r, g, b)
@@ -972,8 +839,12 @@ class DirectionalLight(Light):
         DirectionalLightSetShadowSoftness(self, coeff)
 
 
-class ImageBase(Object):
+class Image(Object):
     core_type_name = 'rpr_image'
+
+    def __init__(self, context):
+        super().__init__()
+        self.context = context
 
     def set_gamma(self, gamma):
         ImageSetGamma(self, gamma)
@@ -982,9 +853,9 @@ class ImageBase(Object):
         ImageSetWrap(self, wrap_type)
 
 
-class Image(ImageBase):
+class ImageData(Image):
     def __init__(self, context, data: np.array):
-        super().__init__()
+        super().__init__(context)
 
         components = data.shape[2]
         desc = ffi.new("rpr_image_desc*")
@@ -994,17 +865,15 @@ class Image(ImageBase):
         desc.image_row_pitch = desc.image_width * ffi.sizeof('rpr_float') * components
         desc.image_slice_pitch = 0
 
-        ContextCreateImage(context, (components, COMPONENT_TYPE_FLOAT32), desc, ffi.cast("float *", data.ctypes.data), self)
-        context.images.add(self)
+        ContextCreateImage(self.context, (components, COMPONENT_TYPE_FLOAT32), desc, ffi.cast("float *", data.ctypes.data), self)
 
 
-class ImageFile(ImageBase):
+class ImageFile(Image):
     def __init__(self, context, path):
-        super().__init__()
+        super().__init__(context)
 
         self.path = path
-        ContextCreateImageFromFile(context, encode(self.path), self)
-        context.images.add(self)
+        ContextCreateImageFromFile(self.context, encode(self.path), self)
 
 
 class Buffer(Object):
@@ -1012,14 +881,14 @@ class Buffer(Object):
 
     def __init__(self, context, data:np.array, element_type):
         super().__init__()
+        self.context = context
 
         desc = ffi.new("rpr_buffer_desc*")
-        desc.nb_element = len(data)
-        desc.element_type = element_type
-        desc.element_channel_size = len(data[0])
+        desc.nb_element = len(data);
+        desc.element_type = element_type;
+        desc.element_channel_size = len(data[0]);
 
-        ContextCreateBuffer(context, desc, ffi.cast("float *", data.ctypes.data), self)
-        context.images.add(self)
+        ContextCreateBuffer(self.context, desc, ffi.cast("float *", data.ctypes.data), self)
 
 
 class PostEffect(Object):
@@ -1027,9 +896,13 @@ class PostEffect(Object):
 
     def __init__(self, context, post_effect_type):
         super().__init__()
-        ContextCreatePostEffect(context, post_effect_type, self)
-        ContextAttachPostEffect(context, self)
-        context.post_effects.add(self)
+        self.context = context
+        ContextCreatePostEffect(self.context, post_effect_type, self)
+        ContextAttachPostEffect(self.context, self)
+
+    def delete(self):
+        ContextDetachPostEffect(self.context, self)
+        super().delete()
 
     def set_parameter(self, name, param):
         if isinstance(param, int):
