@@ -11,8 +11,9 @@ from bpy.props import (
 )
 
 import pyrpr
-from rprblender import logging
+from rprblender import logging, engine
 from . import RPR_Properties, RPR_Panel
+from .Material import RPR_MATERIAL_parser
 
 
 def log(*args):
@@ -24,7 +25,10 @@ class RPR_ObjectProperites(RPR_Properties):
     Properties for objects
     """
 
-    camera_visible: BoolProperty(name="Camera Visibility", default=True)
+    camera_visible: BoolProperty(
+        name="Camera Visibility",
+        default=True
+    )
 
     shadowcatcher: BoolProperty(
         name="Shadow Catcher",
@@ -32,14 +36,41 @@ class RPR_ObjectProperites(RPR_Properties):
         default=False,
     )
 
-    def sync(self, context):
+    cast_shadow: BoolProperty(
+        name="Cast Shadow",
+        default=True
+    )
+
+    receive_shadow: BoolProperty(
+        name="Receive Shadow",
+        default=True
+    )
+
+    def sync(self, context: engine.context.Context):
         ''' sync the object and any data attached '''
         obj = self.id_data
-        log("Syncing object: %s" % obj.name)
+        log("Syncing object: {}, type {}".format(obj.name, obj.type))
 
-        if self.camera_visible and hasattr(obj.data, 'rpr'):
-            transform = np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
-            obj.data.rpr.sync(context, transform)
+        object = None
+        transform = np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+        if obj.type in ('MESH',) and self.camera_visible:
+            object = obj.data.rpr.sync(context)
+            if object:
+                has_material = hasattr(obj, 'material_slots')
+                if has_material:
+                    for name, slot in obj.material_slots.items():
+                        log("Syncing material: \"{}\" {}".format(name, slot))
+                        material = slot.material.rpr.sync(context)
+                        if material:
+                            material.attach(object)
+                            material.commit()
+        elif obj.type in ('CAMERA', 'LIGHT'):
+            object = obj.data.rpr.sync(context)
+        if object:
+            object.set_transform(transform)
+
+    def fake_material(self):
+        return None
 
     @classmethod
     def register(cls):
@@ -73,7 +104,7 @@ class RPR_OBJECT_PT_object(RPR_Panel):
         if context.object:
             rpr = getattr(context.object, 'rpr', None)
             self.layout.row().label(text="Just the test label")
-            if rpr:
+            if rpr and context.object.type == 'OBJECT':
                 self.layout.row().prop(rpr, 'camera_visible')
                 self.layout.row().prop(rpr, 'shadowcatcher')
 

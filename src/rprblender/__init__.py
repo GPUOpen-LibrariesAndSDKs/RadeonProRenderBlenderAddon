@@ -1,7 +1,8 @@
 import bpy
 from .engine.engine import Engine
-from . import properties
 from . import logging
+from . import nodes
+from . import properties
 
 
 bl_info = {
@@ -76,11 +77,25 @@ class RPREngine(bpy.types.RenderEngine):
         self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 
 
+@bpy.app.handlers.persistent
+def on_load_post(dummy):
+    logging.info("on_load_post...")
+
+    properties.Material.activate_shader_editor()
+
+    logging.info("load_post ok")
+
+
 def register():
     bpy.utils.register_class(RPREngine)
     properties.register()
+    nodes.register()
+    bpy.app.handlers.load_post.append(on_load_post)
 
 
 def unregister():
+    bpy.app.handlers.load_post.remove(on_load_post)
+    nodes.unregister()
     properties.unregister()
     bpy.utils.unregister_class(RPREngine)
+
