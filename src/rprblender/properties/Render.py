@@ -40,6 +40,21 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.enable_aov(pyrpr.AOV_COLOR)
         # TODO: setup other AOVs, image filters, shadow catcher
 
+        # set default ray depth values
+        depth = 5
+        depth_diffuse = 2
+        depth_glossy = 3
+        depth_shadow = 3
+        depth_refraction = 3
+        depth_glossy_refraction = 3
+
+        rpr_context.set_parameter("maxRecursion", depth)
+        rpr_context.set_parameter("maxdepth.diffuse", depth_diffuse)
+        rpr_context.set_parameter("maxdepth.glossy", depth_glossy)
+        rpr_context.set_parameter("maxdepth.shadow", depth_shadow)
+        rpr_context.set_parameter("maxdepth.refraction", depth_refraction)
+        rpr_context.set_parameter("maxdepth.refraction.glossy", depth_glossy_refraction)
+
     @classmethod
     def register(cls):
         logging.info("Register", tag='Scene')

@@ -4,6 +4,9 @@ import json
 import os
 from .export import export_blender_node
 
+from rprblender import logging
+
+
 ''' Layout of meta data for nodes:
 
     {
@@ -70,6 +73,28 @@ class RPRShadingNode(bpy.types.ShaderNode):  # , RPR_Properties):
         'inputs': (),
         'outputs': (),
     }
+
+    @staticmethod
+    def get_socket(node, name=None, index=None):
+        if name:
+            try:
+                socket = node.inputs[name]
+            except KeyError:
+                return None
+        elif index:
+            try:
+                socket = node.inputs[index]
+            except IndexError:
+                return None
+        else:
+            return None
+
+        logging.info("get_socket({}, {}, {}): {}; linked {}; links number {}".
+                     format(node, name, index, socket, socket.is_linked, len(socket.links)),
+                     tag="ShadingNode")
+        if socket.is_linked and len(socket.links) > 0:
+            return socket.links[0].from_socket
+        return None
 
     @classmethod
     def poll(cls, tree: bpy.types.NodeTree):

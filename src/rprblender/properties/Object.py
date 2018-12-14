@@ -58,9 +58,6 @@ class RPR_ObjectProperites(RPR_Properties):
         if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
             obj.data.rpr.sync(rpr_context, obj)
 
-    def fake_material(self):
-        return None
-
     @classmethod
     def register(cls):
         log("Register")
