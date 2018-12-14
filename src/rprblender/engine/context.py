@@ -417,3 +417,6 @@ class RPRContext:
         material = pyrprx.Material(self.x_context, material_type)
         self.materials[key] = material
         return material
+
+    def set_parameter(self, name, param):
+        self.context.set_parameter(name, param)

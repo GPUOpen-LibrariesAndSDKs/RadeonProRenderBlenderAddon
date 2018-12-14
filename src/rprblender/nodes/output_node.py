@@ -1,6 +1,8 @@
 import bpy
 
 from .rpr_nodes import RPRShadingNode
+from rprblender import logging
+import pyrprx
 
 
 class RPR_Node_Output(RPRShadingNode):
@@ -19,4 +21,14 @@ class RPR_Node_Output(RPRShadingNode):
         displacement.hide_value = True
 
     def sync(self, context):
-        return None
+        material = None
+        logging.info("RPR_Node_Output inputs")
+        for input in self.inputs:
+            logging.info("[{}]: linked {}".format(input, input.is_linked))
+
+        input = self.get_socket(self, name='Surface')
+        if input and hasattr(input.node, 'sync'):
+            logging.info("syncing {}".format(input.node))
+            material = input.node.sync(context)
+
+        return material

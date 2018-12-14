@@ -20,7 +20,8 @@ class Engine:
         ''' handle the rendering process ''' 
         print('Engine.render')
 
-        for i in range(10):
+        # do some render
+        for i in range(50):
             self.context.render()
 
     def get_image(self):
