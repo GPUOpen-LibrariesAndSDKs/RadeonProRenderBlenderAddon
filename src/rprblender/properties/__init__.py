@@ -15,6 +15,9 @@ import bpy
 from rprblender import logging
 
 
+PANEL_WIDTH_FOR_COLUMN = 200
+
+
 class RPR_Properties(bpy.types.PropertyGroup):
     def sync(self, rpr_context):
         ''' Sync will update this object in the context.
@@ -34,6 +37,33 @@ class RPR_Panel(bpy.types.Panel):
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
 
+    @staticmethod
+    def create_ui_autosize_column(context, column, single=False):
+        if context.region.width > PANEL_WIDTH_FOR_COLUMN:
+            row = column.row()
+            split = row.split(factor=0.5)
+            column1 = split.column(align=True)
+            split = split.split()
+            column2 = split.column(align=True)
+            is_row = False
+        else:
+            column1 = column.row().column(align=True)
+            if not single:
+                column.separator()
+            column2 = column.row().column(align=True)
+            is_row = True
+        return column1, column2, is_row
+
+
+class RPR_Operator(bpy.types.Operator):
+    bl_idname = 'rpr.operator'
+    bl_label = "RPR Operator"
+    COMPAT_ENGINES = {'RPR'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
+
 
 # Register/unregister all required classes of RPR properties in one go
 from . import (
@@ -43,6 +73,7 @@ from . import (
     Light,
     Camera,
     Material,
+    World,
 )
 
 modules_to_register = (
@@ -52,6 +83,7 @@ modules_to_register = (
     Light,
     Camera,
     Material,
+    World,
 )
 
 classes_to_register = []

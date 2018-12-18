@@ -10,6 +10,10 @@ import pyrpr
 import pyrprx
 
 
+def log(*args):
+    logging.info(*args, tag='Material')
+
+
 class RPR_MATERIAL_OT_UseShadingNodes(Operator):
     """
     Enable nodes on a material, world or light
@@ -22,7 +26,7 @@ class RPR_MATERIAL_OT_UseShadingNodes(Operator):
         return hasattr(context, 'material')
 
     def execute(self, context: bpy.types.Context):
-        logging.info("Enabling nodes for {}".format(context))
+        log("Enabling nodes for {}".format(context))
         if context.material:
             context.material.use_nodes = True
 
@@ -32,7 +36,7 @@ class RPR_MATERIAL_OT_UseShadingNodes(Operator):
 class RPR_MATERIAL_parser(RPR_Properties):
     def sync(self, rpr_context) -> pyrprx.Material:
         mat = self.id_data
-        logging.info("Syncing material: %s" % mat.name)
+        log("Syncing material: %s" % mat.name)
         key = mat.as_pointer()
         tree = getattr(mat, 'node_tree', None)
 
@@ -45,26 +49,26 @@ class RPR_MATERIAL_parser(RPR_Properties):
         if not node:
             node = find_cycles_output_node(tree)
             if not node:
-                logging.info("No valid output node found!")
+                log("No valid output node found!")
                 return self.create_fake_material(rpr_context, (1.0, 0.0, 1.0, 1.0))
             else:
-                logging.info("Blender output node found: {}".format(node))
+                log("Blender output node found: {}".format(node))
                 try:
                     result = self.parse_cycles_output_node(rpr_context, node)
                 except Exception as e:
                     tb = sys.exc_info()[2]
-                    logging.info("Cycles material parsing exception {}".format(e.with_traceback(tb)))
+                    log("Cycles material parsing exception {}".format(e.with_traceback(tb)))
                     result = self.create_fake_material(rpr_context, (1.0, 0.0, 1.0, 1.0))
                 return result
         if not hasattr(node, 'sync'):
-            logging.info("No valid output node found!")
+            log("No valid output node found!")
             return self.create_fake_material(rpr_context, (1.0, 0.0, 1.0, 1.0))
 
-        logging.info("Output node {}".format(node))
+        log("Output node {}".format(node))
 
         # Parse it
         material = node.sync(rpr_context)
-        logging.info("Material parsed as {}".format(material))
+        log("Material parsed as {}".format(material))
 
         # Fake material for tests
         if not material:
@@ -88,9 +92,8 @@ class RPR_MATERIAL_parser(RPR_Properties):
         else:
             return None
 
-        logging.info("get_socket({}, {}, {}): {}; linked {}; links number {}".
-                     format(node, name, index, socket, socket.is_linked, len(socket.links)),
-                     tag="ShadingNode")
+        log("get_socket({}, {}, {}): {}; linked {}; links number {}".
+                     format(node, name, index, socket, socket.is_linked, len(socket.links)))
         if socket.is_linked and len(socket.links) > 0:
             return socket.links[0].from_socket
         return None
@@ -116,9 +119,9 @@ class RPR_MATERIAL_parser(RPR_Properties):
     def parse_cycles_output_node(self, rpr_context, node):
         material = None
         input = self.get_socket(node, name='Surface')  # 'Surface'
-        logging.info("Material Output input['Surface'] linked to {}".format(input))
+        log("Material Output input['Surface'] linked to {}".format(input))
         input_node = input.node
-        logging.info("syncing {}".format(input_node))
+        log("syncing {}".format(input_node))
         # TODO replace with conversion "Cycles -> RPR" table
         if input_node.bl_idname == 'ShaderNodeBsdfPrincipled':
             material = self.parse_cycles_principled(rpr_context, input_node)
@@ -129,7 +132,7 @@ class RPR_MATERIAL_parser(RPR_Properties):
     def parse_cycles_principled(self, rpr_context, node) -> pyrprx.Material:
         def get_value(name):
             socket = node.inputs[name]
-            logging.info("input {} value is {}".format(name, socket.default_value), tag='Material.Cycles')
+            log("input {} value is {}".format(name, socket.default_value))
             if socket:
                 val = socket.default_value
                 if isinstance(val, float) or isinstance(val, int):
@@ -239,7 +242,7 @@ class RPR_MATERIAL_parser(RPR_Properties):
 
     @classmethod
     def register(cls):
-        logging.info("Material: Register")
+        log("Material: Register")
         bpy.types.Material.rpr = bpy.props.PointerProperty(
             name="RPR Material Settings",
             description="RPR material settings",
@@ -248,7 +251,7 @@ class RPR_MATERIAL_parser(RPR_Properties):
 
     @classmethod
     def unregister(cls):
-        logging.info("Material: Unregister")
+        log("Material: Unregister")
         del bpy.types.Material.rpr
 
 
@@ -357,7 +360,7 @@ def find_output_node_in_tree(tree):
     if not res:
         # try cycles output node
         res = find_node_in_node_tree(tree, 'ShaderNodeOutputMaterial')
-#    logging.info("find_output_node_in_tree({}) {}".format(tree, res), tag='material')
+#    log("find_output_node_in_tree({}) {}".format(tree, res))
     return res
 
 
