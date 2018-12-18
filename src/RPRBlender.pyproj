@@ -50,7 +50,11 @@
     </Compile>
     <Compile Include="rprblender\nodes\blender_nodes.py" />
     <Compile Include="rprblender\nodes\export.py" />
+    <Compile Include="rprblender\nodes\node_tree.py" />
+    <Compile Include="rprblender\nodes\output_node.py" />
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
+    <Compile Include="rprblender\nodes\sockets.py" />
+    <Compile Include="rprblender\nodes\uber_node.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\properties\Camera.py" />
     <Compile Include="rprblender\properties\Light.py" />
@@ -58,6 +62,7 @@
     <Compile Include="rprblender\properties\Mesh.py" />
     <Compile Include="rprblender\properties\Object.py" />
     <Compile Include="rprblender\properties\Render.py" />
+    <Compile Include="rprblender\properties\World.py" />
     <Compile Include="rprblender\properties\__init__.py" />
     <Compile Include="rprblender\logging.py" />
     <Compile Include="rprblender\utils\__init__.py">

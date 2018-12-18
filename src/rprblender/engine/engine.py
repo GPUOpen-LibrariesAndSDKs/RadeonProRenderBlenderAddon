@@ -9,6 +9,11 @@ Other modules in this directory could be viewport, etc.
 import weakref
 import pyrpr
 from . import context
+from rprblender import logging
+
+
+def log(*args):
+    logging.info(*args, tag='Engine')
 
 
 class Engine:
@@ -16,21 +21,25 @@ class Engine:
         self.rpr_engine = weakref.ref(rpr_engine)
         self.context = context.RPRContext()
 
-    def render(self, depsgraph):
-        ''' handle the rendering process ''' 
-        print('Engine.render')
+    def render(self):
+        ''' handle the rendering process '''
+        log('Start render')
 
-        # do some render
-        for i in range(50):
-            self.context.render()
+        try:
+            while True:
+                log("Render iterations: %d/%d" % (self.context.iterations, self.context.max_iterations))
+                self.context.render()
+
+        except IndexError as err:
+            log('Finish render')
 
     def get_image(self):
         self.context.resolve()
         return self.context.get_image()
 
     def sync(self, depsgraph):
-        ''' sync all data ''' 
-        print('Engine.sync')
+        ''' sync all data '''
+        log('Start sync')
 
         # export scene data, set denoisers, etc
         scene = depsgraph.scene
@@ -42,7 +51,7 @@ class Engine:
         #        obj = dup.instance_object.original
         #    else:  # Usual object
         #        obj = instance.object.original
-            
+
         #    # these ids are weird.  Needs more investigation
         #    print("instance of %s" % obj.name, instance.random_id, instance.persistent_id)
 
@@ -53,12 +62,17 @@ class Engine:
         #    else:
         #        print('not exporting', obj.name)
 
+        log('Finish sync')
+
     def sync_updated(self, depsgraph):
         ''' sync just the updated things ''' 
-        print('Engine.sync_updated')
+        log('Start sync_updated')
+
         for updated_obj in depsgraph.updates:
             print(updated_obj.id.name, updated_obj.is_dirty_geometry, updated_obj.is_dirty_transform)
 
+        log('Finish sync_updated')
+
     def draw(self, depsgraph, region, space_data, region_data):
         ''' viewport draw ''' 
-        print('Engine.draw')
+        log('draw')

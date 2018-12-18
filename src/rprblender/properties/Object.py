@@ -10,10 +10,8 @@ from bpy.props import (
     StringProperty,
 )
 
-import pyrpr
-from rprblender import logging, engine
+from rprblender import logging
 from . import RPR_Properties, RPR_Panel
-from .Material import RPR_MATERIAL_parser
 
 
 def log(*args):
@@ -93,6 +91,8 @@ class RPR_OBJECT_PT_object(RPR_Panel):
             if rpr and context.object.type == 'OBJECT':
                 self.layout.row().prop(rpr, 'camera_visible')
                 self.layout.row().prop(rpr, 'shadowcatcher')
+
+
 
 
 classes_to_register = (RPR_ObjectProperites, RPR_OBJECT_PT_object)

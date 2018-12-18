@@ -19,17 +19,23 @@ lib_wrapped_log_calls = False
 
 class CoreError(Exception):
     def __init__(self, status, func_name, argv, module_name):
+        super().__init__()
+        self.status = status
+        self.func_name = func_name
+        self.argv = argv
+        self.module_name = module_name
+
         for name in pyrprwrap._constants_names:
             value = getattr(pyrprwrap, name)
             if name.startswith('ERROR_') and status == value:
                 status = "%s<%d>" % (name, value)
                 break
        
-        error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
+        self.error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
 
-        super().__init__(
-            "%s call %s(%s) returned error code <%s> with error message: '%s'" % 
-                (module_name, func_name, ', '.join(str(a) for a in argv), status, error_message))
+    def __str__(self):
+        return "%s call %s(%s) returned error code <%s> with error message: '%s'" % \
+                    (self.module_name, self.func_name, ', '.join(str(a) for a in self.argv), self.status, self.error_message)
 
     def get_last_error_message(self, context):
         if not isinstance(context, Context):
@@ -166,10 +172,6 @@ def decode(bin_str):
     return bin_str.decode('utf8')
 
 
-def register_plugin(path):
-    return RegisterPlugin(encode(path))
-
-
 def is_gpu_enabled(creation_flags):
     for i in range(16):
         if getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i) & creation_flags:
@@ -221,7 +223,41 @@ class Object:
 class Context(Object):
     core_type_name = 'rpr_context'
 
-    def __init__(self, plugins, flags, props=None, cache_path=None):
+    plugins = None
+    cache_path = None
+    cpu_device = None
+    gpu_devices = []
+
+    @staticmethod
+    def register_plugin(tahoe_path, cache_path):
+        plugin_id = RegisterPlugin(encode(tahoe_path))
+        if plugin_id == -1:
+            raise RuntimeError("Plugin is not registered", tahoe_path)
+
+        Context.plugins = [plugin_id, ]
+        Context.cache_path = cache_path
+
+        # getting available devices
+        def get_device(create_flag, info_flag):
+            try:
+                context = Context(create_flag, use_cache=False)
+                device_name = context.get_info_str(info_flag)
+                return {'flag': create_flag, 'name': device_name.strip()}
+
+            except CoreError as err:
+                if err.status == ERROR_UNSUPPORTED:
+                    return None
+
+                raise err
+
+        Context.cpu_device = get_device(CREATION_FLAGS_ENABLE_CPU, CONTEXT_CPU_NAME)
+        for i in range(16):
+            device = get_device(getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i),
+                                getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
+            if device:
+                Context.gpu_devices.append(device)
+
+    def __init__(self, flags, props=None, use_cache=True):
         super().__init__()
         self.aovs = {}
 
@@ -230,8 +266,8 @@ class Context(Object):
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
-        CreateContext(API_VERSION, plugins, len(plugins), flags,
-            props_ptr, encode(cache_path) if cache_path else ffi.NULL,
+        CreateContext(API_VERSION, Context.plugins, len(Context.plugins), flags,
+            props_ptr, encode(Context.cache_path) if use_cache and Context.cache_path else ffi.NULL,
             self)
 
     def set_parameter(self, name, param):

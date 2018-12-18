@@ -3,9 +3,8 @@ import numpy as np
 from . import RPR_Properties
 import bpy
 
-import pyrpr
 from rprblender import logging
-from rprblender.utils import get_transform
+from rprblender import utils
 
 def log(*args):
     logging.info(*args, tag='Mesh')
@@ -19,11 +18,11 @@ class RPR_MeshProperties(RPR_Properties):
         mesh = self.id_data
         log("Syncing mesh: %s" % mesh.name)
 
-        rpr_mesh = rpr_context.meshes.get(mesh.name, None)
+        rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
         if rpr_mesh:
-            rpr_instance = rpr_context.create_instance(obj.name, rpr_mesh)
+            rpr_instance = rpr_context.create_instance(utils.key(obj), rpr_mesh)
             rpr_instance.set_name(obj.name + ':' + mesh.name)
-            rpr_instance.set_transform(get_transform(obj))
+            rpr_instance.set_transform(utils.get_transform(obj))
             rpr_context.scene.attach(rpr_instance)
             return
 
@@ -47,13 +46,13 @@ class RPR_MeshProperties(RPR_Properties):
         uv_indices = None   # normal_indices
 
         # creating RPR mesh
-        rpr_mesh = rpr_context.create_mesh(mesh.name,
+        rpr_mesh = rpr_context.create_mesh(utils.key(mesh),
                                            vertices, normals, uvs,
                                            vertex_indices, normal_indices, uv_indices,
                                            num_face_vertices)
         rpr_mesh.set_name(mesh.name)
         rpr_context.scene.attach(rpr_mesh)
-        rpr_mesh.set_transform(get_transform(obj))
+        rpr_mesh.set_transform(utils.get_transform(obj))
 
         if hasattr(obj, 'material_slots'):
             for name, slot in obj.material_slots.items():
