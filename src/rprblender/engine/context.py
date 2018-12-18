@@ -418,5 +418,14 @@ class RPRContext:
         self.materials[key] = material
         return material
 
+    def create_image(self):
+        return pyrpr.Image(self.context)
+
+    def create_image_file(self, file):
+        return pyrpr.ImageFile(self.context, file)
+
+    def create_image_data(self, data):
+        return pyrpr.ImageData(self.context, data)
+
     def set_parameter(self, name, param):
         self.context.set_parameter(name, param)

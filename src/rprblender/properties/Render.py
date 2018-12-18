@@ -55,6 +55,8 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.set_parameter("maxdepth.refraction", depth_refraction)
         rpr_context.set_parameter("maxdepth.refraction.glossy", depth_glossy_refraction)
 
+        scene.world.rpr.sync(rpr_context)
+
     @classmethod
     def register(cls):
         logging.info("Register", tag='Scene')
