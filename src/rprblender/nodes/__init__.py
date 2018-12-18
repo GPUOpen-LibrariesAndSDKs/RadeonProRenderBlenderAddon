@@ -51,7 +51,6 @@ def register():
 #    ShaderNodeCategory.poll = hide_cycles_and_eevee_poll(ShaderNodeCategory.poll)
 
     register_classes()
-
     register_node_categories("RPR_NODES", node_categories)
 
 

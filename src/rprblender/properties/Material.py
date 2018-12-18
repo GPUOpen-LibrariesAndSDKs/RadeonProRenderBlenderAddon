@@ -4,7 +4,7 @@ from bpy.types import Operator
 from bpy_extras.node_utils import find_node_input
 
 from . import RPR_Panel, RPR_Properties
-from rprblender import logging, engine
+from rprblender import logging
 
 import pyrpr
 import pyrprx
@@ -98,7 +98,7 @@ class RPR_MATERIAL_parser(RPR_Properties):
             return socket.links[0].from_socket
         return None
 
-    def create_fake_material(self, rpr_context: engine.context.RPRContext, color: tuple) -> pyrprx.Material:
+    def create_fake_material(self, rpr_context, color: tuple) -> pyrprx.Material:
         null_vector = (0, 0, 0, 0)
         key = self.id_data.name
         if not key:

@@ -7,8 +7,8 @@ from bpy.props import (
 
 import pyrpr
 from rprblender import logging
+from rprblender import utils
 from . import RPR_Panel, RPR_Properties
-from rprblender.utils import get_transform
 
 
 def log(*args):
@@ -33,9 +33,9 @@ class RPR_CameraProperties(RPR_Properties):
         camera = self.id_data
         log("Syncing camera: %s" % camera.name)
         
-        rpr_camera = rpr_context.create_camera(obj.name)
+        rpr_camera = rpr_context.create_camera(utils.key(obj))
         rpr_camera.set_name(camera.name)
-        rpr_camera.set_transform(get_transform(obj))
+        rpr_camera.set_transform(utils.get_transform(obj))
         
         rpr_camera.set_clip_plane(camera.clip_start, camera.clip_end)
         rpr_camera.set_lens_shift(camera.shift_x, camera.shift_y)   # TODO: Shift has to be fixed

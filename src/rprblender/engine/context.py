@@ -5,7 +5,6 @@ import pyrpr
 import pyrprx
 from rprblender import logging
 from . import image_filter
-from . import create_context
 
 
 class RPRContext:
@@ -28,6 +27,7 @@ class RPRContext:
         self.render_lock = threading.Lock()
         self.iterations = 0
         self.resolved_iterations = 0
+        self.max_iterations = 0
 
         # list of frame buffers for AOVs
         self.frame_buffers_aovs = {}
@@ -40,18 +40,17 @@ class RPRContext:
         self.image_filter_settings = None
         
 
-    def init(self, is_preview, width, height, context_flags, context_props=None):
-        self.context = create_context(context_flags, context_props)
+    def init(self, width, height, context_flags, context_props=None):
+        self.context = pyrpr.Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.x_context = pyrprx.Context(self.material_system)
         self.width = width
         self.height = height
-        self.gl_interop = is_preview and (context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
+        self.gl_interop = bool(context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
 
         # context settings
         self.context.set_parameter('xflip', False)
         self.context.set_parameter('yflip', False)
-        self.context.set_parameter('preview', is_preview)
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
@@ -71,13 +70,20 @@ class RPRContext:
                 fbs['aov'].clear()
             self.iterations = 0
             self.resolved_iterations = 0
-  
-    def render(self, region=None):
+
+    def set_max_iterations(self, max_iterations):
+        self.max_iterations = max_iterations
+
+    def render(self, tile=None):
         with self.render_lock:
-            if region is None:
+            if self.max_iterations > 0 and self.max_iterations <= self.iterations:
+                raise IndexError("Achieved max number of rendering iterations", self.iterations)
+
+            if tile is None:
                 self.context.render()
             else:
-                self.context.render_tile(*region)
+                self.context.render_tile(*tile)
+
             self.iterations += 1
 
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
