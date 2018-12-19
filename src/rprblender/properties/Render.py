@@ -110,7 +110,7 @@ class RPR_RenderProperties(RPR_Properties):
     light_paths: PointerProperty(type=RPR_LightPathsProperties)
     sampling: PointerProperty(type=RPR_SamplingProperties)
 
-    def sync(self, rpr_context):
+    def sync(self, rpr_context, depsgraph):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
@@ -127,7 +127,9 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.init(width, height, context_flags)
         rpr_context.scene.set_name(scene.name)
 
-        for i, obj in enumerate(scene.objects):
+        self.sync_shadow_catcher(rpr_context, depsgraph)
+        
+        for i, obj in enumerate(depsgraph.objects):
             obj.rpr.sync(rpr_context)
 
         rpr_context.scene.set_camera(rpr_context.objects[utils.key(scene.camera)])
@@ -152,6 +154,13 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.set_max_iterations(self.sampling.iterations)
 
         scene.world.rpr.sync(rpr_context)
+        
+    def sync_shadow_catcher(self, rpr_context, depsgraph):
+        for obj in depsgraph.objects:
+            if obj.rpr.shadowcatcher:
+                logging.info("Enabling shadow catcher")
+                rpr_context.setup_shadow_catcher(True)
+                return
 
     @classmethod
     def register(cls):

@@ -23,34 +23,47 @@ class RPR_ObjectProperites(RPR_Properties):
     Properties for objects
     """
 
-    camera_visible: BoolProperty(
+    visibility_in_primary_rays: bpy.props.BoolProperty(
         name="Camera Visibility",
-        default=True
+        description="This object will be visible in camera rays",
+        default=True,
+    )
+
+    reflection_visibility: bpy.props.BoolProperty(
+        name="Reflections Visibility",
+        description="This object will be visible in reflections",
+        default=True,
+    )
+
+    shadows: BoolProperty(
+        name="Casts Shadows",
+        description="This object will cast shadows",
+        default=True,
     )
 
     shadowcatcher: BoolProperty(
         name="Shadow Catcher",
-        description="Use this object as shadowcatcher",
+        description="Use this object as a shadowcatcher",
         default=False,
     )
 
-    cast_shadow: BoolProperty(
-        name="Cast Shadow",
-        default=True
+    motion_blur: bpy.props.BoolProperty(
+        name="Motion Blur",
+        description="Enable Motion Blur",
+        default=True,
     )
 
-    receive_shadow: BoolProperty(
-        name="Receive Shadow",
-        default=True
+    motion_blur_scale: bpy.props.FloatProperty(
+        name="Scale",
+        description="Motion Blur Scale",
+        default=1.0,
+        min=0,
     )
 
     def sync(self, rpr_context):
         ''' sync the object and any data attached '''
-
-        if not self.camera_visible:
-            return
-
         obj = self.id_data
+
         log("Syncing object: {}, type {}".format(obj.name, obj.type))
 
         if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
@@ -72,27 +85,41 @@ class RPR_ObjectProperites(RPR_Properties):
 
 
 class RPR_OBJECT_PT_object(RPR_Panel):
-    """
-    panel to display above properties
-    """
-
-    bl_idname = 'rpr_object_PT_object'
+    bl_idname = 'rpr_object_pt_object'
     bl_label = "RPR Settings"
     bl_context = 'object'
 
     @classmethod
     def poll(cls, context):
-        return context.object and super().poll(context)
+        return context.object and context.object.type == 'MESH' and super().poll(context)
 
     def draw(self, context):
         if context.object:
             rpr = getattr(context.object, 'rpr', None)
-            self.layout.row().label(text="Just the test label")
-            if rpr and context.object.type == 'OBJECT':
-                self.layout.row().prop(rpr, 'camera_visible')
+            if rpr and context.object.type == 'MESH':
+                self.layout.row().prop(rpr, 'visibility_in_primary_rays')
+                self.layout.row().prop(rpr, 'reflection_visibility')
+                self.layout.row().prop(rpr, 'shadows')
                 self.layout.row().prop(rpr, 'shadowcatcher')
 
 
+class RPR_OBJECT_PT_motion_blur(RPR_Panel):
+    bl_idname = 'rpr_object_pt_motion_blur'
+    bl_label = "RPR Motion Blur"
+    bl_context = 'object'
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.type == 'MESH' and super().poll(context)
+
+    def draw(self, context):
+        self.layout.active = context.object.rpr.motion_blur
+        rpr = getattr(context.object, 'rpr', None)
+        if rpr and context.object.type == 'MESH':
+            self.layout.row().prop(rpr, 'motion_blur_scale')
+
+    def draw_header(self, context):
+        self.layout.prop(context.object.rpr, "motion_blur", text="")
 
 
-classes_to_register = (RPR_ObjectProperites, RPR_OBJECT_PT_object)
+classes_to_register = (RPR_ObjectProperites, RPR_OBJECT_PT_object, RPR_OBJECT_PT_motion_blur)
