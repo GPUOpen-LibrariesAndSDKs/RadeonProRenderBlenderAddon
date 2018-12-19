@@ -43,7 +43,7 @@ class Engine:
 
         # export scene data, set denoisers, etc
         scene = depsgraph.scene
-        scene.rpr.sync(self.context)
+        scene.rpr.sync(self.context, depsgraph)
 
         ## walk depsgraph
         #for instance in depsgraph.object_instances:
