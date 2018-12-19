@@ -7,9 +7,11 @@ Other modules in this directory could be viewport, etc.
 ''' main Render object '''
 
 import weakref
-import pyrpr
+
 from . import context
 from rprblender import logging
+from rprblender import utils
+from .notifier import Notifier
 
 
 def log(*args):
@@ -19,49 +21,47 @@ def log(*args):
 class Engine:
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.ref(rpr_engine)
-        self.context = context.RPRContext()
+        self.rpr_context = context.RPRContext()
 
-    def render(self):
+    def render(self, depsgraph):
         ''' handle the rendering process '''
         log('Start render')
-
+        notifier = Notifier(self.rpr_engine(), "%s: %s" % (depsgraph.scene.name, depsgraph.view_layer.name))
+        notifier.update_info(0, "Start render")
         try:
             while True:
-                log("Render iterations: %d/%d" % (self.context.iterations, self.context.max_iterations))
-                self.context.render()
+                notifier.update_info(self.rpr_context.iterations / self.rpr_context.max_iterations,
+                                     "Iteration: %d/%d" % (self.rpr_context.iterations, self.rpr_context.max_iterations))
+                self.rpr_context.render()
 
         except IndexError as err:
+            notifier.update_info(1, "Finish render")
             log('Finish render')
 
     def get_image(self):
-        self.context.resolve()
-        return self.context.get_image()
+        self.rpr_context.resolve()
+        return self.rpr_context.get_image()
 
     def sync(self, depsgraph):
         ''' sync all data '''
-        log('Start sync')
+        log('Start syncing')
 
-        # export scene data, set denoisers, etc
-        scene = depsgraph.scene
-        scene.rpr.sync(self.context, depsgraph)
+        notifier = Notifier(self.rpr_engine(), "%s: %s" % (depsgraph.scene.name, depsgraph.view_layer.name))
+        notifier.update_info(0, "Start syncing")
 
-        ## walk depsgraph
-        #for instance in depsgraph.object_instances:
-        #    if instance.is_instance:  # Real dupli instance
-        #        obj = dup.instance_object.original
-        #    else:  # Usual object
-        #        obj = instance.object.original
+        depsgraph.scene.rpr.sync(self.rpr_context)
+        self.rpr_context.set_parameter('preview', depsgraph.mode=='VIEWPORT')
 
-        #    # these ids are weird.  Needs more investigation
-        #    print("instance of %s" % obj.name, instance.random_id, instance.persistent_id)
+        # getting visible objects
+        for i, obj in enumerate(depsgraph.objects):
+            notifier.update_info(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.objects), obj.name))
+            obj.rpr.sync(self.rpr_context)
 
-        #    # run the "sync" method of the obj
-        #    context = None # dummy rpr context
-        #    if hasattr(obj, 'rpr'):
-        #        obj.rpr.sync(context)
-        #    else:
-        #        print('not exporting', obj.name)
+        self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(depsgraph.scene.camera)])
 
+        self.rpr_context.sync_shadow_catcher()
+
+        notifier.update_info(0, "Finish syncing")
         log('Finish sync')
 
     def sync_updated(self, depsgraph):

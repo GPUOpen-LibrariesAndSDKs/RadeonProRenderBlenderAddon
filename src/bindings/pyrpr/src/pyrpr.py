@@ -406,6 +406,7 @@ class Shape(Object):
     def __init__(self, context):
         super().__init__()
         self.context = context
+        self.shadow_catcher = False
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -421,6 +422,7 @@ class Shape(Object):
 
     def set_shadow_catcher(self, shadow_catcher):
         ShapeSetShadowCatcher(self, shadow_catcher)
+        self.shadow_catcher = shadow_catcher
 
     def set_shadow(self, casts_shadow):
         ShapeSetShadow(self, casts_shadow)

@@ -110,13 +110,15 @@ class RPR_RenderProperties(RPR_Properties):
     light_paths: PointerProperty(type=RPR_LightPathsProperties)
     sampling: PointerProperty(type=RPR_SamplingProperties)
 
-    def sync(self, rpr_context, depsgraph):
+    def sync(self, rpr_context):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
         context_flags = 0
+        context_props = []
         if self.devices.use_cpu and pyrpr.Context.cpu_device:
             context_flags |= pyrpr.Context.cpu_device['flag']
+            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, self.devices.cpu_threads])
         if self.devices.use_gpu:
             for i, gpu_state in enumerate(self.devices.gpu_states):
                 if gpu_state:
@@ -124,19 +126,13 @@ class RPR_RenderProperties(RPR_Properties):
 
         width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
         height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
-        rpr_context.init(width, height, context_flags)
+
+        context_props.append(0) # should be followed by 0
+        rpr_context.init(width, height, context_flags, context_props)
         rpr_context.scene.set_name(scene.name)
 
-        self.sync_shadow_catcher(rpr_context, depsgraph)
-        
-        for i, obj in enumerate(depsgraph.objects):
-            obj.rpr.sync(rpr_context)
-
-        rpr_context.scene.set_camera(rpr_context.objects[utils.key(scene.camera)])
+        # TODO: setup other AOVs, image filters
         rpr_context.enable_aov(pyrpr.AOV_COLOR)
-        rpr_context.set_parameter('preview', False) # TODO: should be  True for viewport render
-
-        # TODO: setup other AOVs, image filters, shadow catcher
 
         # set light paths values
         rpr_context.set_parameter('maxRecursion', self.light_paths.max_ray_depth)
@@ -154,13 +150,6 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.set_max_iterations(self.sampling.iterations)
 
         scene.world.rpr.sync(rpr_context)
-        
-    def sync_shadow_catcher(self, rpr_context, depsgraph):
-        for obj in depsgraph.objects:
-            if obj.rpr.shadowcatcher:
-                logging.info("Enabling shadow catcher")
-                rpr_context.setup_shadow_catcher(True)
-                return
 
     @classmethod
     def register(cls):

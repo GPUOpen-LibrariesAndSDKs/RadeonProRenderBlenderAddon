@@ -47,7 +47,7 @@ class RPREngine(bpy.types.RenderEngine):
         ''' Called with both final render and viewport '''
         logging.info("render_engine.render")
 
-        self.engine.render()
+        self.engine.render(depsgraph)
         image = self.engine.get_image()
 
         result = self.begin_result(0, 0, image.shape[1], image.shape[0])

@@ -11,7 +11,7 @@ class RPR_LightProperties(RPR_Properties):
     def sync(self, rpr_context, obj):
         ''' sync the mesh '''
         light = self.id_data
-        print("Syncing light: %s" % light.name)
+        logging.info("Syncing light: %s" % light.name, tag='Light')
 
         rpr_light = rpr_context.create_light(utils.key(obj), 'point')
         rpr_light.set_name(light.name)
