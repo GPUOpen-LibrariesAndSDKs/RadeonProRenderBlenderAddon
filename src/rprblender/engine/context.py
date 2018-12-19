@@ -40,7 +40,7 @@ class RPRContext:
         self.image_filter_settings = None
         
 
-    def init(self, width, height, context_flags, context_props=None):
+    def init(self, width, height, context_flags, context_props):
         self.context = pyrpr.Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.x_context = pyrprx.Context(self.material_system)
@@ -296,7 +296,13 @@ class RPRContext:
             self.image_filter.update_param('halfWindow', settings['half_window']);
             self.image_filter.update_param('bandwidth', settings['bandwidth']);
 
-    def setup_shadow_catcher(self, use_shadow_catcher):
+    def sync_shadow_catcher(self):
+        use_shadow_catcher = False
+        for obj in self.scene.objects:
+            if isinstance(obj, pyrpr.Shape) and obj.shadow_catcher:
+                use_shadow_catcher = True
+                break
+
         with self.render_lock:
             if use_shadow_catcher:
                 if not self.sc_composite:

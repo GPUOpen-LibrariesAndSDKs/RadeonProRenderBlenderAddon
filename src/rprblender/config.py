@@ -1,12 +1,15 @@
+from . import logging
+
+logging.limit_log('', level_show_min=logging.INFO)
+
 pyrpr_log_calls = False
 pyrprx_log_calls = False
 pyrprimagefilters_log_calls = False
 pyrprgltf_log_calls = False
 
-from . import logging
-logging.limit_log('', level_show_min=logging.INFO)
-
 debug = False
+
+notifier_log_calls = False
 
 rpr_image_loading = True
 node_thumbnail_enabled = True

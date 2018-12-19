@@ -17,13 +17,18 @@ class RPR_MeshProperties(RPR_Properties):
     def sync(self, rpr_context, obj):
         ''' sync the mesh '''
         mesh = self.id_data
-        log("Syncing mesh: %s" % mesh.name)
 
         existing_rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
         if existing_rpr_mesh:
+            instance_name = "%s/%s" % (mesh.name, obj.name)
+            log("Syncing instance: %s" % instance_name)
+
             rpr_shape = rpr_context.create_instance(utils.key(obj), existing_rpr_mesh)
-            rpr_shape.set_name(obj.name + ':' + mesh.name)
+            rpr_shape.set_name(instance_name)
+
         else:
+            log("Syncing mesh: %s" % mesh.name)
+
             # preparing mesh to export
             mesh.calc_normals_split()
             mesh.calc_loop_triangles()
