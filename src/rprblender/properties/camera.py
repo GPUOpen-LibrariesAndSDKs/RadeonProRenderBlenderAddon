@@ -11,8 +11,7 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-def log(*args):
-    logging.info(*args, tag='Camera')
+log = logging.Log(tag='Camera')
 
 
 class RPR_CameraProperties(RPR_Properties):

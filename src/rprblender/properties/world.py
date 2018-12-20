@@ -6,8 +6,7 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-def log(*args):
-    logging.info(*args, tag='World')
+log = logging.Log(tag='World')
 
 
 class RPR_WORLD_PROP_environment_ibl(RPR_Properties):

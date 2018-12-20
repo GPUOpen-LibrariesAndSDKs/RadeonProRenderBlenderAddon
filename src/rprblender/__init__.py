@@ -24,7 +24,10 @@ bl_info = {
     "category": "Render"
 }
 
-logging.info("Loading RPR addon {}".format(bl_info['version']))
+
+plugin_log = logging.Log(tag="Plugin")
+plugin_log("Loading RPR addon {}".format(bl_info['version']))
+engine_log = logging.Log(tag='RenderEngine')
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -42,7 +45,7 @@ class RPREngine(bpy.types.RenderEngine):
     # final render
     def update(self, data, depsgraph):
         ''' Called for final render '''
-        logging.info('render_engine.update')
+        engine_log('update')
 
         if not self.engine:
             self.engine = Engine(self)
@@ -51,7 +54,7 @@ class RPREngine(bpy.types.RenderEngine):
 
     def render(self, depsgraph):
         ''' Called with both final render and viewport '''
-        logging.info("render_engine.render")
+        engine_log("render")
 
         self.engine.render(depsgraph)
         image = self.engine.get_image()
@@ -67,7 +70,7 @@ class RPREngine(bpy.types.RenderEngine):
     # viewport render
     def view_update(self, context):
         ''' called when data is updated for viewport '''
-        logging.info('render_engine.view_update')
+        engine_log('view_update')
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
@@ -78,18 +81,18 @@ class RPREngine(bpy.types.RenderEngine):
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
-        logging.info('render_engine.view_draw')
+        engine_log('view_draw')
 
         self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 
 
 @bpy.app.handlers.persistent
 def on_load_post(dummy):
-    logging.info("on_load_post...")
+    plugin_log("on_load_post...")
 
-    properties.Material.activate_shader_editor()
+    properties.material.activate_shader_editor()
 
-    logging.info("load_post ok")
+    plugin_log("load_post ok")
 
 
 def register():

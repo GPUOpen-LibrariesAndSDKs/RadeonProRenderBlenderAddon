@@ -16,8 +16,7 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-def log(*args):
-    logging.info(*args, tag='Render')
+log = logging.Log(tag='Render')
 
 
 class RPR_RenderDevicesProperties(bpy.types.PropertyGroup):

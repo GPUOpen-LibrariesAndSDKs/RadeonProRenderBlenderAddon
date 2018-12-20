@@ -88,3 +88,44 @@ def error(*args, tag='default'):
 def critical(*args, tag='default'):
     if is_level_allowed(logging.CRITICAL):
         _log(get_logger(tag).critical, args)
+
+
+class Log:
+    __tag: str = "default"
+    __default_level: int = logging.INFO
+    __default_method_name: str = 'info'
+
+    def __init__(self, tag: str = 'default', level: str = 'info'):
+        if tag:
+            self.__tag = tag
+
+        level, method = {
+            'info': (logging.INFO, 'info'),
+            'debug': (logging.DEBUG, 'debug'),
+            'warn': (logging.WARN, 'warn'),
+            'error': (logging.ERROR, 'error'),
+            'critical': (logging.CRITICAL, 'critical'),
+        }.get(level, (None, None))
+
+        if method:
+            self.__default_level = level
+            self.__default_method_name = method
+
+    def __call__(self, *args):
+        if is_level_allowed(self.__default_level):
+            _log(getattr(get_logger(self.__tag), self.__default_method_name), args)
+
+    def info(self, *args):
+        info(*args, tag=self.__tag)
+
+    def debug(self, *args):
+        debug(*args, tag=self.__tag)
+
+    def warn(self, *args):
+        warn(*args, tag=self.__tag)
+
+    def error(self, *args):
+        error(*args, tag=self.__tag)
+
+    def critical(self, *args):
+        critical(*args, tag=self.__tag)

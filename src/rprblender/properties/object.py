@@ -8,8 +8,7 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-def log(*args):
-    logging.info(*args, tag='Object')
+log = logging.Log(tag='Object')
 
 
 class RPR_ObjectProperites(RPR_Properties):

@@ -14,8 +14,7 @@ from . import context
 from .notifier import Notifier
 
 
-def log(*args):
-    logging.info(*args, tag='Engine')
+log = logging.Log(tag='Engine')
 
 
 class Engine:

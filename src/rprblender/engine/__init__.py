@@ -11,8 +11,7 @@ from rprblender.utils import logging
 __all__ = tuple()
 
 
-def log_pyrpr(*argv):
-    logging.info(*argv, tag='core')
+log_pyrpr = logging.Log(tag='core')
 
 
 def pyrpr_init(bindings_import_path, rprsdk_bin_path):
@@ -62,7 +61,7 @@ if 'pyrpr' not in sys.modules:
     bindings_import_path = str(utils.package_root_dir())
     rprsdk_bin_path = utils.package_root_dir()
     if not pyrpr_init(bindings_import_path, rprsdk_bin_path):
-        logging.warn("Failed to load rpr from %s. One more attempt will be provided.", bindings_import_path)
+        logging.warn("Failed to load rpr from %s. One more attempt will be provided." % bindings_import_path)
 
         # try loading pyrpr from source
         src = utils.package_root_dir().parent
