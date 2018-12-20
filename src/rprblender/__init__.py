@@ -1,8 +1,14 @@
 import bpy
+
 from .engine.engine import Engine
-from . import logging
-from . import nodes
-from . import properties
+
+from .utils import logging
+from . import (
+    nodes,
+    properties,
+    ui,
+    operators,
+)
 
 
 bl_info = {
@@ -89,13 +95,19 @@ def on_load_post(dummy):
 def register():
     bpy.utils.register_class(RPREngine)
     properties.register()
+    operators.register()
     nodes.register()
+    ui.set_rpr_panels_filter()
+    ui.register()
     bpy.app.handlers.load_post.append(on_load_post)
 
 
 def unregister():
     bpy.app.handlers.load_post.remove(on_load_post)
+    ui.remove_rpr_panels_filter()
+    ui.unregister()
     nodes.unregister()
+    operators.unregister()
     properties.unregister()
     bpy.utils.unregister_class(RPREngine)
 

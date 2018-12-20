@@ -1,13 +1,12 @@
 import os
-import sys
 import platform
-from pathlib import Path
+import sys
 import traceback
+from pathlib import Path
 
 from rprblender import config
-from rprblender import logging
 from rprblender import utils
-
+from rprblender.utils import logging
 
 __all__ = tuple()
 

@@ -3,9 +3,10 @@ from bpy.props import (
     PointerProperty,
 )
 
-from . import RPR_Properties, RPR_Panel
-from rprblender import logging
 from rprblender import utils
+from rprblender.utils import logging
+from . import RPR_Properties
+
 
 class RPR_LightProperties(RPR_Properties):
     def sync(self, rpr_context, obj):
@@ -32,27 +33,3 @@ class RPR_LightProperties(RPR_Properties):
     def unregister(cls):
         logging.info("unregister", tag='Light')
         del bpy.types.Light.rpr
-
-
-class RPR_LIGHT_PT_light(RPR_Panel):
-    """
-    Physical light sources
-    """
-    bl_idname = 'rpr_data_PT_light'
-    bl_label = "RPR Settings"
-    bl_context = 'data'
-
-    @classmethod
-    def poll(cls, context):
-        return context.light and RPR_Panel.poll(context)
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        light = context.light
-
-        layout.prop(light, "type", expand=True)
-
-
-classes_to_register = (RPR_LightProperties, RPR_LIGHT_PT_light)

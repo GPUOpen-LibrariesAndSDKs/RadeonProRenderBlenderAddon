@@ -2,55 +2,12 @@ import bpy
 import mathutils
 import numpy
 
-from . import RPR_Panel, RPR_Operator, RPR_Properties
-from rprblender import logging
+from rprblender.utils import logging
+from . import RPR_Properties
 
 
 def log(*args):
     logging.info(*args, tag='World')
-
-
-class RPR_WORLD_OT_convert_cycles_environment(RPR_Operator):
-    bl_idname = 'rpr.convert_cycles_environment'
-    bl_label = "Convert Cycles Environment lightning settings"
-
-    @classmethod
-    def poll(cls, context: bpy.types.Context):
-        return super().poll(context) and context.scene.world
-
-    def execute(self, context: bpy.types.Context):
-        log("Converting Cycles environment settings {}".format(context))
-
-        return {'FINISHED'}
-
-
-class RPR_WORLD_OP_create_environment_gizmo(bpy.types.Operator):
-    bl_idname = "rpr.op_create_environment_gizmo"
-    bl_label = "Create Environment Gizmo"
-
-    rotation: bpy.props.FloatVectorProperty(
-        name='Rotation', description='Rotation',
-        subtype='EULER', size=3,
-    )
-    object_name: str = 'EnvObject'
-    collection_name: str = 'SupportObjectsCollection'
-
-    def execute(self, context):
-        obj = bpy.data.objects.new(self.object_name, None)
-        obj.empty_display_size = 3.0
-        obj.empty_display_type = 'PLAIN_AXES'
-        obj.location = (0, 0, 0)
-
-        rpr_collection = context.scene.collection.children.get(self.collection_name)
-        if not rpr_collection:
-            rpr_collection = bpy.data.collections.new(self.collection_name)
-            context.scene.collection.children.link(rpr_collection)
-        rpr_collection.objects.link(obj)
-
-        obj.rotation_euler = self.rotation
-
-        context.scene.world.rpr.gizmo = obj.name
-        return {'FINISHED'}
 
 
 class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
@@ -199,6 +156,7 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
 
     @classmethod
     def register(cls):
+        log("Register")
         bpy.types.World.rpr = bpy.props.PointerProperty(
             name="RPR World Settings",
             description="RPR Environment Settings",
@@ -207,49 +165,5 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
 
     @classmethod
     def unregister(cls):
+        log("Unregister")
         del bpy.types.World.rpr
-
-
-class RPR_WORLD_PT_environment(RPR_Panel):
-    bl_idname = "rpr_world_pt_environment"
-    bl_label = "RPR Environment Light"
-    bl_space_type = "PROPERTIES"
-    bl_context = 'world'
-
-    @classmethod
-    def poll(cls, context):
-        return super().poll(context)  # and context.scene.world.rpr
-
-    def sync(self, rpr_context):
-        pass
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        environment = scene.world.rpr
-
-        if context.scene.world.rpr.enabled:
-            environment.draw(layout)
-            self.draw_environment_gizmo(layout.column(), context)
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.world.rpr, 'enabled', text="")
-
-    def draw_environment_gizmo(self, column, context):
-        box = column.box()
-        column1, column2, is_row = self.create_ui_autosize_column(context, box)
-        column1.label(text='Object:')
-        row = column1.row(align=True)
-        row.prop_search(context.scene.world.rpr, 'gizmo', bpy.data, 'objects', text='')
-        if not context.scene.world.rpr.gizmo:
-            gizmo = row.operator("rpr.op_create_environment_gizmo", icon='ZOOM_IN', text="")
-            if gizmo:
-                gizmo.rotation = context.scene.world.rpr.gizmo_rotation
-        column2.prop(context.scene.world.rpr, 'gizmo_rotation')
-
-
-classes_to_register = (RPR_WORLD_OP_create_environment_gizmo,
-                       RPR_WORLD_PROP_environment_ibl, RPR_WORLD_PROP_environment_sun_sky,
-                       RPR_WORLD_PROP_environment,
-                       RPR_WORLD_PT_environment,)

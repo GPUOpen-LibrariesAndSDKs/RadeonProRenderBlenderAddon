@@ -1,13 +1,14 @@
-import bpy
 import sys
+
+import bpy
+import pyrpr
+import pyrprx
 from bpy.types import Operator
 from bpy_extras.node_utils import find_node_input
 
-from . import RPR_Panel, RPR_Properties
-from rprblender import logging
-
-import pyrpr
-import pyrprx
+from rprblender.ui import RPR_Panel
+from rprblender.utils import logging
+from . import RPR_Properties
 
 
 def log(*args):
@@ -454,9 +455,3 @@ class RPR_MATERIAL_PT_surface(RPR_Panel):
         mat = context.material
         if not panel_node_draw(layout, mat, 'OUTPUT_MATERIAL', 'Surface'):
             layout.prop(mat, "diffuse_color")
-
-
-classes_to_register = (
-    RPR_MATERIAL_OT_UseShadingNodes, RPR_MATERIAL_parser,
-    RPR_MATERIAL_PT_context, RPR_MATERIAL_PT_preview, RPR_MATERIAL_PT_material, RPR_MATERIAL_PT_surface
-)

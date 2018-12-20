@@ -1,8 +1,5 @@
-import bpy
-
+from rprblender.utils import logging
 from .rpr_nodes import RPRShadingNode
-from rprblender import logging
-import pyrprx
 
 
 class RPR_Node_Output(RPRShadingNode):

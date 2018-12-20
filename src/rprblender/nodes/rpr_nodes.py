@@ -1,11 +1,11 @@
-from ..properties import RPR_Properties
 import bpy
 import json
 import os
+
+import bpy
+
+from rprblender.utils import logging
 from .export import export_blender_node
-
-from rprblender import logging
-
 
 ''' Layout of meta data for nodes:
 
