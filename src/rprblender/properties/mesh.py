@@ -6,8 +6,7 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-def log(*args):
-    logging.info(*args, tag='Mesh')
+log = logging.Log(tag='Mesh')
 
 
 class RPR_MeshProperties(RPR_Properties):
