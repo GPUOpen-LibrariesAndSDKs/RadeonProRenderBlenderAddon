@@ -61,6 +61,9 @@ class Engine:
 
         self.rpr_context.sync_shadow_catcher()
 
+        # Note: denoiser should be synced after syncing shadow catcher
+        depsgraph.scene.rpr.denoiser.sync(self.rpr_context)
+
         notifier.update_info(0, "Finish syncing")
         log('Finish sync')
 
