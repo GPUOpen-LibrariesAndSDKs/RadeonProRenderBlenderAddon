@@ -1,4 +1,5 @@
-from rprblender import logging, config
+from rprblender import config
+from rprblender.utils import logging
 
 
 class Notifier:

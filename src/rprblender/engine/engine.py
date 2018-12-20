@@ -8,9 +8,9 @@ Other modules in this directory could be viewport, etc.
 
 import weakref
 
-from . import context
-from rprblender import logging
 from rprblender import utils
+from rprblender.utils import logging
+from . import context
 from .notifier import Notifier
 
 

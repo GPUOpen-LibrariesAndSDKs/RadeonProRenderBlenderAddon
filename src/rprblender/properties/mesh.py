@@ -1,10 +1,9 @@
+import bpy
 import numpy as np
 
-from . import RPR_Properties
-import bpy
-
-from rprblender import logging
 from rprblender import utils
+from rprblender.utils import logging
+from . import RPR_Properties
 
 
 def log(*args):
@@ -86,6 +85,3 @@ class RPR_MeshProperties(RPR_Properties):
     def unregister(cls):
         log("Unregister")
         del bpy.types.Mesh.rpr
-
-
-classes_to_register = (RPR_MeshProperties,)

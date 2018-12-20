@@ -1,4 +1,4 @@
-from . import logging
+from .utils import logging
 
 logging.limit_log('', level_show_min=logging.INFO)
 

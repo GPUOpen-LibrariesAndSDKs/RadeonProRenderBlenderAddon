@@ -1,9 +1,8 @@
 import bpy
-from .rpr_nodes import RPRShadingNode
-from rprblender import logging
-
 import pyrprx
 
+from rprblender.utils import logging
+from .rpr_nodes import RPRShadingNode
 
 ShaderTypeUber2 = 0xFF
 

@@ -1,9 +1,8 @@
-import sys
 import threading
 
 import pyrpr
 import pyrprx
-from rprblender import logging
+
 from . import image_filter
 
 
