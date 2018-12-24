@@ -640,6 +640,7 @@ class Camera(Object):
 
 class FrameBuffer(Object):
     core_type_name = 'rpr_framebuffer'
+    channels = 4    # core requires always 4 channels
 
     def __init__(self, context, width, height):
         super().__init__()
@@ -658,7 +659,7 @@ class FrameBuffer(Object):
     def _create(self):
         desc = ffi.new("rpr_framebuffer_desc*")
         desc.fb_width, desc.fb_height = self.width, self.height
-        ContextCreateFrameBuffer(self.context, (4, COMPONENT_TYPE_FLOAT32), desc, self)
+        ContextCreateFrameBuffer(self.context, (self.channels, COMPONENT_TYPE_FLOAT32), desc, self)
 
     def resize(self, width, height):
         if self.width == width and self.height == height:
@@ -685,12 +686,12 @@ class FrameBuffer(Object):
             FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
             return buf
 
-        data = np.empty((self.height, self.width, 4), dtype=np.float32)
+        data = np.empty((self.height, self.width, self.channels), dtype=np.float32)
         FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', data.ctypes.data), ffi.NULL)
         return data
 
     def size(self):
-        return self.height*self.width*16    # 16 bytes = 4 channels of float32 values per pixel
+        return self.height*self.width*self.channels*4    # 4 bytes = sizeof(float32)
 
     def save_to_file(self, file_path):
         FrameBufferSaveToFile(self, encode(file_path))
@@ -715,7 +716,7 @@ class FrameBufferGL(FrameBuffer):
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_REPEAT)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
-        buf = bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, 4])
+        buf = bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, self.channels])
         bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA, self.width, self.height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, buf)
 
         ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.gl_texture, self)

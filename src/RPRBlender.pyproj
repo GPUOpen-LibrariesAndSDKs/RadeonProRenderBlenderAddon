@@ -45,6 +45,7 @@
     <Compile Include="rprblender\engine\context.py" />
     <Compile Include="rprblender\engine\engine.py" />
     <Compile Include="rprblender\engine\image_filter.py" />
+    <Compile Include="rprblender\engine\notifier.py" />
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -56,15 +57,16 @@
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\uber_node.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
-    <Compile Include="rprblender\properties\Camera.py" />
-    <Compile Include="rprblender\properties\Light.py" />
-    <Compile Include="rprblender\properties\Material.py" />
-    <Compile Include="rprblender\properties\Mesh.py" />
-    <Compile Include="rprblender\properties\Object.py" />
-    <Compile Include="rprblender\properties\Render.py" />
-    <Compile Include="rprblender\properties\World.py" />
+    <Compile Include="rprblender\properties\camera.py" />
+    <Compile Include="rprblender\properties\light.py" />
+    <Compile Include="rprblender\properties\material.py" />
+    <Compile Include="rprblender\properties\mesh.py" />
+    <Compile Include="rprblender\properties\object.py" />
+    <Compile Include="rprblender\properties\render.py" />
+    <Compile Include="rprblender\properties\view_layer.py" />
+    <Compile Include="rprblender\properties\world.py" />
     <Compile Include="rprblender\properties\__init__.py" />
-    <Compile Include="rprblender\logging.py" />
+    <Compile Include="rprblender\utils\logging.py" />
     <Compile Include="rprblender\utils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
