@@ -101,6 +101,7 @@ from . import (
     render,
     object,
     light,
+    material,
     camera,
     world,
     view_layer,
@@ -118,6 +119,10 @@ register, unregister = bpy.utils.register_classes_factory([
 
     light.RPR_LIGHT_PT_light,
 
+    material.RPR_MATERIAL_PT_context,
+    material.RPR_MATERIAL_PT_preview,
+    material.RPR_MATERIAL_PT_surface,
+
     camera.RPR_CAMERA_PT_motion_blur,
 
     world.RPR_WORLD_PT_environment,
@@ -130,6 +135,7 @@ register, unregister = bpy.utils.register_classes_factory([
 def set_rpr_panels_filter():
     for panel in get_panels():
         panel.COMPAT_ENGINES.add('RPR')
+
 
 def remove_rpr_panels_filter():
     for panel in get_panels():

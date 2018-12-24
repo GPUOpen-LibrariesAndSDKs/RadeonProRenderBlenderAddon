@@ -93,10 +93,12 @@ class Engine:
         log('Start sync_updated')
 
         for updated_obj in depsgraph.updates:
-            print(updated_obj.id.name, updated_obj.is_dirty_geometry, updated_obj.is_dirty_transform)
+            log("updated {}; geometry updated {}; transform updated {}".format(
+                updated_obj.id.name, updated_obj.is_updated_geometry, updated_obj.is_updated_transform))
 
         log('Finish sync_updated')
 
     def draw(self, depsgraph, region, space_data, region_data):
         ''' viewport draw ''' 
-        log('draw')
+#        log('draw')
+        pass

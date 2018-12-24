@@ -15,6 +15,7 @@ bl_info = {
 }
 
 
+
 from .utils import logging
 
 plugin_log = logging.Log(tag="Plugin")
@@ -38,6 +39,7 @@ class RPREngine(bpy.types.RenderEngine):
     bl_label = "Radeon ProRender"
     bl_use_preview = True
     bl_use_shading_nodes = True
+    bl_use_shading_nodes_custom = False
     bl_info = "Radeon ProRender rendering plugin"
 
     def __init__(self):
@@ -59,7 +61,6 @@ class RPREngine(bpy.types.RenderEngine):
 
         self.engine.render(depsgraph)
 
-
     # viewport render
     def view_update(self, context):
         ''' called when data is updated for viewport '''
@@ -74,7 +75,8 @@ class RPREngine(bpy.types.RenderEngine):
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
-        engine_log('view_draw')
+        # engine_log('view_draw')
+        pass
 
         self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 

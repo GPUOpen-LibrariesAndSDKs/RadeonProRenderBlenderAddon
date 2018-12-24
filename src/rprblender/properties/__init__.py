@@ -56,12 +56,7 @@ register, unregister = bpy.utils.register_classes_factory([
     world.RPR_WORLD_PROP_environment_sun_sky,
     world.RPR_WORLD_PROP_environment,
 
-    material.RPR_MATERIAL_OT_UseShadingNodes,
-    material.RPR_MATERIAL_parser,
-    material.RPR_MATERIAL_PT_context,
-    material.RPR_MATERIAL_PT_preview,
-    material.RPR_MATERIAL_PT_material,
-    material.RPR_MATERIAL_PT_surface,
+    material.RPR_MaterialParser,
 
     view_layer.RPR_DenoiserProperties,
     view_layer.RPR_ViewLayerProperites,
