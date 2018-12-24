@@ -1,6 +1,14 @@
 import bpy
+from bpy.props import (
+    BoolProperty,
+    FloatVectorProperty,
+    FloatProperty,
+    StringProperty,
+    EnumProperty,
+    PointerProperty,
+)
 import mathutils
-import numpy
+import numpy as np
 
 from rprblender.utils import logging
 from . import RPR_Properties
@@ -12,7 +20,7 @@ log = logging.Log(tag='World')
 class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
     bl_label = "RPR IBL Settings"
 
-    ibl_type: bpy.props.EnumProperty(
+    ibl_type: EnumProperty(
         name="IBL Type",
         items=(('COLOR', "Color", "Use solid color for lighting"),
                ('IBL', "IBL Map", "Use IBL Map for lighting"),
@@ -20,18 +28,18 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         description="IBL Type",
         default='COLOR',
     )
-    color: bpy.props.FloatVectorProperty(
+    color: FloatVectorProperty(
         name='Color',
         description="Color to use when as a constant environment light",
         subtype='COLOR', min=0.0, max=1.0, size=3,
         default=(0.5, 0.5, 0.5)
     )
-    intensity: bpy.props.FloatProperty(
+    intensity: FloatProperty(
         name="Intensity",
         description="Intensity",
         min=0.0, default=1.0,
     )
-    ibl_map: bpy.props.StringProperty(
+    ibl_map: StringProperty(
         name='Image-Base Lighting Map',
         description='Image-Base Lighting Map',
         subtype='FILE_PATH'
@@ -46,14 +54,14 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         #     ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
         if self.ibl_type == 'COLOR':
-            image = rpr_context.create_image_data(numpy.full((2, 2, 4), tuple(self.color) + (1,), dtype=numpy.float32))
+            image = rpr_context.create_image_data(np.full((2, 2, 4), tuple(self.color) + (1,), dtype=np.float32))
             ibl.set_image(image)
         elif self.ibl_type == 'IBL':
             try:
                 image = rpr_context.create_image_file(self.ibl_map)
             except Exception as e:
-                log("Cant's read environment image: {} reason: {}".format(self.ibl_map, str(e)))
-                image = rpr_context.create_image_data(numpy.full((2, 2, 4), (1, 0, 1, 1), dtype=numpy.float32))
+                log("Cant's read environment image {} reason: {}".format(self.ibl_map, str(e)))
+                image = rpr_context.create_image_data(np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
 
             ibl.set_image(image)
             ibl.set_intensity_scale(self.intensity)
@@ -85,9 +93,9 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
     bl_idname = "rpr_world_prop_environment"
     bl_label = "RPR Environment Settings"
 
-    enabled: bpy.props.BoolProperty(default=True)
+    enabled: BoolProperty(default=True)
     # environment
-    light_type: bpy.props.EnumProperty(
+    light_type: EnumProperty(
         name="IBL Type",
         items=(('IBL', "IBL Map", "Use IBL environment light"),
                ('SUN_SKY', "Sun & Sky", "Use Sun&Sky"),
@@ -95,8 +103,8 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
         description="Environment light type",
         default='IBL',
     )
-    ibl: bpy.props.PointerProperty(type=RPR_WORLD_PROP_environment_ibl)
-    sun_sky: bpy.props.PointerProperty(type=RPR_WORLD_PROP_environment_sun_sky)
+    ibl: PointerProperty(type=RPR_WORLD_PROP_environment_ibl)
+    sun_sky: PointerProperty(type=RPR_WORLD_PROP_environment_sun_sky)
     # overrides
 
     # environment transform gizmo
@@ -130,19 +138,19 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
                 if self.gizmo:
                     self.update_gizmo(None)
                 rotation = self.gizmo_rotation
-                rotation_updated = (rotation[0], rotation[1], rotation[2] + numpy.pi)
+                rotation_updated = (rotation[0], rotation[1], rotation[2] + np.pi)
                 self.set_rotation(ibl, rotation_updated)
 
     @staticmethod
     def set_rotation(ibl, rotation_gizmo):
         rotation_gizmo = (-rotation_gizmo[0], -rotation_gizmo[1], -rotation_gizmo[2])
         euler = mathutils.Euler(rotation_gizmo)
-        rotation_matrix = numpy.array(euler.to_matrix(), dtype=numpy.float32)
-        fixup = numpy.array([[1, 0, 0],
+        rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
+        fixup = np.array([[1, 0, 0],
                           [0, 0, 1],
-                          [0, 1, 1]], dtype=numpy.float32)
-        matrix = numpy.identity(4, dtype=numpy.float32)
-        matrix[:3, :3] = numpy.dot(fixup, rotation_matrix)
+                          [0, 1, 1]], dtype=np.float32)
+        matrix = np.identity(4, dtype=np.float32)
+        matrix[:3, :3] = np.dot(fixup, rotation_matrix)
 
         ibl.set_transform(matrix, False)
 

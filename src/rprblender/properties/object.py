@@ -1,6 +1,7 @@
 import bpy
 from bpy.props import (
     BoolProperty,
+    FloatProperty,
     PointerProperty,
 )
 
@@ -16,13 +17,13 @@ class RPR_ObjectProperites(RPR_Properties):
     Properties for objects
     """
 
-    visibility_in_primary_rays: bpy.props.BoolProperty(
+    visibility_in_primary_rays: BoolProperty(
         name="Camera Visibility",
         description="This object will be visible in camera rays",
         default=True,
     )
 
-    reflection_visibility: bpy.props.BoolProperty(
+    reflection_visibility: BoolProperty(
         name="Reflections Visibility",
         description="This object will be visible in reflections",
         default=True,
@@ -46,7 +47,7 @@ class RPR_ObjectProperites(RPR_Properties):
         default=True,
     )
 
-    motion_blur_scale: bpy.props.FloatProperty(
+    motion_blur_scale: FloatProperty(
         name="Scale",
         description="Motion Blur Scale",
         default=1.0,
