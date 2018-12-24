@@ -10,12 +10,16 @@ from nodeitems_builtins import (
 )
 
 from rprblender.utils import is_rpr_active
+from rprblender.utils import logging
 
 from .sockets import classes
-from .node_tree import RPR_NodeTree
-from .output_node import RPR_Node_Output
 from .uber_node import RPR_Node_Uber
+from .output_node import RPR_Node_Output
 from .rpr_nodes import RPRShadingNode
+
+
+log = logging.Log(tag='nodes')
+
 
 class RPR_ShaderNodeCategory(NodeCategory):
     @classmethod
@@ -25,20 +29,18 @@ class RPR_ShaderNodeCategory(NodeCategory):
 
 
 node_categories = [
-    RPR_ShaderNodeCategory('OUTPUT', "Output", items=[
-        NodeItem('rpr_shader_node_output'),
+    RPR_ShaderNodeCategory('rpr_shader_output', 'Output', items=[
+        NodeItem('ShaderNodeOutputMaterial'),
+    ],),
+    RPR_ShaderNodeCategory('rpr_shader_blender_nodes', 'Shader', items=[
+        NodeItem('ShaderNodeBsdfPrincipled'),
     ]),
-    RPR_ShaderNodeCategory('SHADER', "Shader", items=[
+    RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('rpr_shader_node_uber'),
     ])
 ]
 
 
-classes += (RPR_NodeTree, RPRShadingNode, RPR_Node_Output, RPR_Node_Uber)
-register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
-
-
-# wrapper to hide the Cycles/Eevee nodes yet use the default Shader Editor
 def hide_cycles_and_eevee_poll(method):
     @classmethod
     def func(cls, context):
@@ -46,14 +48,28 @@ def hide_cycles_and_eevee_poll(method):
     return func
 
 
+old_shader_node_category_poll = None
+
+
+classes += (RPRShadingNode, RPR_Node_Output, RPR_Node_Uber)
+register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
+
+
 def register():
-#    rpr_nodes.generate_types()
-#    ShaderNodeCategory.poll = hide_cycles_and_eevee_poll(ShaderNodeCategory.poll)
+    # rpr_nodes.generate_types()
+
+    # some nodes are hidden from plugins by Cycles itself(like Material Output), some we could not support.
+    # thus we'll hide 'em all to show only selected set of supported Blender nodes
+    global old_shader_node_category_poll
+    old_shader_node_category_poll = ShaderNodeCategory.poll
+    ShaderNodeCategory.poll = hide_cycles_and_eevee_poll(ShaderNodeCategory.poll)
 
     register_classes()
     register_node_categories("RPR_NODES", node_categories)
 
 
 def unregister():
+    if old_shader_node_category_poll and ShaderNodeCategory.poll is not old_shader_node_category_poll:
+        ShaderNodeCategory.poll = old_shader_node_category_poll
     unregister_node_categories("RPR_NODES")
     unregister_classes()
