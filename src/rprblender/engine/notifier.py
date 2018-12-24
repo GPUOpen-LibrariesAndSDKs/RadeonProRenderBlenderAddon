@@ -16,4 +16,4 @@ class Notifier:
         self.rpr_engine.update_stats(self.title, info)
 
         if config.notifier_log_calls:
-            log(progress, info)
+            log("{}% - {}".format(int(progress*100), info))

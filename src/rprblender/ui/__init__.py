@@ -104,17 +104,15 @@ from . import (
     light,
     camera,
     world,
+    view_layer,
 )
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_devices,
     render.RPR_RENDER_PT_sampling,
-
     render.RPR_RENDER_PT_light_paths,
     render.RPR_RENDER_PT_light_max_bounces,
     render.RPR_RENDER_PT_light_clamping,
-
-    render.RPR_RENDER_PT_denoiser,
 
     object.RPR_OBJECT_PT_object,
     object.RPR_OBJECT_PT_motion_blur,
@@ -124,6 +122,9 @@ register, unregister = bpy.utils.register_classes_factory([
     camera.RPR_CAMERA_PT_motion_blur,
 
     world.RPR_WORLD_PT_environment,
+
+    view_layer.RPR_VIEWLAYER_PT_aovs,
+    view_layer.RPR_RENDER_PT_denoiser,
 ])
 
 

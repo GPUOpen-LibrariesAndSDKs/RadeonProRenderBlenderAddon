@@ -103,101 +103,10 @@ class RPR_LightPathsProperties(bpy.types.PropertyGroup):
     )
 
 
-class RPR_DenoiserProperties(RPR_Properties):
-    enable: BoolProperty(
-        description="Enable RPR Denoiser",
-        default=False,
-    )
-
-    filter_type: EnumProperty(
-        name="Filter Type",
-        items=(
-            ('bilateral', "Bilateral", "Bilateral", 0),
-            ('lwr', "Local Weighted Regression", "Local Weighted Regression", 1),
-            ('eaw', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
-        ),
-        description="Filter type",
-        default='eaw'
-    )
-
-    scale_by_iterations: BoolProperty(
-        name="Scale Denoising Iterations",
-        description="Scale the amount of denoiser blur by number of iterations.  This will give more blur for renders with less samples, and become sharper as more samples are added.",
-        default=True
-    )
-
-    # bilateral props
-    radius: IntProperty(
-        name="Radius",
-        description="Radius",
-        min = 1, max = 50, default = 1
-    )
-    p_sigma: FloatProperty(
-        name="Position Sigma",
-        description="Threshold for detecting position differences",
-        min = 0.0, soft_max = 1.0, default = .1
-    )
-
-    # EAW props
-    color_sigma: FloatProperty(
-        name="Color Sigma",
-        description="Threshold for detecting color differences",
-        min = 0.0, soft_max = 1.0, default = .75
-    )
-    normal_sigma: FloatProperty(
-        name="Normal Sigma",
-        description="Threshold for detecting normal differences",
-        min = 0.0, soft_max = 1.0, default = .01
-    )
-    depth_sigma: FloatProperty(
-        name="Depth Sigma",
-        description="Threshold for detecting z depth differences",
-        min = 0.0, soft_max = 1.0, default = .01
-    )
-    trans_sigma: FloatProperty(
-        name="ID Sigma",
-        description="Threshold for detecting Object ID differences",
-        min = 0.0, soft_max = 1.0, default = .01
-    )
-
-    # LWR props
-    samples: IntProperty(
-        name="Samples",
-        description="Number of samples used, more will give better results while being longer",
-        min = 2, soft_max = 10, max = 100, default = 4
-    )
-    half_window: IntProperty(
-        name="Filter radius",
-        description="The radius of pixels to sample from",
-        min = 1, soft_max = 10, max = 100, default = 4
-    )
-    bandwidth: FloatProperty(
-        name="Bandwidth",
-        description="Bandwidth of the filter, a samller value gives less noise, but may filter image detail",
-        min = 0.0, max = 1.0, default = .1
-    )
-
-    def sync(self, rpr_context):
-        rpr_context.setup_image_filter({
-            'enable': self.enable,
-            'filter_type': self.filter_type,
-            'color_sigma': self.color_sigma,
-            'normal_sigma': self.normal_sigma,
-            'p_sigma': self.p_sigma,
-            'depth_sigma': self.depth_sigma,
-            'trans_sigma': self.trans_sigma,
-            'radius': self.radius,
-            'samples': self.samples,
-            'half_window': self.half_window,
-            'bandwidth': self.bandwidth,
-        })
-
-
 class RPR_RenderProperties(RPR_Properties):
     devices: PointerProperty(type=RPR_RenderDevicesProperties)
     light_paths: PointerProperty(type=RPR_LightPathsProperties)
     sampling: PointerProperty(type=RPR_SamplingProperties)
-    denoiser: PointerProperty(type=RPR_DenoiserProperties)
 
     def sync(self, rpr_context):
         scene = self.id_data
@@ -219,9 +128,6 @@ class RPR_RenderProperties(RPR_Properties):
         context_props.append(0) # should be followed by 0
         rpr_context.init(width, height, context_flags, context_props)
         rpr_context.scene.set_name(scene.name)
-
-        # TODO: setup other AOVs, image filters
-        rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
         # set light paths values
         rpr_context.set_parameter('maxRecursion', self.light_paths.max_ray_depth)

@@ -1,12 +1,11 @@
 import sys
-import os
-from pathlib import Path
-
 import logging
 from logging import *
 
+from . import package_root_dir
 
-file = logging.FileHandler(filename=str(Path(__file__).parent/'rprblender.log'),
+
+file = logging.FileHandler(filename=str(package_root_dir()/'rprblender.log'),  # TODO: Add creation time to this log name. Could be configurable.
                            mode='w',
                            encoding='utf-8')
 file.setFormatter(logging.Formatter('%(asctime)s %(name)s [%(thread)d]: %(levelname)s %(message)s'))

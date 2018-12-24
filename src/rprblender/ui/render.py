@@ -89,37 +89,3 @@ class RPR_RENDER_PT_light_clamping(RPR_Panel):
         col = self.layout.column()
         col.enabled = light_paths.use_clamp_radiance
         col.prop(light_paths, 'clamp_radiance')
-
-
-class RPR_RENDER_PT_denoiser(RPR_Panel):
-    bl_label = "RPR Denoiser"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr.denoiser, 'enable', text="")
-
-    def draw(self, context):
-        self.layout.use_property_split = True
-        self.layout.use_property_decorate = False
-
-        denoiser = context.scene.rpr.denoiser
-
-        col = self.layout.column()
-        col.enabled = denoiser.enable
-        col.prop(denoiser, 'filter_type')
-
-        if denoiser.filter_type == 'bilateral':
-            col.prop(denoiser, "radius")
-            col.prop(denoiser, 'color_sigma', slider=True)
-            col.prop(denoiser, 'normal_sigma', slider=True)
-            col.prop(denoiser, 'p_sigma', slider=True)
-            col.prop(denoiser, 'trans_sigma', slider=True)
-        elif denoiser.filter_type == 'eaw':
-            col.prop(denoiser, 'color_sigma', slider=True)
-            col.prop(denoiser, 'normal_sigma', slider=True)
-            col.prop(denoiser, 'depth_sigma', slider=True)
-            col.prop(denoiser, 'trans_sigma', slider=True)
-        elif denoiser.filter_type == 'lwr':
-            col.prop(denoiser, 'samples', slider=True)
-            col.prop(denoiser, 'half_window', slider=True)
-            col.prop(denoiser, 'bandwidth', slider=True)

@@ -85,6 +85,10 @@ class RPRContext:
 
             self.iterations += 1
 
+    def is_rendering(self):
+        with self.render_lock:
+            return self.max_iterations > 0 and self.iterations < self.max_iterations
+
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
         if aov_type == pyrpr.AOV_COLOR and self.image_filter:
             return self.image_filter.get_data()
@@ -98,7 +102,7 @@ class RPRContext:
                     # temporary fix of EAW filter cause it doesn't work with gl_interop
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
             if self.image_filter:
-                return None
+                raise RuntimeError("Color frame_buffer is not available because image filter is used")
             if self.sc_composite:
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
 
@@ -219,7 +223,7 @@ class RPRContext:
         depth_fb = self.frame_buffers_aovs[pyrpr.AOV_DEPTH]['res']
         frame_buffer_gl = self.frame_buffers_aovs[pyrpr.AOV_COLOR].get('gl', None)
 
-        if settings['filter_type'] == 'bilateral':
+        if settings['filter_type'] == 'BILATERAL':
             inputs = {
                 'color': color_fb,
                 'normal': shading_fb,
@@ -235,7 +239,7 @@ class RPRContext:
             params = {'radius': settings['radius']}
             self.image_filter = image_filter.ImageFilterBilateral(self.context, inputs, sigmas, params, self.width, self.height, frame_buffer_gl)
 
-        elif settings['filter_type'] == 'eaw':
+        elif settings['filter_type'] == 'EAW':
             inputs = {
                 'color': color_fb,
                 'normal': shading_fb,
@@ -253,7 +257,7 @@ class RPRContext:
             self.image_filter = image_filter.ImageFilterEaw(self.context, inputs, sigmas, {}, self.width, self.height, None)
                                                          # temporary fix of EAW filter cause it doesn't work with gl_interop
 
-        elif settings['filter_type'] == 'lwr':
+        elif settings['filter_type'] == 'LWR':
             inputs = {
                 'color': color_fb,
                 'normal': shading_fb,

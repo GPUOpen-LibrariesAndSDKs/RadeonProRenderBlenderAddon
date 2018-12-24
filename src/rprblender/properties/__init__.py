@@ -35,18 +35,21 @@ from . import (
     camera,
     material,
     world,
+    view_layer,
 )
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RenderDevicesProperties,
     render.RPR_LightPathsProperties,
     render.RPR_SamplingProperties,
-    render.RPR_DenoiserProperties,
     render.RPR_RenderProperties,
 
     mesh.RPR_MeshProperties,
+
     object.RPR_ObjectProperites,
+
     light.RPR_LightProperties,
+
     camera.RPR_CameraProperties,
 
     world.RPR_WORLD_PROP_environment_ibl,
@@ -59,4 +62,7 @@ register, unregister = bpy.utils.register_classes_factory([
     material.RPR_MATERIAL_PT_preview,
     material.RPR_MATERIAL_PT_material,
     material.RPR_MATERIAL_PT_surface,
+
+    view_layer.RPR_DenoiserProperties,
+    view_layer.RPR_ViewLayerProperites,
 ])

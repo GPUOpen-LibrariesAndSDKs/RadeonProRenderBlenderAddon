@@ -1,15 +1,5 @@
 import bpy
 
-from .engine.engine import Engine
-
-from .utils import logging
-from . import (
-    nodes,
-    properties,
-    ui,
-    operators,
-)
-
 
 bl_info = {
     "name": "Radeon ProRender",
@@ -25,9 +15,20 @@ bl_info = {
 }
 
 
+from .utils import logging
+
 plugin_log = logging.Log(tag="Plugin")
 plugin_log("Loading RPR addon {}".format(bl_info['version']))
 engine_log = logging.Log(tag='RenderEngine')
+
+
+from .engine.engine import Engine
+from . import (
+    nodes,
+    properties,
+    ui,
+    operators,
+)
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -57,14 +58,6 @@ class RPREngine(bpy.types.RenderEngine):
         engine_log("render")
 
         self.engine.render(depsgraph)
-        image = self.engine.get_image()
-
-        result = self.begin_result(0, 0, image.shape[1], image.shape[0])
-        image = image.reshape((image.shape[1]*image.shape[0], 4))
-        layer = result.layers[0].passes["Combined"]
-        layer.rect = image
-        self.end_result(result)
-
 
 
     # viewport render
@@ -85,6 +78,9 @@ class RPREngine(bpy.types.RenderEngine):
 
         self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 
+    def update_render_passes(self, scene=None, render_layer=None):
+        engine_log("update_render_passes", scene, render_layer)
+        # TODO: Seems this is working with compositor nodes and there has to be implemented
 
 @bpy.app.handlers.persistent
 def on_load_post(dummy):
