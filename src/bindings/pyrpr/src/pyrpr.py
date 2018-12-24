@@ -12,6 +12,7 @@ import bgl
 
 import pyrprwrap
 from pyrprwrap import *
+import pyrprx
 
 
 lib_wrapped_log_calls = False
@@ -408,6 +409,67 @@ class Shape(Object):
         self.context = context
         self.shadow_catcher = False
 
+        self.materials = []
+        self.volume_material = None
+        self.displacement_material = None
+        self.hetero_volume = None
+
+    def delete(self):
+        for material in self.materials:
+            if isinstance(material, pyrprx.Material):
+                material.detach(self)
+        self.materials.clear()
+
+        if self.volume_material:
+            self.set_volume_material(None)
+        if self.displacement_material:
+            self.set_displacement_material(None)
+        if self.hetero_volume:
+            self.set_hetero_volume(None)
+
+        super().delete()
+
+    def set_material(self, material):
+        if isinstance(material, MaterialNode):
+            ShapeSetMaterial(self, material)
+        elif isinstance(material, pyrprx.Material):
+            material.attach(self)
+        else:
+            raise TypeError("Incorrect type of material", self, material)
+
+        self.materials.append(material)
+
+    def set_material_faces(self, material, face_indices:np.array):
+        if isinstance(material, MaterialNode):
+            ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
+            self.materials.append(material)
+
+        elif isinstance(material, pyrprx.Material):
+            # attaching pyrprx.Material through blend node
+            blend_node = MaterialNode(material.context.material_system, MATERIAL_NODE_BLEND)
+            blend_node.set_input('color0', material)
+            blend_node.set_input('weight', (0.0, 0.0, 0.0, 0.0))
+
+            self.set_material_faces(blend_node, face_indices)
+
+        else:
+            raise TypeError("Incorrect type of material", self, material)
+
+    def set_volume_material(self, node):
+        self.volume_material = node
+        ShapeSetVolumeMaterial(self, self.volume_material)
+
+    def set_displacement_material(self, node):
+        self.displacement_material = node
+        ShapeSetDisplacementMaterial(self, self.displacement_material)
+
+    def set_displacement_scale(self, minscale, maxscale):
+        ShapeSetDisplacementScale(self, minscale, maxscale)
+
+    def set_hetero_volume(self, hetero_volume):
+        self.hetero_volume = hetero_volume
+        ShapeSetHeteroVolume(self, self.hetero_volume)
+
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
@@ -478,11 +540,6 @@ class Mesh(Shape):
                  vertex_indices, normal_indices, texcoord_indices, 
                  num_face_vertices):
         super().__init__(context)
-        self.material = None
-        self.x_material = None    # pyrprx.Material
-        self.volume_material = None
-        self.displacement_material = None
-        self.hetero_volume = None
 
         if texcoords is None:
             texcoords_ptr = ffi.NULL
@@ -507,60 +564,12 @@ class Mesh(Shape):
                  ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                  self)
 
-    def delete(self):
-        if self.material:
-            self.set_material(None)
-        if self.x_material:
-            self.x_material.detach(self)
-        if self.volume_material:
-            self.set_volume_material(None)
-        if self.displacement_material:
-            self.set_displacement_material(None)
-        if self.hetero_volume:
-            self.set_hetero_volume(None)
-
-        super().delete()
-
-    def set_material(self, node):
-        self.material = node
-        ShapeSetMaterial(self, self.material)
-
-    def set_volume_material(self, node):
-        self.volume_material = node
-        ShapeSetVolumeMaterial(self, self.volume_material)
-
-    def set_displacement_material(self, node):
-        self.displacement_material = node
-        ShapeSetDisplacementMaterial(self, self.displacement_material)
-
-    def set_displacement_scale(self, minscale, maxscale):
-        ShapeSetDisplacementScale(self, minscale, maxscale)
-
-    def set_hetero_volume(self, hetero_volume):
-        self.hetero_volume = hetero_volume
-        ShapeSetHeteroVolume(self, self.hetero_volume)
-
 
 class Instance(Shape):
     def __init__(self, context, mesh):
         super().__init__(context)
         self.mesh = mesh
         ContextCreateInstance(self.context, mesh, self)
-
-    def set_material(self, mat_node):
-        pass
-
-    def set_volume_material(self, node):
-        pass
-
-    def set_displacement_material(self, node):
-        pass
-
-    def set_displacement_scale(self, minscale, maxscale):
-        pass
-
-    def set_hetero_volume(self, hetero_volume):
-        pass
 
 
 class HeteroVolume(Object):
@@ -766,34 +775,37 @@ class MaterialSystem(Object):
 class MaterialNode(Object):
     core_type_name = 'rpr_material_node'
 
-    def __init__(self, mat_sys, in_type):
+    def __init__(self, material_system, material_type):
         super().__init__()
-        self.mat_sys = mat_sys
+        self.material_system = material_system
         self.inputs = {}
-        self.x_inputs = {}
-        MaterialSystemCreateNode(self.mat_sys, in_type, self)
+        MaterialSystemCreateNode(self.material_system, material_type, self)
 
     def delete(self):
-        for param, x_mat in self.x_inputs.items():
-            x_mat.detach_from_node(param, self)
-        
-            super().delete()
+        for in_input, in_value in self.inputs.items():
+            if isinstance(in_value, pyrprx.Material):
+                in_value.detach_from_node(in_input, self)
+        self.inputs.clear()
 
-    def set_input(self, in_input, in_value):
-        if in_value is None or isinstance(in_value, MaterialNode):
-            MaterialNodeSetInputN(self, encode(in_input), in_value)
-        elif isinstance(in_value, int):
-            MaterialNodeSetInputU(self, encode(in_input), in_value)
-        elif isinstance(in_value, tuple) and len(in_value) == 4:
-            MaterialNodeSetInputF(self, encode(in_input), *in_value)
-        elif isinstance(in_value, Image):
-            MaterialNodeSetInputImageData(self, encode(in_input), in_value)
-        elif isinstance(in_value, Buffer):
-            MaterialNodeSetInputBufferData(self, encode(in_input), in_value)
+        super().delete()
+
+    def set_input(self, name, value):
+        if isinstance(value, MaterialNode):
+            MaterialNodeSetInputN(self, encode(name), value)
+        elif isinstance(value, pyrprx.Material):
+            value.attach_to_node(name, self)
+        elif isinstance(value, int):
+            MaterialNodeSetInputU(self, encode(name), value)
+        elif isinstance(value, tuple) and len(value) == 4:
+            MaterialNodeSetInputF(self, encode(name), *value)
+        elif isinstance(value, Image):
+            MaterialNodeSetInputImageData(self, encode(name), value)
+        elif isinstance(value, Buffer):
+            MaterialNodeSetInputBufferData(self, encode(name), value)
         else:
-            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, in_input, in_value)
+            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
-        self.inputs[in_input] = in_value
+        self.inputs[name] = value
 
 
 class Light(Object):
