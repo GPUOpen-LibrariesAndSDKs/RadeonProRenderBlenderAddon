@@ -42,7 +42,6 @@ def get_panels():
         'DATA_PT_context_light',
         'DATA_PT_falloff_curve',
         'DATA_PT_light',
-        'DATA_PT_preview',
         'DATA_PT_shadow',
         'DATA_PT_spot',
         'DATA_PT_sunsky',
