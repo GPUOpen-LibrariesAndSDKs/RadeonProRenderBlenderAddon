@@ -41,9 +41,9 @@ class RPR_MeshProperties(RPR_Properties):
                                   for norm in tri.split_normals], dtype=np.float32)
             uvs = None  # np.full((tris_len*3, 2), [0., 0.], dtype=np.float32)
 
-            num_face_vertices = np.full((tris_len,), 3)
-            vertex_indices = np.array([tri.vertices for tri in mesh.loop_triangles]).reshape((tris_len*3,))
-            normal_indices = np.arange(tris_len*3)
+            num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
+            vertex_indices = np.array([tri.vertices for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len*3,))
+            normal_indices = np.arange(tris_len*3, dtype=np.int32)
             uv_indices = None   # normal_indices
 
             # creating RPR mesh
@@ -53,13 +53,22 @@ class RPR_MeshProperties(RPR_Properties):
                                                num_face_vertices)
             rpr_shape.set_name(mesh.name)
 
-            if hasattr(obj, 'material_slots'):
-                for name, slot in obj.material_slots.items():
-                    log("Syncing material: \"{}\" {}".format(name, slot))
-                    rpr_material = slot.material.rpr.sync(rpr_context)
-                    if rpr_material:
-                        rpr_material.attach(rpr_shape)
-                        rpr_material.commit()
+            material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
+            material_unique_indices = np.unique(material_indices)
+            for i in material_unique_indices:
+                slot = obj.material_slots[i]
+
+                log("Syncing material '%s'" % slot.name, slot)
+                rpr_material = slot.material.rpr.sync(rpr_context)
+
+                if rpr_material:
+                    if len(material_unique_indices) == 1:
+                        rpr_shape.set_material(rpr_material)
+                    else:
+                        face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)  # TODO: Probably could be optimized
+                        rpr_shape.set_material_faces(rpr_material, face_indices)
+
+                    rpr_material.commit()
 
         rpr_context.scene.attach(rpr_shape)
         rpr_shape.set_transform(utils.get_transform(obj))
