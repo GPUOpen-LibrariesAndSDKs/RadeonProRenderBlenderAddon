@@ -51,12 +51,14 @@
     </Compile>
     <Compile Include="rprblender\nodes\blender_nodes.py" />
     <Compile Include="rprblender\nodes\export.py" />
-    <Compile Include="rprblender\nodes\node_tree.py" />
     <Compile Include="rprblender\nodes\output_node.py" />
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\uber_node.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
+    <Compile Include="rprblender\operators\light.py" />
+    <Compile Include="rprblender\operators\world.py" />
+    <Compile Include="rprblender\operators\__init__.py" />
     <Compile Include="rprblender\properties\camera.py" />
     <Compile Include="rprblender\properties\light.py" />
     <Compile Include="rprblender\properties\material.py" />
@@ -66,7 +68,16 @@
     <Compile Include="rprblender\properties\view_layer.py" />
     <Compile Include="rprblender\properties\world.py" />
     <Compile Include="rprblender\properties\__init__.py" />
+    <Compile Include="rprblender\ui\camera.py" />
+    <Compile Include="rprblender\ui\light.py" />
+    <Compile Include="rprblender\ui\material.py" />
+    <Compile Include="rprblender\ui\object.py" />
+    <Compile Include="rprblender\ui\render.py" />
+    <Compile Include="rprblender\ui\view_layer.py" />
+    <Compile Include="rprblender\ui\world.py" />
+    <Compile Include="rprblender\ui\__init__.py" />
     <Compile Include="rprblender\utils\logging.py" />
+    <Compile Include="rprblender\utils\material.py" />
     <Compile Include="rprblender\utils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -147,7 +158,9 @@
     <Folder Include="rprblender\nodes" />
     <Folder Include="rprblender\nodes\blender_nodes\" />
     <Folder Include="rprblender\nodes\rpr_nodes\" />
+    <Folder Include="rprblender\operators\" />
     <Folder Include="rprblender\properties" />
+    <Folder Include="rprblender\ui\" />
     <Folder Include="rprblender\utils\" />
     <Folder Include="tools" />
   </ItemGroup>
