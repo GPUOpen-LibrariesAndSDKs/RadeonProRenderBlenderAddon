@@ -11,6 +11,9 @@ debug = False
 
 notifier_log_calls = False
 
+render_preview_iterations = 50
+render_update_result_interval = 0.5     # in seconds
+
 rpr_image_loading = True
 node_thumbnail_enabled = True
 preview_enable = True

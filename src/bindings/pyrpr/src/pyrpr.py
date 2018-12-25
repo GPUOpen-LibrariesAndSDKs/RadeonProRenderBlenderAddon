@@ -3,7 +3,6 @@ import traceback
 import inspect
 import ctypes
 import os
-import threading
 import time
 import functools
 import sys
@@ -82,22 +81,11 @@ def wrap_core_log_call(f, log_fun, module_name):
     return wrapped
 
 
-global_lock = threading.Lock()
-
-
-def wrap_core_sync(f):
-    @functools.wraps(f)
-    def wrapper(*argv):
-        with global_lock:
-            return f(*argv)
-    return wrapper
-
-
 class _init_data:
     _log_fun = None
 
 
-def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
+def init(log_fun, rprsdk_bin_path=None):
 
     _module = __import__(__name__)
 
@@ -154,8 +142,6 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
         wrapped = getattr(pyrprwrap, name)
         # wrap all functions here(for more flexilibity) to log call, if enabled
         # and to assert that SUCCESS is returned from them
-        if sync_calls:
-            wrapped = wrap_core_sync(wrapped)
         if lib_wrapped_log_calls:
             wrapped = wrap_core_log_call(wrapped, log_fun, 'RPR')
         if wrapped.__name__ != 'RegisterPlugin':

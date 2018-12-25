@@ -1,5 +1,3 @@
-import numpy as np
-
 import bpy
 from bpy.props import (
     BoolProperty,
@@ -281,36 +279,6 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
         # Important: denoiser should be synced after syncing shadow catcher
         self.denoiser.sync(rpr_context)
-
-    def set_render_result(self, rpr_context, render_layer: bpy.types.RenderLayer):
-        def zeros_image(channels):
-            return np.zeros((rpr_context.height, rpr_context.width, channels), dtype=np.float32)
-
-        rpr_context.resolve()
-
-        images = []
-
-        for p in render_layer.passes:
-            try:
-                aov = next(aov for aov in self.aovs_info if aov['name'] == p.name)  # finding corresponded aov
-                image = rpr_context.get_image(aov['rpr'])
-
-            except StopIteration:
-                log.warn("AOV '{}' is not found".format(p.name))
-                image = zeros_image(p.channels)
-
-            except KeyError:
-                # This could happen when Depth or Combined was not selected, but they still are in view_layer.use_pass_*
-                log.warn("AOV '{}' is not enabled in rpr_context".format(aov['name']))
-                image = zeros_image(p.channels)
-
-            if p.channels != image.shape[2]:
-                image = zeros_image(p.channels)
-
-            images.append(image.flatten())
-
-        # efficient way to copy all AOV images
-        render_layer.passes.foreach_set('rect', np.concatenate(images))
 
     @classmethod
     def register(cls):

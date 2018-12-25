@@ -1,5 +1,3 @@
-import threading
-
 import pyrpr
 import pyrprx
 
@@ -23,7 +21,6 @@ class RPRContext:
         self.post_effect = None
 
         # render parameters
-        self.render_lock = threading.Lock()
         self.iterations = 0
         self.resolved_iterations = 0
         self.max_iterations = 0
@@ -37,7 +34,6 @@ class RPRContext:
         # image filter
         self.image_filter = None
         self.image_filter_settings = None
-        
 
     def init(self, width, height, context_flags, context_props):
         self.context = pyrpr.Context(context_flags, context_props)
@@ -64,30 +60,24 @@ class RPRContext:
             self.disable_aovs()
 
     def clear_frame_buffers(self):
-        with self.render_lock:
-            for fbs in self.frame_buffers_aovs.values():
-                fbs['aov'].clear()
-            self.iterations = 0
-            self.resolved_iterations = 0
+        for fbs in self.frame_buffers_aovs.values():
+            fbs['aov'].clear()
+        self.iterations = 0
+        self.resolved_iterations = 0
 
     def set_max_iterations(self, max_iterations):
         self.max_iterations = max_iterations
 
     def render(self, tile=None):
-        with self.render_lock:
-            if self.max_iterations > 0 and self.max_iterations <= self.iterations:
-                raise IndexError("Achieved max number of rendering iterations", self.iterations)
+        if self.max_iterations > 0 and self.max_iterations <= self.iterations:
+            raise IndexError("Achieved max number of rendering iterations", self.iterations)
 
-            if tile is None:
-                self.context.render()
-            else:
-                self.context.render_tile(*tile)
+        if tile is None:
+            self.context.render()
+        else:
+            self.context.render_tile(*tile)
 
-            self.iterations += 1
-
-    def is_rendering(self):
-        with self.render_lock:
-            return self.max_iterations > 0 and self.iterations < self.max_iterations
+        self.iterations += 1
 
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
         if aov_type == pyrpr.AOV_COLOR and self.image_filter:
@@ -109,15 +99,12 @@ class RPRContext:
         return self.frame_buffers_aovs[aov_type]['res']
 
     def resolve(self):
-        with self.render_lock:
-            if self.iterations == self.resolved_iterations:
-                return
+        for fbs in self.frame_buffers_aovs.values():
+            fbs['aov'].resolve(fbs['res'])
 
-            for fbs in self.frame_buffers_aovs.values():
-                fbs['aov'].resolve(fbs['res'])
-            
-            self.resolved_iterations = self.iterations
+        self.resolved_iterations = self.iterations
 
+    def resolve_extras(self):
         if self.sc_composite:
             self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
             if self.gl_interop and not self.image_filter:
@@ -161,46 +148,45 @@ class RPRContext:
 
         self.width = width
         self.height = height
-        with self.render_lock:
-            rif_settings = self.image_filter_settings
-            if rif_settings:
-                self._disable_image_filter()
 
-            sc = self.sc_composite is not None
-            if sc:
-                self._disable_shadow_catcher()
+        rif_settings = self.image_filter_settings
+        if rif_settings:
+            self._disable_image_filter()
 
-            for fbs in self.frame_buffers_aovs.values():
-                for fb in fbs.values():
-                    fb.resize(self.width, self.height)
-            
-            self.iterations = 0
-            self.resolved_iterations = 0
+        sc = self.sc_composite is not None
+        if sc:
+            self._disable_shadow_catcher()
 
-            if sc:
-                self._enable_shadow_catcher()
+        for fbs in self.frame_buffers_aovs.values():
+            for fb in fbs.values():
+                fb.resize(self.width, self.height)
 
-            if rif_settings:
-                self._enable_image_filter(rif_settings)
+        self.iterations = 0
+        self.resolved_iterations = 0
+
+        if sc:
+            self._enable_shadow_catcher()
+
+        if rif_settings:
+            self._enable_image_filter(rif_settings)
         
     def setup_image_filter(self, settings):
         if self.image_filter_settings != settings:
-            with self.render_lock:
-                if settings['enable']:
-                    if not self.image_filter:
-                        self._enable_image_filter(settings)
-                        return
-
-                    if self.image_filter_settings['filter_type'] == settings['filter_type']:
-                        self._update_image_filter(settings)
-                        return
-                    
-                    #recreating filter
-                    self._disable_image_filter()
+            if settings['enable']:
+                if not self.image_filter:
                     self._enable_image_filter(settings)
+                    return
 
-                elif self.image_filter:
-                    self._disable_image_filter()
+                if self.image_filter_settings['filter_type'] == settings['filter_type']:
+                    self._update_image_filter(settings)
+                    return
+
+                #recreating filter
+                self._disable_image_filter()
+                self._enable_image_filter(settings)
+
+            elif self.image_filter:
+                self._disable_image_filter()
 
     def _enable_image_filter(self, settings):
         self.image_filter_settings = settings
@@ -306,29 +292,28 @@ class RPRContext:
                 use_shadow_catcher = True
                 break
 
-        with self.render_lock:
-            if use_shadow_catcher:
-                if not self.sc_composite:
-                    # enable shadow catcher with recreating image filter if needed
-                    rif_settings = self.image_filter_settings
-                    if rif_settings:
-                        self._disable_image_filter()
+        if use_shadow_catcher:
+            if not self.sc_composite:
+                # enable shadow catcher with recreating image filter if needed
+                rif_settings = self.image_filter_settings
+                if rif_settings:
+                    self._disable_image_filter()
 
-                    self._enable_shadow_catcher()
+                self._enable_shadow_catcher()
 
-                    if rif_settings:
-                        self._enable_image_filter(rif_settings)
-            else:
-                if self.sc_composite:
-                    # disable shadow catcher with recreating image filter if needed
-                    rif_settings = self.image_filter_settings
-                    if rif_settings:
-                        self._disable_image_filter()
+                if rif_settings:
+                    self._enable_image_filter(rif_settings)
+        else:
+            if self.sc_composite:
+                # disable shadow catcher with recreating image filter if needed
+                rif_settings = self.image_filter_settings
+                if rif_settings:
+                    self._disable_image_filter()
 
-                    self._disable_shadow_catcher()
+                self._disable_shadow_catcher()
 
-                    if rif_settings:
-                        self._enable_image_filter(rif_settings)
+                if rif_settings:
+                    self._enable_image_filter(rif_settings)
 
     def _enable_shadow_catcher(self):
         self.enable_aov(pyrpr.AOV_COLOR)
