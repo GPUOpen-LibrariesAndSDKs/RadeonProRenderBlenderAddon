@@ -9,6 +9,7 @@ from bpy.props import (
     PointerProperty,
     BoolVectorProperty,
     EnumProperty,
+    StringProperty,
 )
 
 from rprblender import utils
@@ -19,16 +20,46 @@ from . import RPR_Properties
 log = logging.Log(tag='Render')
 
 
-class RPR_RenderDevicesProperties(bpy.types.PropertyGroup):
-    use_cpu: BoolProperty(
-        name="CPU",
-        description="Use CPU as rendering resource. Note: GPU only rendering may be faster unless you have a CPU with many cores",
-        default=False
+class RPR_RenderLimits(bpy.types.PropertyGroup):
+    type: EnumProperty(
+        name="Iterations Limit",
+        description="When to stop rendering a frame",
+        items=(
+            ('ITERATIONS', "Iterations", "Number of iterations"),
+            ('TIME', "Time", "Time limit")
+        ),
+        default='ITERATIONS'
     )
-    use_gpu: BoolProperty(
-        name="GPU",
-        description="Use GPU as rendering resource",
-        default=True
+    iterations: IntProperty(
+        name="Iterations",
+        description="Number of iterations to render for each pixel",
+        min=1, default=50,
+    )
+    iteration_samples: IntProperty(
+        name="Samples per Iteration",
+        description="Number of samples per each rendering iteration",
+        min=1, default=1,
+    )
+    seconds: IntProperty(
+        name="Seconds",
+        description="Limit rendering process in seconds",
+        min=1, default=10
+    )
+
+
+enum_devices = [('CPU', "CPU", "Use CPU for rendering"),]
+if len(pyrpr.Context.gpu_devices) > 0:
+    enum_devices.insert(0, ('GPU', "GPU", "Use GPU device for rendering"))
+    enum_devices.append(('GPU+CPU', "GPU+CPU", "Use GPU+CPU devices for rendering"))
+
+class RPR_RenderProperties(RPR_Properties):
+
+    # DEVICES
+    devices: EnumProperty(
+        name="Devices",
+        description="Device to use for rendering",
+        items=enum_devices,
+        default=enum_devices[0][0]
     )
     cpu_threads: IntProperty(
         name="CPU Threads",
@@ -36,26 +67,21 @@ class RPR_RenderDevicesProperties(bpy.types.PropertyGroup):
         min=1, max=utils.get_cpu_threads_number(),
         default=utils.get_cpu_threads_number()
     )
-    gpu_states: BoolVectorProperty(
-        name="",
-        size=len(pyrpr.Context.gpu_devices),
-        default=(i == 0 for i in range(len(pyrpr.Context.gpu_devices)))
-    )
 
+    def update_gpu_states(self, context):
+        # selecting first gpu if no gpu is selected
+        if not any(self.gpu_states):
+            self.gpu_states[0] = True
 
-class RPR_SamplingProperties(bpy.types.PropertyGroup):
-    iterations: IntProperty(
-        name="Iterations",
-        description="Limit the max number of rendering iterations",
-        min=1, default=50,
-    )
-    iteration_samples: IntProperty(
-        name="Samples per Iteration",
-        description="Limit the max number of rendering iterations",
-        min=1, default=1,
-    )
+    if len(pyrpr.Context.gpu_devices) > 0:
+        gpu_states: BoolVectorProperty(
+            name="",
+            size=len(pyrpr.Context.gpu_devices),
+            default=(True,) * len(pyrpr.Context.gpu_devices),
+            update=update_gpu_states
+        )
 
-class RPR_LightPathsProperties(bpy.types.PropertyGroup):
+    # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
         name="Clamp",
         description="Use clamp radiance",
@@ -71,42 +97,64 @@ class RPR_LightPathsProperties(bpy.types.PropertyGroup):
         min=0, soft_min=2, soft_max=50,
         default=8,
     )
-    max_diffuse_depth: IntProperty(
-        name="Diffuse", description="Max diffuse ray depth",
+    diffuse_depth: IntProperty(
+        name="Diffuse", description="Diffuse ray depth",
         min=0, soft_min=2, soft_max=50,
         default=3,
     )
-    max_glossy_depth: IntProperty(
-        name="Glossy", description="Max glossy ray depth",
+    glossy_depth: IntProperty(
+        name="Glossy", description="Glossy ray depth",
         min=0, soft_min=2, soft_max=50,
         default=5,
     )
-    max_shadow_depth: IntProperty(
-        name="Shadow", description="Max shadow depth",
+    shadow_depth: IntProperty(
+        name="Shadow", description="Shadow depth",
         min=0, soft_min=2, soft_max=50,
         default=5,
     )
-    max_refraction_depth: IntProperty(
-        name="Refraction", description="Max refraction ray depth",
+    refraction_depth: IntProperty(
+        name="Refraction", description="Refraction ray depth",
         min=0, soft_min=2, soft_max=50,
         default=5,
     )
-    max_glossy_refraction_depth: IntProperty(
-        name="Glossy Refraction", description="Max glossy refraction ray depth",
+    glossy_refraction_depth: IntProperty(
+        name="Glossy Refraction", description="Glossy refraction ray depth",
         min=0, soft_min=2, soft_max=50,
         default=5,
     )
-    ray_epsilon: FloatProperty(
-        name="Ray Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
+    ray_cast_epsilon: FloatProperty(
+        name="Ray Cast Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
         min=0.0, max=2.0,
         default=0.02,
     )
 
+    # RENDER LIMITS
+    limits: PointerProperty(type=RPR_RenderLimits)
+    viewport_limits: PointerProperty(type=RPR_RenderLimits)
 
-class RPR_RenderProperties(RPR_Properties):
-    devices: PointerProperty(type=RPR_RenderDevicesProperties)
-    light_paths: PointerProperty(type=RPR_LightPathsProperties)
-    sampling: PointerProperty(type=RPR_SamplingProperties)
+    # RENDER EFFECTS
+    use_render_stamp: BoolProperty(
+        name="Render Stamp",
+        description="Use render stamp",
+        default=False
+    )
+    render_stamp: StringProperty(
+        name="Render Stamp",
+        description="\
+        Render stamp: \n\
+        %pt - performance time \n\
+        %pp - performance passes \n\
+        %sl - scene lights \n\
+        %so - scene objects \n\
+        %c - CPU \n\
+        %g - GPU \n\
+        %r - rendering mode \n\
+        %h - hardware for rendering \n\
+        %i - computer name  \n\
+        %d - current date \n\
+        %b - build number",
+        default="Radeon ProRender for Blender %b | %h | Time: %pt | Passes: %pp | Objects: %so | Lights: %sl",
+    )
 
     def sync(self, rpr_context):
         scene = self.id_data
@@ -114,11 +162,11 @@ class RPR_RenderProperties(RPR_Properties):
 
         context_flags = 0
         context_props = []
-        if self.devices.use_cpu and pyrpr.Context.cpu_device:
+        if self.devices in ['CPU', 'GPU+CPU']:
             context_flags |= pyrpr.Context.cpu_device['flag']
-            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, self.devices.cpu_threads])
-        if self.devices.use_gpu:
-            for i, gpu_state in enumerate(self.devices.gpu_states):
+            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, self.cpu_threads])
+        if self.devices in ['GPU', 'GPU+CPU']:
+            for i, gpu_state in enumerate(self.gpu_states):
                 if gpu_state:
                     context_flags |= pyrpr.Context.gpu_devices[i]['flag']
 
@@ -130,21 +178,15 @@ class RPR_RenderProperties(RPR_Properties):
         rpr_context.scene.set_name(scene.name)
 
         # set light paths values
-        rpr_context.set_parameter('maxRecursion', self.light_paths.max_ray_depth)
-        rpr_context.set_parameter('maxdepth.diffuse', self.light_paths.max_diffuse_depth)
-        rpr_context.set_parameter('maxdepth.glossy', self.light_paths.max_glossy_depth)
-        rpr_context.set_parameter('maxdepth.shadow', self.light_paths.max_shadow_depth)
-        rpr_context.set_parameter('maxdepth.refraction', self.light_paths.max_refraction_depth)
-        rpr_context.set_parameter('maxdepth.refraction.glossy', self.light_paths.max_glossy_refraction_depth)
-        rpr_context.set_parameter('radianceclamp', self.light_paths.clamp_radiance if self.light_paths.use_clamp_radiance else sys.float_info.max)
+        rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
+        rpr_context.set_parameter('maxdepth.diffuse', self.diffuse_depth)
+        rpr_context.set_parameter('maxdepth.glossy', self.glossy_depth)
+        rpr_context.set_parameter('maxdepth.shadow', self.shadow_depth)
+        rpr_context.set_parameter('maxdepth.refraction', self.refraction_depth)
+        rpr_context.set_parameter('maxdepth.refraction.glossy', self.glossy_refraction_depth)
+        rpr_context.set_parameter('radianceclamp', self.clamp_radiance if self.use_clamp_radiance else sys.float_info.max)
 
-        rpr_context.set_parameter('raycastepsilon', self.light_paths.ray_epsilon * 0.001) # Convert millimeters to meters
-
-        # set sampling values
-        rpr_context.set_parameter('iterations', self.sampling.iteration_samples)
-        rpr_context.set_max_iterations(self.sampling.iterations)
-
-        scene.world.rpr.sync(rpr_context)
+        rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
     @classmethod
     def register(cls):

@@ -10,41 +10,49 @@ import weakref
 import threading
 import time
 import numpy as np
+from abc import ABCMeta, abstractmethod
 
 import bpy
 
 from rprblender import utils
 from rprblender.utils import logging
 from . import context
-from .notifier import Notifier
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
 from rprblender import config
+import pyrpr
 
 
 log = logging.Log(tag='Engine')
 
 
-class Engine:
+class Engine(metaclass=ABCMeta):
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.proxy(rpr_engine)
-        self.rpr_context = context.RPRContext()
+        self.rpr_context: context.RPRContext = None
 
-        self.render_lock = threading.Lock()
-        self.is_synced = False
+    @abstractmethod
+    def render(self, depsgraph):
+        pass
 
-    def set_render_result(self, render_layer: bpy.types.RenderLayer):
+    @abstractmethod
+    def sync(self, depsgraph):
+        ''' sync all data '''
+        pass
+
+    @staticmethod
+    def set_render_result(rpr_context, render_passes: bpy.types.RenderPasses):
         def zeros_image(channels):
-            return np.zeros((self.rpr_context.height, self.rpr_context.width, channels), dtype=np.float32)
+            return np.zeros((rpr_context.height, rpr_context.width, channels), dtype=np.float32)
 
         images = []
 
-        for p in render_layer.passes:
+        for p in render_passes:
             try:
                 aov = next(aov for aov in RPR_ViewLayerProperites.aovs_info if aov['name'] == p.name)  # finding corresponded aov
-                image = self.rpr_context.get_image(aov['rpr'])
+                image = rpr_context.get_image(aov['rpr'])
 
             except StopIteration:
-                log.warn("AOV '{}' is not found".format(p.name))
+                log.warn("AOV '{}' is not found in aovs_info".format(p.name))
                 image = zeros_image(p.channels)
 
             except KeyError:
@@ -58,122 +66,213 @@ class Engine:
             images.append(image.flatten())
 
         # efficient way to copy all AOV images
-        render_layer.passes.foreach_set('rect', np.concatenate(images))
+        render_passes.foreach_set('rect', np.concatenate(images))
 
-    def do_update_result(self, view_layer, result):
-        while not self.rpr_engine.test_break():
-            time.sleep(config.render_update_result_interval)
 
-            resolved = False
+class RenderEngine(Engine):
+    def __init__(self, rpr_engine):
+        super().__init__(rpr_engine)
+        self.rpr_context = context.RPRContext()
+
+        self.render_lock = threading.Lock()
+        self.is_synced = False
+        self.render_event = threading.Event()
+        self.finish_render = False
+
+        self.status_title = ""
+
+    def notify_status(self, progress, info):
+        self.rpr_engine.update_progress(progress)
+        self.rpr_engine.update_stats(self.status_title, info)
+
+        if config.notifier_log_calls:
+            log("%d - %s" % (int(progress*100), info))
+
+    def _do_update_result(self, result):
+        while not self.finish_render:
+            self.render_event.wait()
+            self.render_event.clear()
+
             with self.render_lock:
-                if self.rpr_context.iterations > self.rpr_context.resolved_iterations:
-                    self.rpr_context.resolve()
-                    resolved = True
-
-            if not resolved:
-                continue
+                self.rpr_context.resolve()
 
             log("Updating render result")
             self.rpr_context.resolve_extras()
-            self.set_render_result(result.layers[0])
+            Engine.set_render_result(self.rpr_context, result.layers[0].passes)
             self.rpr_engine.update_result(result)
 
-            if self.rpr_context.iterations >= self.rpr_context.max_iterations:
-                break
+            time.sleep(config.render_update_result_interval)
 
-    def do_render(self, notifier):
-        while not self.rpr_engine.test_break():
-            if self.rpr_context.iterations >= self.rpr_context.max_iterations:
-                break
+    def _do_render(self, iterations, samples):
+        self.finish_render = False
+        try:
+            self.rpr_context.set_parameter('iterations', samples)
 
-            notifier.update_info(self.rpr_context.iterations / self.rpr_context.max_iterations,
-                                 "Iteration: %d/%d" % (self.rpr_context.iterations, self.rpr_context.max_iterations))
+            for it in range(iterations):
+                if self.rpr_engine.test_break():
+                    break
 
-            with self.render_lock:
-                self.rpr_context.render()
+                self.notify_status(it / iterations, "Iteration: %d/%d" % (it + 1, iterations))
+
+                with self.render_lock:
+                    self.rpr_context.render()
+
+                self.render_event.set()
+        finally:
+            self.finish_render = True
+
+    def _do_render_tile(self, n, m, samples):
+        # TODO: This is a prototype of tile render
+        #  currently it produces core error, needs to be checked
+
+        self.finish_render = False
+        try:
+            self.rpr_context.set_parameter('iterations', samples)
+
+            for i, tile in enumerate(utils.get_tiles(self.rpr_context.width, self.rpr_context.height, n, m)):
+                if self.rpr_engine.test_break():
+                    break
+
+                self.notify_status(i / (n * m), "Tile: %d/%d" % (i, n * m))
+
+                with self.render_lock:
+                    self.rpr_context.render(tile)
+
+                self.render_event.set()
+        finally:
+            self.finish_render = True
+
 
     def render(self, depsgraph):
-        ''' handle the rendering process '''
-
         if not self.is_synced:
             return
 
         log("Start render")
 
-        view_layer = depsgraph.view_layer
-        notifier = Notifier(self.rpr_engine, "%s: %s" % (depsgraph.scene.name, view_layer.name))
-        notifier.update_info(0, "Start render")
+        scene = depsgraph.scene
+        rpr_scene = scene.rpr
+
+        self.notify_status(0, "Start render")
 
         result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
         self.rpr_context.clear_frame_buffers()
+        self.render_event.clear()
 
-        if self.rpr_engine.is_preview:
-            self.do_render(notifier)
+        update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
+        update_result_thread.start()
 
-        else:
-            update_result_thread = threading.Thread(target=Engine.do_update_result, args=(self, view_layer, result))
-            update_result_thread.start()
+        self._do_render(rpr_scene.limits.iterations, rpr_scene.limits.iteration_samples)
+        #self._do_render_tile(20, 20)
 
-            self.do_render(notifier)
+        update_result_thread.join()
 
-            update_result_thread.join()
-
-        log('Getting final render result')
-        if self.rpr_context.iterations > self.rpr_context.resolved_iterations:
+        if self.render_event.is_set():
+            log('Getting final render result')
             self.rpr_context.resolve()
             self.rpr_context.resolve_extras()
-            self.set_render_result(result.layers[0])
+            Engine.set_render_result(self.rpr_context, result.layers[0].passes)
 
         self.rpr_engine.end_result(result)
-        notifier.update_info(1, "Finish render")
+        self.notify_status(1, "Finish render")
         log('Finish render')
 
     def sync(self, depsgraph):
-        ''' sync all data '''
         log('Start syncing')
         self.is_synced = False
 
-        notifier = Notifier(self.rpr_engine, "%s: %s" % (depsgraph.scene.name, depsgraph.view_layer.name))
-        notifier.update_info(0, "Start syncing")
+        scene = depsgraph.scene
+        view_layer = depsgraph.view_layer
+        rpr_scene = scene.rpr
+        self.status_title = "%s: %s" % (scene.name, view_layer.name)
 
-        depsgraph.scene.rpr.sync(self.rpr_context)
-        self.rpr_context.set_parameter('preview', depsgraph.mode=='VIEWPORT')
+        self.notify_status(0, "Start syncing")
+
+        rpr_scene.sync(self.rpr_context)
+
+        scene.world.rpr.sync(self.rpr_context)
 
         # getting visible objects
         for i, obj in enumerate(depsgraph.objects):
-            notifier.update_info(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.objects), obj.name))
+            self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.objects), obj.name))
             obj.rpr.sync(self.rpr_context)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
 
-        self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(depsgraph.scene.camera)])
+        self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(scene.camera)])
 
         self.rpr_context.sync_shadow_catcher()
 
-        depsgraph.view_layer.rpr.sync(depsgraph.view_layer, self.rpr_context, self.rpr_engine)
+        view_layer.rpr.sync(view_layer, self.rpr_context, self.rpr_engine)
 
-        if self.rpr_engine.is_preview:
-            self.rpr_context.set_parameter('iterations', config.render_preview_iterations)
-            self.rpr_context.set_max_iterations(1)
-
-        notifier.update_info(0, "Finish syncing")
+        self.rpr_context.set_parameter('preview', False)
 
         self.is_synced = True
+        self.notify_status(0, "Finish syncing")
         log('Finish sync')
 
+
+class PreviewEngine(Engine):
+    def __init__(self, rpr_engine):
+        super().__init__(rpr_engine)
+        self.rpr_context = context.RPRContext()
+
+    def render(self, depsgraph):
+        log("Start preview render")
+
+        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
+
+        self.rpr_context.clear_frame_buffers()
+        self.rpr_context.set_parameter('iterations', config.render_preview_iterations)
+        self.rpr_context.render()
+
+        self.rpr_context.resolve()
+        Engine.set_render_result(self.rpr_context, result.layers[0].passes)
+        self.rpr_engine.end_result(result)
+
+        log('Finish preview render')
+
+    def sync(self, depsgraph):
+        log('Start preview syncing')
+        self.is_synced = False
+
+        rpr_scene = depsgraph.scene.rpr
+        rpr_scene.sync(self.rpr_context)
+
+        # getting visible objects
+        for i, obj in enumerate(depsgraph.objects):
+            obj.rpr.sync(self.rpr_context)
+
+        self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(depsgraph.scene.camera)])
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+
+        self.rpr_context.set_parameter('preview', False)
+
+        log('Finish preview sync')
+
+
+class ViewportEngine(Engine):
+    def __init__(self, rpr_engine):
+        super().__init__(rpr_engine)
+
+    def render(self, depsgraph):
+        log('ViewportEngine.render')
+
+    def sync(self, depsgraph):
+        log('ViewportEngine.sync')
+
     def sync_updated(self, depsgraph):
-        ''' sync just the updated things ''' 
-        log('Start sync_updated')
+        ''' sync just the updated things '''
+        log("Start ViewportEngine.sync_updated")
 
         for updated_obj in depsgraph.updates:
             log("updated {}; geometry updated {}; transform updated {}".format(
                 updated_obj.id.name, updated_obj.is_updated_geometry, updated_obj.is_updated_transform))
 
-        log('Finish sync_updated')
+        log("Finish ViewportEngine.sync_updated")
 
     def draw(self, depsgraph, region, space_data, region_data):
-        ''' viewport draw ''' 
-#        log('draw')
-        pass
+        ''' viewport draw '''
+        log("'ViewportEngine.draw")
