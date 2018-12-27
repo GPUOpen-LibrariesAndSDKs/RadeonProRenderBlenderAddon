@@ -39,12 +39,18 @@ class RPR_MeshProperties(RPR_Properties):
             vertices = np.array([vert.co for vert in mesh.vertices], dtype=np.float32)
             normals = np.array([norm for tri in mesh.loop_triangles
                                   for norm in tri.split_normals], dtype=np.float32)
-            uvs = None  # np.full((tris_len*3, 2), [0., 0.], dtype=np.float32)
+
+            uvs = None
+            uv_indices = None
+            if len(mesh.uv_layers) > 0:
+                uv_layer = mesh.uv_layers.active
+                uvs = np.array([[d.uv.x, d.uv.y] for d in uv_layer.data], dtype=np.float32)
+                uv_indices = np.array([tri.loops for tri in mesh.loop_triangles], dtype=np.int32).reshape(
+                    (tris_len * 3,))
 
             num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
             vertex_indices = np.array([tri.vertices for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len*3,))
             normal_indices = np.arange(tris_len*3, dtype=np.int32)
-            uv_indices = None   # normal_indices
 
             # creating RPR mesh
             rpr_shape = rpr_context.create_mesh(utils.key(mesh),

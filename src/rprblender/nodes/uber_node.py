@@ -58,18 +58,18 @@ class RPR_Node_Uber(RPRShadingNode):
         null_vector = (0, 0, 0, 0)
         material = context.context.material_system.create_material(pyrprx.MATERIAL_UBER)
         if self.diffuse:
-            material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color[0:4])
-            material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, (1.0, 1.0, 1.0, 1.0))
-            material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, (0.5, 0.5, 0.5, 0.5))
-            material.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, null_vector)
-            material.set_parameter(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, null_vector)
+            material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color[0:4])
+            material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, (1.0, 1.0, 1.0, 1.0))
+            material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, (0.5, 0.5, 0.5, 0.5))
+            material.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, null_vector)
+            material.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, null_vector)
         else:
-            material.set_parameter(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_COATING_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, null_vector)
-        material.set_parameter(pyrprx.UBER_MATERIAL_SSS_WEIGHT, null_vector)
+            material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, null_vector)
+        material.set_input(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, null_vector)
+        material.set_input(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, null_vector)
+        material.set_input(pyrprx.UBER_MATERIAL_COATING_WEIGHT, null_vector)
+        material.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, null_vector)
+        material.set_input(pyrprx.UBER_MATERIAL_SSS_WEIGHT, null_vector)
 
         return material
 
