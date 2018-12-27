@@ -1,7 +1,6 @@
-from ..properties import RPR_Properties
-import bpy
 import json
 import os
+
 from .export import export_blender_node
 
 ''' Layout of meta data for nodes is SAME for blender nodes as RPR ones:

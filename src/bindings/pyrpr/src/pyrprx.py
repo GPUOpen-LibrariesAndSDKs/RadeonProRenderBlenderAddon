@@ -96,7 +96,7 @@ class Material(Object):
     def commit(self):
         MaterialCommit(self.context, self)
 
-    def set_parameter(self, name, value):
+    def set_input(self, name, value):
         if value is None or isinstance(value, pyrpr.MaterialNode):
             MaterialSetParameterN(self.context, self, name, value)
         elif isinstance(value, int):
