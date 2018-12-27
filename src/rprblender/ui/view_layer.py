@@ -42,18 +42,20 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
         col.enabled = denoiser.enable
         col.prop(denoiser, 'filter_type')
 
-        if denoiser.filter_type == 'bilateral':
+        if denoiser.filter_type == 'BILATERAL':
             col.prop(denoiser, "radius")
             col.prop(denoiser, 'color_sigma', slider=True)
             col.prop(denoiser, 'normal_sigma', slider=True)
             col.prop(denoiser, 'p_sigma', slider=True)
             col.prop(denoiser, 'trans_sigma', slider=True)
-        elif denoiser.filter_type == 'eaw':
+        elif denoiser.filter_type == 'EAW':
             col.prop(denoiser, 'color_sigma', slider=True)
             col.prop(denoiser, 'normal_sigma', slider=True)
             col.prop(denoiser, 'depth_sigma', slider=True)
             col.prop(denoiser, 'trans_sigma', slider=True)
-        elif denoiser.filter_type == 'lwr':
+        elif denoiser.filter_type == 'LWR':
             col.prop(denoiser, 'samples', slider=True)
             col.prop(denoiser, 'half_window', slider=True)
             col.prop(denoiser, 'bandwidth', slider=True)
+        else:
+            raise TypeError("No such filter type: %s" % denoiser.filter_type)

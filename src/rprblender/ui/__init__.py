@@ -109,10 +109,13 @@ from . import (
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_devices,
-    render.RPR_RENDER_PT_sampling,
-    render.RPR_RENDER_PT_light_paths,
-    render.RPR_RENDER_PT_light_max_bounces,
+    render.RPR_RENDER_PT_limits,
+    render.RPR_RENDER_PT_viewport_limits,
+    render.RPR_RENDER_PT_quality,
+    render.RPR_RENDER_PT_max_ray_depth,
     render.RPR_RENDER_PT_light_clamping,
+    render.RPR_RENDER_PT_effects,
+    render.RPR_RENDER_PT_help_about,
 
     object.RPR_OBJECT_PT_object,
     object.RPR_OBJECT_PT_motion_blur,

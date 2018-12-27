@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+import multiprocessing
 
 import bpy
 import rprblender
@@ -22,5 +23,11 @@ def package_root_dir():
 
 
 def get_cpu_threads_number():
-    # TODO: This should be implemented
-    return 16
+    return multiprocessing.cpu_count()
+
+
+def get_tiles(width, height, n, m):
+    for i in range(n):
+        for j in range(m):
+            yield (width * i // n, width * (i + 1) // n - 1,
+                   height * j // n, height * (i + 1) // n - 1)

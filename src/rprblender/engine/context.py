@@ -20,11 +20,6 @@ class RPRContext:
         self.materials = {}
         self.post_effect = None
 
-        # render parameters
-        self.iterations = 0
-        self.resolved_iterations = 0
-        self.max_iterations = 0
-
         # list of frame buffers for AOVs
         self.frame_buffers_aovs = {}
 
@@ -62,22 +57,12 @@ class RPRContext:
     def clear_frame_buffers(self):
         for fbs in self.frame_buffers_aovs.values():
             fbs['aov'].clear()
-        self.iterations = 0
-        self.resolved_iterations = 0
-
-    def set_max_iterations(self, max_iterations):
-        self.max_iterations = max_iterations
 
     def render(self, tile=None):
-        if self.max_iterations > 0 and self.max_iterations <= self.iterations:
-            raise IndexError("Achieved max number of rendering iterations", self.iterations)
-
         if tile is None:
             self.context.render()
         else:
             self.context.render_tile(*tile)
-
-        self.iterations += 1
 
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
         if aov_type == pyrpr.AOV_COLOR and self.image_filter:
@@ -101,8 +86,6 @@ class RPRContext:
     def resolve(self):
         for fbs in self.frame_buffers_aovs.values():
             fbs['aov'].resolve(fbs['res'])
-
-        self.resolved_iterations = self.iterations
 
     def resolve_extras(self):
         if self.sc_composite:
@@ -160,9 +143,6 @@ class RPRContext:
         for fbs in self.frame_buffers_aovs.values():
             for fb in fbs.values():
                 fb.resize(self.width, self.height)
-
-        self.iterations = 0
-        self.resolved_iterations = 0
 
         if sc:
             self._enable_shadow_catcher()

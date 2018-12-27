@@ -23,7 +23,7 @@ plugin_log("Loading RPR addon {}".format(bl_info['version']))
 engine_log = logging.Log(tag='RenderEngine')
 
 
-from .engine.engine import Engine
+from .engine import engine
 from . import (
     nodes,
     properties,
@@ -43,7 +43,7 @@ class RPREngine(bpy.types.RenderEngine):
     bl_info = "Radeon ProRender rendering plugin"
 
     def __init__(self):
-        self.engine: Engine = None
+        self.engine: engine.Engine = None
 
     # final render
     def update(self, data, depsgraph):
@@ -51,7 +51,10 @@ class RPREngine(bpy.types.RenderEngine):
         engine_log('update')
 
         if not self.engine:
-            self.engine = Engine(self)
+            if self.is_preview:
+                self.engine = engine.PreviewEngine(self)
+            else:
+                self.engine = engine.RenderEngine(self)
 
         self.engine.sync(depsgraph)
 
@@ -68,21 +71,15 @@ class RPREngine(bpy.types.RenderEngine):
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
-            self.engine = Engine(self)  # ,context.region, context.space_data, context.region_data)
+            self.engine = engine.ViewportEngine(self)  # ,context.region, context.space_data, context.region_data)
             self.engine.sync(context.depsgraph)
         else:
             self.engine.sync_updated(context.depsgraph)
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
-        # engine_log('view_draw')
-        pass
-
         self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
 
-    def update_render_passes(self, scene=None, render_layer=None):
-        engine_log("update_render_passes", scene, render_layer)
-        # TODO: Seems this is working with compositor nodes and there has to be implemented
 
 @bpy.app.handlers.persistent
 def on_load_post(dummy):

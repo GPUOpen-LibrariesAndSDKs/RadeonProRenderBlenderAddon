@@ -53,22 +53,27 @@ class RPR_MeshProperties(RPR_Properties):
                                                num_face_vertices)
             rpr_shape.set_name(mesh.name)
 
-            material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
-            material_unique_indices = np.unique(material_indices)
-            for i in material_unique_indices:
-                slot = obj.material_slots[i]
+            if len(obj.material_slots) > 0:
+                material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
+                material_unique_indices = np.unique(material_indices)
+                for i in material_unique_indices:
+                    slot = obj.material_slots[i]
 
-                log("Syncing material '%s'" % slot.name, slot)
-                rpr_material = slot.material.rpr.sync(rpr_context)
+                    log("Syncing material '%s'" % slot.name, slot)
 
-                if rpr_material:
-                    if len(material_unique_indices) == 1:
-                        rpr_shape.set_material(rpr_material)
-                    else:
-                        face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)  # TODO: Probably could be optimized
-                        rpr_shape.set_material_faces(rpr_material, face_indices)
+                    if not slot.material:
+                        continue
 
-                    rpr_material.commit()
+                    rpr_material = slot.material.rpr.sync(rpr_context)
+
+                    if rpr_material:
+                        if len(material_unique_indices) == 1:
+                            rpr_shape.set_material(rpr_material)
+                        else:
+                            face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)  # TODO: Probably could be optimized
+                            rpr_shape.set_material_faces(rpr_material, face_indices)
+
+                        rpr_material.commit()
 
         rpr_context.scene.attach(rpr_shape)
         rpr_shape.set_transform(utils.get_transform(obj))
