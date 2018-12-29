@@ -101,6 +101,10 @@ class Material(Object):
             MaterialSetParameterN(self.context, self, name, value)
         elif isinstance(value, int):
             MaterialSetParameterU(self.context, self, name, value)
+        elif isinstance(value, float):
+            MaterialSetParameterF(self.context, self, name, value, value, value, value)
+        elif isinstance(value, tuple) and len(value) == 3:
+            MaterialSetParameterF(self.context, self, name, *value, 1.0)
         elif isinstance(value, tuple) and len(value) == 4:
             MaterialSetParameterF(self.context, self, name, *value)
         else:
@@ -110,13 +114,14 @@ class Material(Object):
 
     def attach(self, shape):
         ShapeAttachMaterial(self.context, shape, self)
+        self.commit() # TODO: prabably could be improved by commiting only once, not for every shape attachment
         
     def detach(self, shape):
         ShapeDetachMaterial(self.context, shape, self)
 
     def attach_to_node(self, input_name, material_node):
         MaterialAttachMaterial(self.context, material_node, pyrpr.encode(input_name), self)
-        self.commit()
+        self.commit() # TODO: prabably could be improved by commiting only once, not for every node attachment
 
     def detach_from_node(self, input_name, material_node):
         MaterialDetachMaterial(self.context, material_node, pyrpr.encode(input_name), self)

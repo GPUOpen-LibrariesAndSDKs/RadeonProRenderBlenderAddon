@@ -4,8 +4,7 @@ import numpy as np
 import pyrpr
 import pyrprx
 from rprblender.utils import logging
-from rprblender.utils import key as object_key
-from . import rpr_nodes
+from rprblender import utils
 
 
 log = logging.Log(tag='NodeExport')
@@ -45,7 +44,7 @@ def export_blender_node(rpr_context, node, export_data=None):
 
     log('export_blender_node: node {}'.format(node))
     try:
-        node_key = object_key(node)
+        node_key = utils.key(node)
         parser = parsers.get(node.bl_idname, None)
         if not parser:
             log.warn("Unsupported node type {}".format(node.bl_idname))
@@ -60,7 +59,7 @@ def export_blender_node(rpr_context, node, export_data=None):
 #                if result:
 #                    log("result: {}".format(result))
 #                    return result
-    except (TypeError, pyrpr.CoreError) as e:
+    except pyrpr.CoreError as e:
         log.warn("Exception {}\nReturning error material node".format(str(e)))
         result = create_fake_material("error_{}".format(node), rpr_context, color=(1, 0, 1, 1))
 
@@ -155,38 +154,18 @@ def parse_cycles_emissive(key, rpr_context, node) -> pyrprx.Material:
     return rpr_mat
 
 
-def parse_cycles_diffuse(key, rpr_context, node) -> pyrprx.Material:
+def parse_cycles_diffuse(key, rpr_context, node):
     def get_value(name):
         socket = node.inputs[name]
         if socket:
-            val = socket.default_value
-            if isinstance(val, float) or isinstance(val, int):
-                return (val, val, val, val)
-            elif len(val) == 3:
-                return (val[0], val[1], val[2], 1.0)
-            elif len(val) == 4:
-                return val[0:4]
-            raise TypeError("Unknown socket '{}' value type '{}'".format(socket, type(socket)))
+            return socket.default_value
 
-    color = get_value('Color')
+    color = tuple(get_value('Color'))
     roughness = get_value('Roughness')
 
-    rpr_mat = rpr_context.create_material(key, pyrprx.MATERIAL_UBER)
-
-    null_vector = (0, 0, 0, 0)
-    one_vector = (1.0, 1.0, 1.0, 1.0)
-
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, one_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, roughness)
-
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_COATING_WEIGHT, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, null_vector)
-    rpr_mat.set_input(pyrprx.UBER_MATERIAL_SSS_WEIGHT, null_vector)
+    rpr_mat = rpr_context.create_material_node(key, pyrpr.MATERIAL_NODE_DIFFUSE)
+    rpr_mat.set_input('color', color)
+    rpr_mat.set_input('roughness', roughness)
 
     return rpr_mat
 

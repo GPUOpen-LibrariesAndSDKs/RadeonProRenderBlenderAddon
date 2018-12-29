@@ -45,7 +45,6 @@
     <Compile Include="rprblender\engine\context.py" />
     <Compile Include="rprblender\engine\engine.py" />
     <Compile Include="rprblender\engine\image_filter.py" />
-    <Compile Include="rprblender\engine\notifier.py" />
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
     </Compile>
