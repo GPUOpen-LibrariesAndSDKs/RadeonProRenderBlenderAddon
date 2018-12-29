@@ -12,16 +12,17 @@ log = logging.Log(tag='Mesh')
 class RPR_MeshProperties(RPR_Properties):
     ''' Properties for mesh '''
 
-    def sync(self, rpr_context, obj):
+    def sync(self, rpr_context, obj_instance: bpy.types.DepsgraphObjectInstance):
         ''' sync the mesh '''
         mesh = self.id_data
+        obj = obj_instance.object
 
         existing_rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
         if existing_rpr_mesh:
             instance_name = "%s/%s" % (mesh.name, obj.name)
             log("Syncing instance: %s" % instance_name)
 
-            rpr_shape = rpr_context.create_instance(utils.key(obj), existing_rpr_mesh)
+            rpr_shape = rpr_context.create_instance(utils.key(obj_instance), existing_rpr_mesh)
             rpr_shape.set_name(instance_name)
 
         else:
@@ -76,13 +77,11 @@ class RPR_MeshProperties(RPR_Properties):
                         if len(material_unique_indices) == 1:
                             rpr_shape.set_material(rpr_material)
                         else:
-                            face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)  # TODO: Probably could be optimized
+                            face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
                             rpr_shape.set_material_faces(rpr_material, face_indices)
 
-                        rpr_material.commit()
-
         rpr_context.scene.attach(rpr_shape)
-        rpr_shape.set_transform(utils.get_transform(obj))
+        rpr_shape.set_transform(utils.get_transform(obj_instance))
 
         rpr_shape.set_visibility_primary_only(obj.rpr.visibility_in_primary_rays)
         rpr_shape.set_visibility_in_specular(obj.rpr.reflection_visibility)

@@ -54,14 +54,14 @@ class RPR_ObjectProperites(RPR_Properties):
         min=0,
     )
 
-    def sync(self, rpr_context):
+    def sync(self, rpr_context, obj_instance):
         ''' sync the object and any data attached '''
         obj = self.id_data
 
         log("Syncing object: {}, type {}".format(obj.name, obj.type))
 
         if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
-            obj.data.rpr.sync(rpr_context, obj)
+            obj.data.rpr.sync(rpr_context, obj_instance)
 
     @classmethod
     def register(cls):

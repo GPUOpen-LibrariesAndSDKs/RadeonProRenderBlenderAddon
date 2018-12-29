@@ -10,12 +10,28 @@ def is_rpr_active(context: bpy.types.Context):
     return context.scene.render.engine == 'RPR'
 
 
-def get_transform(obj):
-    return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+def get_transform(obj_instance:bpy.types.DepsgraphObjectInstance):
+    if obj_instance.is_instance:
+        return np.array(obj_instance.matrix_world, dtype=np.float32).reshape(4, 4)
+    return np.array(obj_instance.object.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
 def key(obj):
-    return obj.name
+    if isinstance(obj, bpy.types.Object):
+        return obj.name
+    if isinstance(obj, bpy.types.Mesh):
+        return obj.name
+    if isinstance(obj, bpy.types.Material):
+        return obj.name
+    if isinstance(obj, bpy.types.Node):
+        return obj.name
+    if isinstance(obj, bpy.types.DepsgraphObjectInstance):
+        obj_key = key(obj.object)
+        if not obj.is_instance:
+            return obj_key
+        return obj_key + '-' + str(obj.random_id)
+
+    raise TypeError("Cannot create key for object", obj)
 
 
 def package_root_dir():

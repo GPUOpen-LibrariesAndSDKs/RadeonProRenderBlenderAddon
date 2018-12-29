@@ -192,9 +192,10 @@ class RenderEngine(Engine):
         scene.world.rpr.sync(self.rpr_context)
 
         # getting visible objects
-        for i, obj in enumerate(depsgraph.objects):
-            self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.objects), obj.name))
-            obj.rpr.sync(self.rpr_context)
+        for i, obj_instance in enumerate(depsgraph.object_instances):
+            obj = obj_instance.object
+            self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.object_instances), obj.name))
+            obj.rpr.sync(self.rpr_context, obj_instance)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -217,8 +218,12 @@ class PreviewEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
         self.rpr_context = context.RPRContext()
+        self.is_synced = False
 
     def render(self, depsgraph):
+        if not self.is_synced:
+            return
+
         log("Start preview render")
 
         result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
@@ -241,8 +246,10 @@ class PreviewEngine(Engine):
         rpr_scene.sync(self.rpr_context)
 
         # getting visible objects
-        for i, obj in enumerate(depsgraph.objects):
-            obj.rpr.sync(self.rpr_context)
+        for i, obj_instance in enumerate(depsgraph.object_instances):
+            obj = obj_instance.object
+
+            obj.rpr.sync(self.rpr_context, obj_instance)
 
         self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(depsgraph.scene.camera)])
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
@@ -250,6 +257,7 @@ class PreviewEngine(Engine):
 
         self.rpr_context.set_parameter('preview', False)
 
+        self.is_synced = True
         log('Finish preview sync')
 
 

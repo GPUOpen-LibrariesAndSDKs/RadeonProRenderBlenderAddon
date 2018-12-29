@@ -6,7 +6,7 @@ import bpy
 import pyrpr
 import pyrprx
 from rprblender.nodes import export
-from rprblender.utils import key as object_key
+from rprblender import utils
 from rprblender.utils import logging
 from rprblender.utils import material as mat_utils
 from . import RPR_Properties
@@ -18,7 +18,7 @@ log = logging.Log(tag='Material')
 class RPR_MaterialParser(RPR_Properties):
     def sync(self, rpr_context) -> pyrprx.Material:
         mat = self.id_data
-        mat_key = object_key(mat)
+        mat_key = utils.key(mat)
         log("Syncing material: %s" % mat.name)
         tree = getattr(mat, 'node_tree', None)
 
@@ -63,6 +63,9 @@ class RPR_MaterialParser(RPR_Properties):
 
     def parse_cycles_output_node(self, mat_key, rpr_context, node):
         input = self.get_socket(node, name='Surface')  # 'Surface'
+        if not input:
+            raise export.MaterialError("No input")
+
         log("Material Output input['Surface'] linked to {}".format(input))
         input_node = input.node
         # log("syncing {}".format(input_node))
