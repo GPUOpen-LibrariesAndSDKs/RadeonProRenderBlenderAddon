@@ -12,7 +12,10 @@ import math
 
 from rprblender import utils
 from rprblender.utils import logging
+import rprblender.utils.light as light_ut
+import rprblender.utils.mesh as mesh_ut
 from . import RPR_Properties
+from . import SyncError
 
 
 log = logging.Log(tag='Light')
@@ -20,62 +23,8 @@ log = logging.Log(tag='Light')
 MAX_LUMINOUS_EFFICACY = 683.0
 
 
-def convert_kelvins_to_rgb(colour_temperature: int) -> tuple:
-    # range check
-    if colour_temperature < 1000:
-        colour_temperature = 1000
-    elif colour_temperature > 40000:
-        colour_temperature = 40000
-
-    tmp_internal = colour_temperature / 100.0
-    # red
-    if tmp_internal <= 66:
-        red = 255
-    else:
-        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
-        if tmp_red < 0:
-            red = 0
-        elif tmp_red > 255:
-            red = 255
-        else:
-            red = tmp_red
-
-    # green
-    if tmp_internal <= 66:
-        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-    else:
-        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-
-    # blue
-    if tmp_internal >= 66:
-        blue = 255
-    elif tmp_internal <= 19:
-        blue = 0
-    else:
-        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
-        if tmp_blue < 0:
-            blue = 0
-        elif tmp_blue > 255:
-            blue = 255
-        else:
-            blue = tmp_blue
-
-    return red / 255.0, green / 255.0, blue / 255.0
-
-
 class RPR_LightProperties(RPR_Properties):
+    # LIGHT INTENSITY
     intensity: FloatProperty(
         name="Intensity",
         description="Light Intensity",
@@ -89,19 +38,19 @@ class RPR_LightProperties(RPR_Properties):
     intensity_units_items_dir = (('RADIANCE', "Radiance", "Light intensity in Watts per square meter (W/m^2)"),
                                  ('LUMINANCE', "Luminance", "Light intensity in Lumen per square meter (lm/m^2)"))
     intensity_units_point: EnumProperty(
-        name="Intensity Units",
+        name="Units",
         items=intensity_units_items_default + intensity_units_items_point,
         description="Intensity Units",
         default='DEFAULT',
     )
     intensity_units_dir: EnumProperty(
-        name="Intensity Units",
+        name="Units",
         items=intensity_units_items_default + intensity_units_items_dir,
         description="Intensity Units",
         default='DEFAULT',
     )
     intensity_units_area: EnumProperty(
-        name="Intensity Units",
+        name="Units",
         items=intensity_units_items_default + intensity_units_items_point + intensity_units_items_dir,
         description="Intensity Units",
         default='DEFAULT',
@@ -118,6 +67,7 @@ class RPR_LightProperties(RPR_Properties):
         default=17.0
     )
 
+    # LIGHT COLOR
     use_temperature: BoolProperty(
         name="Use Temperature",
         description="Use a temperature setting",
@@ -130,17 +80,59 @@ class RPR_LightProperties(RPR_Properties):
         default=6500,
     )
 
+    # POINT LIGHT
     ies_file_name: StringProperty(
-        name='IES Data file', description='IES Data file name',
+        name='IES File', description='IES data file name',
         default='',
     )
 
+    # SUN LIGHT
     shadow_softness: FloatProperty(
         name="Shadow Softness",
         description="Edge shadow softness. Increase for lighter shadows",
         min=0.0, max=1.0, default=0.0
     )
 
+    # AREA LIGHT
+    def update_shape(self, context):
+        light = context.object.data
+        light.shape = self.shape if self.shape != 'MESH' else 'SQUARE'
+
+    shape: EnumProperty(
+        name="Shape",
+        items=(
+            ('SQUARE', "Square", "Rectangle shape"),
+            ('RECTANGLE', "Rectangle", "Rectangle shape"),
+            ('DISK', "Disk", "Disk shape"),
+            ('ELLIPSE', "Ellipse", "Ellipse shape"),
+            ('MESH', "Mesh", "Custom mesh"),   # TODO: Implement drawing of custom mesh
+        ),
+        description="Shape of the area Light",
+        default='RECTANGLE',
+        update=update_shape
+    )
+    color_map: PointerProperty(
+        type=bpy.types.Image,
+        name="Color Map",
+        description="Area light color map",
+    )
+    mesh: PointerProperty(
+        type=bpy.types.Mesh,
+        name="Mesh",
+        description="Select mesh object",
+    )
+    visible: BoolProperty(
+        name="Visible",
+        description="Light object to be visible",
+        default=False
+    )
+    cast_shadows: BoolProperty(
+        name = "Cast Shadows",
+        description="Enable shadows from other light sources",
+        default=False
+    )
+
+    # LIGHT GROUP AOV
     group: EnumProperty(
         name="Light Group",
         items=(('KEY', "Key", "Key"),
@@ -149,35 +141,13 @@ class RPR_LightProperties(RPR_Properties):
         default='KEY',
     )
 
-    # AREA LIGHT PROPERTIES
-    def update_size(self, context):
-        # on updating sizes we set to zero default lamp sizes to prevent Blender to draw rectangle gizmo in 3d viewport
-        lamp = context.object.data
-        lamp.size = 0
-        lamp.size_y = 0
-
-    shape: EnumProperty(
-        name="Shape of the area lamp",
-        items=(('RECTANGLE', "Rectangle", "Rectangle shape"),
-               ('DISC', "Disc", "Disc shape"),
-               ('SPHERE', "Sphere", "Sphere shape"),
-               ('CYLINDER', "Cylinder", "Cylinder shape"),
-               ('MESH', "Mesh", "Select mesh object")),
-        description="Shape of the area lamp",
-        default='RECTANGLE',
-        update=update_size
-    )
-
-    visible: BoolProperty(
-        name="Visible",
-        description="Light object to be visible",
-        default=False
-    )
-
     def sync(self, rpr_context, obj):
-        ''' sync the mesh '''
+        ''' sync the light '''
+
         light = self.id_data
         log("Syncing light: {}".format(light.name))
+
+        area = 0.0
 
         if light.type == 'POINT':
             if light.rpr.ies_file_name:
@@ -185,41 +155,67 @@ class RPR_LightProperties(RPR_Properties):
                 rpr_light.set_image_from_file(light.rpr.ies_file_name, 256, 256)
             else:
                 rpr_light = rpr_context.create_light(utils.key(obj), 'point')
+
         elif light.type in ('SUN', 'HEMI'):  # just in case old scenes will have outdated Hemi
             rpr_light = rpr_context.create_light(utils.key(obj), 'directional')
             rpr_light.set_shadow_softness(light.rpr.shadow_softness)
+
         elif light.type == 'SPOT':
             rpr_light = rpr_context.create_light(utils.key(obj), 'spot')
             oangle = 0.5 * light.spot_size  # half of spot_size
             iangle = oangle * (1.0 - light.spot_blend * light.spot_blend)  # square dependency of spot_blend
             rpr_light.set_cone_shape(iangle, oangle)
+
         elif light.type == 'AREA':
-            rpr_light = rpr_context.create_light(utils.key(obj), 'point')  # placeholder until area lights support added
+            if self.shape == 'MESH':
+                if not self.mesh:
+                    raise SyncError("Area light %s has no mesh" % light.name, light)
+
+                mesh_prop = mesh_ut.get_mesh_properties(self.mesh, calc_area=True)
+
+            else:
+                mesh_prop = light_ut.get_area_light_mesh_properties(self.shape, light.size, light.size_y, segments=32)
+
+            area = mesh_prop['area']
+
+            rpr_light = rpr_context.create_area_light(
+                utils.key(obj),
+                mesh_prop['vertices'], mesh_prop['normals'], mesh_prop['uvs'],
+                mesh_prop['vertex_indices'], mesh_prop['normal_indices'], mesh_prop['uv_indices'],
+                mesh_prop['num_face_vertices']
+            )
+
+            rpr_light.set_visibility(self.visible)
+            rpr_light.set_shadow(self.visible and self.cast_shadows)
+
+            if self.color_map:
+                rpr_image = utils.get_rpr_image(rpr_context, self.color_map)
+                rpr_light.set_image(rpr_image)
+
         else:
-            log.critical("Light {} has unsupported type {}, skipping.".format(light.name, light.type))
-            return None
+            raise SyncError("Light %s has unsupported type %s" % (light.name, light.type), light)
 
         rpr_light.set_name(light.name)
-        power = self._get_radiant_power(light)
-        log.debug("light {} power {}".format(light, power))
+
+        power = self._get_radiant_power(area)
         rpr_light.set_radiant_power(*power)
         rpr_light.set_transform(utils.get_transform(obj))
         rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
+
         rpr_context.scene.attach(rpr_light)
 
-    @staticmethod
-    def _get_radiant_power(light, area=0):
-        rpr_lamp = light.rpr
+    def _get_radiant_power(self, area=0):
+        light = self.id_data
 
         # calculating color intensity
         color = np.array(light.color)
-        if rpr_lamp.use_temperature:
-            color *= convert_kelvins_to_rgb(rpr_lamp.temperature)
-        intensity = color * rpr_lamp.intensity
+        if self.use_temperature:
+            color *= light_ut.convert_kelvins_to_rgb(self.temperature)
+        intensity = color * self.intensity
 
         # calculating radian power for core
         if light.type in ('POINT', 'SPOT'):
-            units = rpr_lamp.intensity_units_point
+            units = self.intensity_units_point
             if units == 'DEFAULT':
                 return intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
 
@@ -227,11 +223,11 @@ class RPR_LightProperties(RPR_Properties):
             if units == 'LUMEN':
                 lumens = intensity
             else:  # 'WATTS'
-                lumens = intensity * rpr_lamp.luminous_efficacy
+                lumens = intensity * self.luminous_efficacy
             return lumens / MAX_LUMINOUS_EFFICACY
 
         elif light.type == 'SUN':
-            units = rpr_lamp.intensity_units_dir
+            units = self.intensity_units_dir
             if units == 'DEFAULT':
                 return intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
 
@@ -239,16 +235,13 @@ class RPR_LightProperties(RPR_Properties):
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * rpr_lamp.luminous_efficacy
+                luminance = intensity * self.luminous_efficacy
             return luminance / MAX_LUMINOUS_EFFICACY
 
-        else:
-            assert light.type == 'AREA'
-            return intensity  # placeholder until area lights support added
-
-            units = rpr_lamp.intensity_units_area
+        elif light.type == 'AREA':
+            units = self.intensity_units_area
             if units == 'DEFAULT':
-                if rpr_lamp.intensity_normalization:
+                if self.intensity_normalization:
                     return intensity / area
                 return intensity
 
@@ -256,16 +249,16 @@ class RPR_LightProperties(RPR_Properties):
             if units == 'LUMEN':
                 luminance = intensity / area
             if units == 'WATTS':
-                luminance = intensity * rpr_lamp.luminous_efficacy / area
+                luminance = intensity * self.luminous_efficacy / area
             if units == 'LUMINANCE':
                 luminance = intensity
             if units == 'RADIANCE':
-                luminance = intensity * rpr_lamp.luminous_efficacy
+                luminance = intensity * self.luminous_efficacy
             return luminance / MAX_LUMINOUS_EFFICACY
 
     @classmethod
     def register(cls):
-        log("register")
+        log("Register")
         bpy.types.Light.rpr = PointerProperty(
             name="RPR Light Settings",
             description="RPR light settings",
@@ -274,5 +267,5 @@ class RPR_LightProperties(RPR_Properties):
 
     @classmethod
     def unregister(cls):
-        log("unregister")
+        log("Unregister")
         del bpy.types.Light.rpr

@@ -20,6 +20,7 @@ from . import context
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
 from rprblender import config
 import pyrpr
+from rprblender.properties import SyncError
 
 
 log = logging.Log(tag='Engine')
@@ -195,7 +196,10 @@ class RenderEngine(Engine):
         for i, obj_instance in enumerate(depsgraph.object_instances):
             obj = obj_instance.object
             self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.object_instances), obj.name))
-            obj.rpr.sync(self.rpr_context, obj_instance)
+            try:
+                obj.rpr.sync(self.rpr_context, obj_instance)
+            except SyncError as e:
+                log.warn("Skipping to add mesh", e)   # TODO: Error to UI log
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -248,8 +252,10 @@ class PreviewEngine(Engine):
         # getting visible objects
         for i, obj_instance in enumerate(depsgraph.object_instances):
             obj = obj_instance.object
-
-            obj.rpr.sync(self.rpr_context, obj_instance)
+            try:
+                obj.rpr.sync(self.rpr_context, obj_instance)
+            except SyncError as e:
+                log.warn(e, "Skipping")
 
         self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(depsgraph.scene.camera)])
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)

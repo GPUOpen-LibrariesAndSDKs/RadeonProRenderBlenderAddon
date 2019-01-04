@@ -344,6 +344,8 @@ class Scene(Object):
     def attach(self, obj):
         if isinstance(obj, Shape):
             SceneAttachShape(self, obj)
+        elif isinstance(obj, AreaLight):
+            SceneAttachShape(self, obj.mesh)
         elif isinstance(obj, Light):
             SceneAttachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
@@ -356,6 +358,8 @@ class Scene(Object):
     def detach(self, obj):
         if isinstance(obj, Shape):
             SceneDetachShape(self, obj)
+        elif isinstance(obj, AreaLight):
+            SceneDetachShape(self, obj.mesh)
         elif isinstance(obj, Light):
             SceneDetachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
@@ -434,7 +438,7 @@ class Shape(Object):
             # attaching pyrprx.Material through blend node
             blend_node = MaterialNode(material.context.material_system, MATERIAL_NODE_BLEND)
             blend_node.set_input('color0', material)
-            blend_node.set_input('weight', (0.0, 0.0, 0.0, 0.0))
+            blend_node.set_input('weight', 0.0)
 
             self.set_material_faces(blend_node, face_indices)
 
@@ -878,6 +882,55 @@ class DirectionalLight(Light):
 
     def set_shadow_softness(self, coeff):
         DirectionalLightSetShadowSoftness(self, coeff)
+
+
+class AreaLight(Light):
+    core_type_name = ''
+
+    def __init__(self, mesh, material_system):
+        self.mesh = mesh
+        self.material_system = material_system
+
+        self.color_node = MaterialNode(self.material_system, MATERIAL_NODE_ARITHMETIC)
+        self.color_node.set_input('op', MATERIAL_NODE_OP_MUL)
+        self.color_node.set_input('color0', 1.0)    # for color
+        self.color_node.set_input('color1', 1.0)    # for image
+
+        emissive_node = MaterialNode(self.material_system, MATERIAL_NODE_EMISSIVE)
+        emissive_node.set_input('color', self.color_node)
+
+        self.mesh.set_material(emissive_node)
+
+    def delete(self):
+        # delete() should be empty
+        pass
+
+    def set_name(self, name):
+        self.name = name
+        self.mesh.set_name(name)
+
+    def set_radiant_power(self, r, g, b):
+        self.color_node.set_input('color0', (r, g, b))
+
+    def set_image(self, image):
+        if image:
+            image_node = MaterialNode(self.material_system, MATERIAL_NODE_IMAGE_TEXTURE)
+            image_node.set_input('data', image)
+            self.color_node.set_input('color1', image_node)
+        else:
+            self.color_node.set_input('color1', 1.0)
+
+    def set_shadow(self, casts_shadow):
+        self.mesh.set_shadow(casts_shadow)
+
+    def set_visibility(self, visible):
+        self.mesh.set_visibility_ex('visible.light', visible)
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        self.mesh.set_transform(transform, transpose)
+
+    def set_group_id(self, group_id):
+        self.mesh.set_light_group_id(group_id)
 
 
 class Image(Object):

@@ -84,35 +84,17 @@ def create_fake_material(node_key, rpr_context, color: tuple) -> pyrprx.Material
 
 
 def parse_image_texture(key, rpr_context, node) -> pyrprx.Material:
-    def extract_image_pixels(image):
-        raw = np.fromiter(image.pixels, dtype=np.float32, count=image.size[0] * image.size[1] * image.channels)
-        if 4 != image.channels:
-            raise MaterialError("Image: '%s' has %s channels instead of 4" % (image.name, image.channels))
-        pixels = raw.reshape(image.size[1], image.size[0], 4)
-        return np.ascontiguousarray(pixels)
-
     rpr_node = rpr_context.create_material_node(key, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE)
     image_object = node.image
     if image_object:
-        file_path = image_object.filepath
-        if not file_path:
-            # image is not a file, use image.pixels instead
-            if not image_object.size[0] or not image_object.size[1]:
-                return None  # Image has no size either - it's an empty image
-            try:
-                data = extract_image_pixels(image_object)
-                image = rpr_context.create_image_data(data)
-            except (pyrpr.CoreError, MaterialError) as e:
-                log.warn("Cant's load texture image data, reason: {}".format(str(e)))
-                image = rpr_context.create_image_data(np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
-        else:
-            log("image file_name is {}".format(file_path))
-            try:
-                image = rpr_context.create_image_file(file_path)
-            except pyrpr.CoreError as e:
-                log.warn("Cant's read texture image file {}, reason: {}".format(file_path, str(e)))
-                image = rpr_context.create_image_data(np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
-        rpr_node.set_input('data', image)
+        try:
+            rpr_image = utils.get_rpr_image(rpr_context, image_object)
+        except ValueError as e:
+            log.error(e)
+            rpr_image = rpr_context.create_image_data('ErrorImage', np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
+
+        rpr_node.set_input('data', rpr_image)
+
     # rpr_node.set_input('uv', None)
     return rpr_node
 
