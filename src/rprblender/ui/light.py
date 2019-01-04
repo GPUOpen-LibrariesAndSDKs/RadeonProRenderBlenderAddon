@@ -5,66 +5,110 @@ class RPR_LIGHT_PT_light(RPR_Panel):
     """
     Physical light sources
     """
-    bl_label = "RPR Settings"
+    bl_label = "Light"
     bl_context = 'data'
 
     @classmethod
     def poll(cls, context):
-        return context.light and RPR_Panel.poll(context)
+        return context.light and super().poll(context)
 
     def draw(self, context):
         layout = self.layout
 
         light = context.light
+        rpr_light = light.rpr
 
         layout.prop(light, "type", expand=True)
 
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout.row().prop(light, 'color')
-        layout.row().prop(light.rpr, 'use_temperature')
-        row = layout.row()
-        row.enabled = light.rpr.use_temperature
-        row.prop(light.rpr, 'temperature', slider=True)
+        main_col = layout.column()
+        if light.type == 'POINT':
+            row = main_col.row(align=True)
+            row.prop(rpr_light, "ies_file_name")
+            if rpr_light.ies_file_name:
+                row.operator('rpr.light_op_remove_ies_file', text='', icon='X')
+            else:
+                row.operator('rpr.light_op_select_ies_file', text='', icon='FILE_IMAGE')
 
-        layout.separator()
-        layout.row().prop(light.rpr, 'intensity')
+        elif light.type == 'SPOT':
+            col = main_col.column(align=True)
+            col.prop(light, 'spot_size', slider=True)
+            col.prop(light, 'spot_blend', slider=True)
+
+            main_col.prop(light, 'show_cone')
+
+        elif light.type == 'SUN':
+            main_col.prop(rpr_light, 'shadow_softness')
+
+        elif light.type == 'AREA':
+            main_col.prop(rpr_light, 'shape')
+
+            if rpr_light.shape == 'MESH':
+                main_col.prop(rpr_light, 'mesh')
+
+            elif rpr_light.shape in ('RECTANGLE', 'ELLIPSE'):
+                col = main_col.column(align=True)
+                col.prop(light, 'size', text="Size X")
+                col.prop(light, 'size_y', text="Y")
+
+            else:
+                main_col.prop(light, 'size')
+
+            col = main_col.column(align=True)
+            col.prop(rpr_light, 'visible')
+            row = col.row()
+            row.enabled = rpr_light.visible
+            row.prop(rpr_light, 'cast_shadows')
+
+        main_col.separator()
+        main_col.row(align=True).prop(light.rpr, 'group')
+
+
+class RPR_LIGHT_PT_intensity(RPR_Panel):
+    """
+    Physical light intensity
+    """
+    bl_label = "Intensity & Color"
+    bl_context = 'data'
+
+    @classmethod
+    def poll(cls, context):
+        return context.light and context.light.type in ('POINT', 'SPOT', 'SUN', 'AREA') and super().poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        light = context.light
+        rpr_light = light.rpr
+
+        main_col = layout.column()
         if light.type in ('POINT', 'SPOT'):
             intensity_units = 'intensity_units_point'
         elif light.type == 'SUN':
             intensity_units = 'intensity_units_dir'
         else:
             intensity_units = 'intensity_units_area'
-        layout.row().prop(light.rpr, intensity_units, text="Units")
-        if getattr(light.rpr, intensity_units) in ('WATTS', 'RADIANCE'):
-            layout.row().prop(light.rpr, 'luminous_efficacy', slider=True)
-        elif light.type == 'AREA' and getattr(light.rpr, intensity_units) == 'DEFAULT':
-            layout.row().prop(light.rpr, 'intensity_normalization')
+        main_col.prop(rpr_light, intensity_units)
 
-        layout.separator()
-        if light.type == 'SPOT':
-            layout.prop(light, 'spot_size', text="Angle", slider=True)
-            layout.row().prop(light, 'spot_blend', text="Falloff", slider=True)
-        elif light.type == 'AREA':
-            layout.prop(light.rpr, 'shape', text='Shape')
-            layout.row().prop(light, 'size', text="Size X")  # , slider=True)
-            layout.row().prop(light, 'size_y', text="Size Y")  # , slider=True)
-        elif light.type == 'SUN':
-            layout.prop(light.rpr, 'shadow_softness')
-        elif light.type == 'POINT':
-            col = layout.column(align=True)
-            col.label(text='IES Data File:')
+        col = main_col.column(align=True)
+        col.prop(rpr_light, 'intensity')
+        if getattr(rpr_light, intensity_units) in ('WATTS', 'RADIANCE'):
+            col.prop(rpr_light, 'luminous_efficacy', slider=True)
+        elif light.type == 'AREA' and getattr(rpr_light, intensity_units) == 'DEFAULT':
+            col.prop(rpr_light, 'intensity_normalization')
 
-            row = col.row(align=True)
-            row.alignment = 'EXPAND'
-            row.prop(light.rpr, "ies_file_name", text='')
-            if light.rpr.ies_file_name:
-                row.operator('rpr.light_op_remove_ies_data', text='', icon='X')
-            else:
-                row.operator('rpr.light_op_select_ies_data', text='', icon='FILE_FOLDER')
+        main_col.separator()
+        main_col.prop(light, 'color')
 
-        layout.separator()
-        layout.prop(light, 'use_shadow')
-        layout.row(align=True).prop(light.rpr, 'group')
+        col = main_col.column(align=True)
+        col.prop(rpr_light, 'use_temperature')
+        row = col.row()
+        row.enabled = rpr_light.use_temperature
+        row.prop(rpr_light, 'temperature', slider=True)
 
+        if light.type == 'AREA':
+            main_col.prop(rpr_light, 'color_map')

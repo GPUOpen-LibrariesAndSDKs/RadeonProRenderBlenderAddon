@@ -18,6 +18,7 @@ class RPRContext:
         self.objects = {}
         self.meshes = {}
         self.materials = {}
+        self.images = {}
         self.post_effect = None
 
         # list of frame buffers for AOVs
@@ -367,14 +368,34 @@ class RPRContext:
         self.objects[key] = light
         return light
 
-    def create_mesh(self, key,
-                    vertices, normals, texcoords,
-                    vertex_indices, normal_indices, texcoord_indices,
-                    num_face_vertices):
+    def create_area_light(
+            self, key,
+            vertices, normals, uvs,
+            vertex_indices, normal_indices, uv_indices,
+            num_face_vertices
+    ):
+        mesh = pyrpr.Mesh(
+            self.context,
+            vertices, normals, uvs,
+            vertex_indices, normal_indices, uv_indices,
+            num_face_vertices
+        )
+        light = pyrpr.AreaLight(mesh, self.material_system)
+        self.objects[key] = light
+        return light
 
-        mesh = pyrpr.Mesh(self.context, vertices, normals, texcoords, 
-                 vertex_indices, normal_indices, texcoord_indices, 
-                 num_face_vertices)
+    def create_mesh(
+            self, key,
+            vertices, normals, uvs,
+            vertex_indices, normal_indices, uv_indices,
+            num_face_vertices
+    ):
+        mesh = pyrpr.Mesh(
+            self.context,
+            vertices, normals, uvs,
+            vertex_indices, normal_indices, uv_indices,
+            num_face_vertices
+        )
         self.meshes[key] = mesh
         return mesh
 
@@ -398,14 +419,15 @@ class RPRContext:
         self.materials[key] = material
         return material
 
-    def create_image(self):
-        return pyrpr.Image(self.context)
+    def create_image_file(self, key, filepath):
+        image = pyrpr.ImageFile(self.context, filepath)
+        self.images[key] = image
+        return image
 
-    def create_image_file(self, file):
-        return pyrpr.ImageFile(self.context, file)
-
-    def create_image_data(self, data):
-        return pyrpr.ImageData(self.context, data)
+    def create_image_data(self, key, data):
+        image = pyrpr.ImageData(self.context, data)
+        self.images[key] = image
+        return image
 
     def set_parameter(self, name, param):
         self.context.set_parameter(name, param)

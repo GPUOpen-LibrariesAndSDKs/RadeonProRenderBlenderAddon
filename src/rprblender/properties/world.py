@@ -55,14 +55,14 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         #     ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
         if self.ibl_type == 'COLOR':
-            image = rpr_context.create_image_data(np.full((2, 2, 4), (*self.color, 1), dtype=np.float32))
+            image = rpr_context.create_image_data('Environment', np.full((2, 2, 4), (*self.color, 1), dtype=np.float32))
             ibl.set_image(image)
         elif self.ibl_type == 'IBL':
             try:
-                image = rpr_context.create_image_file(self.ibl_map)
+                image = rpr_context.create_image_file('Environment', self.ibl_map)
             except pyrpr.CoreError as e:
                 log.error("Cant's read environment image {} reason: {}".format(self.ibl_map, str(e)))
-                image = rpr_context.create_image_data(np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
+                image = rpr_context.create_image_data('Environment', np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
 
             ibl.set_image(image)
             ibl.set_intensity_scale(self.intensity)
