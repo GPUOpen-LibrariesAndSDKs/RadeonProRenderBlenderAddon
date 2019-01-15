@@ -1,6 +1,5 @@
 import bpy
 
-
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
@@ -20,16 +19,20 @@ from .utils import logging
 
 plugin_log = logging.Log(tag="Plugin")
 plugin_log("Loading RPR addon {}".format(bl_info['version']))
-engine_log = logging.Log(tag='RenderEngine')
+log = logging.Log(tag='RPREngine')
 
 
-from .engine import engine
+from .engine.engine import Engine
 from . import (
     nodes,
     properties,
     ui,
     operators,
 )
+
+from .engine.render_engine import RenderEngine
+from .engine.preview_engine import PreviewEngine
+from .engine.viewport_engine import ViewportEngine
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -42,43 +45,47 @@ class RPREngine(bpy.types.RenderEngine):
     bl_use_shading_nodes_custom = False
     bl_info = "Radeon ProRender rendering plugin"
 
-    def __init__(self):
-        self.engine: engine.Engine = None
+    engine: Engine = None
+
+    def __del__(self):
+        if isinstance(self.engine, ViewportEngine):
+            self.engine.stop_render()
 
     # final render
     def update(self, data, depsgraph):
         ''' Called for final render '''
-        engine_log('update')
+        log('update')
 
         if not self.engine:
             if self.is_preview:
-                self.engine = engine.PreviewEngine(self)
+                self.engine = PreviewEngine(self)
             else:
-                self.engine = engine.RenderEngine(self)
+                self.engine = RenderEngine(self)
 
         self.engine.sync(depsgraph)
 
     def render(self, depsgraph):
         ''' Called with both final render and viewport '''
-        engine_log("render")
+        log("render")
 
-        self.engine.render(depsgraph)
+        self.engine.render()
 
     # viewport render
     def view_update(self, context):
         ''' called when data is updated for viewport '''
-        engine_log('view_update')
+        log('view_update')
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
-            self.engine = engine.ViewportEngine(self)  # ,context.region, context.space_data, context.region_data)
+            self.engine = ViewportEngine(self)  # ,context.region, context.space_data, context.region_data)
             self.engine.sync(context.depsgraph)
+            self.engine.render()
         else:
             self.engine.sync_updated(context.depsgraph)
 
     def view_draw(self, context):
         ''' called when viewport is to be drawn '''
-        self.engine.draw(context.depsgraph, context.region, context.space_data, context.region_data)
+        self.engine.draw(context)
 
 
 @bpy.app.handlers.persistent

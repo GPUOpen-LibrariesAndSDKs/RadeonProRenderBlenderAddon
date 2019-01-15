@@ -1,5 +1,4 @@
 import bpy
-import pyrpr
 from bpy.props import (
     PointerProperty,
     FloatProperty,
@@ -9,6 +8,7 @@ from bpy.props import (
 from rprblender import utils
 from rprblender.utils import logging
 from . import RPR_Properties
+import rprblender.utils.camera as camera_ut
 
 
 log = logging.Log(tag='Camera')
@@ -34,25 +34,8 @@ class RPR_CameraProperties(RPR_Properties):
         
         rpr_camera = rpr_context.create_camera(utils.key(obj))
         rpr_camera.set_name(camera.name)
-        rpr_camera.set_transform(utils.get_transform(obj))
-        
-        rpr_camera.set_clip_plane(camera.clip_start, camera.clip_end)
-        rpr_camera.set_lens_shift(camera.shift_x, camera.shift_y)   # TODO: Shift has to be fixed
-
-        mode = {
-            'ORTHO': pyrpr.CAMERA_MODE_ORTHOGRAPHIC,
-            'PERSP': pyrpr.CAMERA_MODE_PERSPECTIVE,
-            'PANO': pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360,
-            }[camera.type]
-        rpr_camera.set_mode(mode)
-
-        # TODO: Currently we set only perspective parameters
-        rpr_camera.set_focal_length(camera.lens)
-        if camera.sensor_fit != 'VERTICAL':
-            ratio = rpr_context.width / rpr_context.height
-            rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_width / ratio)
-        else:
-            rpr_camera.set_sensor_size(camera.sensor_width, camera.sensor_height)
+        settings = camera_ut.get_camera_settings(camera, utils.get_transform(obj), rpr_context.width / rpr_context.height)
+        camera_ut.set_camera_settings(rpr_camera, settings)
 
     @classmethod
     def register(cls):
