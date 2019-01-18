@@ -19,7 +19,7 @@ class ViewportEngine(Engine):
         super().__init__(rpr_engine)
         self.is_synced = False
         self.render_iterations = 0
-        self.texture: gl.Texture = None
+        self.gl_texture: gl.GLTexture = None
 
         self.camera_settings = {}
         self.render_lock = threading.Lock()
@@ -28,13 +28,6 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_event = threading.Event()
         self.finish_render = False
-
-    @property
-    def gl_texture(self) -> int:
-        if self.texture:
-            return self.texture.gl_texture
-
-        return self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).gl_texture
 
     def render(self):
         self.finish_render = False
@@ -112,10 +105,6 @@ class ViewportEngine(Engine):
 
             self.rpr_context.resolve_extras()
 
-            if self.texture:
-                im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
-                self.texture.set_image(im)
-
             self.rpr_engine.tag_redraw()
 
         log("Finish resolve thread")
@@ -191,15 +180,21 @@ class ViewportEngine(Engine):
         if self.rpr_context.width != width or self.rpr_context.height != height:
             with self.render_lock:
                 self.rpr_context.resize(width, height)
-                if self.texture:
-                    self.texture = gl.Texture(width, height)
+                if not self.rpr_context.gl_interop:
+                    self.gl_texture = gl.GLTexture(width, height)
 
             self.restart_render_event.set()
 
         # TODO: Setting camera and resize should move to sync() and sync_update()
 
-        draw_texture_2d(self.gl_texture, (0, 0), self.rpr_context.width, self.rpr_context.height)
+        if self.rpr_context.gl_interop:
+            texture_id = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).texture_id
+        else:
+            im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+            self.gl_texture.set_image(im)
+            texture_id = self.gl_texture.texture_id
 
+        draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
 
     def _sync_render(self, scene):
         log("sync_render", scene)
@@ -227,7 +222,7 @@ class ViewportEngine(Engine):
         self.rpr_context.scene.set_name(scene.name)
 
         if not self.rpr_context.gl_interop:
-            self.texture = gl.Texture(width, height)
+            self.gl_texture = gl.GLTexture(width, height)
 
         # set light paths values
         self.rpr_context.set_parameter('maxRecursion', rpr.max_ray_depth)

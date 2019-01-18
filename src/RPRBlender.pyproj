@@ -79,6 +79,7 @@
     <Compile Include="rprblender\ui\world.py" />
     <Compile Include="rprblender\ui\__init__.py" />
     <Compile Include="rprblender\utils\camera.py" />
+    <Compile Include="rprblender\utils\gl.py" />
     <Compile Include="rprblender\utils\light.py" />
     <Compile Include="rprblender\utils\logging.py" />
     <Compile Include="rprblender\utils\material.py" />
