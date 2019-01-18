@@ -7,8 +7,6 @@
     The idea here is to keep all the properties syncing, data, display etc in one place.
     Basically a "model/view" type pattern where we bring them together for ease of maintenance.
     Slightly inspired by vue.js
-
-    TODO could we use decorators to register???
 '''
 
 import bpy

@@ -70,7 +70,13 @@ def get_rpr_image(rpr_context, image: bpy.types.Image):
         raise ValueError("Image has no data", image)
 
     if image.channels != 4:
-        raise ValueError("Image has %s channels instead of 4" % image.channels, image)
+        raise ValueError("Image has %s channels; 4 required" % image.channels, image)
 
     data = np.fromiter(image.pixels, dtype=np.float32, count=image.size[0] * image.size[1] * image.channels)
     return rpr_context.create_image_data(image_key, data.reshape(image.size[1], image.size[0], 4))
+
+
+def create_flat_color_image_data(rpr_context, image_name: str, color: tuple):
+    np_image_data = np.full((2, 2, 4), color, dtype=np.float32)
+    rpr_image = rpr_context.create_image_data(image_name, np_image_data)
+    return rpr_image
