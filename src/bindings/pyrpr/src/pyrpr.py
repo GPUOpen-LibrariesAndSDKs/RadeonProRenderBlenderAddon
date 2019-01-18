@@ -149,7 +149,7 @@ def init(log_fun, rprsdk_bin_path=None):
         setattr(_module, name, wrapped)
 
     del _module
-    
+
 
 def encode(string):
     return string.encode('utf8')
@@ -173,6 +173,38 @@ def get_first_gpu_id_used(creation_flags):
             return i
 
     raise IndexError("GPU is not used", creation_flags)
+
+
+class array:
+    def __init__(self, a: np.array):
+        self.array = a if a.flags['C_CONTIGUOUS'] else np.ascontiguousarray(a)
+
+    def __eq__(self, other):
+        return np.array_equal(self.array, other.array)
+
+    @property
+    def nbytes(self):
+        return self.array[0].nbytes
+
+    @property
+    def len(self):
+        return len(self.array)
+
+    @property
+    def data(self):
+        if self.array.dtype == np.float32:
+            return ffi.cast('float*', self.array.ctypes.data)
+
+        if self.array.dtype == np.int32:
+            return ffi.cast('rpr_int*', self.array.ctypes.data)
+
+        if self.array.dtype == np.int64:
+            return ffi.cast('size_t*', self.array.ctypes.data)
+
+        raise KeyError("Not correct dtype of np.array", self.array.dtype)
+
+    def __repr__(self):
+        return 'pyrpr.' + repr(self.array)
 
 
 class Object:
@@ -685,12 +717,12 @@ class FrameBuffer(Object):
             FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
             return buf
 
-        data = np.empty((self.height, self.width, self.channels), dtype=np.float32)
+        data = np.empty((self.width, self.height, self.channels), dtype=np.float32)
         FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', data.ctypes.data), ffi.NULL)
         return data
 
     def size(self):
-        return self.height*self.width*self.channels*4    # 4 bytes = sizeof(float32)
+        return self.height * self.width * self.channels * 4    # 4 bytes = sizeof(float32)
 
     def save_to_file(self, file_path):
         FrameBufferSaveToFile(self, encode(file_path))

@@ -171,18 +171,18 @@ class RPR_LightProperties(RPR_Properties):
                 if not self.mesh:
                     raise SyncError("Area light %s has no mesh" % light.name, light)
 
-                mesh_prop = mesh_ut.get_mesh_properties(self.mesh, calc_area=True)
+                data = mesh_ut.get_mesh_data(self.mesh, calc_area=True)
 
             else:
-                mesh_prop = light_ut.get_area_light_mesh_properties(self.shape, light.size, light.size_y, segments=32)
+                data = light_ut.get_area_light_mesh_data(self.shape, light.size, light.size_y, segments=32)
 
-            area = mesh_prop['area']
+            area = data.area
 
             rpr_light = rpr_context.create_area_light(
                 utils.key(obj),
-                mesh_prop['vertices'], mesh_prop['normals'], mesh_prop['uvs'],
-                mesh_prop['vertex_indices'], mesh_prop['normal_indices'], mesh_prop['uv_indices'],
-                mesh_prop['num_face_vertices']
+                data.vertices, data.normals, data.uvs,
+                data.vertex_indices, data.normal_indices, data.uv_indices,
+                data.num_face_vertices
             )
 
             rpr_light.set_visibility(self.visible)
@@ -203,6 +203,23 @@ class RPR_LightProperties(RPR_Properties):
         rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
 
         rpr_context.scene.attach(rpr_light)
+
+    def sync_update(self, rpr_context, obj, is_updated_geometry, is_updated_transform):
+        light = self.id_data
+        log("Updating light: {}".format(light.name))
+
+        rpr_light = rpr_context.objects.get(utils.key(obj), None)
+        if rpr_light:
+            if is_updated_geometry:
+                # TODO: recreate light
+                pass
+
+            if is_updated_transform:
+                rpr_light.set_transform(utils.get_transform(obj))
+
+        else:
+            # TODO: create light
+            pass
 
     def _get_radiant_power(self, area=0):
         light = self.id_data

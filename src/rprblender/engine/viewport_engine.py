@@ -8,6 +8,7 @@ import pyrpr
 from .engine import Engine
 from rprblender.properties import SyncError
 import rprblender.utils.camera as camera_ut
+from rprblender.utils import gl
 
 from rprblender.utils import logging
 log = logging.Log(tag='ViewportEngine')
@@ -18,7 +19,7 @@ class ViewportEngine(Engine):
         super().__init__(rpr_engine)
         self.is_synced = False
         self.render_iterations = 0
-        self.gl_texture: int = None
+        self.texture: gl.Texture = None
 
         self.camera_settings = {}
         self.render_lock = threading.Lock()
@@ -27,6 +28,13 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_event = threading.Event()
         self.finish_render = False
+
+    @property
+    def gl_texture(self) -> int:
+        if self.texture:
+            return self.texture.gl_texture
+
+        return self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).gl_texture
 
     def render(self):
         self.finish_render = False
@@ -50,6 +58,9 @@ class ViewportEngine(Engine):
 
         self.render_event.set()
         self.resolve_thread.join()
+
+    def notify_status(self, info):
+        self.rpr_engine.update_stats("", info)
 
     def _do_render(self):
         log("Start render thread")
@@ -81,6 +92,10 @@ class ViewportEngine(Engine):
 
                 iteration += 1
 
+                self.notify_status("Iteration: %d/%d" % (iteration, self.render_iterations))
+
+            self.notify_status("Rendering Done")
+
         log("Finish render thread")
 
     def _do_resolve(self):
@@ -96,6 +111,10 @@ class ViewportEngine(Engine):
                 self.rpr_context.resolve()
 
             self.rpr_context.resolve_extras()
+
+            if self.texture:
+                im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                self.texture.set_image(im)
 
             self.rpr_engine.tag_redraw()
 
@@ -127,33 +146,57 @@ class ViewportEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
+        self.rpr_context.sync_shadow_catcher()
+
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
 
-        self.gl_texture = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).gl_texture
         self.is_synced = True
         log('Finish sync')
 
-    def sync_updated(self, depsgraph):
+    def sync_update(self, depsgraph):
         ''' sync just the updated things '''
-        log("Start sync_updated")
+        log("sync_updated")
 
-        for updated_obj in depsgraph.updates:
-            log("updated {}; geometry updated {}; transform updated {}".format(
-                updated_obj.id.name, updated_obj.is_updated_geometry, updated_obj.is_updated_transform))
+        is_updated = False
+        with self.render_lock:
+            for update in depsgraph.updates:
+                is_updated |= update.is_updated_geometry or update.is_updated_transform
 
-        log("Finish sync_updated")
+                obj = update.id
+                if isinstance(obj, bpy.types.Object):
+                    obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+
+                else:
+                    # TODO: sync_update for other object types
+                    pass
+
+        if is_updated:
+            self.restart_render_event.set()
 
     def draw(self, context):
         log("Draw")
 
-        camera_settings = camera_ut.get_viewport_camera_settings(context)
+        camera_settings = camera_ut.get_viewport_camera_data(context)
         if self.camera_settings != camera_settings:
             self.camera_settings = camera_settings
             with self.render_lock:
-                camera_ut.set_camera_settings(self.rpr_context.scene.camera, self.camera_settings)
+                camera_ut.set_camera_data(self.rpr_context.scene.camera, self.camera_settings)
 
             self.restart_render_event.set()
+
+        width = context.region.width
+        height = context.region.height
+
+        if self.rpr_context.width != width or self.rpr_context.height != height:
+            with self.render_lock:
+                self.rpr_context.resize(width, height)
+                if self.texture:
+                    self.texture = gl.Texture(width, height)
+
+            self.restart_render_event.set()
+
+        # TODO: Setting camera and resize should move to sync() and sync_update()
 
         draw_texture_2d(self.gl_texture, (0, 0), self.rpr_context.width, self.rpr_context.height)
 
@@ -182,6 +225,9 @@ class ViewportEngine(Engine):
         context_props.append(0) # should be followed by 0
         self.rpr_context.init(width, height, context_flags, context_props)
         self.rpr_context.scene.set_name(scene.name)
+
+        if not self.rpr_context.gl_interop:
+            self.texture = gl.Texture(width, height)
 
         # set light paths values
         self.rpr_context.set_parameter('maxRecursion', rpr.max_ray_depth)

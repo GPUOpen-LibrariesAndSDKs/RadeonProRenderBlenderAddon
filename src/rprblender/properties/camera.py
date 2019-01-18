@@ -34,8 +34,8 @@ class RPR_CameraProperties(RPR_Properties):
         
         rpr_camera = rpr_context.create_camera(utils.key(obj))
         rpr_camera.set_name(camera.name)
-        settings = camera_ut.get_camera_settings(camera, utils.get_transform(obj), rpr_context.width / rpr_context.height)
-        camera_ut.set_camera_settings(rpr_camera, settings)
+        settings = camera_ut.get_camera_data(camera, utils.get_transform(obj), rpr_context.width / rpr_context.height)
+        camera_ut.set_camera_data(rpr_camera, settings)
 
     @classmethod
     def register(cls):

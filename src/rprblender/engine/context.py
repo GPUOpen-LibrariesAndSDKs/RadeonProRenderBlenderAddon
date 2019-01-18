@@ -73,12 +73,16 @@ class RPRContext:
 
     def get_frame_buffer(self, aov_type):
         if aov_type == pyrpr.AOV_COLOR:
-            if self.gl_interop and \
-                    self.image_filter and self.image_filter_settings['filter_type'] != 'eaw':
+            if self.gl_interop:
+                if self.image_filter and self.image_filter_settings['filter_type'] == 'eaw':
                     # temporary fix of EAW filter cause it doesn't work with gl_interop
+                    raise RuntimeError("Color frame_buffer is not available because EAW image filter is used with gl_interop")
+                    
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
+
             if self.image_filter:
                 raise RuntimeError("Color frame_buffer is not available because image filter is used")
+            
             if self.sc_composite:
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
 
@@ -92,7 +96,7 @@ class RPRContext:
         if self.sc_composite:
             self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
             if self.gl_interop and not self.image_filter:
-                self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs['default']['gl'])
+                self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
 
         if self.image_filter:
             self.image_filter.run()
@@ -127,9 +131,6 @@ class RPRContext:
         return aov_type in self.frame_buffers_aovs
 
     def resize(self, width, height):
-        if self.width == width and self.height == height:
-            return
-
         self.width = width
         self.height = height
 

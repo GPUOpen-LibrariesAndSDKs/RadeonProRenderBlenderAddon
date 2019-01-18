@@ -10,10 +10,16 @@ def is_rpr_active(context: bpy.types.Context):
     return context.scene.render.engine == 'RPR'
 
 
-def get_transform(obj_instance:bpy.types.DepsgraphObjectInstance):
-    if obj_instance.is_instance:
-        return np.array(obj_instance.matrix_world, dtype=np.float32).reshape(4, 4)
-    return np.array(obj_instance.object.matrix_world, dtype=np.float32).reshape(4, 4)
+def get_transform(obj):
+    if isinstance(obj, bpy.types.DepsgraphObjectInstance):
+        if obj.is_instance:
+            return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+        return np.array(obj.object.matrix_world, dtype=np.float32).reshape(4, 4)
+
+    if isinstance(obj, bpy.types.Object):
+        return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+
+    raise TypeError("Cannot get transform for object", obj)
 
 
 def key(obj):
