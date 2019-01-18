@@ -279,12 +279,13 @@ class ProceduralNode(Node):
             self.set_value('threshold', threshold)
 
 class TriplanarNode(Node):
-    def __init__(self, mat, origin, z_axis, x_axis, weight):
+    def __init__(self, mat, origin, z_axis, x_axis, scale, weight):
         super().__init__(mat.create_material_node(NodeType.TRIPLANAR))
         self.set_value('offset', origin)
         self.set_value('xaxis', x_axis)
         self.set_value('zaxis', z_axis)
         self.set_value('weight', weight)
+        self.set_value('uv_scale', scale)
         
 
 class NormalMapNode(Node):
@@ -1798,7 +1799,8 @@ class Material:
         z_axis = ValueVector(*(matrix.col[2]), 0.0)
         x_axis = ValueVector(*(matrix.col[0]), 0.0)
         weight = ValueVector(blender_node.weight, blender_node.weight, blender_node.weight, 1.0)
-        node = TriplanarNode(self, origin, z_axis, x_axis, weight)
+        scale = ValueVector(*blender_node.scale, 1.0)
+        node = TriplanarNode(self, origin, z_axis, x_axis, scale, weight)
         return ValueNode(node)
 
 
