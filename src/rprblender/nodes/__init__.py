@@ -29,10 +29,10 @@ class RPR_ShaderNodeCategory(NodeCategory):
 
 
 node_categories = [
-#    RPR_ShaderNodeCategory('RPR_INPUT', 'Input', items=[
-#        NodeItem('ShaderNodeRGB'),
-#        NodeItem('ShaderNodeValue'),
-#    ],),
+    RPR_ShaderNodeCategory('RPR_INPUT', 'Input', items=[
+        NodeItem('ShaderNodeRGB'),
+        NodeItem('ShaderNodeValue'),
+    ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', 'Output', items=[
         NodeItem('ShaderNodeOutputMaterial'),
     ],),
@@ -44,6 +44,7 @@ node_categories = [
         NodeItem('ShaderNodeBsdfPrincipled'),
         NodeItem('ShaderNodeEmission'),
         NodeItem('ShaderNodeBsdfDiffuse'),
+        NodeItem('ShaderNodeBsdfGlossy'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('rpr_shader_node_uber'),

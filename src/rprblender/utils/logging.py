@@ -94,7 +94,7 @@ class Log:
     __default_level: int = logging.INFO
     __default_method_name: str = 'info'
 
-    def __init__(self, tag: str = 'default', level: str = 'info'):
+    def __init__(self, tag: str = 'default', level: str = 'debug'):
         if tag:
             self.__tag = tag
 

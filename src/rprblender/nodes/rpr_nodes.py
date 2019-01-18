@@ -5,7 +5,7 @@ import os
 import bpy
 
 from rprblender.utils import logging
-from .export import export_blender_node
+# from .export import export_blender_node
 
 ''' Layout of meta data for nodes:
 
@@ -99,10 +99,6 @@ class RPRShadingNode(bpy.types.ShaderNode):  # , RPR_Properties):
     @classmethod
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
-
-    def sync(self, context):
-        ''' generate rpr nodes based on the meta data and inputs '''
-        export_blender_node(self, self.meta_data)
 
     def __init__(self):
         ''' generate sockets based on meta data '''

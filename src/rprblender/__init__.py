@@ -92,7 +92,8 @@ class RPREngine(bpy.types.RenderEngine):
 def on_load_post(dummy):
     plugin_log("on_load_post...")
 
-    properties.material.activate_shader_editor()
+    # TODO replace old(2.79) scene settings with 2.80+
+    # TODO replace old RPR material nodes with actual
 
     plugin_log("load_post ok")
 
