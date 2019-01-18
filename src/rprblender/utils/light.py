@@ -4,6 +4,8 @@ import math
 import bmesh
 import mathutils
 
+from rprblender.utils.mesh import MeshData
+
 
 def convert_kelvins_to_rgb(colour_temperature: int) -> tuple:
     # range check
@@ -40,7 +42,7 @@ def convert_kelvins_to_rgb(colour_temperature: int) -> tuple:
     return (red / 255.0, green / 255.0, blue / 255.0)
 
 
-def get_area_light_mesh_properties(shape_type, size, size_y, segments):
+def get_area_light_mesh_data(shape_type, size, size_y, segments):
     bm = bmesh.new()
     try:
         if shape_type in ('SQUARE', 'RECTANGLE'):
@@ -52,9 +54,11 @@ def get_area_light_mesh_properties(shape_type, size, size_y, segments):
         else:
             raise TypeError("Incorrect shape type", shape_type)
 
+        data = MeshData()
+
         # getting uvs before modifying mesh
         bm.verts.ensure_lookup_table()
-        uvs = np.array([(vert.co[0] + 0.5, vert.co[1] + 0.5) for vert in bm.verts], dtype=np.float32)
+        data.uvs = np.array([(vert.co[0] + 0.5, vert.co[1] + 0.5) for vert in bm.verts], dtype=np.float32)
 
         # scale and rotate mesh around Y axis
         bmesh.ops.scale(bm, verts=bm.verts,
@@ -68,24 +72,17 @@ def get_area_light_mesh_properties(shape_type, size, size_y, segments):
         loop_triangles = bm.calc_loop_triangles()
         tris_len = len(loop_triangles)
 
-        vertices = np.array([vert.co for vert in bm.verts], dtype=np.float32)
-        normals = np.array([vert.normal for vert in bm.verts], dtype=np.float32)
+        data.vertices = np.array([vert.co for vert in bm.verts], dtype=np.float32)
+        data.normals = np.array([vert.normal for vert in bm.verts], dtype=np.float32)
 
-        num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
-        vertex_indices = np.array([vert.vert.index for tri in loop_triangles for vert in tri], dtype=np.int32)
+        data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
+        data.vertex_indices = np.array([vert.vert.index for tri in loop_triangles for vert in tri], dtype=np.int32)
+        data.normal_indices = data.vertex_indices
+        data.uv_indices = data.vertex_indices
 
-        area = sum(face.calc_area() for face in bm.faces)
+        data.area = sum(face.calc_area() for face in bm.faces)
 
-        return {
-            'vertices': vertices,
-            'normals': normals,
-            'uvs': uvs,
-            'vertex_indices': vertex_indices,
-            'normal_indices': vertex_indices,
-            'uv_indices': vertex_indices,
-            'num_face_vertices': num_face_vertices,
-            'area': area,
-        }
+        return data
 
     finally:
         bm.free()

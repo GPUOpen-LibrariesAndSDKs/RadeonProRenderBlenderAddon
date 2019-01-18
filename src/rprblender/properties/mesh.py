@@ -18,22 +18,22 @@ class RPR_MeshProperties(RPR_Properties):
         mesh = self.id_data
         obj = obj_instance.object
 
-        existing_rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
-        if existing_rpr_mesh:
+        rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
+        if rpr_mesh:
             instance_name = "%s/%s" % (mesh.name, obj.name)
             log("Syncing instance: %s" % instance_name)
 
-            rpr_shape = rpr_context.create_instance(utils.key(obj_instance), existing_rpr_mesh)
+            rpr_shape = rpr_context.create_instance(utils.key(obj_instance), rpr_mesh)
             rpr_shape.set_name(instance_name)
 
         else:
             log("Syncing mesh: %s" % mesh.name)
-            mesh_prop = mesh_ut.get_mesh_properties(mesh)
+            data = mesh_ut.get_mesh_data(mesh)
             rpr_shape = rpr_context.create_mesh(
                 utils.key(mesh),
-                mesh_prop['vertices'], mesh_prop['normals'], mesh_prop['uvs'],
-                mesh_prop['vertex_indices'], mesh_prop['normal_indices'], mesh_prop['uv_indices'],
-                mesh_prop['num_face_vertices']
+                data.vertices, data.normals, data.uvs,
+                data.vertex_indices, data.normal_indices, data.uv_indices,
+                data.num_face_vertices
             )
 
             if len(obj.material_slots) > 0:
@@ -65,6 +65,23 @@ class RPR_MeshProperties(RPR_Properties):
         rpr_shape.set_visibility_ex("visible.reflection.glossy", obj.rpr.reflection_visibility)
         rpr_shape.set_shadow_catcher(obj.rpr.shadowcatcher)
         rpr_shape.set_shadow(obj.rpr.shadows)
+
+    def sync_update(self, rpr_context, obj, is_updated_geometry, is_updated_transform):
+        mesh = self.id_data
+        log("Updating mesh: %s" % mesh.name)
+
+        rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
+        if rpr_mesh:
+            if is_updated_geometry:
+                # TODO: recreate mesh
+                pass
+
+            if is_updated_transform:
+                rpr_mesh.set_transform(utils.get_transform(obj))
+
+        else:
+            # TODO: create mesh
+            pass
 
     @classmethod
     def register(cls):
