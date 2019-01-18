@@ -77,7 +77,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
-            self.engine = ViewportEngine(self)  # ,context.region, context.space_data, context.region_data)
+            self.engine = ViewportEngine(self)
             self.engine.sync(context.depsgraph)
             self.engine.render()
         else:
