@@ -1092,6 +1092,10 @@ class DeviceSettings(bpy.types.PropertyGroup):
         update=helpers.settings_changed,
     )
 
+    use_gl_interop = bpy.props.BoolProperty(name="Use Fast Viewport", 
+                                        default=True, update=helpers.settings_changed,
+                                        description='Use OpenGL fast viewport.  Disable if viewport crashing but final renders work.')
+
 
 @rpraddon.register_class
 class UserSettings(bpy.types.PropertyGroup):

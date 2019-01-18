@@ -166,7 +166,7 @@ def get_context_creation_flags(is_production, is_viewport):
             logging.info("Enabling Metal GPU rendering")
         if (settings.use_cpu) and (is_production):
             logging.info('Using GPU+CPU')
-        if is_viewport:
+        if is_viewport and settings.use_gl_interop:
             flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
             logging.info('Using GL_INTEROP')
 

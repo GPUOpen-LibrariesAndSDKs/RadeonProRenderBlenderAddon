@@ -271,6 +271,9 @@ class RPRRender_PT_viewport_settings(RPRPanel, Panel):
                 name += ' (not certified)'
             box.prop(device_settings, "gpu_states", index=i, text=name)
 
+        row = layout.row()
+        row.prop(device_settings, 'use_gl_interop')
+
         # settings for viewport overrides
         layout.separator()
         layout.label("Viewport Settings:")
