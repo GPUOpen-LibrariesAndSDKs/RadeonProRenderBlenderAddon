@@ -1638,6 +1638,12 @@ class RPRMaterialNode_TriplanarMapping(RPRNodeType_Mapping):
         size=3, subtype='XYZ'
     )
 
+    scale = bpy.props.FloatVectorProperty(
+        name="Scale",
+        default=(1.0, 1.0, 1.0),
+        size=3, subtype='XYZ'
+    )
+
     weight = bpy.props.FloatProperty(
         name="Blend Weight",
         default=0.0,
@@ -1650,6 +1656,7 @@ class RPRMaterialNode_TriplanarMapping(RPRNodeType_Mapping):
     def draw_buttons(self, context, layout):
         layout.prop(self, 'origin')
         layout.prop(self, 'rotation')
+        layout.prop(self, 'scale')
         layout.prop(self, 'weight')
 
 
