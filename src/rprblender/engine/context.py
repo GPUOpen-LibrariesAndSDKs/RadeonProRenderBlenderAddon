@@ -31,12 +31,10 @@ class RPRContext:
         self.image_filter = None
         self.image_filter_settings = None
 
-    def init(self, width, height, context_flags, context_props):
+    def init(self, context_flags, context_props):
         self.context = pyrpr.Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.x_context = pyrprx.Context(self.material_system)
-        self.width = width
-        self.height = height
         self.gl_interop = bool(context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
 
         # context settings

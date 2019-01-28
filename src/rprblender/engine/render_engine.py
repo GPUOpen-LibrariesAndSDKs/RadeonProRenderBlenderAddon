@@ -1,8 +1,9 @@
 import threading
 import time
-import numpy as np
 
+import bpy
 import pyrpr
+
 from rprblender import config
 from rprblender import utils
 from .engine import Engine
@@ -87,7 +88,6 @@ class RenderEngine(Engine):
         finally:
             self.finish_render = True
 
-
     def render(self):
         if not self.is_synced:
             return
@@ -104,7 +104,7 @@ class RenderEngine(Engine):
         update_result_thread.start()
 
         self._do_render(self.iterations, self.iteration_samples)
-        #self._do_render_tile(20, 20)
+        # self._do_render_tile(20, 20)
 
         update_result_thread.join()
 
@@ -128,7 +128,11 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        self._sync_render(scene)
+        scene.rpr.sync(self.rpr_context)
+        self.rpr_context.resize(
+            int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
+            int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+        )
 
         scene.world.rpr.sync(self.rpr_context)
 
@@ -145,6 +149,7 @@ class RenderEngine(Engine):
                 log.warn("Syncing stopped by user termination")
                 return
 
+        self.rpr_context.scene.set_name(scene.name)
         self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(scene.camera)])
 
         self.rpr_context.sync_shadow_catcher()
@@ -153,42 +158,9 @@ class RenderEngine(Engine):
 
         self.rpr_context.set_parameter('preview', False)
 
+        self.iterations = scene.rpr.limits.iterations
+        self.iteration_samples = scene.rpr.limits.iteration_samples
+
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
         log('Finish sync')
-
-    def _sync_render(self, scene):
-        log("sync_render", scene)
-
-        rpr = scene.rpr
-
-        context_flags = 0
-        context_props = []
-        if rpr.devices in ['CPU', 'GPU+CPU']:
-            context_flags |= pyrpr.Context.cpu_device['flag']
-            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, rpr.cpu_threads])
-        if rpr.devices in ['GPU', 'GPU+CPU']:
-            for i, gpu_state in enumerate(rpr.gpu_states):
-                if gpu_state:
-                    context_flags |= pyrpr.Context.gpu_devices[i]['flag']
-
-        width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
-        height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
-
-        context_props.append(0) # should be followed by 0
-        self.rpr_context.init(width, height, context_flags, context_props)
-        self.rpr_context.scene.set_name(scene.name)
-
-        # set light paths values
-        self.rpr_context.set_parameter('maxRecursion', rpr.max_ray_depth)
-        self.rpr_context.set_parameter('maxdepth.diffuse', rpr.diffuse_depth)
-        self.rpr_context.set_parameter('maxdepth.glossy', rpr.glossy_depth)
-        self.rpr_context.set_parameter('maxdepth.shadow', rpr.shadow_depth)
-        self.rpr_context.set_parameter('maxdepth.refraction', rpr.refraction_depth)
-        self.rpr_context.set_parameter('maxdepth.refraction.glossy', rpr.glossy_refraction_depth)
-        self.rpr_context.set_parameter('radianceclamp', rpr.clamp_radiance if rpr.use_clamp_radiance else np.finfo(np.float32).max)
-
-        self.rpr_context.set_parameter('raycastepsilon', rpr.ray_cast_epsilon * 0.001) # Convert millimeters to meters
-
-        self.iterations = rpr.limits.iterations
-        self.iteration_samples = rpr.limits.iteration_samples

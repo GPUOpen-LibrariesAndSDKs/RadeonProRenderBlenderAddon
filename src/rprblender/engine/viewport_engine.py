@@ -109,12 +109,15 @@ class ViewportEngine(Engine):
 
         log("Finish resolve thread")
 
-    def sync(self, depsgraph):
+    def sync(self, context):
         log('Start sync')
 
+        depsgraph = context.depsgraph
         scene = depsgraph.scene
 
-        self._sync_render(scene)
+        scene.rpr.sync(self.rpr_context, use_gl_interop=True)
+        self.rpr_context.resize(context.region.width, context.region.height)
+
         scene.world.rpr.sync(self.rpr_context)
 
         # getting visible objects
@@ -128,6 +131,8 @@ class ViewportEngine(Engine):
             except SyncError as e:
                 log.warn(e, "Skipping")
 
+        self.rpr_context.scene.set_name(scene.name)
+
         rpr_camera = self.rpr_context.create_camera('VIEWPORT_CAMERA')
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
@@ -135,17 +140,23 @@ class ViewportEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
+        if not self.rpr_context.gl_interop:
+            self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
+
         self.rpr_context.sync_shadow_catcher()
 
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
 
+        self.render_iterations = scene.rpr.viewport_limits.iterations
+
         self.is_synced = True
         log('Finish sync')
 
-    def sync_update(self, depsgraph):
+    def sync_update(self, context):
         ''' sync just the updated things '''
-        log("sync_updated")
+        log("sync_update")
+        depsgraph = context.depsgraph
 
         is_updated = False
         with self.render_lock:
@@ -156,10 +167,9 @@ class ViewportEngine(Engine):
                         continue
 
                     obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
-
                 else:
                     # TODO: sync_update for other object types
-                    pass
+                    continue
 
                 is_updated |= update.is_updated_geometry or update.is_updated_transform
 
@@ -198,44 +208,3 @@ class ViewportEngine(Engine):
             texture_id = self.gl_texture.texture_id
 
         draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
-
-    def _sync_render(self, scene):
-        log("sync_render", scene)
-
-        rpr = bpy.context.scene.rpr     # getting rpr settings from user's scene
-
-        context_flags = 0
-        context_props = []
-        if rpr.devices in ['CPU', 'GPU+CPU']:
-            context_flags |= pyrpr.Context.cpu_device['flag']
-            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, rpr.cpu_threads])
-        if rpr.devices in ['GPU', 'GPU+CPU']:
-            for i, gpu_state in enumerate(rpr.gpu_states):
-                if gpu_state:
-                    context_flags |= pyrpr.Context.gpu_devices[i]['flag']
-
-            # enabling GL interop
-            context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
-
-        width = bpy.context.region.width
-        height = bpy.context.region.height
-
-        context_props.append(0) # should be followed by 0
-        self.rpr_context.init(width, height, context_flags, context_props)
-        self.rpr_context.scene.set_name(scene.name)
-
-        if not self.rpr_context.gl_interop:
-            self.gl_texture = gl.GLTexture(width, height)
-
-        # set light paths values
-        self.rpr_context.set_parameter('maxRecursion', rpr.max_ray_depth)
-        self.rpr_context.set_parameter('maxdepth.diffuse', rpr.diffuse_depth)
-        self.rpr_context.set_parameter('maxdepth.glossy', rpr.glossy_depth)
-        self.rpr_context.set_parameter('maxdepth.shadow', rpr.shadow_depth)
-        self.rpr_context.set_parameter('maxdepth.refraction', rpr.refraction_depth)
-        self.rpr_context.set_parameter('maxdepth.refraction.glossy', rpr.glossy_refraction_depth)
-        self.rpr_context.set_parameter('radianceclamp', rpr.clamp_radiance if rpr.use_clamp_radiance else np.finfo(np.float32).max)
-
-        self.rpr_context.set_parameter('raycastepsilon', rpr.ray_cast_epsilon * 0.001)  # Convert millimeters to meters
-
-        self.render_iterations = rpr.viewport_limits.iterations

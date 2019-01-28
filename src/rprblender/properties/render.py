@@ -156,7 +156,7 @@ class RPR_RenderProperties(RPR_Properties):
         default="Radeon ProRender for Blender %b | %h | Time: %pt | Passes: %pp | Objects: %so | Lights: %sl",
     )
 
-    def sync(self, rpr_context):
+    def sync(self, rpr_context, use_gl_interop=False):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
@@ -170,12 +170,11 @@ class RPR_RenderProperties(RPR_Properties):
                 if gpu_state:
                     context_flags |= pyrpr.Context.gpu_devices[i]['flag']
 
-        width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
-        height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+            if use_gl_interop:
+                context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
 
         context_props.append(0) # should be followed by 0
-        rpr_context.init(width, height, context_flags, context_props)
-        rpr_context.scene.set_name(scene.name)
+        rpr_context.init(context_flags, context_props)
 
         # set light paths values
         rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
