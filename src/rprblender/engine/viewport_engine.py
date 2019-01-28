@@ -150,15 +150,18 @@ class ViewportEngine(Engine):
         is_updated = False
         with self.render_lock:
             for update in depsgraph.updates:
-                is_updated |= update.is_updated_geometry or update.is_updated_transform
-
                 obj = update.id
                 if isinstance(obj, bpy.types.Object):
+                    if obj.type == 'CAMERA':
+                        continue
+
                     obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
 
                 else:
                     # TODO: sync_update for other object types
                     pass
+
+                is_updated |= update.is_updated_geometry or update.is_updated_transform
 
         if is_updated:
             self.restart_render_event.set()
