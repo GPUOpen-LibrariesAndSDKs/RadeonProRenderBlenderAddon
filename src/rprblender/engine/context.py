@@ -17,6 +17,7 @@ class RPRContext:
         self.scene = None
         self.objects = {}
         self.meshes = {}
+        self.material_nodes = {}
         self.materials = {}
         self.images = {}
         self.post_effect = None
@@ -410,13 +411,16 @@ class RPRContext:
 
     def create_material_node(self, key, in_type):
         node = pyrpr.MaterialNode(self.material_system, in_type)
-        self.materials[key] = node
+        self.material_nodes[key] = node
         return node
 
-    def create_material(self, key, material_type):
+    def create_x_material_node(self, key, material_type):
         material = pyrprx.Material(self.x_context, material_type)
-        self.materials[key] = material
+        self.material_nodes[key] = material
         return material
+
+    def set_material_node_as_material(self, key, material_node):
+        self.materials[key] = material_node
 
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)

@@ -21,6 +21,10 @@ from .rpr_nodes import RPRShadingNode
 log = logging.Log(tag='nodes')
 
 
+class MaterialError(Exception):
+    pass
+
+
 class RPR_ShaderNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
