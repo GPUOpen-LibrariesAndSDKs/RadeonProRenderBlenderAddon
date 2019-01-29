@@ -1,14 +1,7 @@
-import sys
-import traceback
-
 import bpy
 
-import pyrpr
-import pyrprx
 from rprblender.nodes import export
-from rprblender import utils
 from rprblender.utils import logging
-from rprblender.utils import material as mat_utils
 from . import RPR_Properties
 
 
@@ -16,66 +9,12 @@ log = logging.Log(tag='Material')
 
 
 class RPR_MaterialParser(RPR_Properties):
-    def sync(self, rpr_context) -> pyrprx.Material:
+    def sync(self, rpr_context):
         mat = self.id_data
-        mat_key = utils.key(mat)
         log("Syncing material: %s" % mat.name)
-        tree = getattr(mat, 'node_tree', None)
 
-        try:
-            if not tree:
-                raise export.MaterialError("No material tree found for material {}".format(mat))
-
-            # Look for output node
-            node = mat_utils.find_rpr_output_node(tree)
-            if not node:
-                node = mat_utils.find_cycles_output_node(tree)
-            if not node:
-                raise export.MaterialError("No valid output node found!")
-
-            material = self.parse_cycles_output_node(mat_key, rpr_context, node)
-            return material
-        except export.MaterialError as e:
-            log("MaterialError {}".format(str(e)))
-            # traceback.print_exc()
-            return export.create_fake_material(mat_key, rpr_context)
-
-    @staticmethod
-    def get_socket(node, name=None, index=None):
-        if name:
-            try:
-                socket = node.inputs[name]
-            except KeyError:
-                return None
-        elif index:
-            try:
-                socket = node.inputs[index]
-            except IndexError:
-                return None
-        else:
-            return None
-
-        log.debug("get_socket({}, {}, {}): {}; linked {}; links number {}".format
-                  (node, name, index, socket, socket.is_linked, len(socket.links)))
-        if socket.is_linked and len(socket.links) > 0:
-            return socket.links[0].from_socket
-        return None
-
-    def parse_cycles_output_node(self, mat_key, rpr_context, node):
-        input_socket = self.get_socket(node, name='Surface')  # 'Surface'
-        if not input_socket:
-            raise export.MaterialError("No input")
-
-        log("Material Output input['Surface'] linked to node {}, socket {}".
-            format(input_socket.node, input_socket.name))
-        input_node = input_socket.node
-
-        exporter = export.MaterialExporter(rpr_context, mat_key)
-        material = exporter.export(input_node, input_socket)
-        # material = export.export_blender_output(rpr_context, mat_key, input_node, input_socket)
-        if not material:
-            raise export.MaterialError("Unable to parse output node {}".format(node))
-
+        exporter = export.MaterialExporter(rpr_context, mat)
+        material = exporter.export()
         return material
 
     @classmethod

@@ -113,48 +113,6 @@ bsdf_glossy_rules = {
     }
 }
 
-mix_shader_rules = {
-    "name": "ShaderNodeMixShader",
-
-    "inputs": {
-        "shader1": {
-            "index": "1",
-            "type": "link",
-        },
-        "shader2": {
-            "index": "2",
-            "type": "link",
-        },
-        "roughness": {
-            "index": "0",
-            "type": "float",
-            "label": "Fac",
-        }
-    },
-
-    "output": "blend",
-
-    "outputs": [
-        {
-            "name": "shader",
-            "type": "shader",
-            "label": "BSDF",
-            "node": "blend"
-        }
-    ],
-
-    "nodes": [
-        {
-            "name": "blend",
-            "type": "RPR_MATERIAL_NODE_BLEND",
-            "inputs": {
-                "color": "inputs.color",
-                "roughness": "inputs.roughness"
-            }
-        }
-    ]
-}
-
 emission_rules = {
     "name": "ShaderNodeEmission",
 
@@ -197,21 +155,6 @@ emission_rules = {
             },
         },
     }
-}
-
-cycles_math_rules = {
-    "name": "ShaderNodeMath",
-    "output": "math",
-    "nodes": {
-        "math": {
-            "name": "math",
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-        }
-    }
-}
-
-cycles_mix_rgb_rules = {
-    "name": "ShaderNodeMixRGB",
 }
 
 class NodeExportRules:

@@ -56,7 +56,7 @@ class RPR_Node_Uber(RPRShadingNode):
         logging.info("color {}; [0:0] {}; dir() {}".format(color, color[0:4], dir(color)))
 
         null_vector = (0, 0, 0, 0)
-        material = context.context.material_system.create_material(pyrprx.MATERIAL_UBER)
+        material = context.context.material_system.create_x_material_node(pyrprx.MATERIAL_UBER)
         if self.diffuse:
             material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, color[0:4])
             material.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, (1.0, 1.0, 1.0, 1.0))

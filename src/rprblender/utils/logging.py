@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.DEBUG, handlers=[file])
 
 console_filter = None
 
+
 class Filter(logging.Filter):
 
     level_show_always = logging.ERROR
@@ -128,3 +129,19 @@ class Log:
 
     def critical(self, *args):
         critical(*args, tag=self.__tag)
+
+
+def dump_args(func):
+    """This decorator dumps out the arguments passed to a function before calling it"""
+    arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
+
+    def echo_func(*args, **kwargs):
+        debug("<{}>: {}{}".format(
+            func.__name__,
+            tuple("{}={}".format(name, arg) for name, arg in zip(arg_names, args)),
+            # args if args else "",
+            " {}".format(kwargs.items()) if kwargs else "",
+        ))
+        return func(*args, **kwargs)
+    return echo_func
+
