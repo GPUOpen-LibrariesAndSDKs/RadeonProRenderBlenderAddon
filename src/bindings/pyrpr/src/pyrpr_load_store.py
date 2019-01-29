@@ -17,7 +17,7 @@ def export(name, context, scene):
 
     file_name = bytes(name, encoding="latin1")
     return lib.rprsExport(file_name, context._get_handle(), scene._get_handle(),
-                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL)
+                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, 1) # last param is RPRLOADSTORE_EXPORTFLAG_EXTERNALFILES (1 << 0) 
 
 
 def get_library_path(rpr_sdk_bin_path):
