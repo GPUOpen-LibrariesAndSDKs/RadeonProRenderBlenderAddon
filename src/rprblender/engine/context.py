@@ -348,6 +348,14 @@ class RPRContext:
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
         del self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
 
+    def sync_auto_adapt_subdivision(self):
+        for obj in self.scene.objects:
+            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
+                obj.set_auto_adapt_subdivision_factor(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['aov'],
+                                                      self.scene.camera, obj.subdivision['factor'])
+                obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+                obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+
     #
     # OBJECT'S CREATION FUNCTIONS
     #

@@ -436,6 +436,8 @@ class Shape(Object):
         self.displacement_material = None
         self.hetero_volume = None
 
+        self.subdivision = None     # { 'factor': int, 'boundary': int, 'crease_weight': float }
+
     def delete(self):
         for material in self.materials:
             if isinstance(material, pyrprx.Material):

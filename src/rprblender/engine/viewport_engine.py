@@ -78,6 +78,7 @@ class ViewportEngine(Engine):
                 with self.render_lock:
                     if iteration == 0:
                         self.rpr_context.clear_frame_buffers()
+                        self.rpr_context.sync_auto_adapt_subdivision()
 
                     self.rpr_context.render()
 
@@ -118,7 +119,16 @@ class ViewportEngine(Engine):
         scene.rpr.sync(self.rpr_context, use_gl_interop=True)
         self.rpr_context.resize(context.region.width, context.region.height)
 
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+
         scene.world.rpr.sync(self.rpr_context)
+
+        self.rpr_context.scene.set_name(scene.name)
+
+        rpr_camera = self.rpr_context.create_camera('VIEWPORT_CAMERA')
+        rpr_camera.set_name("Camera")
+        self.rpr_context.scene.set_camera(rpr_camera)
 
         # getting visible objects
         for i, obj_instance in enumerate(depsgraph.object_instances):
@@ -130,15 +140,6 @@ class ViewportEngine(Engine):
                 obj.rpr.sync(self.rpr_context, obj_instance)
             except SyncError as e:
                 log.warn(e, "Skipping")
-
-        self.rpr_context.scene.set_name(scene.name)
-
-        rpr_camera = self.rpr_context.create_camera('VIEWPORT_CAMERA')
-        rpr_camera.set_name("Camera")
-        self.rpr_context.scene.set_camera(rpr_camera)
-
-        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
-        self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
         if not self.rpr_context.gl_interop:
             self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
