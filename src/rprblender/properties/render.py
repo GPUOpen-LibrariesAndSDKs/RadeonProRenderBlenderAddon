@@ -52,7 +52,11 @@ if len(pyrpr.Context.gpu_devices) > 0:
     enum_devices.insert(0, ('GPU', "GPU", "Use GPU device for rendering"))
     enum_devices.append(('GPU+CPU', "GPU+CPU", "Use GPU+CPU devices for rendering"))
 
+
 class RPR_RenderProperties(RPR_Properties):
+    saved_addon_version: bpy.props.IntVectorProperty(
+        name="Version"
+    )
 
     # DEVICES
     devices: EnumProperty(

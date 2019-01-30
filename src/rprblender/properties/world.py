@@ -10,9 +10,10 @@ from bpy.props import (
 import mathutils
 import numpy as np
 
+from rprblender import utils
+from rprblender.utils import image as image_utils
 from rprblender.utils import logging
 from . import RPR_Properties
-import pyrpr
 
 
 log = logging.Log(tag='World')
@@ -40,10 +41,8 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         description="Intensity",
         min=0.0, default=1.0,
     )
-    ibl_map: StringProperty(
-        name='Image-Base Lighting Map',
-        description='Image-Base Lighting Map',
-        subtype='FILE_PATH'
+    ibl_image: PointerProperty(
+        type=bpy.types.Image
     )
 
     def sync(self, rpr_context):
@@ -54,30 +53,34 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         # for obj_key in self.portal_lights_meshes:
         #     ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
 
+        image = None
         if self.ibl_type == 'COLOR':
-            image = rpr_context.create_image_data('Environment', np.full((2, 2, 4), (*self.color, 1), dtype=np.float32))
-            ibl.set_image(image)
+            image = image_utils.create_flat_color_image_data(rpr_context, 'Environment', (*self.color, 1))
         elif self.ibl_type == 'IBL':
-            try:
-                image = rpr_context.create_image_file('Environment', self.ibl_map)
-            except pyrpr.CoreError as e:
-                log.error("Cant's read environment image {} reason: {}".format(self.ibl_map, str(e)))
-                image = rpr_context.create_image_data('Environment', np.full((2, 2, 4), (1, 0, 1, 1), dtype=np.float32))
+            if self.ibl_image:
+                try:
+                    image = image_utils.get_rpr_image(rpr_context, utils.key(self.ibl_image), self.ibl_image)
+                except ValueError as e:
+                    log.error("Cant's read environment image: {}".format(e))
 
+        if image:
             ibl.set_image(image)
             ibl.set_intensity_scale(self.intensity)
+        else:  # Purple "ERROR" skies
+            ibl.set_image(image_utils.create_flat_color_image_data(rpr_context, 'Environment', (1, 0, 1, 1)))
 
         rpr_context.scene.attach(ibl)
         return ibl
 
     def draw(self, layout):
-
-        layout.row().prop(self, 'ibl_type', expand=True)
+        box = layout.box()
+        box.row().prop(self, 'ibl_type', expand=True)
         if self.ibl_type == 'COLOR':
-            layout.row().prop(self, 'color')
+            box.row().prop(self, 'color')
+            box.row().prop(self, 'intensity')
         else:
-            layout.row().prop(self, 'ibl_map')
-            layout.row().prop(self, 'intensity')
+            box.row().template_ID(self, "ibl_image", open="image.open")
+            box.row().prop(self, 'intensity')
 
 
 class RPR_WORLD_PROP_environment_sun_sky(RPR_Properties):
@@ -87,7 +90,7 @@ class RPR_WORLD_PROP_environment_sun_sky(RPR_Properties):
         log("RPR_WORLD_PROP_environment_sun_sky.sync()")
 
     def draw(self, layout):
-        pass
+        layout.label(text="Under construction")
 
 
 class RPR_WORLD_PROP_environment(RPR_Properties):

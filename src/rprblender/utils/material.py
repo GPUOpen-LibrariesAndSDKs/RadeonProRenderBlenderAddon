@@ -7,6 +7,8 @@ def log(*args):
 
 
 def find_node_in_node_tree(tree, node_type):
+    if not tree:
+        return None
     for node in tree.nodes:
         nt = getattr(node, "bl_idname", None)
         if nt == node_type:
@@ -19,7 +21,6 @@ def find_output_node_in_tree(tree):
     if not res:
         # try cycles output node
         res = find_node_in_node_tree(tree, 'ShaderNodeOutputMaterial')
-#    log("find_output_node_in_tree({}) {}".format(tree, res))
     return res
 
 

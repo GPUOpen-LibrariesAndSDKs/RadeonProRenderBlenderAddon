@@ -13,14 +13,7 @@ bl_info = {
     "category": "Render"
 }
 
-
-
-from .utils import logging
-
-plugin_log = logging.Log(tag="Plugin")
-plugin_log("Loading RPR addon {}".format(bl_info['version']))
-log = logging.Log(tag='RPREngine')
-
+from .utils import logging, version_updater
 
 from .engine.engine import Engine
 from . import (
@@ -33,6 +26,11 @@ from . import (
 from .engine.render_engine import RenderEngine
 from .engine.preview_engine import PreviewEngine
 from .engine.viewport_engine import ViewportEngine
+
+
+plugin_log = logging.Log(tag="Plugin")
+plugin_log("Loading RPR addon {}".format(bl_info['version']))
+log = logging.Log(tag='RPREngine')
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -90,13 +88,22 @@ class RPREngine(bpy.types.RenderEngine):
 
 
 @bpy.app.handlers.persistent
-def on_load_post(dummy):
-    plugin_log("on_load_post...")
+def on_version_update(*args, **kwargs):
+    """ On scene loading update old RPR data to current version """
+    addon_version = bl_info['version']
 
-    # TODO replace old(2.79) scene settings with 2.80+
-    # TODO replace old RPR material nodes with actual
+    if version_updater.is_scene_saved_by_older_addon_version(addon_version):
+        version_updater.update_old_scene()
 
-    plugin_log("load_post ok")
+
+@bpy.app.handlers.persistent
+def on_scene_save_pre(*args, **kwargs):
+    """ Save current plugin version in scene """
+    bpy.context.scene.rpr.saved_addon_version = get_addon_version()
+
+
+def get_addon_version():
+    return bl_info['version']
 
 
 def register():
@@ -106,11 +113,13 @@ def register():
     nodes.register()
     ui.set_rpr_panels_filter()
     ui.register()
-    bpy.app.handlers.load_post.append(on_load_post)
+    bpy.app.handlers.save_pre.append(on_scene_save_pre)
+    bpy.app.handlers.version_update.append(on_version_update)
 
 
 def unregister():
-    bpy.app.handlers.load_post.remove(on_load_post)
+    bpy.app.handlers.version_update.remove(on_version_update)
+    bpy.app.handlers.save_pre.remove(on_scene_save_pre)
     ui.remove_rpr_panels_filter()
     ui.unregister()
     nodes.unregister()
