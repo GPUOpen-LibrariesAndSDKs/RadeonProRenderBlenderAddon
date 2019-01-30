@@ -1,5 +1,8 @@
 import numpy as np
+import math
+
 import bpy
+import pyrpr
 
 from rprblender import utils
 from rprblender.utils import logging
@@ -65,6 +68,20 @@ class RPR_MeshProperties(RPR_Properties):
         rpr_shape.set_visibility_ex("visible.reflection.glossy", obj.rpr.reflection_visibility)
         rpr_shape.set_shadow_catcher(obj.rpr.shadowcatcher)
         rpr_shape.set_shadow(obj.rpr.shadows)
+
+        if obj.rpr.subdivision:
+            # convert factor from size of subdivision in pixel to RPR
+            # RPR wants the subdivision factor as the "number of faces per pixel"
+            # the setting gives user the size of face in number pixels.
+            # rpr internally does: subdivision size in pixel = 2^factor  / 16.0
+            factor = int(math.log2(1 / (16.0 * obj.rpr.subdivision_factor)))
+
+            rpr_shape.subdivision = {
+                'factor': factor,
+                'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER if obj.rpr.subdivision_boundary_type == 'EDGE_CORNER' else
+                            pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_ONLY,
+                'crease_weight': obj.rpr.subdivision_crease_weight
+            }
 
     def sync_update(self, rpr_context, obj, is_updated_geometry, is_updated_transform):
         mesh = self.id_data

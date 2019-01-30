@@ -98,6 +98,7 @@ class RenderEngine(Engine):
 
         result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
         self.rpr_context.clear_frame_buffers()
+        self.rpr_context.sync_auto_adapt_subdivision()
         self.render_event.clear()
 
         update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
