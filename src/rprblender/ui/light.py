@@ -111,4 +111,4 @@ class RPR_LIGHT_PT_intensity(RPR_Panel):
         row.prop(rpr_light, 'temperature', slider=True)
 
         if light.type == 'AREA':
-            main_col.prop(rpr_light, 'color_map')
+            main_col.template_ID(rpr_light, "color_map", open="image.open")

@@ -56,27 +56,3 @@ def get_tiles(width, height, n, m):
             yield (width * i // n, width * (i + 1) // n - 1,
                    height * j // n, height * (i + 1) // n - 1)
 
-
-def get_rpr_image(rpr_context, image: bpy.types.Image):
-    image_key = key(image)
-    if image_key in rpr_context.images:
-        return rpr_context.images[image_key]
-
-    filepath = image.filepath_from_user()
-    if filepath:
-        return rpr_context.create_image_file(image_key, filepath)
-
-    if not image.has_data:
-        raise ValueError("Image has no data", image)
-
-    if image.channels != 4:
-        raise ValueError("Image has %s channels; 4 required" % image.channels, image)
-
-    data = np.fromiter(image.pixels, dtype=np.float32, count=image.size[0] * image.size[1] * image.channels)
-    return rpr_context.create_image_data(image_key, data.reshape(image.size[1], image.size[0], 4))
-
-
-def create_flat_color_image_data(rpr_context, image_name: str, color: tuple):
-    np_image_data = np.full((2, 2, 4), color, dtype=np.float32)
-    rpr_image = rpr_context.create_image_data(image_name, np_image_data)
-    return rpr_image

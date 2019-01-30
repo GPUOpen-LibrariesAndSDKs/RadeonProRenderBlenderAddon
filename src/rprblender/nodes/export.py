@@ -7,6 +7,7 @@ from .export_by_rules import create_rpr_node_by_rules, rulesets
 from rprblender.utils import logging
 from rprblender.utils.material import find_output_node_in_tree
 from rprblender import utils
+from rprblender.utils import image as image_utils
 
 
 log = logging.Log(tag='material', level='debug')
@@ -196,10 +197,10 @@ class MaterialExporter:
         image_object = blender_node.image
         if image_object:
             try:
-                rpr_image = utils.get_rpr_image(self.rpr_context, image_object)
+                rpr_image = image_utils.get_rpr_image(self.rpr_context, utils.key(image_object), image_object)
             except ValueError as e:  # texture loading error, return "Texture Error/Absence" image
-                log.error(e)
-                return (1.0, 0.0, 1.0, 1.0)
+                log.error("Image error: {}".format(e))
+                return 1., 0., 1., 1.
 
             rpr_node.set_input('data', rpr_image)
 
