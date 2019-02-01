@@ -214,6 +214,8 @@ class RPR_LightProperties(RPR_Properties):
         light = self.id_data
         log("Updating light: {}".format(light.name))
 
+        res = False
+
         rpr_light = rpr_context.objects.get(utils.key(obj), None)
         if rpr_light:
             if is_updated_geometry:
@@ -222,10 +224,13 @@ class RPR_LightProperties(RPR_Properties):
 
             if is_updated_transform:
                 rpr_light.set_transform(utils.get_transform(obj))
+                res = True
 
         else:
-            # TODO: create light
-            pass
+            self.sync(rpr_context, obj)
+            res = True
+
+        return res
 
     def _get_radiant_power(self, area=0):
         light = self.id_data

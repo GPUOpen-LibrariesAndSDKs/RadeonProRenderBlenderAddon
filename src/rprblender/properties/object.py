@@ -1,3 +1,5 @@
+import math
+
 import bpy
 from bpy.props import (
     BoolProperty,
@@ -7,10 +9,11 @@ from bpy.props import (
     EnumProperty,
 )
 
-from rprblender.utils import logging
+import pyrpr
 from . import RPR_Properties
+from rprblender import utils
 
-
+from rprblender.utils import logging
 log = logging.Log(tag='Object')
 
 
@@ -91,10 +94,12 @@ class RPR_ObjectProperites(RPR_Properties):
     def sync_update(self, rpr_context, is_updated_geometry, is_updated_transform):
         obj = self.id_data
 
-        log("Updating object: {}, type={}, geometry={}, transform={}".format(obj.name, obj.type, is_updated_geometry, is_updated_transform))
+        if obj.type not in ('MESH', 'LIGHT'):
+            return False
 
-        if obj.type in ['MESH', 'LIGHT']:
-            obj.data.rpr.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        log("Updating object: {}, type={}, geometry={}, transform={}".format(obj, obj.type, is_updated_geometry, is_updated_transform))
+
+        return obj.data.rpr.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     @classmethod
     def register(cls):

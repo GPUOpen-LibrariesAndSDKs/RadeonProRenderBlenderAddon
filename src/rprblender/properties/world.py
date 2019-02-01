@@ -46,7 +46,7 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
     )
 
     def sync(self, rpr_context):
-        ibl = rpr_context.create_light('Environment', 'environment')
+        ibl = rpr_context.create_light('ENVIRONMENT', 'environment')
         ibl.set_group_id(0)
 
         # TODO As soon as portal light type ready support it here

@@ -53,6 +53,7 @@
     </Compile>
     <Compile Include="rprblender\nodes\blender_nodes.py" />
     <Compile Include="rprblender\nodes\export.py" />
+    <Compile Include="rprblender\nodes\export_by_rules.py" />
     <Compile Include="rprblender\nodes\output_node.py" />
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\sockets.py" />

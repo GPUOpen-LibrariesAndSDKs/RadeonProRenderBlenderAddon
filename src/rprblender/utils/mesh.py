@@ -40,8 +40,10 @@ def get_mesh_data(mesh:bpy.types.Mesh, calc_area=False):
     data.uv_indices = None
     if len(mesh.uv_layers) > 0:
         uv_layer = mesh.uv_layers.active
-        data.uvs = np.array([[d.uv.x, d.uv.y] for d in uv_layer.data], dtype=np.float32)
-        data.uv_indices = np.array([tri.loops for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len * 3,))
+        uvs = np.array([[d.uv.x, d.uv.y] for d in uv_layer.data], dtype=np.float32)
+        if len(uvs) > 0:
+            data.uvs = uvs
+            data.uv_indices = np.array([tri.loops for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len * 3,))
 
     data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
     data.vertex_indices = np.array([tri.vertices for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len * 3,))

@@ -393,7 +393,7 @@ class RPRContext:
         return light
 
     def create_mesh(
-            self, key,
+            self, key, mesh_key,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
@@ -404,7 +404,8 @@ class RPRContext:
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
         )
-        self.meshes[key] = mesh
+        self.meshes[mesh_key] = mesh
+        self.objects[key] = mesh
         return mesh
 
     def create_instance(self, key, mesh):
@@ -442,3 +443,31 @@ class RPRContext:
 
     def set_parameter(self, name, param):
         self.context.set_parameter(name, param)
+
+    def remove_object(self, key):
+        def get_mesh_key(mesh):
+            for key, m in self.meshes.items():
+                if m == mesh:
+                    return key
+
+            raise KeyError("No such mesh", mesh)
+
+        obj = self.objects.pop(key)
+        self.scene.detach(obj)
+
+        if isinstance(obj, pyrpr.Mesh):
+            # TODO: This is temporary decision how to remove meshes. It has to be improved.
+
+            # check if mesh is not used in other instances then delete it also
+            used = False
+            for o in self.objects.values():
+                if isinstance(o, pyrpr.Instance) and o.mesh == obj:
+                    used = True
+                    break
+
+            if not used:
+                del self.meshes[get_mesh_key(obj)]
+                obj.delete()
+
+        else:
+            obj.delete()
