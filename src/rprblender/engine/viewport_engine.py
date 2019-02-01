@@ -1,5 +1,4 @@
 import threading
-import numpy as np
 
 import bpy
 from gpu_extras.presets import draw_texture_2d
@@ -9,6 +8,7 @@ from .engine import Engine
 from rprblender.properties import SyncError
 import rprblender.utils.camera as camera_ut
 from rprblender.utils import gl
+from rprblender import utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='ViewportEngine')
@@ -131,7 +131,7 @@ class ViewportEngine(Engine):
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # getting visible objects
-        for i, obj_instance in enumerate(depsgraph.object_instances):
+        for obj_instance in depsgraph.object_instances:
             obj = obj_instance.object
             if obj.type == 'CAMERA':
                 continue
@@ -163,16 +163,23 @@ class ViewportEngine(Engine):
         with self.render_lock:
             for update in depsgraph.updates:
                 obj = update.id
-                if isinstance(obj, bpy.types.Object):
+                if isinstance(obj, bpy.types.Scene):
+                    # TODO: update scene settings
+                    continue
+
+                elif isinstance(obj, bpy.types.Object):
                     if obj.type == 'CAMERA':
                         continue
 
-                    obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+                    is_updated |= obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+
+                elif isinstance(obj, bpy.types.Collection):
+                    # updating objects collection
+                    is_updated |= self.sync_update_collection(depsgraph.object_instances)
+
                 else:
                     # TODO: sync_update for other object types
                     continue
-
-                is_updated |= update.is_updated_geometry or update.is_updated_transform
 
         if is_updated:
             self.restart_render_event.set()
@@ -209,3 +216,32 @@ class ViewportEngine(Engine):
             texture_id = self.gl_texture.texture_id
 
         draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
+
+    def sync_update_collection(self, obj_instances):
+        result = False
+        keys = set()
+        for obj_instance in obj_instances:
+            obj = obj_instance.object
+            if obj.type == 'CAMERA':
+                continue
+
+            key = utils.key(obj_instance)
+            keys.add(key)
+            if key in self.rpr_context.objects:
+                continue
+
+            try:
+                obj.rpr.sync(self.rpr_context, obj_instance)
+                result = True
+            except SyncError as e:
+                log.warn(e, "Skipping")
+
+        for key in tuple(self.rpr_context.objects.keys()):
+            if key in ('VIEWPORT_CAMERA', 'ENVIRONMENT'):
+                continue
+
+            if key not in keys:
+                self.rpr_context.remove_object(key)
+                result = True
+
+        return result

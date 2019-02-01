@@ -19,21 +19,24 @@ class RPR_MeshProperties(RPR_Properties):
     def sync(self, rpr_context, obj_instance: bpy.types.DepsgraphObjectInstance):
         ''' sync the mesh '''
         mesh = self.id_data
-        obj = obj_instance.object
+        obj = obj_instance.object if isinstance(obj_instance, bpy.types.DepsgraphObjectInstance) else obj_instance
 
-        rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
+        mesh_key = utils.key(mesh)
+        key = utils.key(obj_instance)
+
+        rpr_mesh = rpr_context.meshes.get(mesh_key, None)
         if rpr_mesh:
             instance_name = "%s/%s" % (mesh.name, obj.name)
             log("Syncing instance: %s" % instance_name)
 
-            rpr_shape = rpr_context.create_instance(utils.key(obj_instance), rpr_mesh)
+            rpr_shape = rpr_context.create_instance(key, rpr_mesh)
             rpr_shape.set_name(instance_name)
 
         else:
             log("Syncing mesh: %s" % mesh.name)
             data = mesh_ut.get_mesh_data(mesh)
             rpr_shape = rpr_context.create_mesh(
-                utils.key(mesh),
+                key, mesh_key,
                 data.vertices, data.normals, data.uvs,
                 data.vertex_indices, data.normal_indices, data.uv_indices,
                 data.num_face_vertices
@@ -87,18 +90,23 @@ class RPR_MeshProperties(RPR_Properties):
         mesh = self.id_data
         log("Updating mesh: %s" % mesh.name)
 
-        rpr_mesh = rpr_context.meshes.get(utils.key(mesh), None)
-        if rpr_mesh:
+        key = utils.key(obj)
+        rpr_shape = rpr_context.objects.get(key, None)
+        if rpr_shape:
             if is_updated_geometry:
-                # TODO: recreate mesh
-                pass
+                rpr_context.remove_object(key)
+                self.sync(rpr_context, obj)
+                return True
 
             if is_updated_transform:
-                rpr_mesh.set_transform(utils.get_transform(obj))
+                rpr_shape.set_transform(utils.get_transform(obj))
+                return True
 
         else:
-            # TODO: create mesh
-            pass
+            self.sync(rpr_context, obj)
+            return True
+
+        return False
 
     @classmethod
     def register(cls):
