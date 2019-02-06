@@ -99,6 +99,8 @@ class Material(Object):
     def set_input(self, name, value):
         if value is None or isinstance(value, pyrpr.MaterialNode):
             MaterialSetParameterN(self.context, self, name, value)
+        elif isinstance(value, bool):
+            MaterialSetParameterU(self.context, self, name, pyrpr.TRUE if value else pyrpr.FALSE)
         elif isinstance(value, int):
             MaterialSetParameterU(self.context, self, name, value)
         elif isinstance(value, float):

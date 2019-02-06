@@ -113,6 +113,34 @@ bsdf_glossy_rules = {
     }
 }
 
+bsdf_transparent_rules = {
+    "name": "ShaderNodeBsdfTransparent",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color",
+        },
+    },
+
+    "outputs": {
+        "BSDF": {
+            "type": "shader",
+            "node": "transparent"
+        }
+    },
+
+    "nodes": {
+        "transparent": {
+            "name": "diffuse",
+            "type": "RPR_MATERIAL_NODE_TRANSPARENT",
+            "inputs": {
+                "color": "inputs.color",
+            }
+        }
+    }
+}
+
 emission_rules = {
     "name": "ShaderNodeEmission",
 
@@ -154,6 +182,109 @@ emission_rules = {
                 "RPRX_UBER_MATERIAL_EMISSION_MODE": pyrprx.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED
             },
         },
+    }
+}
+
+vector_bump_rules = {
+    "name": "ShaderNodeBump",
+
+    "inputs": {
+        "height": {
+            "type": "color",
+            "label": "Height",
+        },
+        "strength": {
+            "type": "float",
+            "label": "Strength",
+        },
+        "distance": {
+            "type": "float",
+            "label": "Distance",
+        }
+    },
+
+    "outputs": {
+        "Normal": {
+            "type": "noncolor",
+            "node": "bump"
+        }
+    },
+
+    "nodes": {
+        "multiply": {
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "inputs": {
+                "op": pyrpr.MATERIAL_NODE_OP_MUL,
+                "color0": "inputs.strength",
+                "color1": "inputs.distance",
+            },
+        },
+        "bump": {
+            "name": "bump_map",
+            "type": "RPR_MATERIAL_NODE_BUMP_MAP",
+            "inputs": {
+                "color": "inputs.height",
+                "bumpscale": "nodes.multiply",
+            }
+        }
+    }
+}
+
+vector_normal_map_rules = {
+    "name": "ShaderNodeNormalMap",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color",
+        },
+    },
+
+    "outputs": {
+        "Normal": {
+            "type": "noncolor",
+            "node": "normal"
+        }
+    },
+
+    "nodes": {
+        "normal": {
+            "name": "normal_map",
+            "type": "RPR_MATERIAL_NODE_NORMAL_MAP",
+            "inputs": {
+                "color": "inputs.color",
+            }
+        }
+    }
+}
+
+color_invert_rules = {
+    "name": "ShaderNodeInvert",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color",
+        },
+    },
+
+    "outputs": {
+        "Color": {
+            "type": "color",
+            "node": "sub"
+        }
+    },
+
+    "nodes": {
+        "sub": {
+            "name": "arithmetic_sub",
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "inputs": {
+                "op": pyrpr.MATERIAL_NODE_OP_SUB,
+                "color0": 1.0,
+                "color1": "inputs.color",
+            }
+        }
     }
 }
 

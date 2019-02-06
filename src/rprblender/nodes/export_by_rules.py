@@ -2,18 +2,21 @@ import pyrpr
 import pyrprx
 from rprblender.utils import logging
 from . import MaterialError
-from .blender_nodes import bsdf_diffuse_rules, emission_rules, bsdf_glossy_rules
+from . import blender_nodes
 
 
-log = logging.Log(tag='NodeExport', level='debug')
+log = logging.Log(tag='NodeExportByRules', level='debug')
 
 
 # TODO use it at nodes info/plugin loading time
 node_type_ids = {
     "RPR_MATERIAL_NODE_DIFFUSE": pyrpr.MATERIAL_NODE_DIFFUSE,
     "RPR_MATERIAL_NODE_REFLECTION": pyrpr.MATERIAL_NODE_REFLECTION,
+    "RPR_MATERIAL_NODE_TRANSPARENT": pyrpr.MATERIAL_NODE_TRANSPARENT,
     "RPR_MATERIAL_NODE_BLEND": pyrpr.MATERIAL_NODE_BLEND,
     "RPR_MATERIAL_NODE_ARITHMETIC": pyrpr.MATERIAL_NODE_ARITHMETIC,
+    "RPR_MATERIAL_NODE_BUMP_MAP": pyrpr.MATERIAL_NODE_BUMP_MAP,
+    "RPR_MATERIAL_NODE_NORMAL_MAP": pyrpr.MATERIAL_NODE_NORMAL_MAP,
     "RPRX_MATERIAL_UBER": pyrprx.MATERIAL_UBER,
 }
 
@@ -39,9 +42,13 @@ uber_input_ids = {
 }
 
 rulesets = {
-    'ShaderNodeBsdfDiffuse': bsdf_diffuse_rules,
-    'ShaderNodeEmission': emission_rules,
-    'ShaderNodeBsdfGlossy': bsdf_glossy_rules,
+    'ShaderNodeBsdfDiffuse': blender_nodes.bsdf_diffuse_rules,
+    'ShaderNodeEmission': blender_nodes.emission_rules,
+    'ShaderNodeBsdfGlossy': blender_nodes.bsdf_glossy_rules,
+    'ShaderNodeBsdfTransparent': blender_nodes.bsdf_transparent_rules,
+    'ShaderNodeBump': blender_nodes.vector_bump_rules,
+    'ShaderNodeNormalMap': blender_nodes.vector_normal_map_rules,
+    'ShaderNodeInvert': blender_nodes.color_invert_rules,
 }
 
 
@@ -81,7 +88,8 @@ def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_
                 if target_name in input_values:
                     value = input_values[target_name]
                 else:
-                    log.warn("Input '{}' value not found!".format(target_name))
+                    log.warn("[{}] Input '{}' value not found!".format(subnode_name, target_name))
+                    continue
             # links
             elif value_source.startswith('nodes.'):
                 target_name = value_source.split('nodes.')[1]

@@ -33,22 +33,34 @@ class RPR_ShaderNodeCategory(NodeCategory):
 
 
 node_categories = [
-    RPR_ShaderNodeCategory('RPR_INPUT', 'Input', items=[
+    RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
         NodeItem('ShaderNodeRGB'),
         NodeItem('ShaderNodeValue'),
+        NodeItem('ShaderNodeBlackbody'),
     ],),
-    RPR_ShaderNodeCategory('RPR_OUTPUT', 'Output', items=[
+    RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),
     ],),
     RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
-        NodeItem("ShaderNodeTexImage"),
-#        NodeItem("ShaderNodeTexNoise"),
+        NodeItem('ShaderNodeTexImage'),
+        NodeItem('ShaderNodeTexChecker'),
     ],),
-    RPR_ShaderNodeCategory('RPR_BLENDER_NODES', 'Shader', items=[
+    RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
+        NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
         NodeItem('ShaderNodeBsdfDiffuse'),
         NodeItem('ShaderNodeBsdfGlossy'),
+        NodeItem('ShaderNodeBsdfTransparent'),
+    ]),
+    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
+        NodeItem('ShaderNodeBump'),
+        NodeItem('ShaderNodeNormalMap'),
+    ]),
+    RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
+        NodeItem('ShaderNodeInvert'),
+        NodeItem('ShaderNodeBrightContrast'),
+        # NodeItem('ShaderNodeLightFalloff'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('rpr_shader_node_uber'),

@@ -2,14 +2,14 @@ import bpy
 import numpy as np
 import os
 
-import pyrpr
+from . import key
+
 from . import logging
-
-
 log = logging.Log(tag='image', level='debug')
 
 
-def get_rpr_image(rpr_context, image_key, image: bpy.types.Image):
+def get_rpr_image(rpr_context, image: bpy.types.Image):
+    image_key = key(image)
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
 
@@ -29,10 +29,11 @@ def get_rpr_image(rpr_context, image_key, image: bpy.types.Image):
 
     if filepath:
         raise ValueError("Unable to load image from file or Blender", image)
+
     raise ValueError("Image has no data", image)
 
 
-def create_flat_color_image_data(rpr_context, image_name: str, color: tuple):
+def create_flat_color_image_data(rpr_context, image_key: str, color: tuple):
     np_image_data = np.full((2, 2, 4), color, dtype=np.float32)
-    rpr_image = rpr_context.create_image_data(image_name, np_image_data)
+    rpr_image = rpr_context.create_image_data(image_key, np_image_data)
     return rpr_image
