@@ -864,13 +864,18 @@ class EnvironmentLight(Light):
         self.image = None
         ContextCreateEnvironmentLight(self.context, self)
 
+    def delete(self):
+        self.set_image(None)
+        super().delete()
+
     def set_image(self, image):
         self.image = image
-        EnvironmentLightSetImage(self, self.image)
+        EnvironmentLightSetImage(self, image)
 
     def set_intensity_scale(self, intensity_scale):
         EnvironmentLightSetIntensityScale(self, intensity_scale)
 
+    # TODO: move work with portals to scene
     def attach_portal(self, scene, portal):
         EnvironmentLightAttachPortal(scene, self, portal)
         self.portals.add(portal)

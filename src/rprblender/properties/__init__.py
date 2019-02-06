@@ -52,9 +52,7 @@ register, unregister = bpy.utils.register_classes_factory([
 
     camera.RPR_CameraProperties,
 
-    world.RPR_WORLD_PROP_environment_ibl,
-    world.RPR_WORLD_PROP_environment_sun_sky,
-    world.RPR_WORLD_PROP_environment,
+    world.RPR_EnvironmentProperties,
 
     material.RPR_MaterialParser,
 

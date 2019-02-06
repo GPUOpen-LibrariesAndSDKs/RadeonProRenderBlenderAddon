@@ -2,6 +2,7 @@ import bpy
 import numpy as np
 import os
 
+from . import logging
 from . import key
 
 from . import logging
@@ -34,6 +35,9 @@ def get_rpr_image(rpr_context, image: bpy.types.Image):
 
 
 def create_flat_color_image_data(rpr_context, image_key: str, color: tuple):
+    # images use 4 channels RGBA float data
+    if len(color) == 3:
+        color = (color[0], color[1], color[2], 1.0)
+
     np_image_data = np.full((2, 2, 4), color, dtype=np.float32)
-    rpr_image = rpr_context.create_image_data(image_key, np_image_data)
-    return rpr_image
+    return rpr_context.create_image_data(image_key, np_image_data)

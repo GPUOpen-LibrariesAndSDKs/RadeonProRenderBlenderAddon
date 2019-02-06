@@ -485,11 +485,13 @@ class RPRContext:
 
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)
+        image.set_name(key)
         self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
         image = pyrpr.ImageData(self.context, data)
+        image.set_name(key)
         self.images[key] = image
         return image
 
@@ -523,3 +525,7 @@ class RPRContext:
 
         else:
             obj.delete()
+
+    def remove_image(self, key):
+        img = self.images.pop(key)
+        img.delete()
