@@ -64,7 +64,7 @@ def create_environment_image(rpr_context, env_type, env_color, env_image):
         image = create_flat_color_image_data(rpr_context, IBL_LIGHT_NAME, env_color)
     elif env_image:
         try:
-            image = get_rpr_image(rpr_context, IBL_LIGHT_NAME, env_image)
+            image = get_rpr_image(rpr_context, env_image, IBL_LIGHT_NAME)
         except ValueError as e:
             log.error("Cant's read environment image: {}".format(e))
 

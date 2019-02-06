@@ -9,8 +9,10 @@ from . import logging
 log = logging.Log(tag='image', level='debug')
 
 
-def get_rpr_image(rpr_context, image: bpy.types.Image):
-    image_key = key(image)
+def get_rpr_image(rpr_context, image: bpy.types.Image, image_key=None):
+    if not image_key:
+        image_key = key(image)
+
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
 
