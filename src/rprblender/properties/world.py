@@ -7,11 +7,8 @@ from bpy.props import (
     EnumProperty,
     PointerProperty,
 )
-import mathutils
-import numpy as np
 
-from rprblender import utils
-from rprblender.utils import image as image_utils
+from rprblender.utils.world import IBL_LIGHT_NAME, calculate_rotation_matrix, create_environment_image
 from rprblender.utils import logging
 from . import RPR_Properties
 
@@ -19,84 +16,8 @@ from . import RPR_Properties
 log = logging.Log(tag='World')
 
 
-class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
-    bl_label = "RPR IBL Settings"
-
-    ibl_type: EnumProperty(
-        name="IBL Type",
-        items=(('COLOR', "Color", "Use solid color for lighting"),
-               ('IBL', "IBL Map", "Use IBL Map for lighting"),
-               ),
-        description="IBL Type",
-        default='COLOR',
-    )
-    color: FloatVectorProperty(
-        name='Color',
-        description="Color to use when as a constant environment light",
-        subtype='COLOR', min=0.0, max=1.0, size=3,
-        default=(0.5, 0.5, 0.5)
-    )
-    intensity: FloatProperty(
-        name="Intensity",
-        description="Intensity",
-        min=0.0, default=1.0,
-    )
-    ibl_image: PointerProperty(
-        type=bpy.types.Image
-    )
-
-    def sync(self, rpr_context):
-        ibl = rpr_context.create_light('ENVIRONMENT', 'environment')
-        ibl.set_group_id(0)
-
-        # TODO As soon as portal light type ready support it here
-        # for obj_key in self.portal_lights_meshes:
-        #     ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
-
-        image = None
-        if self.ibl_type == 'COLOR':
-            image = image_utils.create_flat_color_image_data(rpr_context, 'Environment', (*self.color, 1))
-        elif self.ibl_type == 'IBL':
-            if self.ibl_image:
-                try:
-                    image = image_utils.get_rpr_image(rpr_context, self.ibl_image)
-                except ValueError as e:
-                    log.error("Cant's read environment image: {}".format(e))
-
-        if image:
-            ibl.set_image(image)
-            ibl.set_intensity_scale(self.intensity)
-        else:  # Purple "ERROR" skies
-            ibl.set_image(image_utils.create_flat_color_image_data(rpr_context, 'Environment', (1, 0, 1, 1)))
-
-        rpr_context.scene.attach(ibl)
-        return ibl
-
-    def draw(self, layout):
-        box = layout.box()
-        box.row().prop(self, 'ibl_type', expand=True)
-        if self.ibl_type == 'COLOR':
-            box.row().prop(self, 'color')
-            box.row().prop(self, 'intensity')
-        else:
-            box.row().template_ID(self, "ibl_image", open="image.open")
-            box.row().prop(self, 'intensity')
-
-
-class RPR_WORLD_PROP_environment_sun_sky(RPR_Properties):
-    bl_label = "RPR Sun&Sky Settings"
-
-    def sync(self, rpr_context):
-        log("RPR_WORLD_PROP_environment_sun_sky.sync()")
-
-    def draw(self, layout):
-        layout.label(text="Under construction")
-
-
-class RPR_WORLD_PROP_environment(RPR_Properties):
-    bl_idname = "rpr_world_prop_environment"
-    bl_label = "RPR Environment Settings"
-
+class RPR_EnvironmentProperties(RPR_Properties):
+    """World environment light and overrides settings"""
     enabled: BoolProperty(default=True)
     # environment
     light_type: EnumProperty(
@@ -107,8 +28,33 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
         description="Environment light type",
         default='IBL',
     )
-    ibl: PointerProperty(type=RPR_WORLD_PROP_environment_ibl)
-    sun_sky: PointerProperty(type=RPR_WORLD_PROP_environment_sun_sky)
+
+    # ibl
+    ibl_type: EnumProperty(
+        name="IBL Type",
+        items=(('COLOR', "Color", "Use solid color for lighting"),
+               ('IBL', "IBL Map", "Use IBL Map for lighting"),
+               ),
+        description="IBL Type",
+        default='COLOR',
+    )
+    ibl_color: FloatVectorProperty(
+        name='Color',
+        description="Color to use when as a constant environment light",
+        subtype='COLOR', min=0.0, max=1.0, size=3,
+        default=(0.5, 0.5, 0.5)
+    )
+    ibl_intensity: FloatProperty(
+        name="Intensity",
+        description="Intensity",
+        min=0.0, default=1.0,
+    )
+    ibl_image: PointerProperty(
+        type=bpy.types.Image
+    )
+
+    # sun and sky
+
     # overrides
 
     # environment transform gizmo
@@ -135,35 +81,57 @@ class RPR_WORLD_PROP_environment(RPR_Properties):
     )
 
     def sync(self, rpr_context):
-        log("Environment synchronization")
         if self.enabled:
             if self.light_type == 'IBL':
-                ibl = self.ibl.sync(rpr_context)
+                # single rotation gizmo is used by IBL and environment overrides
                 if self.gizmo:
                     self.update_gizmo(None)
-                rotation = self.gizmo_rotation
-                rotation_updated = (rotation[0], rotation[1], rotation[2] + np.pi)
-                self.set_rotation(ibl, rotation_updated)
+                matrix = calculate_rotation_matrix(self.gizmo_rotation)
 
-    @staticmethod
-    def set_rotation(ibl, rotation_gizmo):
-        rotation_gizmo = (-rotation_gizmo[0], -rotation_gizmo[1], -rotation_gizmo[2])
-        euler = mathutils.Euler(rotation_gizmo)
-        rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
-        fixup = np.array([[1, 0, 0],
-                          [0, 0, 1],
-                          [0, 1, 1]], dtype=np.float32)
-        matrix = np.identity(4, dtype=np.float32)
-        matrix[:3, :3] = np.dot(fixup, rotation_matrix)
+                self.sync_ibl(rpr_context, matrix)
 
+    def sync_ibl(self, rpr_context, matrix):
+        # TODO As soon as portal light type ready support it here
+        # for obj_key in self.portal_lights_meshes:
+        #     ibl.attach_portal(self.core_scene, self.get_synced_obj(obj_key).core_obj)
+
+        image = create_environment_image(rpr_context, self.ibl_type, self.ibl_color, self.ibl_image)
+
+        ibl = rpr_context.create_light(IBL_LIGHT_NAME, 'environment')
+        ibl.set_group_id(0)
+
+        ibl.set_image(image)
+        ibl.set_intensity_scale(self.ibl_intensity)
         ibl.set_transform(matrix, False)
 
-    def draw(self, layout):
-        layout.row().prop(self, 'light_type', expand=True)
-        if self.light_type == 'IBL':
-            self.ibl.draw(layout)
-        else:
-            self.sun_sky.draw(layout)
+        rpr_context.scene.attach(ibl)
+
+    def sync_update(self, rpr_context, old_settings, new_settings):
+        if old_settings.enabled != new_settings.enabled:
+            if self.enabled:
+                self.sync(rpr_context)
+            else:
+                rpr_context.remove_object(IBL_LIGHT_NAME)
+                rpr_context.remove_image(IBL_LIGHT_NAME)
+            return
+
+        ibl = rpr_context.objects[IBL_LIGHT_NAME]
+
+        if old_settings.ibl_color != new_settings.ibl_color or \
+                old_settings.ibl_image != new_settings.ibl_image or \
+                old_settings.ibl_type != new_settings.ibl_type:
+            rpr_context.remove_image(IBL_LIGHT_NAME)
+            image = create_environment_image(rpr_context, self.ibl_type, self.ibl_color, self.ibl_image)
+            ibl.set_image(image)
+
+        if old_settings.ibl_intensity != new_settings.ibl_intensity:
+            ibl.set_intensity_scale(self.ibl_intensity)
+
+        if old_settings.gizmo_rotation != new_settings.gizmo_rotation:
+            if self.gizmo:
+                self.update_gizmo(None)
+            matrix = calculate_rotation_matrix(self.gizmo_rotation)
+            ibl.set_transform(matrix, False)
 
     @classmethod
     def register(cls):

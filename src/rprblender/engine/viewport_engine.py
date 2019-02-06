@@ -7,6 +7,7 @@ import pyrpr
 from .engine import Engine
 from rprblender.properties import SyncError
 import rprblender.utils.camera as camera_ut
+import rprblender.utils.world as world_ut
 from rprblender.utils import gl
 from rprblender import utils
 
@@ -22,6 +23,8 @@ class ViewportEngine(Engine):
         self.gl_texture: gl.GLTexture = None
 
         self.camera_settings = {}
+        self.world_settings = None
+
         self.render_lock = threading.Lock()
         self.render_thread: threading.Thread = None
         self.resolve_thread: threading.Thread = None
@@ -122,6 +125,7 @@ class ViewportEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
+        self.world_settings = world_ut.get_world_data(scene.world)
         scene.world.rpr.sync(self.rpr_context)
 
         self.rpr_context.scene.set_name(scene.name)
@@ -160,6 +164,7 @@ class ViewportEngine(Engine):
         depsgraph = context.depsgraph
 
         is_updated = False
+
         with self.render_lock:
             for update in depsgraph.updates:
                 obj = update.id
@@ -172,6 +177,15 @@ class ViewportEngine(Engine):
                         continue
 
                     is_updated |= obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+
+                elif isinstance(obj, bpy.types.World):
+                    world_settings = world_ut.get_world_data(obj)
+                    if world_settings != self.world_settings:
+                        old_settings = self.world_settings
+                        self.world_settings = world_settings
+                        obj.rpr.sync_update(self.rpr_context, old_settings, self.world_settings)
+
+                        is_updated |= True
 
                 elif isinstance(obj, bpy.types.Collection):
                     # updating objects collection
@@ -237,7 +251,7 @@ class ViewportEngine(Engine):
                 log.warn(e, "Skipping")
 
         for key in tuple(self.rpr_context.objects.keys()):
-            if key in ('VIEWPORT_CAMERA', 'ENVIRONMENT'):
+            if key in ('VIEWPORT_CAMERA', world_ut.IBL_LIGHT_NAME):
                 continue
 
             if key not in keys:
