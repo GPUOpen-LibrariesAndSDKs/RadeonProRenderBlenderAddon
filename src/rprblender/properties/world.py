@@ -59,7 +59,7 @@ class RPR_WORLD_PROP_environment_ibl(RPR_Properties):
         elif self.ibl_type == 'IBL':
             if self.ibl_image:
                 try:
-                    image = image_utils.get_rpr_image(rpr_context, utils.key(self.ibl_image), self.ibl_image)
+                    image = image_utils.get_rpr_image(rpr_context, self.ibl_image)
                 except ValueError as e:
                     log.error("Cant's read environment image: {}".format(e))
 

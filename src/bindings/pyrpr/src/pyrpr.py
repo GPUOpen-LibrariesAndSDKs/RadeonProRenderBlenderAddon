@@ -825,6 +825,8 @@ class MaterialNode(Object):
             value.attach_to_node(name, self)
         elif isinstance(value, int):
             MaterialNodeSetInputU(self, encode(name), value)
+        elif isinstance(value, bool):
+            MaterialNodeSetInputU(self, encode(name), TRUE if value else FALSE)
         elif isinstance(value, float):
             MaterialNodeSetInputF(self, encode(name), value, value, value, value)
         elif isinstance(value, tuple) and len(value) == 3:

@@ -7,7 +7,7 @@ import mathutils
 from rprblender.utils.mesh import MeshData
 
 
-def convert_kelvins_to_rgb(colour_temperature: int) -> tuple:
+def convert_kelvins_to_rgb(colour_temperature) -> tuple:
     # range check
     if colour_temperature < 1000:
         colour_temperature = 1000
