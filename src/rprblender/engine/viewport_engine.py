@@ -1,4 +1,5 @@
 import threading
+import time
 
 import bpy
 from gpu_extras.presets import draw_texture_2d
@@ -20,6 +21,7 @@ class ViewportEngine(Engine):
         super().__init__(rpr_engine)
         self.is_synced = False
         self.render_iterations = 0
+        self.render_time = 0
         self.gl_texture: gl.GLTexture = None
 
         self.camera_settings = {}
@@ -66,14 +68,14 @@ class ViewportEngine(Engine):
             if self.finish_render:
                 break
 
-            iteration = 0
-            while iteration < self.render_iterations:
+            while True:
                 if self.finish_render:
                     break
 
                 if self.restart_render_event.is_set():
                     self.restart_render_event.clear()
                     iteration = 0
+                    time_begin = time.perf_counter()
                     log("Restart render")
 
                 log("Render iteration: %d / %d" % (iteration, self.render_iterations))
@@ -88,10 +90,18 @@ class ViewportEngine(Engine):
                 self.render_event.set()
 
                 iteration += 1
+                time_render = time.perf_counter() - time_begin
 
-                self.notify_status("Iteration: %d/%d" % (iteration, self.render_iterations))
+                if self.render_iterations > 0:
+                    self.notify_status("Time: %.1f sec | Iteration: %d/%d" % (time_render, iteration, self.render_iterations))
+                    if iteration >= self.render_iterations:
+                        break
+                else:
+                    self.notify_status("Time: %.1f/%d sec | Iteration: %d" % (time_render, self.render_time, iteration))
+                    if time_render >= self.render_time:
+                        break
 
-            self.notify_status("Rendering Done")
+            self.notify_status("Rendering Done | Time: %.1f sec | Iteration: %d" % (time_render, iteration))
 
         log("Finish render thread")
 
@@ -130,7 +140,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context.scene.set_name(scene.name)
 
-        rpr_camera = self.rpr_context.create_camera('VIEWPORT_CAMERA')
+        rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
 
@@ -153,7 +163,9 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
 
-        self.render_iterations = scene.rpr.viewport_limits.iterations
+        self.render_iterations, self.render_time = \
+            (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \
+            (0, scene.rpr.viewport_limits.seconds)
 
         self.is_synced = True
         log('Finish sync')
@@ -174,7 +186,7 @@ class ViewportEngine(Engine):
                 obj = update.id
                 log("sync_update", obj)
                 if isinstance(obj, bpy.types.Scene):
-                    # TODO: update scene settings
+                    is_updated |= self.update_render(obj)
                     continue
 
                 if isinstance(obj, bpy.types.Material):
@@ -198,8 +210,8 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Collection):
-                    # updating objects collection
-                    is_updated |= self.sync_update_collection(depsgraph.object_instances)
+                    # Here we need only remove deleted objects. Additional objects should be already added before
+                    is_updated |= self.remove_deleted_objects(depsgraph.object_instances)
                     continue
 
                 # TODO: sync_update for other object types
@@ -211,25 +223,24 @@ class ViewportEngine(Engine):
         log("Draw")
 
         camera_settings = camera_ut.get_viewport_camera_data(context)
-        if self.camera_settings != camera_settings:
-            self.camera_settings = camera_settings
-            with self.render_lock:
-                camera_ut.set_camera_data(self.rpr_context.scene.camera, self.camera_settings)
-
-            self.restart_render_event.set()
-
         width = context.region.width
         height = context.region.height
 
-        if self.rpr_context.width != width or self.rpr_context.height != height:
+        is_camera_update = self.camera_settings != camera_settings
+        is_resize_update = self.rpr_context.width != width or self.rpr_context.height != height
+
+        if is_camera_update or is_resize_update:
             with self.render_lock:
-                self.rpr_context.resize(width, height)
-                if not self.rpr_context.gl_interop:
-                    self.gl_texture = gl.GLTexture(width, height)
+                if is_camera_update:
+                    self.camera_settings = camera_settings
+                    camera_ut.set_camera_data(self.rpr_context.scene.camera, self.camera_settings)
+
+                if is_resize_update:
+                    self.rpr_context.resize(width, height)
+                    if not self.rpr_context.gl_interop:
+                        self.gl_texture = gl.GLTexture(width, height)
 
             self.restart_render_event.set()
-
-        # TODO: Setting camera and resize should move to sync() and sync_update()
 
         if self.rpr_context.gl_interop:
             texture_id = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).texture_id
@@ -240,31 +251,30 @@ class ViewportEngine(Engine):
 
         draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
 
-    def sync_update_collection(self, obj_instances):
-        result = False
-        keys = set()
-        for obj_instance in obj_instances:
-            obj = obj_instance.object
-            if obj.type == 'CAMERA':
-                continue
+    def remove_deleted_objects(self, obj_instances):
+        keys = set(utils.key(obj_instance) for obj_instance in obj_instances)
 
-            key = utils.key(obj_instance)
-            keys.add(key)
-            if key in self.rpr_context.objects:
-                continue
-
-            try:
-                obj.rpr.sync(self.rpr_context, obj_instance)
-                result = True
-            except SyncError as e:
-                log.warn(e, "Skipping")
-
+        res = False
         for key in tuple(self.rpr_context.objects.keys()):
-            if key in ('VIEWPORT_CAMERA', world_ut.IBL_LIGHT_NAME):
+            if key == world_ut.IBL_LIGHT_NAME:
                 continue
 
             if key not in keys:
                 self.rpr_context.remove_object(key)
-                result = True
+                res = True
 
-        return result
+        return res
+
+    def update_render(self, scene: bpy.types.Scene):
+        res = scene.rpr.sync_update(self.rpr_context)
+
+        render_iterations, render_time = \
+            (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \
+            (0, scene.rpr.viewport_limits.seconds)
+
+        if self.render_iterations != render_iterations or self.render_time != render_time:
+            self.render_iterations = render_iterations
+            self.render_time = render_time
+            res = True
+
+        return res

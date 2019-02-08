@@ -180,16 +180,25 @@ class RPR_RenderProperties(RPR_Properties):
         context_props.append(0) # should be followed by 0
         rpr_context.init(context_flags, context_props)
 
-        # set light paths values
-        rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
-        rpr_context.set_parameter('maxdepth.diffuse', self.diffuse_depth)
-        rpr_context.set_parameter('maxdepth.glossy', self.glossy_depth)
-        rpr_context.set_parameter('maxdepth.shadow', self.shadow_depth)
-        rpr_context.set_parameter('maxdepth.refraction', self.refraction_depth)
-        rpr_context.set_parameter('maxdepth.refraction.glossy', self.glossy_refraction_depth)
-        rpr_context.set_parameter('radianceclamp', self.clamp_radiance if self.use_clamp_radiance else sys.float_info.max)
+        self.set_ray_depth(rpr_context)
 
-        rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
+    def sync_update(self, rpr_context):
+        return self.set_ray_depth(rpr_context)
+
+    def set_ray_depth(self, rpr_context):
+        res = False
+
+        res |= rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
+        res |= rpr_context.set_parameter('maxdepth.diffuse', self.diffuse_depth)
+        res |= rpr_context.set_parameter('maxdepth.glossy', self.glossy_depth)
+        res |= rpr_context.set_parameter('maxdepth.shadow', self.shadow_depth)
+        res |= rpr_context.set_parameter('maxdepth.refraction', self.refraction_depth)
+        res |= rpr_context.set_parameter('maxdepth.refraction.glossy', self.glossy_refraction_depth)
+        res |= rpr_context.set_parameter('radianceclamp', self.clamp_radiance if self.use_clamp_radiance else sys.float_info.max)
+
+        res |= rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
+
+        return res
 
     @classmethod
     def register(cls):
