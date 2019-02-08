@@ -416,9 +416,10 @@ class RPRContext:
         self.objects[key] = instance
         return instance
 
-    def create_camera(self, key):
+    def create_camera(self, key=None):
         camera = pyrpr.Camera(self.context)
-        self.objects[key] = camera
+        if key:
+            self.objects[key] = camera
         return camera
 
     def create_material_node(self, key, material_type):
@@ -499,7 +500,11 @@ class RPRContext:
         return image
 
     def set_parameter(self, name, param):
+        if param == self.context.parameters.get(name, None):
+            return False
+
         self.context.set_parameter(name, param)
+        return True
 
     def remove_object(self, key):
         def get_mesh_key(mesh):

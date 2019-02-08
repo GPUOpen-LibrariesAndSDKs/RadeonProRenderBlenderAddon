@@ -279,6 +279,7 @@ class Context(Object):
     def __init__(self, flags, props=None, use_cache=True):
         super().__init__()
         self.aovs = {}
+        self.parameters = {}
 
         props_ptr = ffi.NULL
         if props is not None:
@@ -304,6 +305,8 @@ class Context(Object):
             ContextSetParameter4f(self, encode(name), *param)
         else:
             raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
+
+        self.parameters[name] = param
 
     def set_scene(self, scene):
         ContextSetScene(self, scene)
