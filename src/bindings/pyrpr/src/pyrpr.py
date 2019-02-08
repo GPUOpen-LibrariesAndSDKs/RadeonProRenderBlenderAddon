@@ -982,6 +982,15 @@ class AreaLight(Light):
     def set_group_id(self, group_id):
         self.mesh.set_light_group_id(group_id)
 
+    def set_linear_motion(self, x, y, z):
+        self.mesh.set_linear_motion(x, y, z)
+
+    def set_angular_motion(self, x, y, z, w):
+        self.mesh.set_angular_motion(x, y, z, w)
+
+    def set_scale_motion(self, x, y, z):
+        self.mesh.set_scale_motion(x, y, z)
+
 
 class Image(Object):
     core_type_name = 'rpr_image'

@@ -1,9 +1,6 @@
 import threading
 import time
 
-import bpy
-import pyrpr
-
 from rprblender import config
 from rprblender import utils
 from .engine import Engine
@@ -119,6 +116,66 @@ class RenderEngine(Engine):
         self.notify_status(1, "Finish render")
         log('Finish render')
 
+    @staticmethod
+    def is_object_allowed_for_motion_blur(obj):
+        """Check if object could have motion blur effect: meshes, area lights and cameras can"""
+        if not obj.rpr.motion_blur:
+            return False
+        # TODO allow cameras
+        if obj.type not in ['MESH', 'LIGHT', 'CAMERA']:
+            return False
+        if obj.type == 'LIGHT' and obj.data.type != 'AREA':
+            return False
+        return True
+
+    def collect_motion_blur_info(self, scene):
+        if not scene.rpr.motion_blur:
+            return {}
+
+        motion_blur_info = {}
+
+        prev_frame_matrices = {}
+        next_frame_matrices = {}
+        scales = {}
+
+        current_frame = scene.frame_current
+        # TODO check for corner case of first animation frame; Should I ask Brian?
+        previous_frame = current_frame - scene.frame_step
+
+        # collect previous frame matrices
+        scene.frame_set(previous_frame)
+        for obj in scene.objects:
+            if not self.is_object_allowed_for_motion_blur(obj):
+                continue
+
+            key = utils.key(obj)
+            prev_frame_matrices[key] = obj.matrix_world.copy()
+
+        # restore current frame and collect matrices
+        scene.frame_set(current_frame)
+        for obj in scene.objects:
+            if not self.is_object_allowed_for_motion_blur(obj):
+                continue
+
+            key = utils.key(obj)
+            next_frame_matrices[key] = obj.matrix_world.copy()
+            scales[key] = float(obj.rpr.motion_blur_scale)
+
+        for key, prev in prev_frame_matrices.items():
+            this = next_frame_matrices.get(key, None)
+
+            # User can animate the object's "motion_blur" flag.
+            # Ignore such objects at ON-OFF/OFF-ON frames. Calculate difference for anything else
+            if not this:
+                continue
+
+            # calculate velocities
+            info = utils.MotionBlurInfo(prev, this, scales[key])
+
+            motion_blur_info[key] = info
+
+        return motion_blur_info
+
     def sync(self, depsgraph):
         log('Start syncing')
         self.is_synced = False
@@ -135,14 +192,18 @@ class RenderEngine(Engine):
             int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
         )
 
+        frame_motion_blur_info = self.collect_motion_blur_info(scene)
         scene.world.rpr.sync(self.rpr_context)
 
         # getting visible objects
         for i, obj_instance in enumerate(depsgraph.object_instances):
             obj = obj_instance.object
             self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.object_instances), obj.name))
+            obj_motion_blur_info = None
+            if obj.type != 'CAMERA':
+                obj_motion_blur_info = frame_motion_blur_info.get(utils.key(obj), None)
             try:
-                obj.rpr.sync(self.rpr_context, obj_instance)
+                obj.rpr.sync(self.rpr_context, obj_instance, motion_blur_info=obj_motion_blur_info)
             except SyncError as e:
                 log.warn("Skipping to add mesh", e)   # TODO: Error to UI log
 
@@ -151,7 +212,17 @@ class RenderEngine(Engine):
                 return
 
         self.rpr_context.scene.set_name(scene.name)
-        self.rpr_context.scene.set_camera(self.rpr_context.objects[utils.key(scene.camera)])
+        camera_key = utils.key(scene.camera)
+        rpr_camera = self.rpr_context.objects[camera_key]
+        if scene.camera.rpr.motion_blur:
+            rpr_camera.set_exposure(scene.camera.rpr.motion_blur_exposure)
+
+            if camera_key in frame_motion_blur_info:
+                camera_motion_blur = frame_motion_blur_info[camera_key]
+                rpr_camera.set_angular_motion(*camera_motion_blur.angular_momentum)
+                rpr_camera.set_linear_motion(*camera_motion_blur.linear_velocity)
+
+        self.rpr_context.scene.set_camera(rpr_camera)
 
         self.rpr_context.sync_shadow_catcher()
 

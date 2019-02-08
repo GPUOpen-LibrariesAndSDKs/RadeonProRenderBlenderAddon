@@ -146,6 +146,32 @@ class RPR_RENDER_PT_effects(RPR_Panel):
         col.prop(rpr_scene, 'render_stamp', text="")
 
 
+class RPR_RENDER_PT_motion_blur(RPR_Panel):
+    bl_label = "Motion Blur"
+    bl_context = 'render'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.rpr, 'motion_blur', text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        rpr_scene = context.scene.rpr
+
+        col = layout.column()
+        col.enabled = rpr_scene.motion_blur
+        col.prop(context.scene.rpr, 'motion_blur_exposure_apply')
+        col.prop(context.scene.rpr, 'motion_blur_exposure')
+
+        col.separator()
+        col.prop(context.scene.rpr, 'motion_blur_scale_apply')
+        col.prop(context.scene.rpr, 'motion_blur_scale')
+
+
 class RPR_RENDER_PT_help_about(RPR_Panel):
     bl_label = "Help/About"
     bl_context = 'render'
