@@ -168,6 +168,7 @@ class MaterialExporter:
         return rpr_node
 
     def parse_node(self, node, socket):
+        log("parse_node", self.material, node, socket)
         node_parsers = {
             # shaders
             'ShaderNodeBsdfPrincipled': self.parse_node_principled,
@@ -426,19 +427,25 @@ class MaterialExporter:
         factor = self.get_socket_value(blender_node, 0)
 
         if isinstance(factor, float):
-            if math.isclose(factor, 0.0):
-                return self.get_socket_value(blender_node, 1)
+            socket_key = 1 if math.isclose(factor, 0.0) else \
+                         2 if math.isclose(factor, 1.0) else \
+                         None
+            if socket_key:
+                shader = self.get_socket_link(blender_node, socket_key)
+                if shader:
+                    return shader
+                return self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_DIFFUSE)
 
-            if math.isclose(factor, 1.0):
-                return self.get_socket_value(blender_node, 2)
+        shader1 = self.get_socket_link(blender_node, 1)
+        shader2 = self.get_socket_link(blender_node, 2)
 
-        shader1 = self.get_socket_value(blender_node, 1)
-        shader2 = self.get_socket_value(blender_node, 2)
 
         rpr_node = self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_BLEND)
         rpr_node.set_input('weight', factor)
-        rpr_node.set_input('color0', shader1)
-        rpr_node.set_input('color1', shader2)
+        if shader1:
+            rpr_node.set_input('color0', shader1)
+        if shader2:
+            rpr_node.set_input('color1', shader2)
 
         return rpr_node
 
@@ -474,14 +481,13 @@ class MaterialExporter:
         bright = self.get_socket_value(blender_node, 'Bright')
         contrast = self.get_socket_value(blender_node, 'Contrast')
 
-        # TODO: This formula is not correct, need to fix this
-        # conversion formula: color * (contrast + 1.0) + bright
+        # conversion formula: + bright + 0.5 + (color - 0.5) * (contrast + 1)
         return self.rpr_context.add_node_value(
+            self.rpr_context.add_node_value(bright, 0.5),
             self.rpr_context.mul_node_value(
-                color,
+                self.rpr_context.sub_node_value(color, 0.5),
                 self.rpr_context.add_node_value(contrast, 1.0),
-            ),
-            bright
+            )
         )
 
     def parse_node_light_path(self, blender_node, socket):

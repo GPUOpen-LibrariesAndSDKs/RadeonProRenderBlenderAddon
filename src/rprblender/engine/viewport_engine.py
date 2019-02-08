@@ -160,40 +160,49 @@ class ViewportEngine(Engine):
 
     def sync_update(self, context):
         ''' sync just the updated things '''
-        log("sync_update")
         depsgraph = context.depsgraph
+
+        # get supported updates and sort by priorities
+        updates = []
+        for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
+            updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
 
         is_updated = False
 
         with self.render_lock:
-            for update in depsgraph.updates:
+            for update in updates:
                 obj = update.id
+                log("sync_update", obj)
                 if isinstance(obj, bpy.types.Scene):
                     # TODO: update scene settings
                     continue
 
-                elif isinstance(obj, bpy.types.Object):
+                if isinstance(obj, bpy.types.Material):
+                    is_updated |= obj.rpr.sync_update(self.rpr_context)
+                    continue
+
+                if isinstance(obj, bpy.types.Object):
                     if obj.type == 'CAMERA':
                         continue
 
                     is_updated |= obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+                    continue
 
-                elif isinstance(obj, bpy.types.World):
+                if isinstance(obj, bpy.types.World):
                     world_settings = world_ut.get_world_data(obj)
-                    if world_settings != self.world_settings:
-                        old_settings = self.world_settings
-                        self.world_settings = world_settings
-                        obj.rpr.sync_update(self.rpr_context, old_settings, self.world_settings)
+                    if world_settings == self.world_settings:
+                        continue
 
-                        is_updated |= True
+                    is_updated |= obj.rpr.sync_update(self.rpr_context, self.world_settings, world_settings)
+                    self.world_settings = world_settings
+                    continue
 
-                elif isinstance(obj, bpy.types.Collection):
+                if isinstance(obj, bpy.types.Collection):
                     # updating objects collection
                     is_updated |= self.sync_update_collection(depsgraph.object_instances)
-
-                else:
-                    # TODO: sync_update for other object types
                     continue
+
+                # TODO: sync_update for other object types
 
         if is_updated:
             self.restart_render_event.set()

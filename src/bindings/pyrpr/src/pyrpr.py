@@ -439,29 +439,27 @@ class Shape(Object):
         self.subdivision = None     # { 'factor': int, 'boundary': int, 'crease_weight': float }
 
     def delete(self):
-        for material in self.materials:
-            if isinstance(material, pyrprx.Material):
-                material.detach(self)
-        self.materials.clear()
-
-        if self.volume_material:
-            self.set_volume_material(None)
-        if self.displacement_material:
-            self.set_displacement_material(None)
-        if self.hetero_volume:
-            self.set_hetero_volume(None)
+        self.set_material(None)
+        self.set_volume_material(None)
+        self.set_displacement_material(None)
+        self.set_hetero_volume(None)
 
         super().delete()
 
     def set_material(self, material):
-        if isinstance(material, MaterialNode):
+        if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
+            self.materials[0].detach(self)
+
+        if material is None or isinstance(material, MaterialNode):
             ShapeSetMaterial(self, material)
         elif isinstance(material, pyrprx.Material):
             material.attach(self)
         else:
             raise TypeError("Incorrect type of material", self, material)
 
-        self.materials.append(material)
+        self.materials.clear()
+        if material:
+            self.materials.append(material)
 
     def set_material_faces(self, material, face_indices:np.array):
         if isinstance(material, MaterialNode):
@@ -871,6 +869,9 @@ class EnvironmentLight(Light):
     def set_image(self, image):
         self.image = image
         EnvironmentLightSetImage(self, image)
+
+    def set_color(self, r, g, b):
+        self.set_image(ImageData(self.context, np.full((2, 2, 4), (r, g, b, 1.0), dtype=np.float32)))
 
     def set_intensity_scale(self, intensity_scale):
         EnvironmentLightSetIntensityScale(self, intensity_scale)

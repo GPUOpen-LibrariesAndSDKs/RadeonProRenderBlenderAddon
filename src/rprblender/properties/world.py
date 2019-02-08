@@ -113,8 +113,10 @@ class RPR_EnvironmentProperties(RPR_Properties):
             else:
                 rpr_context.remove_object(IBL_LIGHT_NAME)
                 rpr_context.remove_image(IBL_LIGHT_NAME)
-            return
 
+            return True
+
+        ret = False
         ibl = rpr_context.objects[IBL_LIGHT_NAME]
 
         if old_settings.ibl_color != new_settings.ibl_color or \
@@ -123,15 +125,20 @@ class RPR_EnvironmentProperties(RPR_Properties):
             rpr_context.remove_image(IBL_LIGHT_NAME)
             image = create_environment_image(rpr_context, self.ibl_type, self.ibl_color, self.ibl_image)
             ibl.set_image(image)
+            ret = True
 
         if old_settings.ibl_intensity != new_settings.ibl_intensity:
             ibl.set_intensity_scale(self.ibl_intensity)
+            ret = True
 
         if old_settings.gizmo_rotation != new_settings.gizmo_rotation:
             if self.gizmo:
                 self.update_gizmo(None)
             matrix = calculate_rotation_matrix(self.gizmo_rotation)
             ibl.set_transform(matrix, False)
+            ret = True
+
+        return ret
 
     @classmethod
     def register(cls):

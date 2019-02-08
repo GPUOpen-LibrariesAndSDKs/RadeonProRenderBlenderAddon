@@ -42,25 +42,7 @@ class RPR_MeshProperties(RPR_Properties):
                 data.num_face_vertices
             )
 
-            if len(obj.material_slots) > 0:
-                material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
-                material_unique_indices = np.unique(material_indices)
-                for i in material_unique_indices:
-                    slot = obj.material_slots[i]
-
-                    log("Syncing material '%s'" % slot.name, slot)
-
-                    if not slot.material:
-                        continue
-
-                    rpr_material = slot.material.rpr.sync(rpr_context)
-
-                    if rpr_material:
-                        if len(material_unique_indices) == 1:
-                            rpr_shape.set_material(rpr_material)
-                        else:
-                            face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
-                            rpr_shape.set_material_faces(rpr_material, face_indices)
+            self.assign_materials(rpr_context, rpr_shape, obj.material_slots)
 
         rpr_context.scene.attach(rpr_shape)
         rpr_shape.set_transform(utils.get_transform(obj_instance))
@@ -102,11 +84,42 @@ class RPR_MeshProperties(RPR_Properties):
                 rpr_shape.set_transform(utils.get_transform(obj))
                 return True
 
+            return self.assign_materials(rpr_context, rpr_shape, obj.material_slots)
+
         else:
             self.sync(rpr_context, obj)
             return True
 
         return False
+
+    def assign_materials(self, rpr_context, rpr_shape, material_slots):
+        if len(material_slots) == 0:
+            return False
+
+        mesh = self.id_data
+
+        material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
+        material_unique_indices = np.unique(material_indices)
+        for i in material_unique_indices:
+            slot = material_slots[i]
+
+            log("Syncing material '%s'" % slot.name, slot)
+
+            if not slot.material:
+                continue
+
+            rpr_material = slot.material.rpr.sync(rpr_context)
+
+            if rpr_material:
+                if len(material_unique_indices) == 1:
+                    rpr_shape.set_material(rpr_material)
+                else:
+                    # It is important not to remove previous unused materials here, because core could crash.
+                    # They will be in memory till mesh exists.
+                    face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
+                    rpr_shape.set_material_faces(rpr_material, face_indices)
+
+        return True
 
     @classmethod
     def register(cls):
