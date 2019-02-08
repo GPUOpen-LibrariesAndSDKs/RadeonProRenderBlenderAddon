@@ -115,6 +115,7 @@ register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_max_ray_depth,
     render.RPR_RENDER_PT_light_clamping,
     render.RPR_RENDER_PT_effects,
+    render.RPR_RENDER_PT_motion_blur,
     render.RPR_RENDER_PT_help_about,
 
     object.RPR_OBJECT_PT_object,

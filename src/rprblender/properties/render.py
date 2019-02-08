@@ -160,6 +160,74 @@ class RPR_RenderProperties(RPR_Properties):
         default="Radeon ProRender for Blender %b | %h | Time: %pt | Passes: %pp | Objects: %so | Lights: %sl",
     )
 
+    # Motion Blur
+    def update_motion_blur_exposure(self, context):
+        selected = []
+        if self.motion_blur_exposure_apply == 'ACTIVE':
+            if context.scene and context.scene.camera:
+                selected = [context.scene.camera]
+        elif self.motion_blur_exposure_apply == 'SELECTED':
+            selected = context.selected_editable_objects
+        else:
+            selected = context.editable_objects
+
+        for obj in selected:
+            if obj.type != 'CAMERA':
+                continue
+            obj.rpr.motion_blur = True
+            obj.rpr.motion_blur_exposure = self.motion_blur_exposure
+
+    def update_motion_blur_scale(self, context):
+        if self.motion_blur_scale_apply == 'SELECTED':
+            selected = context.selected_editable_objects
+        else:
+            selected = context.editable_objects
+
+        for obj in selected:
+            if obj.type not in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT'):
+                continue
+            if obj.type == 'LIGHT' and obj.data.type != 'AREA':
+                continue
+            obj.rpr.motion_blur = True
+            obj.rpr.motion_blur_scale = self.motion_blur_scale
+
+    motion_blur: bpy.props.BoolProperty(
+        name="Motion Blur", description="Enable Motion Blur",
+        default=bpy.context.scene.render.use_motion_blur,
+    )
+
+    motion_blur_exposure_apply: bpy.props.EnumProperty(
+        name="Apply exposure",
+        items=(('ACTIVE', "Active Camera", "Active Camera on scene"),
+               ('SELECTED', "Selected Camera(s)", "Selected Camera(s) (self explanatory)"),
+               ('ALL', "Entire scene", "Entire scene (autoselects all cameras)")),
+        description="Apply exposure to camera(s)",
+        default='ACTIVE',
+    )
+
+    motion_blur_exposure: bpy.props.FloatProperty(
+        name="Exposure", description="Motion Blur Exposure for camera(s)",
+        min=0,
+        default=bpy.context.scene.render.motion_blur_shutter,
+        update=update_motion_blur_exposure
+    )
+
+    motion_blur_scale_apply: bpy.props.EnumProperty(
+        name="Apply scale",
+        items=(('SELECTED', "Selected Object(s)", "Selected Object(s) (self explanatory)"),
+               ('ALL', "Entire scene", "Entire scene (autoselects all objects)")),
+        description="Apply scale to object(s)",
+        default='SELECTED'
+    )
+
+    motion_blur_scale: bpy.props.FloatProperty(
+        name="Scale", description="Motion Blur Scale for object(s)",
+        min=0,
+        default=1.0,
+        update=update_motion_blur_scale
+    )
+
+
     def sync(self, rpr_context, use_gl_interop=False):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)

@@ -21,7 +21,7 @@ class RPR_ObjectProperites(RPR_Properties):
     """
     Properties for objects
     """
-
+    # Visibility
     visibility_in_primary_rays: BoolProperty(
         name="Camera Visibility",
         description="This object will be visible in camera rays",
@@ -43,6 +43,7 @@ class RPR_ObjectProperites(RPR_Properties):
         default=False,
     )
 
+    # Motion Blur
     motion_blur: BoolProperty(
         name="Motion Blur",
         description="Enable Motion Blur",
@@ -55,6 +56,14 @@ class RPR_ObjectProperites(RPR_Properties):
         min=0,
     )
 
+    motion_blur_exposure: bpy.props.FloatProperty(
+        name="Exposure",
+        description="Motion Blur Exposure for camera",
+        min=0,
+        default=bpy.context.scene.render.motion_blur_shutter,
+    )
+
+    # Subdivision
     subdivision: BoolProperty(
         name="Subdivision",
         description="Enable subdivision",
@@ -82,7 +91,7 @@ class RPR_ObjectProperites(RPR_Properties):
         default=1.0,
     )
 
-    def sync(self, rpr_context, obj_instance):
+    def sync(self, rpr_context, obj_instance, motion_blur_info):
         ''' sync the object and any data attached '''
         obj = self.id_data
 
@@ -90,6 +99,17 @@ class RPR_ObjectProperites(RPR_Properties):
 
         if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
             obj.data.rpr.sync(rpr_context, obj_instance)
+            self.sync_motion_blur(rpr_context, obj, motion_blur_info)
+
+    def sync_motion_blur(self, rpr_context, obj, motion_blur_info):
+        if motion_blur_info is None:
+            return
+        key = utils.key(obj)
+        rpr_obj = rpr_context.objects[key]
+
+        rpr_obj.set_linear_motion(*motion_blur_info.linear_velocity)
+        rpr_obj.set_angular_motion(*motion_blur_info.angular_momentum)
+        rpr_obj.set_scale_motion(*motion_blur_info.momentum_scale)
 
     def sync_update(self, rpr_context, is_updated_geometry, is_updated_transform):
         obj = self.id_data

@@ -48,7 +48,7 @@ class PreviewEngine(Engine):
         for i, obj_instance in enumerate(depsgraph.object_instances):
             obj = obj_instance.object
             try:
-                obj.rpr.sync(self.rpr_context, obj_instance)
+                obj.rpr.sync(self.rpr_context, obj_instance, motion_blur_info=None)
             except SyncError as e:
                 log.warn(e, "Skipping")
 
