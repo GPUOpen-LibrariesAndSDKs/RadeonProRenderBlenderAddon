@@ -86,7 +86,7 @@ class RPR_ObjectProperites(RPR_Properties):
         ''' sync the object and any data attached '''
         obj = self.id_data
 
-        log("Syncing object: {}, type {}".format(obj.name, obj.type))
+        log("Syncing object", obj)
 
         if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
             obj.data.rpr.sync(rpr_context, obj_instance)

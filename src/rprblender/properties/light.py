@@ -190,13 +190,7 @@ class RPR_LightProperties(RPR_Properties):
             rpr_light.set_shadow(self.visible and self.cast_shadows)
 
             if self.color_map:
-                try:
-                    rpr_image = image_utils.get_rpr_image(rpr_context, self.color_map)
-                except ValueError as e:
-                    log.error("Error loading light {} image color map: {}".format(obj, e))
-                    rpr_image = image_utils.create_flat_color_image_data(rpr_context, "ENVIRONMENT_FAILURE",
-                                                                         (1., 0., 1., 1.))
-                rpr_light.set_image(rpr_image)
+                rpr_light.set_image(image_utils.get_rpr_image(rpr_context, self.color_map))
 
         else:
             raise SyncError("Light %s has unsupported type %s" % (light.name, light.type), light)

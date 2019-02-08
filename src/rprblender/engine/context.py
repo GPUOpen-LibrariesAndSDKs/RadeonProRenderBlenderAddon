@@ -17,8 +17,11 @@ class RPRContext:
         self.scene = None
         self.objects = {}
         self.meshes = {}
+
+        # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
         self.materials = {}
+
         self.images = {}
         self.post_effect = None
 
@@ -423,9 +426,9 @@ class RPRContext:
 
         # key could be None for supported nodes which no need to add into material_nodes
         if key:
-            node.set_name(str(key))
             self.material_nodes[key] = node
 
+        node.set_name(str(key) if key else str(material_type))
         return node
 
     def create_x_material_node(self, key, material_type):
@@ -521,11 +524,14 @@ class RPRContext:
 
             if not used:
                 del self.meshes[get_mesh_key(obj)]
-                obj.delete()
-
-        else:
-            obj.delete()
 
     def remove_image(self, key):
-        img = self.images.pop(key)
-        img.delete()
+        del self.images[key]
+
+    def remove_material(self, key):
+        # removing all corresponded nodes
+        for node_key in tuple(self.material_nodes.keys()):
+            if node_key[0] == key:
+                del self.material_nodes[node_key]
+
+        del self.materials[key]
