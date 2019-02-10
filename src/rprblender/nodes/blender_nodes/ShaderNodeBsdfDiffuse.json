@@ -1,0 +1,37 @@
+{
+    "name": "ShaderNodeBsdfDiffuse",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color"
+        },
+        "roughness": {
+            "type": "float",
+            "label": "Roughness"
+        },
+        "normal": {
+            "type": "vector",
+            "label": "Normal"
+        }
+    },
+
+    "outputs": {
+        "BSDF": {
+            "type": "shader",
+            "node": "diffuse"
+        }
+    },
+
+    "nodes": {
+        "diffuse": {
+            "name": "diffuse",
+            "type": "RPR_MATERIAL_NODE_DIFFUSE",
+            "inputs": {
+                "color": "inputs.color",
+                "roughness": "inputs.roughness",
+                "normal": "inputs.normal"
+            }
+        }
+    }
+}

@@ -6,7 +6,7 @@ import pyrpr
 import pyrprx
 
 from . import MaterialError
-from .export_by_rules import create_rpr_node_by_rules, rulesets
+from .export_by_rules import create_rpr_node_by_rules, get_node_rules
 from rprblender.utils.material import find_output_node_in_tree
 from rprblender import utils
 from rprblender.utils import image as image_utils
@@ -18,6 +18,8 @@ log = logging.Log(tag='material', level='debug')
 
 ERROR_COLOR = (1.0, 0.0, 1.0, 1.0)
 
+# init rulesets
+rulesets = get_node_rules()
 
 # SUPPORT METHODS
 
@@ -208,9 +210,8 @@ class MaterialExporter:
 
         # TODO: discuss about using rules to parse nodes
         # Can we export node using rules?
-        rules = rulesets.get(node.bl_idname, None)
-        if rules:
-            return self.create_node_by_rules(node, rules, socket)
+        if node.bl_idname in rulesets:
+            return self.create_node_by_rules(node, rulesets[node.bl_idname], socket)
 
         if node.bl_idname in node_parsers:
             return node_parsers[node.bl_idname](node)

@@ -3,53 +3,39 @@ import pyrprx
 from rprblender.utils import logging
 from . import MaterialError
 from . import blender_nodes
+import os, json
 
 
 log = logging.Log(tag='NodeExportByRules', level='debug')
 
 
-# TODO use it at nodes info/plugin loading time
-node_type_ids = {
-    "RPR_MATERIAL_NODE_DIFFUSE": pyrpr.MATERIAL_NODE_DIFFUSE,
-    "RPR_MATERIAL_NODE_REFLECTION": pyrpr.MATERIAL_NODE_REFLECTION,
-    "RPR_MATERIAL_NODE_TRANSPARENT": pyrpr.MATERIAL_NODE_TRANSPARENT,
-    "RPR_MATERIAL_NODE_BLEND": pyrpr.MATERIAL_NODE_BLEND,
-    "RPR_MATERIAL_NODE_ARITHMETIC": pyrpr.MATERIAL_NODE_ARITHMETIC,
-    "RPR_MATERIAL_NODE_BUMP_MAP": pyrpr.MATERIAL_NODE_BUMP_MAP,
-    "RPR_MATERIAL_NODE_NORMAL_MAP": pyrpr.MATERIAL_NODE_NORMAL_MAP,
-    "RPRX_MATERIAL_UBER": pyrprx.MATERIAL_UBER,
-}
+def get_node_rules():
+    ''' get the possible list of nodes we can parse via ruleset 
+        this looks at the JSON files in the blender_nodes dir and maps them 
+        to a blender node id'''
+    mapping = {}
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    config_dir = os.path.join(dir_path, 'blender_nodes')
+    for f in os.listdir(config_dir):
+        if ".json" in f:
+            with open(os.path.join(config_dir, f), 'r') as json_file:
+                mapping[os.path.splitext(f)[0]] = json.load(json_file)
+    return mapping
 
-# TODO use it at nodes info/plugin loading time
-uber_input_ids = {
-    "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT,
-    "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT,
-    "RPRX_UBER_MATERIAL_REFRACTION_WEIGHT": pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT,
-    "RPRX_UBER_MATERIAL_COATING_WEIGHT": pyrprx.UBER_MATERIAL_COATING_WEIGHT,
-    "RPRX_UBER_MATERIAL_SHEEN_WEIGHT": pyrprx.UBER_MATERIAL_SHEEN_WEIGHT,
-    "RPRX_UBER_MATERIAL_EMISSION_WEIGHT": pyrprx.UBER_MATERIAL_EMISSION_WEIGHT,
-    "RPRX_UBER_MATERIAL_SSS_WEIGHT": pyrprx.UBER_MATERIAL_SSS_WEIGHT,
-    "RPRX_UBER_MATERIAL_BACKSCATTER_WEIGHT": pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT,
 
-    "RPRX_UBER_MATERIAL_DIFFUSE_COLOR": pyrprx.UBER_MATERIAL_DIFFUSE_COLOR,
-    "RPRX_UBER_MATERIAL_DIFFUSE_ROUGHNESS": pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS,
-    "RPRX_UBER_MATERIAL_REFLECTION_COLOR": pyrprx.UBER_MATERIAL_REFLECTION_COLOR,
-    "RPRX_UBER_MATERIAL_REFLECTION_ROUGHNESS": pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS,
-    "RPRX_UBER_MATERIAL_REFLECTION_MODE": pyrprx.UBER_MATERIAL_REFLECTION_MODE,
-    "RPRX_UBER_MATERIAL_REFLECTION_METALNESS": pyrprx.UBER_MATERIAL_REFLECTION_METALNESS,
-    "RPRX_UBER_MATERIAL_EMISSION_COLOR": pyrprx.UBER_MATERIAL_EMISSION_COLOR,
-    "RPRX_UBER_MATERIAL_EMISSION_MODE": pyrprx.UBER_MATERIAL_EMISSION_MODE,
-}
+def get_rpr_val(val_str: str):
+    ''' turns a string such as RPR_MATERIAL_NODE_DIFFUSE into a key 
+        such as pyrpr.MATERIAL_NODE_DIFFUSE '''
+    rpr_val = None
+    if val_str.startswith("RPR_"):
+        rpr_val = getattr(pyrpr, val_str[4:], None)
+    elif val_str.startswith("RPRX_"):
+        rpr_val = getattr(pyrprx, val_str[5:], None)
 
-rulesets = {
-    'ShaderNodeBsdfDiffuse': blender_nodes.bsdf_diffuse_rules,
-    'ShaderNodeEmission': blender_nodes.emission_rules,
-    'ShaderNodeBsdfGlossy': blender_nodes.bsdf_glossy_rules,
-    'ShaderNodeBsdfTransparent': blender_nodes.bsdf_transparent_rules,
-    'ShaderNodeBump': blender_nodes.vector_bump_rules,
-    'ShaderNodeNormalMap': blender_nodes.vector_normal_map_rules,
-    'ShaderNodeInvert': blender_nodes.color_invert_rules,
-}
+    if not rpr_val:
+        raise MaterialError("Unknown RPR value '{}'!".format(val_str))
+    else:
+        return rpr_val
 
 
 def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_values, rules):
@@ -61,23 +47,19 @@ def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_
     if not node_info:
         raise MaterialError("Rules not found for rpr node '{}'".format(subnode_name))
 
-    node_type = node_type_ids.get(node_info['type'], None)
-    if not node_type:
-        raise MaterialError("Unknown RPR node type '{}'!".format(node_info['type']))
-
+    node_type = get_rpr_val(node_info['type'])
+    
     # create node
     is_uber_node = node_info['type'] == "RPRX_MATERIAL_UBER"
     if is_uber_node:
-        rpr_node = rpr_context.create_x_material_node(node_key, pyrprx.MATERIAL_UBER)
+        rpr_node = rpr_context.create_x_material_node(node_key, node_type)
     else:
         rpr_node = rpr_context.create_material_node(node_key, node_type)
 
     # filling node inputs
     for input_name, value_source in node_info['inputs'].items():
         if is_uber_node:
-            input_id = uber_input_ids.get(input_name, None)
-            if not input_id:
-                raise MaterialError("Unknown Uber material node input name '{}'!".format(input_name))
+            input_id = get_rpr_val(input_name)
             input_name = input_id
 
         # is it the value source name?
