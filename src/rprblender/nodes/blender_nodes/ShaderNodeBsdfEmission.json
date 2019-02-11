@@ -1,5 +1,5 @@
 {
-    "name": "ShaderNodeBsdfDiffuse",
+    "name": "ShaderNodeBsdfEmission",
 
     "inputs": {
         "color": {
