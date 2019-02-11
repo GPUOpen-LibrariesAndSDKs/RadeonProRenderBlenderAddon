@@ -12,7 +12,8 @@
         },
         "normal": {
             "type": "vector",
-            "label": "Normal"
+            "label": "Normal",
+            "connection_only": true
         }
     },
 
