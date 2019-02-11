@@ -85,6 +85,9 @@ def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_
             elif value_source.startswith('scene.'):  # for example, "scene.unit_settings.scale_length"
                 # TODO add scene data access
                 continue
+            elif value_source.startswith('RPR'):
+                # this is an rpr value
+                value = get_rpr_val(value_source)
             else:
                 log.warn("Unknown RPR node '{}' input value source: {}".format(subnode_name, value_source))
                 continue
