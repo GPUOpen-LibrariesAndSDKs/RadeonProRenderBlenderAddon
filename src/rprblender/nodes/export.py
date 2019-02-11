@@ -213,10 +213,10 @@ class MaterialExporter:
         if node.bl_idname in rulesets:
             return self.create_node_by_rules(node, rulesets[node.bl_idname], socket)
 
-        if node.bl_idname in node_parsers:
+        elif node.bl_idname in node_parsers:
             return node_parsers[node.bl_idname](node)
 
-        if node.bl_idname in node_socket_parsers:
+        elif node.bl_idname in node_socket_parsers:
             return node_socket_parsers[node.bl_idname](node, socket)
 
         log.warn("Ignoring unsupported node", self.material, node, socket)
@@ -244,42 +244,11 @@ class MaterialExporter:
     #####
     # Nodes by methods
 
-    def parse_node_diffuse(self, blender_node):
-        color = self.get_socket_value(blender_node, 'Color')
-        roughness = self.get_socket_value(blender_node, 'Roughness')
-
-        rpr_node = self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_DIFFUSE)
-        rpr_node.set_input('color', color)
-        rpr_node.set_input('roughness', roughness)
-
-        return rpr_node
-
-    def parse_node_emission(self, blender_node):
-        color = self.get_socket_value(blender_node, 'Color')
-        strength = self.get_socket_value(blender_node, 'Strength')
-
-        rpr_node = self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_EMISSIVE)
-        rpr_node.set_input('color', self.rpr_context.mul_node_value(color, strength))
-
-        return rpr_node
-
     def parse_node_transparent(self, blender_node):
         color = self.get_socket_value(blender_node, 'Color')
 
         rpr_node = self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_TRANSPARENT)
         rpr_node.set_input('color', color)
-
-        return rpr_node
-
-    def parse_node_glossy(self, blender_node):
-        color = self.get_socket_value(blender_node, 'Color')
-        normal = self.get_socket_link(blender_node, 'Normal')
-
-        # TODO: Looks like Uber should be here
-        rpr_node = self.rpr_context.create_material_node(self.node_key(blender_node), pyrpr.MATERIAL_NODE_REFLECTION)
-        rpr_node.set_input('color', color)
-        if normal is not None:
-            rpr_node.set_input('normal', normal)
 
         return rpr_node
 
