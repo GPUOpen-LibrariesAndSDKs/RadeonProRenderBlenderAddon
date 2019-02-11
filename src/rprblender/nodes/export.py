@@ -237,7 +237,7 @@ class MaterialExporter:
         output_socket_info = rules['outputs'][socket.name]
         subnode_name = output_socket_info["node"]
 
-        node = create_rpr_node_by_rules(self.rpr_context, node_key, subnode_name, input_values, rules['nodes'])
+        node = create_rpr_node_by_rules(self.rpr_context, node_key, subnode_name, input_values, rules['nodes'], rules['inputs'])
 
         return node
 
