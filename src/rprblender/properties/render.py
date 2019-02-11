@@ -11,6 +11,7 @@ from bpy.props import (
     EnumProperty,
     StringProperty,
 )
+import platform
 
 from rprblender import utils
 from rprblender.utils import logging
@@ -244,6 +245,13 @@ class RPR_RenderProperties(RPR_Properties):
 
             if use_gl_interop:
                 context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
+
+        if platform.system() == 'Darwin':
+            context_flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
+            mac_vers_major = platform.mac_ver()[0].split('.')[1]
+            # if this is mojave turn on MPS
+            if float(mac_vers_major) >= 14:
+                context_props.extend([pyrpr.CONTEXT_METAL_PERFORMANCE_SHADER, 1])
 
         context_props.append(0) # should be followed by 0
         rpr_context.init(context_flags, context_props)

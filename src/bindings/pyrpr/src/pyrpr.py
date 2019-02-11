@@ -259,6 +259,8 @@ class Context(Object):
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
+                if platform.system() == 'Darwin':
+                    create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
                 context = Context(create_flag, use_cache=False)
                 device_name = context.get_info_str(info_flag)
                 return {'flag': create_flag, 'name': device_name.strip()}
