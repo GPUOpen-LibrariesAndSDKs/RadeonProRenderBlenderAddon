@@ -2,7 +2,6 @@ import pyrpr
 import pyrprx
 from rprblender.utils import logging
 from . import MaterialError
-from . import blender_nodes
 import os, json
 
 

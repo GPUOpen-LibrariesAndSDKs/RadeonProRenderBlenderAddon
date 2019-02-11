@@ -65,7 +65,7 @@ def get_node_socket(node, name=None, index=None):
 
 
 class MaterialExporter:
-
+    ''' Class that handles the exporting and syncing of a material nodetree '''
     def __init__(self, rpr_context, material: bpy.types.Material):
         self.rpr_context = rpr_context
         self.material = material
@@ -174,12 +174,9 @@ class MaterialExporter:
         node_parsers = {
             # shaders
             'ShaderNodeBsdfPrincipled': self.parse_node_principled,
-            'ShaderNodeBsdfDiffuse': self.parse_node_diffuse,
-            'ShaderNodeEmission': self.parse_node_emission,
             'ShaderNodeBsdfTransparent': self.parse_node_transparent,
             'ShaderNodeMixShader': self.parse_node_mix,
-            'ShaderNodeBsdfGlossy': self.parse_node_glossy,
-
+            
             # inputs
             'ShaderNodeTexImage': self.parse_node_image_texture,
             'ShaderNodeRGB': self.get_node_output_default_value,
