@@ -38,12 +38,12 @@ def get_rpr_val(val_str: str):
         return rpr_val
 
 
-def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_values, rules):
+def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_values, node_rules, input_rules):
     node_key = blender_node_key + (subnode_name,)
     if node_key in rpr_context.materials:
         return rpr_context.materials[node_key]
 
-    node_info = rules.get(subnode_name, None)
+    node_info = node_rules.get(subnode_name, None)
     if not node_info:
         raise MaterialError("Rules not found for rpr node '{}'".format(subnode_name))
 
@@ -69,13 +69,19 @@ def create_rpr_node_by_rules(rpr_context, blender_node_key, subnode_name, input_
                 target_name = value_source.split('inputs.')[1]
                 if target_name in input_values:
                     value = input_values[target_name]
+
+                    # if this input is a connection only input check that it is not a value
+                    input_info = input_rules[target_name]
+                    if input_info.get('connection_only', False) and not isinstance(value, pyrpr.MaterialNode):
+                        log.debug("Skipping input {}.{}: connection only input not connected".format(blender_node_key, target_name))
+                        continue
                 else:
                     log.warn("[{}] Input '{}' value not found!".format(subnode_name, target_name))
                     continue
             # links
             elif value_source.startswith('nodes.'):
                 target_name = value_source.split('nodes.')[1]
-                value = create_rpr_node_by_rules(rpr_context, blender_node_key, target_name, input_values, rules)
+                value = create_rpr_node_by_rules(rpr_context, blender_node_key, target_name, input_values, node_rules, input_rules)
             elif value_source.startswith('scene.'):  # for example, "scene.unit_settings.scale_length"
                 # TODO add scene data access
                 continue
