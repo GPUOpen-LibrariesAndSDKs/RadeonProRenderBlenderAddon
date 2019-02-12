@@ -42,6 +42,7 @@ from . import (
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RenderLimits,
+    render.RPR_RenderDevices,
     render.RPR_RenderProperties,
 
     mesh.RPR_MeshProperties,

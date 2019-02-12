@@ -8,37 +8,71 @@ class RPR_RENDER_PT_devices(RPR_Panel):
     bl_context = 'render'
 
     def draw(self, context):
+        devices = context.scene.rpr.devices
+
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        rpr_scene = context.scene.rpr
-        col = layout.column()
-        col.prop(rpr_scene, 'devices')
-        layout.separator()
-
-        def draw_cpu():
+        if len(pyrpr.Context.gpu_devices) == 0:
             col = layout.column(align=True)
-            col.label(text=pyrpr.Context.cpu_device['name'])
-            col.prop(rpr_scene, 'cpu_threads')
+            row = col.row()
+            row.enabled = False
+            row.prop(devices, 'cpu_state')
+            col.prop(devices, 'cpu_threads')
 
-        def draw_gpu():
-            col = layout.column(align=True)
-            col.use_property_split = False
-            if len(pyrpr.Context.gpu_devices) > 1:
-                for i in range(len(rpr_scene.gpu_states)):
-                    col.prop(rpr_scene, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
-            else:
-                col.label(text=pyrpr.Context.gpu_devices[0]['name'])
-
-        if rpr_scene.devices == 'CPU':
-            draw_cpu()
-        elif rpr_scene.devices == 'GPU':
-            draw_gpu()
         else:
-            draw_cpu()
+            col = layout.column(align=True)
+            col.prop(devices, 'cpu_state')
+            row = col.row()
+            row.enabled = devices.cpu_state
+            row.prop(devices, 'cpu_threads')
+
             layout.separator()
-            draw_gpu()
+            col = layout.column(align=True)
+            for i in range(len(devices.gpu_states)):
+                col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
+
+
+class RPR_RENDER_PT_viewport_devices(RPR_Panel):
+    bl_label = "Separate Viewport & Preview Devices"
+    bl_parent_id = 'RPR_RENDER_PT_devices'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and len(pyrpr.Context.gpu_devices) > 0
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.rpr, "separate_viewport_devices", text="")
+        self.layout.active = context.scene.rpr.separate_viewport_devices
+
+    def draw(self, context):
+        devices = context.scene.rpr.viewport_devices
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        self.layout.enabled = context.scene.rpr.separate_viewport_devices
+
+        if len(pyrpr.Context.gpu_devices) == 0:
+            col = layout.column(align=True)
+            row = col.row()
+            row.enabled = False
+            row.prop(devices, 'cpu_state')
+            col.prop(devices, 'cpu_threads')
+
+        else:
+            col = layout.column(align=True)
+            col.prop(devices, 'cpu_state')
+            row = col.row()
+            row.enabled = devices.cpu_state
+            row.prop(devices, 'cpu_threads')
+
+            layout.separator()
+            col = layout.column(align=True)
+            for i in range(len(devices.gpu_states)):
+                col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
 
 
 class RPR_RENDER_PT_limits(RPR_Panel):

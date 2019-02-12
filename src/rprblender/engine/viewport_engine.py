@@ -130,7 +130,7 @@ class ViewportEngine(Engine):
         depsgraph = context.depsgraph
         scene = depsgraph.scene
 
-        scene.rpr.sync(self.rpr_context, use_gl_interop=config.use_gl_interop)
+        scene.rpr.sync(self.rpr_context, is_final_engine=False, use_gl_interop=config.use_gl_interop)
         self.rpr_context.resize(context.region.width, context.region.height)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)

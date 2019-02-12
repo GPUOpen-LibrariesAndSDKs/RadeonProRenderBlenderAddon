@@ -22,6 +22,8 @@ log = logging.Log(tag='Render')
 
 
 class RPR_RenderLimits(bpy.types.PropertyGroup):
+    ''' Properties for render limits: iteration limit or time limit'''
+
     type: EnumProperty(
         name="Iterations Limit",
         description="When to stop rendering a frame",
@@ -53,23 +55,39 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     )
 
 
+# Getting list of available devices for RPR_RenderDevices
 enum_devices = [('CPU', "CPU", "Use CPU for rendering"),]
 if len(pyrpr.Context.gpu_devices) > 0:
     enum_devices.insert(0, ('GPU', "GPU", "Use GPU device for rendering"))
     enum_devices.append(('GPU+CPU', "GPU+CPU", "Use GPU+CPU devices for rendering"))
 
 
-class RPR_RenderProperties(RPR_Properties):
-    saved_addon_version: bpy.props.IntVectorProperty(
-        name="Version"
-    )
+class RPR_RenderDevices(bpy.types.PropertyGroup):
+    ''' Properties for render devices: CPU, GPUs '''
 
-    # DEVICES
-    devices: EnumProperty(
-        name="Devices",
-        description="Device to use for rendering",
-        items=enum_devices,
-        default=enum_devices[0][0]
+    def update_states(self, context):
+        if len(pyrpr.Context.gpu_devices) > 0:
+            # selecting first gpu if no gpu and cpu is selected
+            if not any(self.gpu_states) and not self.cpu_state:
+                self.gpu_states[0] = True
+        else:
+            # if no GPU then cpu always should be enabled
+            self.cpu_state = True
+
+    if len(pyrpr.Context.gpu_devices) > 0:
+        gpu_states: BoolVectorProperty(
+            name="",
+            description="Use GPU device for rendering",
+            size=len(pyrpr.Context.gpu_devices),
+            default=tuple(i == 0 for i in range(len(pyrpr.Context.gpu_devices))), # Only first GPU is enabled by default
+            update=update_states
+        )
+
+    cpu_state: BoolProperty(
+        name=pyrpr.Context.cpu_device['name'],
+        description="Use CPU device for rendering",
+        default=len(pyrpr.Context.gpu_devices) == 0, # True if no GPUs are available
+        update=update_states
     )
     cpu_threads: IntProperty(
         name="CPU Threads",
@@ -78,18 +96,26 @@ class RPR_RenderProperties(RPR_Properties):
         default=utils.get_cpu_threads_number()
     )
 
-    def update_gpu_states(self, context):
-        # selecting first gpu if no gpu is selected
-        if not any(self.gpu_states):
-            self.gpu_states[0] = True
 
-    if len(pyrpr.Context.gpu_devices) > 0:
-        gpu_states: BoolVectorProperty(
-            name="",
-            size=len(pyrpr.Context.gpu_devices),
-            default=(True,) * len(pyrpr.Context.gpu_devices),
-            update=update_gpu_states
-        )
+class RPR_RenderProperties(RPR_Properties):
+    ''' Main render properties. Available from scene.rpr '''
+
+    saved_addon_version: bpy.props.IntVectorProperty(
+        name="Version"
+    )
+
+    # RENDER DEVICES
+    devices: PointerProperty(type=RPR_RenderDevices)
+    viewport_devices: PointerProperty(type=RPR_RenderDevices)
+    separate_viewport_devices: BoolProperty(
+        name="Separate Viewport Devices",
+        description="Use separate viewport and preview render devices configuration",
+        default=False,
+    )
+
+    # RENDER LIMITS
+    limits: PointerProperty(type=RPR_RenderLimits)
+    viewport_limits: PointerProperty(type=RPR_RenderLimits)
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
@@ -137,10 +163,6 @@ class RPR_RenderProperties(RPR_Properties):
         min=0.0, max=2.0,
         default=0.02,
     )
-
-    # RENDER LIMITS
-    limits: PointerProperty(type=RPR_RenderLimits)
-    viewport_limits: PointerProperty(type=RPR_RenderLimits)
 
     # RENDER EFFECTS
     use_render_stamp: BoolProperty(
@@ -234,22 +256,24 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
 
-    def sync(self, rpr_context, use_gl_interop=False):
+    def sync(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
+        devices = self.devices if is_final_engine or not self.separate_viewport_devices else \
+                  self.viewport_devices
+
         context_flags = 0
         context_props = []
-        if self.devices in ['CPU', 'GPU+CPU']:
+        if devices.cpu_state:
             context_flags |= pyrpr.Context.cpu_device['flag']
-            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, self.cpu_threads])
-        if self.devices in ['GPU', 'GPU+CPU']:
-            for i, gpu_state in enumerate(self.gpu_states):
+            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, devices.cpu_threads])
+        if hasattr(devices, 'gpu_states'):
+            for i, gpu_state in enumerate(devices.gpu_states):
                 if gpu_state:
                     context_flags |= pyrpr.Context.gpu_devices[i]['flag']
-
-            if use_gl_interop:
-                context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
+                    if use_gl_interop:
+                        context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
 
         if platform.system() == 'Darwin':
             context_flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
