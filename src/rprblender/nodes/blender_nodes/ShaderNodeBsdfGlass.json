@@ -1,0 +1,43 @@
+{
+    "name": "ShaderNodeBsdfGlass",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color"
+        },
+        "roughness": {
+            "type": "float",
+            "label": "Roughness"
+        },
+        "ior": {
+            "type": "float",
+            "label": "IOR"
+        },
+        "normal": {
+            "type": "vector",
+            "label": "Normal",
+            "connection_only": true
+        }
+    },
+
+    "outputs": {
+        "BSDF": {
+            "type": "shader",
+            "node": "glass"
+        }
+    },
+
+    "nodes": {
+        "glass": {
+            "name": "glass",
+            "type": "RPR_MATERIAL_NODE_MICROFACET_REFRACTION",
+            "inputs": {
+                "color": "inputs.color",
+                "roughness": "inputs.roughness",
+                "ior": "inputs.ior",
+                "normal": "inputs.normal"
+            }
+        }
+    }
+}

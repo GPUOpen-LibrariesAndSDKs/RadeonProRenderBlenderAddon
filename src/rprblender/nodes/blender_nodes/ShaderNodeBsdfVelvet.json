@@ -1,0 +1,35 @@
+{
+    "name": "ShaderNodeBsdfVelvet",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color"
+        },
+        "sigma": {
+            "type": "float",
+            "label": "Sigma"
+        }
+    },
+
+    "outputs": {
+        "BSDF": {
+            "type": "shader",
+            "node": "sheen"
+        }
+    },
+
+    "nodes": {
+        "sheen": {
+            "name": "sheen",
+            "type": "RPRX_MATERIAL_UBER",
+            "inputs": {
+                "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": 0.0,
+                "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": 0.0,
+                "RPRX_UBER_MATERIAL_SHEEN_WEIGHT": 1.0,
+                "RPRX_UBER_MATERIAL_SHEEN_TINT": "inputs.sigma",
+                "RPRX_UBER_MATERIAL_SHEEN": "inputs.color"
+            }
+        }
+    }
+}

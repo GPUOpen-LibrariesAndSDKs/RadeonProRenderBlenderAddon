@@ -1,0 +1,27 @@
+{
+    "name": "ShaderNodeBsdfTransparent",
+
+    "inputs": {
+        "color": {
+            "type": "color",
+            "label": "Color"
+        }
+    },
+
+    "outputs": {
+        "BSDF": {
+            "type": "shader",
+            "node": "transparent"
+        }
+    },
+
+    "nodes": {
+        "transparent": {
+            "name": "transparent",
+            "type": "RPR_MATERIAL_NODE_TRANSPARENT",
+            "inputs": {
+                "color": "inputs.color"
+            }
+        }
+    }
+}
