@@ -194,7 +194,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     motion_blur: bpy.props.BoolProperty(
         name="Motion Blur", description="Enable Motion Blur",
-        default=bpy.context.scene.render.use_motion_blur,
+        default=False,
     )
 
     motion_blur_exposure_apply: bpy.props.EnumProperty(
@@ -208,8 +208,8 @@ class RPR_RenderProperties(RPR_Properties):
 
     motion_blur_exposure: bpy.props.FloatProperty(
         name="Exposure", description="Motion Blur Exposure for camera(s)",
-        min=0,
-        default=bpy.context.scene.render.motion_blur_shutter,
+        min=0.0,
+        default=1.0,
         update=update_motion_blur_exposure
     )
 
@@ -223,7 +223,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     motion_blur_scale: bpy.props.FloatProperty(
         name="Scale", description="Motion Blur Scale for object(s)",
-        min=0,
+        min=0.0,
         default=1.0,
         update=update_motion_blur_scale
     )

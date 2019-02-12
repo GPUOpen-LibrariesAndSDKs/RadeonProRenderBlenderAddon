@@ -53,14 +53,13 @@ class RPR_ObjectProperites(RPR_Properties):
         name="Scale",
         description="Motion Blur Scale",
         default=1.0,
-        min=0,
+        min=0.0,
     )
-
     motion_blur_exposure: bpy.props.FloatProperty(
         name="Exposure",
         description="Motion Blur Exposure for camera",
-        min=0,
-        default=bpy.context.scene.render.motion_blur_shutter,
+        min=0.0,
+        default=1.0,
     )
 
     # Subdivision
