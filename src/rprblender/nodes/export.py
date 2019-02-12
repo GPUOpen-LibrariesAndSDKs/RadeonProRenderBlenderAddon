@@ -134,24 +134,35 @@ class MaterialExporter:
 
         return None
 
-    def get_socket_default(self, node, socket_key):
-        socket = node.inputs[socket_key]
-
-        val = socket.default_value
-        if isinstance(val, (int, float)):
+    def parse_val(self, val):
+        ''' turn a blender node val or default value for input into 
+            something that works well with rpr '''
+        if isinstance(val, (int, float, bool)):
             return float(val)
 
         if len(val) in (3, 4):
             return tuple(val)
 
-        raise TypeError("Incorrect socket default value", self.material, socket, val)
+        return val
+
+    def get_socket_default(self, node, socket_key):
+        ''' get the default_value from a socket '''
+        socket = node.inputs[socket_key]
+        val = socket.default_value
+        return self.parse_val(val)
 
     def get_socket_value(self, node, socket_key):
-        val = self.get_socket_link(node, socket_key)
-        if val is not None:
-            return val
+        ''' Try to get value from 
+            1.  Socket link
+            2.  Socket default val
+            3.  Node param (if no socket name) '''
 
-        return self.get_socket_default(node, socket_key)
+        if socket_key in node.inputs:
+            val = self.get_socket_link(node, socket_key) if node.inputs[socket_key].is_linked else self.get_socket_default(node, socket_key)
+            return val
+        else:
+            val = getattr(node, socket_key, None)
+            return self.parse_val(val)
 
     #####
     # Nodes parsing methods
@@ -179,9 +190,9 @@ class MaterialExporter:
             
             # inputs
             'ShaderNodeTexImage': self.parse_node_image_texture,
+            'ShaderNodeBlackbody': self.parse_node_blackbody,
             'ShaderNodeRGB': self.get_node_output_default_value,
             'ShaderNodeValue': self.get_node_output_default_value,
-            'ShaderNodeBlackbody': self.parse_node_blackbody,
 
             # color
             'ShaderNodeInvert': self.parse_node_invert,

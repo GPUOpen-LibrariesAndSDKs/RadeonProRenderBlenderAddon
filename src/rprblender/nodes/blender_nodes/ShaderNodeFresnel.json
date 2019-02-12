@@ -1,0 +1,33 @@
+{
+    "name": "ShaderNodeFresnel",
+
+    "inputs": {
+        "ior": {
+            "type": "float",
+            "label": "IOR"
+        },
+        "normal": {
+            "type": "vector",
+            "label": "Normal",
+            "connection_only": true
+        }
+    },
+
+    "outputs": {
+        "Fac": {
+            "type": "float",
+            "node": "fresnel"
+        }
+    },
+
+    "nodes": {
+        "fresnel": {
+            "name": "fresnel",
+            "type": "RPR_MATERIAL_NODE_FRESNEL",
+            "inputs": {
+                "ior": "inputs.ior",
+                "normal": "inputs.normal"
+            }
+        }
+    }
+}

@@ -13,7 +13,7 @@
     },
 
     "outputs": {
-        "BSDF": {
+        "Emission": {
             "type": "shader",
             "node": "emission"
         }
@@ -22,7 +22,7 @@
     "nodes": {
         "multiply": {
             "name": "multiply",
-            "type": "RPR_MATERIAL_NODE_ARITHMATIC",
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "inputs": {
                 "color0": "inputs.color",
                 "color1": "inputs.strength",
