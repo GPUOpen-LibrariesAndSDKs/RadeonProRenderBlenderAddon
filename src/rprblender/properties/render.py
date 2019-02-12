@@ -36,15 +36,20 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         description="Number of iterations to render for each pixel",
         min=1, default=50,
     )
-    iteration_samples: IntProperty(
-        name="Samples per Iteration",
-        description="Number of samples per each rendering iteration",
+    update_samples: IntProperty(
+        name="Samples per View Update",
+        description="The more samples, the less viewport updates for shorter render times",
         min=1, default=1,
     )
     seconds: IntProperty(
         name="Seconds",
         description="Limit rendering process in seconds",
         min=1, default=10
+    )
+    thumbnail_iterations: IntProperty(
+        name="Thumbnail Iterations",
+        description="Material and light previews number of iterations to render for each pixel",
+        min=1, default=50,
     )
 
 
