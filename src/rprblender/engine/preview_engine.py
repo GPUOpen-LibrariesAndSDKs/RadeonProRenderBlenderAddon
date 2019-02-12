@@ -41,7 +41,7 @@ class PreviewEngine(Engine):
         scene = depsgraph.scene
         settings_scene = bpy.context.scene
 
-        settings_scene.rpr.sync(self.rpr_context)
+        settings_scene.rpr.sync(self.rpr_context, is_final_engine=False)
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
 
         # getting visible objects

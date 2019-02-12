@@ -109,6 +109,7 @@ from . import (
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_devices,
+    render.RPR_RENDER_PT_viewport_devices,
     render.RPR_RENDER_PT_limits,
     render.RPR_RENDER_PT_viewport_limits,
     render.RPR_RENDER_PT_quality,
