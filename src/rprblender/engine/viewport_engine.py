@@ -11,6 +11,7 @@ import rprblender.utils.camera as camera_ut
 import rprblender.utils.world as world_ut
 from rprblender.utils import gl
 from rprblender import utils
+from rprblender import config
 
 from rprblender.utils import logging
 log = logging.Log(tag='ViewportEngine')
@@ -129,7 +130,7 @@ class ViewportEngine(Engine):
         depsgraph = context.depsgraph
         scene = depsgraph.scene
 
-        scene.rpr.sync(self.rpr_context, use_gl_interop=True)
+        scene.rpr.sync(self.rpr_context, use_gl_interop=config.use_gl_interop)
         self.rpr_context.resize(context.region.width, context.region.height)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)

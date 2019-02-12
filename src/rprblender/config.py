@@ -7,29 +7,11 @@ pyrprx_log_calls = False
 pyrprimagefilters_log_calls = False
 pyrprgltf_log_calls = False
 
-debug = False
-
 notifier_log_calls = False
 
-render_preview_iterations = 50
 render_update_result_interval = 0.5     # in seconds
 
-rpr_image_loading = True
-node_thumbnail_enabled = True
-preview_enable = True
-
-material_library_path = None
-
-cycles_convert_enabled = True
-
-image_cache_blender = True
-image_cache_core = True
-
-replace_images_with_placeholders = False
-
-url_json_version = 'https://radeon-prorender.github.io/rpr_renderer_plugin_blender_latest_version.json'
-
-ramp_buffer_size = 256
+use_gl_interop = True
 
 try:
     # configdev.py example for logging setup:
