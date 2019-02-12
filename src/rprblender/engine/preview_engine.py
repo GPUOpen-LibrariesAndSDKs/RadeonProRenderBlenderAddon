@@ -59,7 +59,7 @@ class PreviewEngine(Engine):
 
         self.rpr_context.set_parameter('preview', False)
 
-        self.render_iterations = settings_scene.rpr.viewport_limits.iterations
+        self.render_iterations = settings_scene.rpr.viewport_limits.thumbnail_iterations
 
         self.is_synced = True
         log('Finish sync')

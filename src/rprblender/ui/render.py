@@ -53,24 +53,22 @@ class RPR_RENDER_PT_limits(RPR_Panel):
 
         col = self.layout.column()
         col.prop(limits, 'type')
+        col1 = col.column(align=True)
         if limits.type == 'ITERATIONS':
-            col1 = col.column(align=True)
             col1.prop(limits, 'iterations')
-            col1.prop(limits, 'iteration_samples')
         else:
             col.prop(limits, 'seconds')
+        col1.prop(limits, 'update_samples')
 
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
-    bl_label = "Viewport Render Limits"
+    bl_label = "Viewport & Preview Render Limits"
     bl_parent_id = 'RPR_RENDER_PT_limits'
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
-
-        col = self.layout.column()
 
         limits = context.scene.rpr.viewport_limits
 
@@ -80,6 +78,9 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
             col.prop(limits, 'iterations')
         else:
             col.prop(limits, 'seconds')
+
+        col.separator()
+        col.prop(limits, 'thumbnail_iterations')
 
 
 class RPR_RENDER_PT_quality(RPR_Panel):

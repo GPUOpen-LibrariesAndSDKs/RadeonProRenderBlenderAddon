@@ -19,8 +19,9 @@ class RenderEngine(Engine):
         self.render_event = threading.Event()
         self.finish_render = False
 
-        self.iterations = 0
-        self.iteration_samples = 1
+        self.render_iterations = 0
+        self.render_time = 0
+        self.render_update_samples = 1
 
         self.status_title = ""
 
@@ -46,21 +47,40 @@ class RenderEngine(Engine):
 
             time.sleep(config.render_update_result_interval)
 
-    def _do_render(self, iterations, samples):
+    def _do_render(self):
         self.finish_render = False
         try:
-            self.rpr_context.set_parameter('iterations', samples)
-
-            for it in range(iterations):
+            iterations = 0
+            time_begin = time.perf_counter()
+            while True:
                 if self.rpr_engine.test_break():
                     break
 
-                self.notify_status(it / iterations, "Iteration: %d/%d" % (it + 1, iterations))
+                time_render = time.perf_counter() - time_begin
+                if self.render_iterations > 0:
+                    update_samples = min(self.render_update_samples, self.render_iterations - iterations)
+                    self.notify_status(iterations / self.render_iterations,
+                                       "Render Time: %.1f sec | Iteration: %d/%d" % (time_render, iterations, self.render_iterations))
+                else:
+                    update_samples = self.render_update_samples
+                    self.notify_status(time_render / self.render_time,
+                                       "Render Time: %.1f/%d sec | Iteration: %d" % (time_render, self.render_time, iterations))
+
+                self.rpr_context.set_parameter('iterations', update_samples)
 
                 with self.render_lock:
                     self.rpr_context.render()
-
                 self.render_event.set()
+
+                iterations += update_samples
+                if self.render_iterations > 0:
+                    if iterations >= self.render_iterations:
+                        break
+                else:
+                    if time_render >= self.render_time:
+                        break
+
+
         finally:
             self.finish_render = True
 
@@ -101,7 +121,7 @@ class RenderEngine(Engine):
         update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
         update_result_thread.start()
 
-        self._do_render(self.iterations, self.iteration_samples)
+        self._do_render()
         # self._do_render_tile(20, 20)
 
         update_result_thread.join()
@@ -230,8 +250,10 @@ class RenderEngine(Engine):
 
         self.rpr_context.set_parameter('preview', False)
 
-        self.iterations = scene.rpr.limits.iterations
-        self.iteration_samples = scene.rpr.limits.iteration_samples
+        self.render_iterations, self.render_time = \
+            (scene.rpr.limits.iterations, 0) if scene.rpr.limits.type == 'ITERATIONS' else \
+            (0, scene.rpr.limits.seconds)
+        self.render_update_samples = scene.rpr.limits.update_samples
 
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
