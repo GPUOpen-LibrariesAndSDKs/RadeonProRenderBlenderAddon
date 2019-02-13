@@ -118,7 +118,7 @@ class MaterialExporter:
             node_parser = blender_node_parsers[node.bl_idname](self, node)
             return node_parser.export(socket)
 
-        log.warn("Ignoring unsupported node", self.material, node, socket)
+        log.warn("Ignoring unsupported node of type {}, '{}'.'{}'".format(type(node).__name__, self.material.name, node.name))
         return None
 
     def create_rpr_node(self, node_type, key):
@@ -128,6 +128,6 @@ class MaterialExporter:
             return self.rpr_context.create_x_material_node(key, rpr_val)
         elif "RPR_" in node_type:
             return self.rpr_context.create_material_node(key, rpr_val)
-        log.warn("Ignoring unsupported node", self.material, node_type)
+        log.warn("Unknown RPR node type unsupported node", self.material, node_type)
 
 

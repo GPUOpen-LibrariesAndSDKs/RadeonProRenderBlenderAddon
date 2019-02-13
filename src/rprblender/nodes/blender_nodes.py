@@ -1,6 +1,6 @@
 from .node_parser import NodeParser, get_rpr_val
 import pyrpr
-
+from rprblender.utils import image as image_utils
 
 ''' All parser classes should override NodeParser and override the 
     export() method if needed, or just set the input/rpr_node mapping '''
@@ -486,6 +486,68 @@ class ShaderNodeBsdfPrincipled(NodeParser):
     }
 
 
+class ShaderNodeNewGeometry(NodeParser):
+    ''' this is the "Geometry" node '''
+
+    nodes = {
+        "Position": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_P",
+            }
+        },
+        "Normal": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_N",
+            }
+        },
+        "Incoming": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_INVEC",
+            }
+        }
+    }
+
+
+class ShaderNodeAddShader(NodeParser):
+    inputs = [0,1] # blender confusingly has inputs with the same name. 
+    
+    nodes = {
+        "Shader": {
+            "type": "RPR_MATERIAL_NODE_ADD",
+            "params": {
+                "color0": "inputs.0",
+                "color1": "inputs.1",
+            }
+        }
+    }
+
+
+class ShaderNodeTexCoord(NodeParser):
+    
+    nodes = {
+        "Generated": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_P",
+            }
+        },
+        "Normal": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_N",
+            }
+        },
+        "UV": {
+            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "params": {
+                "value": "RPR_MATERIAL_NODE_LOOKUP_UV",
+            }
+        }
+    }
+
 
 blender_node_parsers = {
     'ShaderNodeAmbientOcclusion': ShaderNodeAmbientOcclusion,
@@ -506,5 +568,8 @@ blender_node_parsers = {
     'ShaderNodeTexChecker': ShaderNodeTexChecker,
     'ShaderNodeTexImage': ShaderNodeTexImage,
     'ShaderNodeBsdfPrincipled': ShaderNodeBsdfPrincipled,
+    'ShaderNodeNewGeometry': ShaderNodeNewGeometry,
+    'ShaderNodeAddShader': ShaderNodeAddShader,
+    'ShaderNodeTexCoord': ShaderNodeTexCoord
 
 }

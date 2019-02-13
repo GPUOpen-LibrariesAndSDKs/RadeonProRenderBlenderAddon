@@ -42,13 +42,15 @@ def get_node_value(material_exporter, node, socket_key):
         2.  Input default val
         3.  Node param (if no socket name) '''
     val = None
+    # here we have to deal with string or int socket keys
+    socket = node.inputs[socket_key] if isinstance(socket_key, int) or socket_key in node.inputs else None
 
-    if socket_key in node.inputs and node.inputs[socket_key].is_linked:
+    if socket and socket.is_linked:
         val = get_socket_link(material_exporter, node, socket_key)
         if val == None:
             val = get_socket_default(node, socket_key)
     # need this for if the incoming node is None (not supported)
-    elif val == None and socket_key in node.inputs:
+    elif socket:
         val = get_socket_default(node, socket_key)
     else:
         val = getattr(node, socket_key, None)
@@ -100,7 +102,8 @@ def get_rpr_val(val_str: str):
     elif val_str.startswith("RPRX_"):
         rpr_val = getattr(pyrprx, val_str[5:], None)
 
-    if not rpr_val:
+    # rpr_val could be 0
+    if rpr_val is None:
         raise MaterialError("Unknown RPR value '{}'!".format(val_str))
     else:
         return rpr_val
@@ -133,7 +136,9 @@ class NodeParser:
         ''' Gather the inputs from the list of needed ones off the blender node'''
         input_vals = {}
         for input_name in self.inputs:
-            input_vals[input_name] = get_node_value(self.material_exporter, self.blender_node, input_name)
+            # special case to deal with int input keys
+            input_key = str(input_name) if isinstance(input_name, int) else input_name
+            input_vals[input_key] = get_node_value(self.material_exporter, self.blender_node, input_name)
         return input_vals
 
     def create_rpr_nodes(self, nodes_to_create):
@@ -176,7 +181,7 @@ class NodeParser:
                     # this is an rpr value
                     value = get_rpr_val(value_source)
                 else:
-                    log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.nam, self.blender_node.name))
+                    log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
                     continue
             else:  # Constant value
                 if isinstance(value_source, (tuple, list)):
@@ -221,7 +226,12 @@ class NodeParser:
         # set rpr inputs from param layour and inputs
         self.set_all_node_inputs(rpr_nodes, blender_inputs)
 
-        return rpr_nodes[socket.name]
+        if socket.name not in rpr_nodes:
+            # some output sockets we might not translate
+            log.warn("Output '{}'' not translated for node type '{}' on '{}'.'{}'!".format(socket.name, type(self.blender_node).__name__, self.material_exporter.material.name, self.blender_node.name))
+            return None
+        else:
+            return rpr_nodes[socket.name]
 
 
     def get_subnode_key(self, subnode_name):
