@@ -2,6 +2,9 @@ from .node_parser import NodeParser, get_rpr_val
 import pyrpr
 from rprblender.utils import image as image_utils
 
+from rprblender.utils import logging
+log = logging.Log(tag='material', level='debug')
+
 ''' All parser classes should override NodeParser and override the 
     export() method if needed, or just set the input/rpr_node mapping '''
 
@@ -82,7 +85,7 @@ class ShaderNodeBrightContrast(NodeParser):
                 "op": "RPR_MATERIAL_NODE_OP_ADD"
             }
         },
-        "Image": { # output
+        "Color": { # output
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
                 "color0": "nodes.add",
@@ -290,14 +293,11 @@ class ShaderNodeInvert(NodeParser):
             "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
             "params": {
                 "color0": "nodes.invert",
-                "color1": "inputs.color",
-                "weight": "inputs.factor"
+                "color1": "inputs.Color",
+                "weight": "inputs.Factor"
             }
         }
     }
-
-class ShaderNodeBump(NodeParser):
-    pass # TODO
 
 
 class ShaderNodeSubsurfaceScattering(NodeParser):
@@ -376,6 +376,13 @@ class ShaderNodeTexImage(NodeParser):
                 "data": "inputs.image",
                 "uv": "inputs.Vector"
             }
+        },
+        "Alpha": {
+           "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "params": {
+                "color0": "nodes.Color",
+                "op": "RPR_MATERIAL_NODE_OP_SELECT_W"
+            }
         }
     }
 
@@ -387,8 +394,9 @@ class ShaderNodeTexImage(NodeParser):
 
         if not blender_node.inputs['Vector'].is_linked:
             node_key = self.get_subnode_key('Vector')
-            input_vals['Vector'] = self.material_exporter.create_rpr_node('RPR_MATERIAL_NODE_LOOKUP_UV', node_key)
-
+            node = self.material_exporter.create_rpr_node('RPR_MATERIAL_NODE_INPUT_LOOKUP', node_key)
+            input_vals['Vector'] = node
+            node.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
 
         if blender_node.image:
             try:
@@ -711,8 +719,8 @@ class ShaderNodeMixRGB(NodeParser):
 
 
         if self.blender_node.use_clamp:
-            self.self.blender_nodes['op'] = self.blender_nodes['Color']
-            self.blender_nodes['min_clamp'] = {
+            self.nodes['op'] = self.nodes['Color']
+            self.nodes['min_clamp'] = {
                             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
                             "params": {
                                 "color0": "nodes.op",
@@ -720,7 +728,7 @@ class ShaderNodeMixRGB(NodeParser):
                                 "op": "RPR_MATERIAL_NODE_OP_MIN"
                             }
                         }
-            self.blender_nodes['Color'] = {
+            self.nodes['Color'] = {
                             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
                             "params": {
                                 "color0": "nodes.op",
@@ -736,10 +744,10 @@ class ShaderNodeMixShader(NodeParser):
 
     nodes = {
         "Shader": {
-            "type": "MATERIAL_NODE_BLEND",
+            "type": "RPR_MATERIAL_NODE_BLEND",
             "params": {
-                "color0": "inputs.0",
-                "color1": "inputs.1",
+                "color0": "inputs.1",
+                "color1": "inputs.2",
                 "weight": "inputs.Fac"
             }
         }
@@ -755,7 +763,7 @@ class ShaderNodeNormalMap(NodeParser):
             "type": "RPR_MATERIAL_NODE_NORMAL_MAP",
             "params": {
                 "color": "inputs.Color",
-                "scale": "inputs.Strength",
+                "bumpscale": "inputs.Strength",
             }
         }}
           
@@ -776,7 +784,7 @@ class ShaderNodeBumpMap(NodeParser):
             "type": "RPR_MATERIAL_NODE_BUMP_MAP",
             "params": {
                 "color": "nodes.mul",
-                "scale": "inputs.Strength",
+                "bumpscale": "inputs.Strength",
             }
         }}     
 
@@ -784,8 +792,8 @@ class ShaderNodeBumpMap(NodeParser):
         ''' we need to add in invert if set '''
 
         if self.blender_node.invert:
-            self.self.blender_nodes['mul1'] = self.blender_nodes['mul']
-            self.blender_nodes['mul'] = {
+            self.nodes['mul1'] = self.nodes['mul']
+            self.nodes['mul'] = {
                             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
                             "params": {
                                 "color0": "nodes.mul1",
@@ -796,6 +804,16 @@ class ShaderNodeBumpMap(NodeParser):
         
         return super(ShaderNodeBumpMap, self).export(socket)
 
+
+class ShaderNodeValue(NodeParser):
+    ''' simply return val '''
+    def export(self, socket):
+        return self.blender_node.outputs[0].default_value
+
+class ShaderNodeRGB(NodeParser):
+    ''' simply return val '''
+    def export(self, socket):
+        return [f for f in self.blender_node.outputs[0].default_value] # some reason can't read this directly
 
 
 
@@ -825,6 +843,8 @@ blender_node_parsers = {
     'ShaderNodeMixRGB': ShaderNodeMixRGB,
     'ShaderNodeMixShader': ShaderNodeMixShader,
     'ShaderNodeNormalMap': ShaderNodeNormalMap,
-    'ShaderNodeBump': ShaderNodeBumpMap
+    'ShaderNodeBump': ShaderNodeBumpMap,
+    'ShaderNodeValue': ShaderNodeValue,
+    'ShaderNodeRGB': ShaderNodeRGB
 
 }
