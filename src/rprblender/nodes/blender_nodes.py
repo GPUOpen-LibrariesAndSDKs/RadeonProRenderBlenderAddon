@@ -745,6 +745,60 @@ class ShaderNodeMixShader(NodeParser):
         }
     }
 
+
+class ShaderNodeNormalMap(NodeParser):
+    ''' blends between input vec and N based on strength '''
+    inputs = ['Strength', 'Color']
+
+    nodes = {
+        "Normal": {
+            "type": "RPR_MATERIAL_NODE_NORMAL_MAP",
+            "params": {
+                "color": "inputs.Color",
+                "scale": "inputs.Strength",
+            }
+        }}
+          
+
+class ShaderNodeBumpMap(NodeParser):
+    inputs = ['Strength', 'Distance', 'invert', 'Height', 'Normal']
+
+    nodes = {
+        "mul": {
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "params": {
+                "color0": "inputs.Height",
+                "color1": "inputs.Distance",
+                "op": "RPR_MATERIAL_NODE_OP_MUL"
+            }
+        },
+        "Normal": {
+            "type": "RPR_MATERIAL_NODE_BUMP_MAP",
+            "params": {
+                "color": "nodes.mul",
+                "scale": "inputs.Strength",
+            }
+        }}     
+
+    def export(self, socket):
+        ''' we need to add in invert if set '''
+
+        if self.blender_node.invert:
+            self.self.blender_nodes['mul1'] = self.blender_nodes['mul']
+            self.blender_nodes['mul'] = {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "nodes.mul1",
+                                "color1": [1.0, 1.0, 1.0, -1.0],
+                                "op": "RPR_MATERIAL_NODE_OP_MUL"
+                            }
+                        }
+        
+        return super(ShaderNodeBumpMap, self).export(socket)
+
+
+
+
 blender_node_parsers = {
     'ShaderNodeAmbientOcclusion': ShaderNodeAmbientOcclusion,
     'ShaderNodeBrightContrast': ShaderNodeBrightContrast,
@@ -756,7 +810,6 @@ blender_node_parsers = {
     'ShaderNodeBsdfTranslucent': ShaderNodeBsdfTranslucent,
     'ShaderNodeBsdfTransparent': ShaderNodeBsdfTransparent,
     'ShaderNodeBsdfVelvet': ShaderNodeBsdfVelvet,
-    #'ShaderNodeBump'
     'ShaderNodeEmission': ShaderNodeEmission,
     'ShaderNodeFresnel': ShaderNodeFresnel,
     'ShaderNodeGamma': ShaderNodeGamma,
@@ -770,6 +823,8 @@ blender_node_parsers = {
     'ShaderNodeTexCoord': ShaderNodeTexCoord, 
     'ShaderNodeLightFalloff': ShaderNodeLightFalloff,
     'ShaderNodeMixRGB': ShaderNodeMixRGB,
-    'ShaderNodeMixShader': ShaderNodeMixShader
+    'ShaderNodeMixShader': ShaderNodeMixShader,
+    'ShaderNodeNormalMap': ShaderNodeNormalMap,
+    'ShaderNodeBump': ShaderNodeBumpMap
 
 }

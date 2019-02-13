@@ -112,8 +112,8 @@ class MaterialExporter:
         # deal with reroute nodes
         if isinstance(node, bpy.types.NodeReroute):
             if node.inputs['Input'].is_linked:
-                node = node.inputs['Input'].links[0].from_node
                 socket = node.inputs['Input'].links[0].from_socket
+                node = node.inputs['Input'].links[0].from_node
             else:
                 log.warn("Reroute node '{}'.'{}' is disconnected".format(self.material.name, node.name))
                 return None
