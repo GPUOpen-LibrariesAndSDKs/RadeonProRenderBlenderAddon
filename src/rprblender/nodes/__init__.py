@@ -13,16 +13,17 @@ from rprblender.utils import is_rpr_active
 from rprblender.utils import logging
 
 from .sockets import classes
-from .uber_node import RPR_Node_Uber
-from .output_node import RPR_Node_Output
-from .rpr_nodes import RPRShadingNode
-
 
 log = logging.Log(tag='nodes')
 
 
 class MaterialError(Exception):
     pass
+
+# have to put these after the Material Error
+from .uber_node import RPR_Node_Uber
+from .rpr_nodes import RPRShadingNode
+from .output_node import RPR_Node_Output
 
 
 class RPR_ShaderNodeCategory(NodeCategory):
