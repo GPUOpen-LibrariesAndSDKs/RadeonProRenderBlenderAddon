@@ -26,15 +26,7 @@ class RPR_Node_Uber(RPRShadingNode):
     diffuse_roughness = 'Diffuse Roughness'
     diffuse_normal = 'Diffuse Normal'
 
-    def diffuse_changed(self, context):
-        self.inputs[self.diffuse_color].enabled = self.diffuse
-        self.inputs[self.diffuse_roughness].enabled = self.diffuse
-
-    def reflection_changed(self, context):
-        pass
-
-    diffuse: bpy.props.BoolProperty(name="Diffuse", update=diffuse_changed, default=True)
-#    reflection: bpy.props.BoolProperty(name="Reflection", update=reflection_changed, default=True)
+    
 
     def init(self, context):
         self.outputs.new("NodeSocketShader", "Output")
@@ -48,11 +40,11 @@ class RPR_Node_Uber(RPRShadingNode):
             return self.inputs[socket_name].default_value
         return (0.5, 0.0, 0.5, 1.0)
 
-    def sync(self, context):
+    def sync(self, blender_node, socket, material):
         # Fake material for tests
 #        color = (1.0, 0.5, 0.5, 1.0)
         logging.info("Uber: sync")
-        color = self.get_value(self.diffuse_color)
+        color = get_value(node, 'Diffuse Color')
         logging.info("color {}; [0:0] {}; dir() {}".format(color, color[0:4], dir(color)))
 
         null_vector = (0, 0, 0, 0)

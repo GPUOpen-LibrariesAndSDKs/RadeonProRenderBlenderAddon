@@ -5,6 +5,8 @@ import os
 import bpy
 
 from rprblender.utils import logging
+from .node_parser import NodeParser
+
 # from .export import export_blender_node
 
 ''' Layout of meta data for nodes:
@@ -61,41 +63,16 @@ from rprblender.utils import logging
 '''
 
 
-class RPRShadingNode(bpy.types.ShaderNode):  # , RPR_Properties):
+
+
+
+class RPRShadingNode(bpy.types.ShaderNode, NodeParser):  # , RPR_Properties):
     bl_compatibility = {'RPR'}
     bl_idname = 'rpr_shader_node'
     bl_label = 'RPR Shader Node'
     bl_icon = 'MATERIAL'
 
-    # shader meta data from json
-    meta_data = {
-        'settings': (),
-        'inputs': (),
-        'outputs': (),
-    }
-
-    @staticmethod
-    def get_socket(node, name=None, index=None):
-        if name:
-            try:
-                socket = node.inputs[name]
-            except KeyError:
-                return None
-        elif index:
-            try:
-                socket = node.inputs[index]
-            except IndexError:
-                return None
-        else:
-            return None
-
-        logging.info("get_socket({}, {}, {}): {}; linked {}; links number {}".
-                     format(node, name, index, socket, socket.is_linked, len(socket.links)),
-                     tag="ShadingNode")
-        if socket.is_linked and len(socket.links) > 0:
-            return socket.links[0].from_socket
-        return None
-
+    
     @classmethod
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
