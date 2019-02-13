@@ -200,11 +200,13 @@ class NodeParser:
         for input_name, value in inputs_dict.items():
             param_name = get_rpr_val(input_name) if input_name.startswith('RPR') else input_name
             val = get_rpr_val(value) if isinstance(value, str) and input_name.startswith('RPR') else value
-            try:
-                rpr_node.set_input(param_name, val)
-            except TypeError as e:
-                raise MaterialError("Socket '{}' value assign error".
-                                    format(param_name), rpr_node, e)
+            if val:
+                try:
+                    rpr_node.set_input(param_name, val)
+                except TypeError as e:
+                    raise MaterialError("Socket '{}' value assign error on node type {} '{}'.'{}'".
+                                        format(param_name, type(self.blender_node).__name__, 
+                                               self.material_exporter.material.name, self.blender_node.name), val)
 
     def set_all_node_inputs(self, rpr_nodes, blender_inputs):
         ''' loop over all node info, get the param inputs and set them on the rpr_node '''
