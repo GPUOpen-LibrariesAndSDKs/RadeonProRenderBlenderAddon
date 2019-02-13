@@ -9,6 +9,22 @@ log = logging.Log(tag='material', level='debug')
     export() method if needed, or just set the input/rpr_node mapping '''
 
 
+
+''' TODO NODES:
+    ShaderNodeMath
+    ShaderNodeUVMap
+    ShaderNodeAttribute
+    ShaderNodeMapping
+    ShaderNodeBlackbody
+    ShaderNodeRGBCurve
+    NodeGroups
+    ShaderNodeHueSaturation
+    ShaderNodeTexNoise
+    ShaderNodeValToRGB
+'''
+
+
+
 class ShaderNodeAmbientOcclusion(NodeParser):
 
     inputs = ['Color', 'Distance', 'samples']

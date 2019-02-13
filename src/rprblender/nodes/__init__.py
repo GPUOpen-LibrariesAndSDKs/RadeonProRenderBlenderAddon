@@ -33,11 +33,16 @@ class RPR_ShaderNodeCategory(NodeCategory):
                and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
 
 
+
 node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
+        NodeItem('ShaderNodeAmbientOcclusion'),
+        NodeItem('ShaderNodeFresnel'),
         NodeItem('ShaderNodeRGB'),
+        NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
-        NodeItem('ShaderNodeBlackbody'),
+    #    NodeItem('ShaderNodeBlackbody'),
+        NodeItem('ShaderNodeNewGeometry'),
     ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),
@@ -48,11 +53,19 @@ node_categories = [
     ],),
     RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
+        NodeItem('ShaderNodeAddShader'),
+        # one could make the argument we don't want people "creating" these
+        NodeItem('ShaderNodeBsdfAnisotropic'),
+        NodeItem('ShaderNodeBsdfDiffuse'),
+        NodeItem('ShaderNodeBsdfGlass'),
+        NodeItem('ShaderNodeBsdfGlossy'),
+        NodeItem('ShaderNodeBsdfRefraction'),
+        NodeItem('ShaderNodeBsdfTranslucent'),
+        NodeItem('ShaderNodeBsdfTransparent'),
+        NodeItem('ShaderNodeBsdfVelvet'),
         NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
-        NodeItem('ShaderNodeBsdfDiffuse'),
-        NodeItem('ShaderNodeBsdfGlossy'),
-        NodeItem('ShaderNodeBsdfTransparent'),
+        NodeItem('ShaderNodeSubsurfaceScattering'),
     ]),
     RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
         NodeItem('ShaderNodeBump'),
@@ -61,7 +74,9 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
         NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeBrightContrast'),
-        # NodeItem('ShaderNodeLightFalloff'),
+        NodeItem('ShaderNodeLightFalloff'),
+        NodeItem('ShaderNodeGamma'),
+        NodeItem('ShaderNodeMixRGB'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('rpr_shader_node_uber'),
