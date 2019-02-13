@@ -70,7 +70,6 @@ def get_socket_link(material_exporter, node, socket_key):
                 link.from_node.name, link.from_socket.name,
                 link.to_node.name, link.to_socket.name
             ),
-            self.material
         )
 
     return None
@@ -83,8 +82,6 @@ def parse_val(val):
 
     if len(val) in (3, 4):
         return tuple(val)
-
-    return val
 
     
 def get_socket_default(node, socket_key):
@@ -117,6 +114,8 @@ class NodeParser:
         hooks up all the nodes, then returns a node for the output 
 
         Subclasses can override gather_inputs, create_nodes, sync, as needed.
+        Or simply use the basic functionality and specify the inputs and nodes of the 
+        subclass and let it run.
         '''
 
     # A list of inputs.  These can be Input sockets, or parameters on the blender node
@@ -159,11 +158,11 @@ class NodeParser:
                     if target_name in blender_inputs:
                         value = blender_inputs[target_name]
 
-                        # special case for normal if unlinked
-                        if target_name == 'Normal' and isinstance(value, tuple):
+                        # special case for normal if unlinked. should this be more robust and check if type is normal?
+                        if target_name in {'Normal', 'Clearcoat Normal'} and isinstance(value, tuple):
                             continue
                     else:
-                        log.warn("Input '{}' value not found for input '{}'!".format(target_name, param_name))
+                        log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
                         continue
                 # internal node links
                 elif value_source.startswith('nodes.'):
@@ -171,13 +170,13 @@ class NodeParser:
                     if target_name in rpr_nodes:
                         value = rpr_nodes[target_name]
                     else:
-                        log.warn("Node '{}' not found! for input '{}'".format(target_name, param_name))
+                        log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
                         continue
                 elif value_source.startswith('RPR'):
                     # this is an rpr value
                     value = get_rpr_val(value_source)
                 else:
-                    log.warn("Unknown RPR node input value source: {}".format(value_source))
+                    log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.nam, self.blender_node.name))
                     continue
             else:  # Constant value
                 if isinstance(value_source, (tuple, list)):

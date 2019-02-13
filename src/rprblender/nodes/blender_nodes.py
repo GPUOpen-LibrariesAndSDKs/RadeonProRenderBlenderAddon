@@ -454,7 +454,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
                 "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY": "inputs.Anisotropic",
                 "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION": "inputs.Anisotropic Rotation",
 
-                "RPRX_UBER_MATERIAL_COATING_WEIGHT": "nodes.Clearcoat",
+                "RPRX_UBER_MATERIAL_COATING_WEIGHT": "inputs.Clearcoat",
                 "RPRX_UBER_MATERIAL_COATING_COLOR": [1.0, 1.0, 1.0, 1.0],
                 "RPRX_UBER_MATERIAL_COATING_ROUGHNESS": "inputs.Clearcoat Roughness",
                 "RPRX_UBER_MATERIAL_COATING_MODE": "RPRX_UBER_MATERIAL_COATING_MODE_PBR",
@@ -484,17 +484,6 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             }
         }
     }
-
-    def get_blender_node_inputs(self):
-        ''' deal with clearcoat normal if its not connected '''
-    
-
-        input_vals = super(ShaderNodeBsdfPrincipled, self).get_blender_node_inputs()
-        if isinstance(input_vals['Clearcoat Normal'], tuple):
-            input_vals.pop('Clearcoat Normal')
-
-        return input_vals
-
 
 
 
