@@ -548,6 +548,188 @@ class ShaderNodeTexCoord(NodeParser):
         }
     }
 
+class ShaderNodeLightFalloff(NodeParser):
+    ''' we don't actually do light falloff in RPR.  
+        So we're mainly going to pass through "strength" '''
+    inputs = ['Strength']
+
+    def export(self, socket):
+        return self.get_blender_node_inputs()['Strength']
+
+
+mix_types_nodes = {'ADD':
+                        {
+                        "add": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_ADD"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "nodes.add",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'MULTIPLY': {
+                        "mul": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_MUL"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "nodes.mul",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'SUBTRACT': {
+                        "sub": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_SUB"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "nodes.sub",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'DIVIDE': {
+                        "div": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_DIV"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "nodes.div",
+                                "color1": "inputs.1",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'DIFFERENCE': {
+                        "sub": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_SUB"
+                            }
+                        },
+                        "abs": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "nodes.sub",
+                                "op": "RPR_MATERIAL_NODE_OP_ABS"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "nodes.abs",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'DARKEN': {
+                        "min": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "op": "RPR_MATERIAL_NODE_OP_MIN"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "nodes.min",
+                                "color1": "inputs.1",
+                                "weight": "inputs.Fac"
+                            }
+                        }},
+                    'LIGHT': {
+                        "mul": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.Fac",
+                                "op": "RPR_MATERIAL_NODE_OP_MUL"
+                            }
+                        },
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "nodes.mul",
+                                "color1": "inputs.1",
+                                "op": "RPR_MATERIAL_NODE_OP_MAX"
+                            }
+                        }},
+                   'MIX': {
+                        "Color": {
+                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+                            "params": {
+                                "color0": "inputs.1",
+                                "color1": "inputs.2",
+                                "weight": "inputs.Fac"
+                            }
+                        }}
+                }
+
+class ShaderNodeMixRGB(NodeParser):
+    inputs = ['Fac', 1, 2]
+
+    def export(self, socket):
+        ''' this makes the self.nodes dict dynamically based on mix type '''
+
+        # we need to do different mix nodes based on mode
+        mix_type = self.blender_node.blend_type
+        if mix_type in mix_types_nodes:
+            self.nodes = mix_types_nodes[mix_type]
+        else:
+            log.warn("Unknown mix type {} on node: {}.  Defaulting to mix".format(mix_type, self.blender_node.name))
+            self.nodes = mix_types_nodes['MIX']
+
+
+        if self.blender_node.use_clamp:
+            self.self.blender_nodes['op'] = self.blender_nodes['Color']
+            self.blender_nodes['min_clamp'] = {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "nodes.op",
+                                "color1": [0.0, 0.0, 0.0, 0.0],
+                                "op": "RPR_MATERIAL_NODE_OP_MIN"
+                            }
+                        }
+            self.blender_nodes['Color'] = {
+                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+                            "params": {
+                                "color0": "nodes.op",
+                                "color1": [1.0, 1.0, 1.0, 1.0],
+                                "op": "RPR_MATERIAL_NODE_OP_MAX"
+                            }
+                        }
+        return super(ShaderNodeMixRGB, self).export(socket)
+
 
 blender_node_parsers = {
     'ShaderNodeAmbientOcclusion': ShaderNodeAmbientOcclusion,
@@ -555,6 +737,7 @@ blender_node_parsers = {
     'ShaderNodeBsdfAnisotropic': ShaderNodeBsdfAnisotropic,
     'ShaderNodeBsdfDiffuse': ShaderNodeBsdfDiffuse,
     'ShaderNodeBsdfGlass': ShaderNodeBsdfGlass,
+    'ShaderNodeBsdfGlossy': ShaderNodeBsdfGlossy,
     'ShaderNodeBsdfRefraction': ShaderNodeBsdfRefraction,
     'ShaderNodeBsdfTranslucent': ShaderNodeBsdfTranslucent,
     'ShaderNodeBsdfTransparent': ShaderNodeBsdfTransparent,
@@ -570,6 +753,8 @@ blender_node_parsers = {
     'ShaderNodeBsdfPrincipled': ShaderNodeBsdfPrincipled,
     'ShaderNodeNewGeometry': ShaderNodeNewGeometry,
     'ShaderNodeAddShader': ShaderNodeAddShader,
-    'ShaderNodeTexCoord': ShaderNodeTexCoord
+    'ShaderNodeTexCoord': ShaderNodeTexCoord, 
+    'ShaderNodeLightFalloff': ShaderNodeLightFalloff,
+    'ShaderNodeMixRGB': ShaderNodeMixRGB
 
 }
