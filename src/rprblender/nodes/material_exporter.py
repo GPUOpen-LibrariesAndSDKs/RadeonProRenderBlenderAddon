@@ -1,6 +1,3 @@
-import math
-import numpy as np
-
 import bpy
 import pyrpr
 import pyrprx
@@ -9,10 +6,8 @@ from .node_parser import NodeParser, get_node_socket, get_rpr_val
 from . import MaterialError
 from .blender_nodes import blender_node_parsers
 from .rpr_nodes import RPRShadingNode
-from rprblender.utils.material import find_output_node_in_tree
 from rprblender import utils
-from rprblender.utils import image as image_utils
-from rprblender.utils import light as light_utils
+from rprblender.utils.material import find_output_node_in_tree
 
 from rprblender.utils import logging
 log = logging.Log(tag='material', level='debug')
