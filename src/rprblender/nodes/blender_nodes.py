@@ -731,6 +731,20 @@ class ShaderNodeMixRGB(NodeParser):
         return super(ShaderNodeMixRGB, self).export(socket)
 
 
+class ShaderNodeMixShader(NodeParser):
+    inputs = ['Fac', 1, 2]
+
+    nodes = {
+        "Shader": {
+            "type": "MATERIAL_NODE_BLEND",
+            "params": {
+                "color0": "inputs.0",
+                "color1": "inputs.1",
+                "weight": "inputs.Fac"
+            }
+        }
+    }
+
 blender_node_parsers = {
     'ShaderNodeAmbientOcclusion': ShaderNodeAmbientOcclusion,
     'ShaderNodeBrightContrast': ShaderNodeBrightContrast,
@@ -755,6 +769,7 @@ blender_node_parsers = {
     'ShaderNodeAddShader': ShaderNodeAddShader,
     'ShaderNodeTexCoord': ShaderNodeTexCoord, 
     'ShaderNodeLightFalloff': ShaderNodeLightFalloff,
-    'ShaderNodeMixRGB': ShaderNodeMixRGB
+    'ShaderNodeMixRGB': ShaderNodeMixRGB,
+    'ShaderNodeMixShader': ShaderNodeMixShader
 
 }

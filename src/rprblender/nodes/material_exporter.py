@@ -109,6 +109,16 @@ class MaterialExporter:
         if rpr_node:
             return rpr_node
 
+        # deal with reroute nodes
+        if isinstance(node, bpy.types.NodeReroute):
+            if node.inputs['Input'].is_linked:
+                node = node.inputs['Input'].links[0].from_node
+                socket = node.inputs['Input'].links[0].from_socket
+            else:
+                log.warn("Reroute node '{}'.'{}' is disconnected".format(self.material.name, node.name))
+                return None
+
+
         # TODO: discuss about using rules to parse nodes
         # Can we export node using rules?
         if isinstance(node, RPRShadingNode):
