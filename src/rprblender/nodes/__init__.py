@@ -21,8 +21,7 @@ class MaterialError(Exception):
     pass
 
 # have to put these after the Material Error
-from .uber_node import RPR_Node_Uber
-from .rpr_nodes import RPRShadingNode
+from .rpr_nodes import RPRShadingNodeUber, RPRShadingNode
 from .output_node import RPR_Node_Output
 
 
@@ -94,7 +93,7 @@ def hide_cycles_and_eevee_poll(method):
 old_shader_node_category_poll = None
 
 
-classes += (RPRShadingNode, RPR_Node_Output, RPR_Node_Uber)
+classes += (RPRShadingNode, RPR_Node_Output, RPRShadingNodeUber)
 register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
 
 
