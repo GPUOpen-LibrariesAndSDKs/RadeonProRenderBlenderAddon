@@ -3,9 +3,13 @@ import json
 import os
 
 import bpy
+from bpy.props import (
+    BoolProperty,
+)
 
 from rprblender.utils import logging
 from .node_parser import NodeParser, get_node_value
+
 
 class RPRShadingNode(bpy.types.ShaderNode, NodeParser):  # , RPR_Properties):
     ''' base class for RPR shading nodes.  This is a subclass of nodeparser
@@ -15,13 +19,14 @@ class RPRShadingNode(bpy.types.ShaderNode, NodeParser):  # , RPR_Properties):
     bl_idname = 'rpr_shader_node'
     bl_label = 'RPR Shader Node'
     bl_icon = 'MATERIAL'
-
+    bl_width_min = 300
     
     @classmethod
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
 
-
+    def __init__(self):
+        pass
 
 class RPRShadingNodeUber(RPRShadingNode):
     bl_idname = 'rpr_shader_node_uber'
@@ -124,13 +129,16 @@ class RPRShadingNodeUber(RPRShadingNode):
 
     def update_visibility(self, context):
         ''' update visibility of list of sockets based on enabled properties '''
-        for lobe_name, sockets in self.node_sockets.items():
-            lobe_enabled = getattr(self, lobe_name + '_enabled')
-            for socket_name, socket_type, default, rpr_val in sockets:
-                self.inputs[socket_name].enabled = lobe_enabled
+        
+        pass
+        #for lobe_name, sockets in self.node_sockets.items():
+        #    lobe_enabled = getattr(self, lobe_name + '_enabled')
+        #    for socket_name, socket_type, default, rpr_val in sockets:
+        #        self.inputs[socket_name].enabled = lobe_enabled
 
-    def __init__(self, context):
+    def init(self, context):
         ''' create sockets based on node_socket rules '''
+        
         for lobe, sockets in self.node_sockets.items():
             for socket_name, socket_type, default_val, rpr_val in sockets:
                 socket = self.inputs.new(socket_type, socket_name)
@@ -139,7 +147,9 @@ class RPRShadingNodeUber(RPRShadingNode):
 
                 # had value for normal types
                 if socket_type == 'rpr_socket_link':
-                    spcket.hide_value
+                    socket.hide_value
+
+        self.outputs.new('rpr_socket_link', 'Shader')
 
         self.update_visibility(None)
         # save self as blender_node
@@ -149,12 +159,12 @@ class RPRShadingNodeUber(RPRShadingNode):
         ''' export based on rules '''
         # todo handle special cases. 
         self.material_exporter = material_exporter
-        uber_node = material_exporter.create_rpr_node('RPRX_MATERIAL_UBER')
+        uber_node = material_exporter.create_rpr_node('RPRX_MATERIAL_UBER', material_exporter.get_node_key(self, 'Shader'))
 
         for lobe_name, sockets in self.node_sockets.items():
-            lobe_enabled = getattr(self, lobe_name + '_enabled')
+            #lobe_enabled = getattr(self, lobe_name + '_enabled')
             
-            if lobe_enable:
+            if 1: #lobe_enable:
                 for socket_name, socket_type, default, rpr_val in sockets:
                     val = get_node_value(material_exporter, self, socket.name)
                     if val is not None:

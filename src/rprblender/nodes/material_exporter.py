@@ -122,7 +122,7 @@ class MaterialExporter:
         # TODO: discuss about using rules to parse nodes
         # Can we export node using rules?
         if isinstance(node, RPRShadingNode):
-            return node.export(node, socket, self)
+            return node.export(socket, self)
 
         elif node.bl_idname in blender_node_parsers:
             node_parser = blender_node_parsers[node.bl_idname](self, node)
