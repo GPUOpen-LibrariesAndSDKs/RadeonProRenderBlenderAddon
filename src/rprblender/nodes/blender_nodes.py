@@ -57,6 +57,11 @@ class ShaderNodeAmbientOcclusion(NodeParser):
 
 
 class ShaderNodeBrightContrast(NodeParser):
+    ''' formula copied from OSL shader code in cycles.  Basically
+        
+        a = 1 + contrast
+        b = bright - contrast * .5
+        color_out = max(a * color_in + b, 0.0). '''
 
     inputs = ["Bright", "Contrast", "Image"]
     
@@ -580,7 +585,7 @@ class ShaderNodeLightFalloff(NodeParser):
     def export(self, socket):
         return self.get_blender_node_inputs()['Strength']
 
-
+# these mix types are copied from cycles OSL 
 mix_types_nodes = {'ADD':
                         {
                         "add": {
