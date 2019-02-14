@@ -13,11 +13,14 @@ class RPR_Operator(bpy.types.Operator):
 
 # Register/unregister all required classes of RPR properties in one go
 from . import (
+    render,
     world,
     light,
 )
 
 register, unregister = bpy.utils.register_classes_factory([
+    render.RPR_RENDER_OP_open_web_page,
+
     world.RPR_WORLD_OP_create_environment_gizmo,
     world.RPR_WORLD_OT_convert_cycles_environment,
 

@@ -1,7 +1,7 @@
 import pyrpr
 
 from . import RPR_Panel
-
+from rprblender import bl_info
 
 class RPR_RENDER_PT_devices(RPR_Panel):
     bl_label = "Render Devices"
@@ -208,11 +208,62 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
 
 
 class RPR_RENDER_PT_help_about(RPR_Panel):
+    ''' Help/About UI panel '''
+
     bl_label = "Help/About"
     bl_context = 'render'
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
+        def core_ver_str():
+            mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
+            mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
+            return "%x.%x" % (mj, mn)
+
+        def label_center(lay, text):
+            row = lay.row()
+            row.alignment = 'CENTER'
+            row.label(text=text)
+
         layout = self.layout
 
-        layout.label(text="Help/About page")
+        # Drawing info about plugin
+        col = layout.column(align=True)
+        version = bl_info['version']
+        label_center(col, "%s for Blender %d.%d.%d (core %s)" % (
+            bl_info['name'], version[0], version[1], version[2], core_ver_str()
+        ))
+        label_center(col, "© 2016 Advanced Micro Devices, Inc. (AMD)")
+        label_center(col, "Portions of this software are created")
+        label_center(col, "and copyrighted to other third parties.")
+
+        # Drawing buttons to open web pages
+        layout.separator()
+        col = layout.column()
+        row = col.row(align=True)
+        row.alignment = 'CENTER'
+        row.operator('rpr.op_open_web_page', text="Main Site").page = 'main_site'
+        row.operator('rpr.op_open_web_page', text="Documentation").page = 'documentation'
+        row.operator('rpr.op_open_web_page', text="Downloads").page = 'downloads'
+
+        row = col.row(align=True)
+        row.alignment = 'CENTER'
+        row.operator('rpr.op_open_web_page', text="Community").page = 'community'
+        row.operator('rpr.op_open_web_page', text="Bug Reports").page = 'bug_reports'
+
+
+class RPR_RENDER_PT_debug(RPR_Panel):
+    ''' Sub panel under Help/About panel with debug options '''
+
+    bl_label = "Debug Options"
+    bl_parent_id = 'RPR_RENDER_PT_help_about'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        # Temporary disabling this panel till it'll be implemented
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+        # TODO: implement debug panel
