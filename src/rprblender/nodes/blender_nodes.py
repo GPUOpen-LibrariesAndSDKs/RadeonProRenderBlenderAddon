@@ -69,32 +69,32 @@ class ShaderNodeBrightContrast(NodeParser):
         "a": {
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
-                "color0": "inputs.Contrast",
-                "color1": [1.0, 1.0, 1.0, 1.0],
-                "op": "RPR_MATERIAL_NODE_OP_ADD"
-            }
-        },
-        "mul_contrast": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": "inputs.Contrast",
+                "color0": "inputs.Bright",
                 "color1": [0.5, 0.5, 0.5, 0.5],
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
+                "op": "RPR_MATERIAL_NODE_OP_ADD"
             }
         },
         "b": {
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
-                "color0": "inputs.Bright",
-                "color1": "nodes.mul_contrast",
+                "color0": "inputs.Image",
+                "color1": [0.5, 0.5, 0.5, 0.5],
                 "op": "RPR_MATERIAL_NODE_OP_SUB"
+            }
+        },
+        "c": {
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "params": {
+                "color0": "inputs.Contrast",
+                "color1": [1.0, 1.0, 1.0, 1.0],
+                "op": "RPR_MATERIAL_NODE_OP_add"
             }
         },
         "multiply": {
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
-                "color0": "inputs.Image",
-                "color1": "nodes.a",
+                "color0": "nodes.b",
+                "color1": "nodes.c",
                 "op": "RPR_MATERIAL_NODE_OP_MUL"
             }
         },
@@ -102,7 +102,7 @@ class ShaderNodeBrightContrast(NodeParser):
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
                 "color0": "nodes.multiply",
-                "color1": "nodes.b",
+                "color1": "nodes.a",
                 "op": "RPR_MATERIAL_NODE_OP_ADD"
             }
         },
@@ -352,10 +352,18 @@ class ShaderNodeTexChecker(NodeParser):
 
     inputs = ["Scale", "Vector", "Color1", "Color2"]
     nodes = {
-        "multiply": {
+        "scale": {
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
                 "color0": "inputs.Scale",
+                "color1": 8.0,
+                "op": "RPR_MATERIAL_NODE_OP_DIV"
+            }
+        },
+        "multiply": {
+            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "params": {
+                "color0": "nodes.Scale",
                 "color1": "inputs.Vector",
                 "op": "RPR_MATERIAL_NODE_OP_MUL"
             }
@@ -452,7 +460,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         "is_glass": {
             "type": "RPR_MATERIAL_NODE_ARITHMETIC",
             "params": {
-                "color0": [1.0, 1.0, 1.0, 1.0],
+                "color0": 1.0,
                 "color1": "inputs.Transmission",
                 "op": "RPR_MATERIAL_NODE_OP_SUB"
             }
@@ -773,6 +781,33 @@ class ShaderNodeMixShader(NodeParser):
             }
         }
     }
+
+    def export(self, socket):
+        ''' Special cases to consider. 
+            1.  unconnected socket(s),
+            2.  fac is 0 or 1 '''
+        inputs = self.get_blender_node_inputs()
+
+        if self.inputs[1].is_linked and not self.inputs[2].is_linked:
+            # no connected shaders.  Return white diffuse
+            self.nodes = {
+                "type": "RPR_MATERIAL_NODE_DIFFUSE",
+                "params": {
+                    "color": [1.0, 1.0, 1.0, 1.0]
+                }
+            }
+        
+        elif inputs['Fac'] == 0.0 or not self.inputs[2].is_linked:
+            # input 2 not connected or factor 0, return input 1
+            return inputs[1]
+
+        elif inputs['Fac'] == 1.0 or not self.inputs[2].is_linked:
+            # input 2 not connected or factor 1, return input 2
+            return inputs[1]
+
+        else:
+            return super(ShaderNodeMixShader, self).export(socket)
+
 
 
 class ShaderNodeNormalMap(NodeParser):
