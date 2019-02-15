@@ -788,7 +788,7 @@ class ShaderNodeMixShader(NodeParser):
             2.  fac is 0 or 1 '''
         inputs = self.get_blender_node_inputs()
 
-        if self.blender_node.inputs[1].is_linked and not self.blender_node.inputs[2].is_linked:
+        if not self.blender_node.inputs[1].is_linked and not self.blender_node.inputs[2].is_linked:
             # no connected shaders.  Return white diffuse
             self.nodes = {
                 "type": "RPR_MATERIAL_NODE_DIFFUSE",
@@ -799,11 +799,11 @@ class ShaderNodeMixShader(NodeParser):
         
         elif inputs['Fac'] == 0.0 or not self.blender_node.inputs[2].is_linked:
             # input 2 not connected or factor 0, return input 1
-            return inputs[1]
+            return inputs['1']
 
-        elif inputs['Fac'] == 1.0 or not self.blender_node.inputs[2].is_linked:
+        elif inputs['Fac'] == 1.0 or not self.blender_node.inputs[1].is_linked:
             # input 2 not connected or factor 1, return input 2
-            return inputs[1]
+            return inputs['2']
 
         else:
             return super(ShaderNodeMixShader, self).export(socket)
