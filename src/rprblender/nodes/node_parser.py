@@ -92,8 +92,11 @@ def parse_val(val):
 def get_socket_default(node, socket_key):
     ''' get the default_value from a socket '''
     socket = node.inputs[socket_key]
-    val = socket.default_value
-    return parse_val(val)
+    
+    if hasattr(socket, 'default_value'):
+        return parse_val(socket.default_value)
+    else:
+        return None
 
 
 def get_rpr_val(val_str: str):
