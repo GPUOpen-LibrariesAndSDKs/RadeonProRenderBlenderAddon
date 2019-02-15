@@ -13,16 +13,16 @@ from rprblender.utils import is_rpr_active
 from rprblender.utils import logging
 
 from .sockets import classes
-from .uber_node import RPR_Node_Uber
-from .output_node import RPR_Node_Output
-from .rpr_nodes import RPRShadingNode
-
 
 log = logging.Log(tag='nodes')
 
 
 class MaterialError(Exception):
     pass
+
+# have to put these after the Material Error
+from .rpr_nodes import RPRShadingNodeUber, RPRShadingNode
+from .output_node import RPR_Node_Output
 
 
 class RPR_ShaderNodeCategory(NodeCategory):
@@ -32,11 +32,16 @@ class RPR_ShaderNodeCategory(NodeCategory):
                and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
 
 
+
 node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
+        NodeItem('ShaderNodeAmbientOcclusion'),
+        NodeItem('ShaderNodeFresnel'),
         NodeItem('ShaderNodeRGB'),
+        NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
-        NodeItem('ShaderNodeBlackbody'),
+    #    NodeItem('ShaderNodeBlackbody'),
+        NodeItem('ShaderNodeNewGeometry'),
     ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),
@@ -47,11 +52,19 @@ node_categories = [
     ],),
     RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
+        NodeItem('ShaderNodeAddShader'),
+        # one could make the argument we don't want people "creating" these
+        NodeItem('ShaderNodeBsdfAnisotropic'),
+        NodeItem('ShaderNodeBsdfDiffuse'),
+        NodeItem('ShaderNodeBsdfGlass'),
+        NodeItem('ShaderNodeBsdfGlossy'),
+        NodeItem('ShaderNodeBsdfRefraction'),
+        NodeItem('ShaderNodeBsdfTranslucent'),
+        NodeItem('ShaderNodeBsdfTransparent'),
+        NodeItem('ShaderNodeBsdfVelvet'),
         NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
-        NodeItem('ShaderNodeBsdfDiffuse'),
-        NodeItem('ShaderNodeBsdfGlossy'),
-        NodeItem('ShaderNodeBsdfTransparent'),
+        NodeItem('ShaderNodeSubsurfaceScattering'),
     ]),
     RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
         NodeItem('ShaderNodeBump'),
@@ -60,7 +73,9 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
         NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeBrightContrast'),
-        # NodeItem('ShaderNodeLightFalloff'),
+        NodeItem('ShaderNodeLightFalloff'),
+        NodeItem('ShaderNodeGamma'),
+        NodeItem('ShaderNodeMixRGB'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('rpr_shader_node_uber'),
@@ -78,7 +93,7 @@ def hide_cycles_and_eevee_poll(method):
 old_shader_node_category_poll = None
 
 
-classes += (RPRShadingNode, RPR_Node_Output, RPR_Node_Uber)
+classes += (RPRShadingNode, RPR_Node_Output, RPRShadingNodeUber)
 register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
 
 

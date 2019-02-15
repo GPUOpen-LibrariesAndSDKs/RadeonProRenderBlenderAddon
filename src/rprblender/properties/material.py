@@ -1,6 +1,6 @@
 import bpy
 
-from rprblender.nodes import export
+from rprblender.nodes import material_exporter
 from . import RPR_Properties
 from rprblender.utils import key
 
@@ -13,7 +13,7 @@ class RPR_MaterialParser(RPR_Properties):
         mat = self.id_data
         log("Syncing material", mat)
 
-        exporter = export.MaterialExporter(rpr_context, mat)
+        exporter = material_exporter.MaterialExporter(rpr_context, mat)
         material = exporter.export()
         return material
 
