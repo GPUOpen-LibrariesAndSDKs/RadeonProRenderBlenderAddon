@@ -80,10 +80,13 @@ def parse_val(val):
     ''' turn a blender node val or default value for input into 
         something that works well with rpr '''
     if isinstance(val, (int, float, bool)):
-        return float(val)
+        fval = float(val)
+        return (fval, fval, fval, fval)
 
     if len(val) in (3, 4):
         return tuple(val)
+
+    raise MaterialError("Unknown value type to pass to rpr", val)
 
     
 def get_socket_default(node, socket_key):
