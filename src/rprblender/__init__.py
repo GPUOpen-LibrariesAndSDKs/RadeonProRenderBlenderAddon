@@ -54,11 +54,11 @@ class RPREngine(bpy.types.RenderEngine):
         ''' Called for final render '''
         log('update')
 
-        if not self.engine:
-            if self.is_preview:
-                self.engine = PreviewEngine(self)
-            else:
-                self.engine = RenderEngine(self)
+        # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
+        if self.is_preview:
+            self.engine = PreviewEngine(self)
+        else:
+            self.engine = RenderEngine(self)
 
         self.engine.sync(depsgraph)
 
