@@ -18,6 +18,7 @@ class RenderEngine(Engine):
         self.is_synced = False
         self.render_event = threading.Event()
         self.finish_render = False
+        self.render_layer_name = None
 
         self.render_iterations = 0
         self.render_time = 0
@@ -113,7 +114,7 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start render")
 
-        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
+        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height, layer=self.render_layer_name)
         self.rpr_context.clear_frame_buffers()
         self.rpr_context.sync_auto_adapt_subdivision()
         self.render_event.clear()
@@ -202,7 +203,9 @@ class RenderEngine(Engine):
 
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
-        self.status_title = "%s: %s" % (scene.name, view_layer.name)
+
+        self.render_layer_name = view_layer.name
+        self.status_title = "%s: %s" % (scene.name, self.render_layer_name)
 
         self.notify_status(0, "Start syncing")
 
@@ -211,6 +214,7 @@ class RenderEngine(Engine):
             int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
             int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
         )
+        self.rpr_context.scene.set_name(scene.name)
 
         frame_motion_blur_info = self.collect_motion_blur_info(scene)
         scene.world.rpr.sync(self.rpr_context)
@@ -222,6 +226,7 @@ class RenderEngine(Engine):
             obj_motion_blur_info = None
             if obj.type != 'CAMERA':
                 obj_motion_blur_info = frame_motion_blur_info.get(utils.key(obj), None)
+
             try:
                 obj.rpr.sync(self.rpr_context, obj_instance, motion_blur_info=obj_motion_blur_info)
             except SyncError as e:
@@ -231,9 +236,16 @@ class RenderEngine(Engine):
                 log.warn("Syncing stopped by user termination")
                 return
 
-        self.rpr_context.scene.set_name(scene.name)
         camera_key = utils.key(scene.camera)
+
+        # it's possible that depsgraph.object_instances doesn't contain camera,
+        # in this case we need to sync it separately
+        if camera_key not in self.rpr_context.objects:
+            obj_motion_blur_info = frame_motion_blur_info.get(camera_key, None)
+            scene.camera.rpr.sync(self.rpr_context, scene.camera, motion_blur_info=obj_motion_blur_info)
+
         rpr_camera = self.rpr_context.objects[camera_key]
+
         if scene.camera.rpr.motion_blur:
             rpr_camera.set_exposure(scene.camera.rpr.motion_blur_exposure)
 
