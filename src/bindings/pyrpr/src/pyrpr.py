@@ -259,8 +259,6 @@ class Context(Object):
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
-                if platform.system() == 'Darwin':
-                    create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
                 context = Context(create_flag, use_cache=False)
                 device_name = context.get_info_str(info_flag)
                 return {'flag': create_flag, 'name': device_name.strip()}
@@ -273,7 +271,10 @@ class Context(Object):
 
         Context.cpu_device = get_device(CREATION_FLAGS_ENABLE_CPU, CONTEXT_CPU_NAME)
         for i in range(16):
-            device = get_device(getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i),
+            create_flag = getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i)
+            if platform.system() == 'Darwin':
+                create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
+            device = get_device(create_flag,
                                 getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
             if device:
                 Context.gpu_devices.append(device)
