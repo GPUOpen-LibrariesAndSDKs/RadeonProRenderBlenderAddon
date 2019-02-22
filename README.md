@@ -2,14 +2,25 @@
 
 ### Build Requirements
 
-- Blender (2.78c as of now)
+2.78c
+=====
+- Blender 2.78c
 - Python 3.5.2(Blender 2.78c uses one) x64(for Core) - all code, addon and misc tested with python3
 - python-cffi. e.g. following works for me on windows - `py -m pip install cffi`
 - Visual Studio 2015 SP3 or Visual Studio 2017 (15.6.7) with SDK 8.1 and 2015.3 v140 toolset installed
 - cmake 3.x
 
+2.80
+====
+- Blender 2.80
+- Python 3.7.1(Blender 2.80 uses 3.7.0) x64(for Core) - all code, addon and misc tested with python3
+- python-cffi. e.g. following works for me on windows - `py -m pip install cffi`
+- Visual Studio 2015 SP3 or Visual Studio 2017 (15.6.7) with SDK 8.1 and 2015.3 v140 toolset installed
+- cmake 3.x
+
 Note that the .sln provided is for easy editing and searching of files on Windows.  The blender
-code builds on the command line rather than in the solution file.
+code builds on the command line rather than in the solution file.  Visual Studio does provided
+support for debugging Python when you attach to a process.
 
 ### Software, required for development - to run tests and more:
 
@@ -77,7 +88,7 @@ so that `logging.limit_log(name, level_show_always)` will allow to filter out wh
 - Blender debug - it's easiest to [build Blender](https://wiki.blender.org/index.php/Dev:Doc/Building_Blender/Windows/msvc/CMake) in Release or RelWithDebInfo(and add ``#pragma optimize( "", off )``) 
 - Debug in PyCharm - `import pydevd; pydevd.settrace('localhost', port=52128, stdoutToServer=True, stderrToServer=True, suspend=False)`
 
-## Making new release
+## Making a new release
 
 - run `build_installer.py <build_folder>`. Where `build_folder` is some separate location - it will clone needed repos(if not already), reset then to needed branch and build installer. Byt default it builds windows installer on master.  
 - tag the commit in the build folder's ProRenderBlenderPlugin `git tag builds/x.y.zz`
