@@ -106,7 +106,10 @@ def get_viewport_camera_data(context: bpy.types.Context):
         # See blender/intern/cycles/blender/blender_camera.cpp:blender_camera_from_view (look for 1.41421f)
         zoom = 4.0 / (2.0 ** 0.5 + context.region_data.view_camera_zoom / 50.0) ** 2
 
-        data.lens_shift = (data.lens_shift[0] / zoom, data.lens_shift[1] / zoom)
+        # Updating lens_shift due to viewport zoom and view_camera_offset
+        # view_camera_offset should be multiplied by 2
+        data.lens_shift = ((data.lens_shift[0] + context.region_data.view_camera_offset[0] * 2) / zoom,
+                           (data.lens_shift[1] + context.region_data.view_camera_offset[1] * 2) / zoom)
 
         if data.mode == pyrpr.CAMERA_MODE_ORTHOGRAPHIC:
             data.ortho_size = (data.ortho_size[0] * zoom, data.ortho_size[1] * zoom)
