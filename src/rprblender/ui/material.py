@@ -1,7 +1,7 @@
 from bpy_extras.node_utils import find_node_input
 
 from . import RPR_Panel
-from rprblender.utils import material as mat_utils
+from rprblender.nodes.material_exporter import find_output_node_in_tree
 
 
 class RPR_MATERIAL_PT_context(RPR_Panel):
@@ -99,7 +99,7 @@ class RPR_MATERIAL_PT_surface(RPR_Panel):
         node_tree = id_data.node_tree
 
     #    node = node_tree.get_output_node('OUTPUT')
-        node = mat_utils.find_output_node_in_tree(node_tree)
+        node = find_output_node_in_tree(node_tree)
         if node:
             input = find_node_input(node, input_name)
             if input:

@@ -8,19 +8,16 @@ from bpy.props import (
     IntProperty,
     EnumProperty,
 )
-
 import pyrpr
 from . import RPR_Properties
-from rprblender import utils
 
 from rprblender.utils import logging
-log = logging.Log(tag='Object')
+log = logging.Log(tag='properties.object')
 
 
 class RPR_ObjectProperites(RPR_Properties):
-    """
-    Properties for objects
-    """
+    """ Properties for objects. Should be available only for meshes and area lights """
+
     # Visibility
     visibility_in_primary_rays: BoolProperty(
         name="Camera Visibility",
@@ -90,35 +87,32 @@ class RPR_ObjectProperites(RPR_Properties):
         default=1.0,
     )
 
-    def sync(self, rpr_context, obj_instance, motion_blur_info):
-        ''' sync the object and any data attached '''
-        obj = self.id_data
+    def export_visibility(self, rpr_shape):
+        """ Exports visibility settings """
 
-        log("Syncing object", obj)
+        rpr_shape.set_visibility_primary_only(self.visibility_in_primary_rays)
+        rpr_shape.set_visibility_in_specular(self.reflection_visibility)
+        rpr_shape.set_visibility_ex("visible.reflection", self.reflection_visibility)
+        rpr_shape.set_visibility_ex("visible.reflection.glossy", self.reflection_visibility)
+        rpr_shape.set_shadow_catcher(self.shadowcatcher)
+        rpr_shape.set_shadow(self.shadows)
 
-        if obj.type in ['MESH', 'CAMERA', 'LIGHT']:
-            obj.data.rpr.sync(rpr_context, obj_instance)
-            self.sync_motion_blur(rpr_context, obj, motion_blur_info)
+    def export_subdivision(self, rpr_shape):
+        """ Exports subdivision settings """
 
-    def sync_motion_blur(self, rpr_context, obj, motion_blur_info):
-        if motion_blur_info is None:
-            return
-        key = utils.key(obj)
-        rpr_obj = rpr_context.objects[key]
+        if self.subdivision:
+            # convert factor from size of subdivision in pixel to RPR
+            # RPR wants the subdivision factor as the "number of faces per pixel"
+            # the setting gives user the size of face in number pixels.
+            # rpr internally does: subdivision size in pixel = 2^factor  / 16.0
+            factor = int(math.log2(1 / (16.0 * self.subdivision_factor)))
 
-        rpr_obj.set_linear_motion(*motion_blur_info.linear_velocity)
-        rpr_obj.set_angular_motion(*motion_blur_info.angular_momentum)
-        rpr_obj.set_scale_motion(*motion_blur_info.momentum_scale)
-
-    def sync_update(self, rpr_context, is_updated_geometry, is_updated_transform):
-        obj = self.id_data
-
-        if obj.type not in ('MESH', 'LIGHT'):
-            return False
-
-        log("Updating object: {}, type={}, geometry={}, transform={}".format(obj, obj.type, is_updated_geometry, is_updated_transform))
-
-        return obj.data.rpr.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+            rpr_shape.subdivision = {
+                'factor': factor,
+                'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER if self.subdivision_boundary_type == 'EDGE_CORNER' else
+                pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_ONLY,
+                'crease_weight': self.subdivision_crease_weight
+            }
 
     @classmethod
     def register(cls):

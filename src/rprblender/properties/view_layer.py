@@ -13,10 +13,11 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-log = logging.Log(tag='ViewLayer')
+log = logging.Log(tag='properties.view_layer')
 
 
 class RPR_DenoiserProperties(RPR_Properties):
+    """ Denoiser properties. This is a child property in RPR_ViewLayerProperties """
     enable: BoolProperty(
         description="Enable RPR Denoiser",
         default=False,
@@ -90,7 +91,9 @@ class RPR_DenoiserProperties(RPR_Properties):
         min = 0.0, max = 1.0, default = .1
     )
 
-    def sync(self, rpr_context):
+    def export_denoiser(self, rpr_context):
+        """ Exports denoiser settings """
+
         rpr_context.setup_image_filter({
             'enable': self.enable,
             'filter_type': self.filter_type,
@@ -259,8 +262,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
     denoiser: PointerProperty(type=RPR_DenoiserProperties)
 
-    def sync(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine):
-        # view_layer here is parent of self, but it is not available from self.id_data
+    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine):
+        """
+        Exports AOVs settings. Also adds required passes to rpr_engine
+        Note: view_layer here is parent of self, but it is not available from self.id_data
+        """
 
         log("Syncing view layer: %s" % view_layer.name)
 
@@ -276,9 +282,6 @@ class RPR_ViewLayerProperites(RPR_Properties):
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
             rpr_context.enable_aov(aov['rpr'])
-
-        # Important: denoiser should be synced after syncing shadow catcher
-        self.denoiser.sync(rpr_context)
 
     @classmethod
     def register(cls):

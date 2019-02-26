@@ -7,24 +7,18 @@ from bpy.props import (
     IntProperty,
     StringProperty,
 )
-import numpy as np
-import math
-
-from rprblender import utils
-from rprblender.utils import image as image_utils
-from rprblender.utils import logging
-import rprblender.utils.light as light_ut
-import rprblender.utils.mesh as mesh_ut
 from . import RPR_Properties
-from . import SyncError
+
+from rprblender.utils import logging
+log = logging.Log(tag='properties.light')
 
 
-log = logging.Log(tag='Light')
-
-MAX_LUMINOUS_EFFICACY = 683.0
+MAX_LUMINOUS_EFFICACY = 683.0   # luminous efficacy of ideal monochromatic 555 nm source
 
 
 class RPR_LightProperties(RPR_Properties):
+    """ Light properties """
+
     # LIGHT INTENSITY
     intensity: FloatProperty(
         name="Intensity",
@@ -141,142 +135,6 @@ class RPR_LightProperties(RPR_Properties):
         description="Light group for doing split lighting AOVs",
         default='KEY',
     )
-
-    def sync(self, rpr_context, obj):
-        ''' sync the light '''
-
-        light = self.id_data
-        log("Syncing light: {}".format(light.name))
-
-        area = 0.0
-
-        if light.type == 'POINT':
-            if light.rpr.ies_file_name:
-                rpr_light = rpr_context.create_light(utils.key(obj), 'ies')
-                rpr_light.set_image_from_file(light.rpr.ies_file_name, 256, 256)
-            else:
-                rpr_light = rpr_context.create_light(utils.key(obj), 'point')
-
-        elif light.type in ('SUN', 'HEMI'):  # just in case old scenes will have outdated Hemi
-            rpr_light = rpr_context.create_light(utils.key(obj), 'directional')
-            rpr_light.set_shadow_softness(light.rpr.shadow_softness)
-
-        elif light.type == 'SPOT':
-            rpr_light = rpr_context.create_light(utils.key(obj), 'spot')
-            oangle = 0.5 * light.spot_size  # half of spot_size
-            iangle = oangle * (1.0 - light.spot_blend * light.spot_blend)  # square dependency of spot_blend
-            rpr_light.set_cone_shape(iangle, oangle)
-
-        elif light.type == 'AREA':
-            if self.shape == 'MESH':
-                if not self.mesh:
-                    raise SyncError("Area light %s has no mesh" % light.name, light)
-
-                data = mesh_ut.get_mesh_data(self.mesh, calc_area=True)
-
-            else:
-                data = light_ut.get_area_light_mesh_data(self.shape, light.size, light.size_y, segments=32)
-
-            area = data.area
-
-            rpr_light = rpr_context.create_area_light(
-                utils.key(obj),
-                data.vertices, data.normals, data.uvs,
-                data.vertex_indices, data.normal_indices, data.uv_indices,
-                data.num_face_vertices
-            )
-
-            rpr_light.set_visibility(self.visible)
-            rpr_light.set_shadow(self.visible and self.cast_shadows)
-
-            if self.color_map:
-                rpr_light.set_image(image_utils.get_rpr_image(rpr_context, self.color_map))
-
-        else:
-            raise SyncError("Light %s has unsupported type %s" % (light.name, light.type), light)
-
-        rpr_light.set_name(light.name)
-
-        power = self._get_radiant_power(area)
-        rpr_light.set_radiant_power(*power)
-        rpr_light.set_transform(utils.get_transform(obj))
-        rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
-
-        rpr_context.scene.attach(rpr_light)
-
-    def sync_update(self, rpr_context, obj, is_updated_geometry, is_updated_transform):
-        light = self.id_data
-        log("Updating light: {}".format(light.name))
-
-        res = False
-
-        rpr_light = rpr_context.objects.get(utils.key(obj), None)
-        if rpr_light:
-            if is_updated_geometry:
-                # TODO: recreate light
-                pass
-
-            if is_updated_transform:
-                rpr_light.set_transform(utils.get_transform(obj))
-                res = True
-
-        else:
-            self.sync(rpr_context, obj)
-            res = True
-
-        return res
-
-    def _get_radiant_power(self, area=0):
-        light = self.id_data
-
-        # calculating color intensity
-        color = np.array(light.color)
-        if self.use_temperature:
-            color *= light_ut.convert_kelvins_to_rgb(self.temperature)
-        intensity = color * self.intensity
-
-        # calculating radian power for core
-        if light.type in ('POINT', 'SPOT'):
-            units = self.intensity_units_point
-            if units == 'DEFAULT':
-                return intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
-
-            # converting to lumens
-            if units == 'LUMEN':
-                lumens = intensity
-            else:  # 'WATTS'
-                lumens = intensity * self.luminous_efficacy
-            return lumens / MAX_LUMINOUS_EFFICACY
-
-        elif light.type == 'SUN':
-            units = self.intensity_units_dir
-            if units == 'DEFAULT':
-                return intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
-
-            # converting to luminance
-            if units == 'LUMINANCE':
-                luminance = intensity
-            if units == 'RADIANCE':
-                luminance = intensity * self.luminous_efficacy
-            return luminance / MAX_LUMINOUS_EFFICACY
-
-        elif light.type == 'AREA':
-            units = self.intensity_units_area
-            if units == 'DEFAULT':
-                if self.intensity_normalization:
-                    return intensity / area
-                return intensity
-
-            # converting to luminance
-            if units == 'LUMEN':
-                luminance = intensity / area
-            if units == 'WATTS':
-                luminance = intensity * self.luminous_efficacy / area
-            if units == 'LUMINANCE':
-                luminance = intensity
-            if units == 'RADIANCE':
-                luminance = intensity * self.luminous_efficacy
-            return luminance / MAX_LUMINOUS_EFFICACY
 
     @classmethod
     def register(cls):

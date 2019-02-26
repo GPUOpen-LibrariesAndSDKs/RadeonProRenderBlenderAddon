@@ -7,10 +7,8 @@ from gpu_extras.presets import draw_texture_2d
 import pyrpr
 from .engine import Engine
 from rprblender.properties import SyncError
-import rprblender.utils.camera as camera_ut
-import rprblender.utils.world as world_ut
+from rprblender.export import camera, material, world, object, key
 from rprblender.utils import gl
-from rprblender import utils
 from rprblender import config
 
 from rprblender.utils import logging
@@ -18,6 +16,8 @@ log = logging.Log(tag='ViewportEngine')
 
 
 class ViewportEngine(Engine):
+    """ Viewport render engine """
+
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
         self.is_synced = False
@@ -62,6 +62,11 @@ class ViewportEngine(Engine):
         self.rpr_engine.update_stats("", info)
 
     def _do_render(self):
+        """
+        Thread function for self.render_thread. It always run during viewport render.
+        If it doesn't render it waits for self.restart_render_event
+        """
+
         log("Start render thread")
         while True:
             self.restart_render_event.wait()
@@ -107,6 +112,11 @@ class ViewportEngine(Engine):
         log("Finish render thread")
 
     def _do_resolve(self):
+        """
+        Thread function for self.resolve_thread. It only resolves rendered frame buffers
+        It always run during viewport render. It waits for self.render_event
+        """
+
         log("Start resolve thread")
         while True:
             self.render_event.wait()
@@ -130,14 +140,14 @@ class ViewportEngine(Engine):
         depsgraph = context.depsgraph
         scene = depsgraph.scene
 
-        scene.rpr.sync(self.rpr_context, is_final_engine=False, use_gl_interop=config.use_gl_interop)
+        scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False, use_gl_interop=config.use_gl_interop)
         self.rpr_context.resize(context.region.width, context.region.height)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        self.world_settings = world_ut.get_world_data(scene.world)
-        scene.world.rpr.sync(self.rpr_context)
+        self.world_settings = world.WorldData(scene.world)
+        world.sync(self.rpr_context, scene.world)
 
         self.rpr_context.scene.set_name(scene.name)
 
@@ -152,7 +162,7 @@ class ViewportEngine(Engine):
                 continue
 
             try:
-                obj.rpr.sync(self.rpr_context, obj_instance, motion_blur_info=None)
+                object.sync(self.rpr_context, obj, obj_instance, motion_blur_info=None)
             except SyncError as e:
                 log.warn(e, "Skipping")
 
@@ -163,6 +173,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
+        scene.rpr.export_ray_depth(self.rpr_context)
 
         self.render_iterations, self.render_time = \
             (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \
@@ -172,7 +183,7 @@ class ViewportEngine(Engine):
         log('Finish sync')
 
     def sync_update(self, context):
-        ''' sync just the updated things '''
+        """ sync just the updated things """
         depsgraph = context.depsgraph
 
         # get supported updates and sort by priorities
@@ -191,22 +202,22 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Material):
-                    is_updated |= obj.rpr.sync_update(self.rpr_context)
+                    is_updated |= material.sync_update(self.rpr_context, obj)
                     continue
 
                 if isinstance(obj, bpy.types.Object):
                     if obj.type == 'CAMERA':
                         continue
 
-                    is_updated |= obj.rpr.sync_update(self.rpr_context, update.is_updated_geometry, update.is_updated_transform)
+                    is_updated |= object.sync_update(self.rpr_context, obj, update.is_updated_geometry, update.is_updated_transform)
                     continue
 
                 if isinstance(obj, bpy.types.World):
-                    world_settings = world_ut.get_world_data(obj)
+                    world_settings = world.WorldData(obj)
                     if world_settings == self.world_settings:
                         continue
 
-                    is_updated |= obj.rpr.sync_update(self.rpr_context, self.world_settings, world_settings)
+                    is_updated |= world.sync_update(self.rpr_context, obj, self.world_settings, world_settings)
                     self.world_settings = world_settings
                     continue
 
@@ -223,7 +234,7 @@ class ViewportEngine(Engine):
     def draw(self, context):
         log("Draw")
 
-        camera_settings = camera_ut.get_viewport_camera_data(context)
+        camera_settings = camera.CameraData.init_from_context(context)
         width = context.region.width
         height = context.region.height
 
@@ -234,7 +245,7 @@ class ViewportEngine(Engine):
             with self.render_lock:
                 if is_camera_update:
                     self.camera_settings = camera_settings
-                    camera_ut.set_camera_data(self.rpr_context.scene.camera, self.camera_settings)
+                    self.camera_settings.export(self.rpr_context.scene.camera)
 
                 if is_resize_update:
                     self.rpr_context.resize(width, height)
@@ -253,21 +264,22 @@ class ViewportEngine(Engine):
         draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
 
     def remove_deleted_objects(self, obj_instances):
-        keys = set(utils.key(obj_instance) for obj_instance in obj_instances)
+
+        keys = set(key(obj_instance) for obj_instance in obj_instances)
 
         res = False
-        for key in tuple(self.rpr_context.objects.keys()):
-            if key == world_ut.IBL_LIGHT_NAME:
+        for obj_key in tuple(self.rpr_context.objects.keys()):
+            if obj_key == world.IBL_LIGHT_NAME:
                 continue
 
-            if key not in keys:
-                self.rpr_context.remove_object(key)
+            if obj_key not in keys:
+                self.rpr_context.remove_object(obj_key)
                 res = True
 
         return res
 
     def update_render(self, scene: bpy.types.Scene):
-        res = scene.rpr.sync_update(self.rpr_context)
+        res = scene.rpr.export_ray_depth(self.rpr_context)
 
         render_iterations, render_time = \
             (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \

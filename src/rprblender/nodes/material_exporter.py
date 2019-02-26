@@ -1,13 +1,11 @@
 import bpy
 import pyrpr
-import pyrprx
 
-from .node_parser import NodeParser, get_node_socket, get_rpr_val
+from .node_parser import get_node_socket, get_rpr_val
 from . import MaterialError
 from .blender_nodes import blender_node_parsers
 from .rpr_nodes import RPRShadingNode
-from rprblender import utils
-from rprblender.utils.material import find_output_node_in_tree
+from rprblender.export import key
 
 from rprblender.utils import logging
 log = logging.Log(tag='material', level='debug')
@@ -31,6 +29,23 @@ def get_fake_material(rpr_context) -> pyrpr.MaterialNode:
     return rpr_mat
 
 
+def find_output_node_in_tree(tree: bpy.types.NodeTree):
+    def find_node_in_node_tree(node_type):
+        if not tree:
+            return None
+        for node in tree.nodes:
+            nt = getattr(node, "bl_idname", None)
+            if nt == node_type:
+                return node
+        return None
+
+    res = find_node_in_node_tree('rpr_shader_node_output')
+    if not res:
+        # try cycles output node
+        res = find_node_in_node_tree('ShaderNodeOutputMaterial')
+    return res
+
+
 class MaterialExporter:
     ''' Class that handles the exporting and syncing of a material nodetree 
         This will create rpr_node creation objects '''
@@ -44,7 +59,7 @@ class MaterialExporter:
     def export(self):
         """Entry method to export material if shader nodes tree present.
             Finds the output node and parses node recursively """
-        mat_key = utils.key(self.material)
+        mat_key = key(self.material)
 
         rpr_material = self.rpr_context.materials.get(mat_key, None)
         if rpr_material:
@@ -78,9 +93,9 @@ class MaterialExporter:
             we include the subnode name because there might be multiple rpr nodes for 
             a blender node '''
         if sub_name:
-            return (utils.key(self.material), node.name, sub_name)
+            return (key(self.material), node.name, sub_name)
 
-        return (utils.key(self.material), node.name)
+        return (key(self.material), node.name)
 
     
     def parse_output_node(self, node):
