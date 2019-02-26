@@ -18,11 +18,11 @@ from rprblender.utils import logging
 from . import RPR_Properties
 
 
-log = logging.Log(tag='Render')
+log = logging.Log(tag='properties.render')
 
 
 class RPR_RenderLimits(bpy.types.PropertyGroup):
-    ''' Properties for render limits: iteration limit or time limit'''
+    """ Properties for render limits: iteration limit or time limit """
 
     type: EnumProperty(
         name="Iterations Limit",
@@ -63,7 +63,7 @@ if len(pyrpr.Context.gpu_devices) > 0:
 
 
 class RPR_RenderDevices(bpy.types.PropertyGroup):
-    ''' Properties for render devices: CPU, GPUs '''
+    """ Properties for render devices: CPU, GPUs """
 
     def update_states(self, context):
         if len(pyrpr.Context.gpu_devices) > 0:
@@ -98,7 +98,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
 
 
 class RPR_RenderProperties(RPR_Properties):
-    ''' Main render properties. Available from scene.rpr '''
+    """ Main render properties. Available from scene.rpr """
 
     saved_addon_version: bpy.props.IntVectorProperty(
         name="Version"
@@ -255,8 +255,9 @@ class RPR_RenderProperties(RPR_Properties):
         update=update_motion_blur_scale
     )
 
+    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
+        """ Initializes rpr_context by device settings """
 
-    def sync(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
@@ -289,12 +290,9 @@ class RPR_RenderProperties(RPR_Properties):
         context_props.append(0) # should be followed by 0
         rpr_context.init(context_flags, context_props)
 
-        self.set_ray_depth(rpr_context)
+    def export_ray_depth(self, rpr_context):
+        """ Exports ray depth settings """
 
-    def sync_update(self, rpr_context):
-        return self.set_ray_depth(rpr_context)
-
-    def set_ray_depth(self, rpr_context):
         res = False
 
         res |= rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
@@ -308,7 +306,6 @@ class RPR_RenderProperties(RPR_Properties):
         res |= rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
-
     @classmethod
     def register(cls):
         log("Register")

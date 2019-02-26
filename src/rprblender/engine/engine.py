@@ -11,7 +11,6 @@ import numpy as np
 from abc import ABCMeta, abstractmethod
 
 import bpy
-
 from .context import RPRContext
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
 
@@ -20,6 +19,8 @@ log = logging.Log(tag='Engine')
 
 
 class Engine(metaclass=ABCMeta):
+    """ This is the basic Engine class """
+
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.proxy(rpr_engine)
         self.rpr_context = RPRContext()
@@ -34,6 +35,8 @@ class Engine(metaclass=ABCMeta):
         pass
 
     def set_render_result(self, render_passes: bpy.types.RenderPasses):
+        """ Sets render result to render passes """
+
         def zeros_image(channels):
             return np.zeros((self.rpr_context.height, self.rpr_context.width, channels), dtype=np.float32)
 

@@ -1,6 +1,6 @@
 from .node_parser import NodeParser, get_rpr_val
 import pyrpr
-from rprblender.utils import image as image_utils
+from rprblender.export import image as image_utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='material', level='debug')
@@ -429,7 +429,7 @@ class ShaderNodeTexImage(NodeParser):
 
         if blender_node.image:
             try:
-                rpr_image = image_utils.get_rpr_image(self.material_exporter.rpr_context, blender_node.image)
+                rpr_image = image_utils.sync(self.material_exporter.rpr_context, blender_node.image)
                 # set sRGB for color space
                 if blender_node.color_space == 'COLOR':
                     rpr_image.set_gamma(2.2)

@@ -5,16 +5,15 @@ from bpy.props import (
     BoolProperty,
 )
 
-from rprblender import utils
-from rprblender.utils import logging
 from . import RPR_Properties
-import rprblender.utils.camera as camera_ut
 
-
-log = logging.Log(tag='Camera')
+from rprblender.utils import logging
+log = logging.Log(tag='properties.camera')
 
 
 class RPR_CameraProperties(RPR_Properties):
+    """ Camera properties """
+
     motion_blur: BoolProperty(
         name="Motion Blur",
         description="Enable Motion Blur",
@@ -27,15 +26,6 @@ class RPR_CameraProperties(RPR_Properties):
         min=0,
         default=1.0,
     )
-
-    def sync(self, rpr_context, obj):
-        camera = self.id_data
-        log("Syncing camera: %s" % camera.name)
-        
-        rpr_camera = rpr_context.create_camera(utils.key(obj))
-        rpr_camera.set_name(camera.name)
-        settings = camera_ut.get_camera_data(camera, utils.get_transform(obj), rpr_context.width / rpr_context.height)
-        camera_ut.set_camera_data(rpr_camera, settings)
 
     @classmethod
     def register(cls):
