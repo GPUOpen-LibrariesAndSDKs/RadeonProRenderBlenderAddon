@@ -1,8 +1,4 @@
 import bpy
-import json
-import os
-
-import bpy
 from bpy.props import (
     BoolProperty,
     EnumProperty
@@ -105,7 +101,6 @@ class RPRShadingNodeUber(RPRShadingNode):
 
             # eval the socket enable string
             socket.enabled = eval(eval_string)
-    
 
     enable_diffuse: BoolProperty(name="Diffuse", description="Enable Diffuse", default=True, update=update_visibility)
     diffuse_use_shader_normal: BoolProperty(name="Diffuse use shader normal", description="Use the master shader normal (disable to override)", default=True, update=update_visibility)
@@ -116,10 +111,11 @@ class RPRShadingNodeUber(RPRShadingNode):
     reflection_mode: EnumProperty(name="Reflection Mode", description="Set reflection via metalness or IOR", default='RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS', update=update_visibility,
                                   items=(('RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS', 'Metalness', ''), ('RPRX_UBER_MATERIAL_REFLECTION_MODE_PBR', 'IOR', '')))
 
-
     enable_refraction: BoolProperty(name="Refraction", description="Enable Refraction", default=False, update=update_visibility)
     refraction_use_reflection_ior: BoolProperty(name="Use reflection IOR", description="Use the IOR from reflection (disable to override)", default=True, update=update_visibility)
     refraction_use_shader_normal: BoolProperty(name="Refraction use shader normal", description="Use the master shader normal (disable to override)", default=True, update=update_visibility)
+    refraction_thin_surface: BoolProperty(name='Refraction Thin Surface', default=False)
+    refraction_caustics: BoolProperty(name='Allow Caustics', default=False)
 
     enable_coating: BoolProperty(name="Coating", description="Enable Coating", default=False, update=update_visibility)
     coating_use_shader_normal: BoolProperty(name="Coating use shader normal", description="Use the master shader normal (disable to override)", default=True, update=update_visibility)
@@ -135,8 +131,6 @@ class RPRShadingNodeUber(RPRShadingNode):
     enable_transparency: BoolProperty(name="Transparency", description="Enable Transparency", default=False, update=update_visibility)    
 
     enable_displacement: BoolProperty(name="Normal", description="Enable Normal", default=False, update=update_visibility)   
-
-        
 
     def init(self, context):
         ''' create sockets based on node_socket rules '''
@@ -158,7 +152,6 @@ class RPRShadingNodeUber(RPRShadingNode):
         # save self as blender_node
         self.blender_node = self
 
-
     def export(self, socket, material_exporter):
         ''' export sockets to the uber param specced in self.node_sockets '''
         self.material_exporter = material_exporter
@@ -179,7 +172,6 @@ class RPRShadingNodeUber(RPRShadingNode):
                     else:
                         uber_node.set_input(get_rpr_val(rpr_name), val)
 
-
             # if normal is not enabled, set to the shader normal
             elif rpr_name and 'Normal' in socket_name and shader_normal_val:
                 uber_node.set_input(get_rpr_val(rpr_name), shader_normal_val)
@@ -191,9 +183,12 @@ class RPRShadingNodeUber(RPRShadingNode):
 
         # set reflection mode
         uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFLECTION_MODE'), get_rpr_val(self.reflection_mode))
-        
-        return uber_node
 
+        # set refraction mode and caustics
+        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE'), self.refraction_thin_surface)
+        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_CAUSTICS'), self.refraction_caustics)
+
+        return uber_node
 
     def draw_buttons(self, context, layout):
         col = layout.column(align=True)
@@ -209,8 +204,16 @@ class RPRShadingNodeUber(RPRShadingNode):
             box.prop(self, 'reflection_use_shader_normal')
             box.prop(self, 'reflection_mode')
 
+        col.prop(self, 'enable_refraction', toggle=True)
+        if self.enable_refraction:
+            box = col.box()
+            box.prop(self, 'refraction_thin_surface')
+            box.prop(self, 'refraction_use_reflection_ior')
+            box.prop(self, 'refraction_caustics')
+            box.prop(self, 'refraction_use_shader_normal')
+
         col.prop(self, 'enable_coating', toggle=True)
-        if self.enable_reflection:
+        if self.enable_coating:
             box = col.box()
             box.prop(self, 'coating_use_shader_normal')
         
@@ -219,7 +222,6 @@ class RPRShadingNodeUber(RPRShadingNode):
         col.prop(self, 'enable_sss', toggle=True)
         col.prop(self, 'enable_normal', toggle=True)
         col.prop(self, 'enable_transparency', toggle=True)
+
         # Don't enable displacements yet
         #col.prop(self, 'enable_displacement', toggle=True)
-
-            
