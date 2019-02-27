@@ -55,7 +55,7 @@ class RPRSocketWeight(NodeSocket):
     bl_idname = 'rpr_socket_weight'
     bl_label = "Weight socket"
 
-    default_value: FloatProperty(name="Weight", default=0.0)
+    default_value: FloatProperty(name="Weight", default=0.0, min=0.0, soft_max=1.0, subtype='FACTOR')
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
@@ -71,7 +71,7 @@ class RPRSocketMin1Max1(NodeSocket):
     bl_idname = 'rpr_socket_float_min1_max1'
     bl_label = "Min 1 Max 1 socket"
 
-    default_value: FloatProperty(name="Float", default=0.0, min=-1.0, max=1.0)
+    default_value: FloatProperty(name="Float", default=0.0, min=-1.0, max=1.0, subtype='FACTOR')
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
@@ -133,7 +133,7 @@ class RPRSocket_Float_Min0_SoftMax10(NodeSocket):
     bl_idname = 'rpr_socket_float_min0_softmax10'
     bl_label = 'Float_Min0_SoftMax10 socket'
 
-    default_value: FloatProperty(name="Float_Min0_SoftMax10", min=0.0, soft_max=10.0)
+    default_value: FloatProperty(name="Float_Min0_SoftMax10", min=0.0, soft_max=10.0, subtype='FACTOR')
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
@@ -149,7 +149,7 @@ class RPRSocketWeightSoft(NodeSocket):
     bl_idname = 'rpr_socket_weight_soft'
     bl_label = "Weight socket soft"
 
-    default_value: FloatProperty(name="Weight Soft", min=0.0, soft_max=1.0, default=0.5)
+    default_value: FloatProperty(name="Weight Soft", min=0.0, soft_max=1.0, default=0.5, subtype='FACTOR')
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
