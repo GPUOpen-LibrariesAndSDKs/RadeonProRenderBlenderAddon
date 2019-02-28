@@ -107,6 +107,7 @@ from . import (
     view_layer,
 )
 
+
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_devices,
     render.RPR_RENDER_PT_viewport_devices,
@@ -115,8 +116,8 @@ register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_quality,
     render.RPR_RENDER_PT_max_ray_depth,
     render.RPR_RENDER_PT_light_clamping,
-    render.RPR_RENDER_PT_effects,
     render.RPR_RENDER_PT_motion_blur,
+    render.RPR_RENDER_PT_render_stamp,
     render.RPR_RENDER_PT_help_about,
     render.RPR_RENDER_PT_debug,
 

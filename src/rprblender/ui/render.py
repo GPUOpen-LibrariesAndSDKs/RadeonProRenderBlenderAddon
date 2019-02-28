@@ -1,3 +1,5 @@
+import platform
+
 import pyrpr
 
 from . import RPR_Panel
@@ -167,18 +169,25 @@ class RPR_RENDER_PT_light_clamping(RPR_Panel):
         col.prop(rpr_scene, 'clamp_radiance')
 
 
-class RPR_RENDER_PT_effects(RPR_Panel):
-    bl_label = "Render Effects"
+class RPR_RENDER_PT_render_stamp(RPR_Panel):
+    bl_label = "Render Stamp"
     bl_context = 'render'
     bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        # Hide panel for non-Windows OS
+        return super().poll(context) and 'Windows' == platform.system()
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.rpr, 'use_render_stamp', text="")
 
     def draw(self, context):
         layout = self.layout
 
-        rpr_scene = context.scene.rpr
         col = layout.column()
-        col.prop(rpr_scene, 'use_render_stamp')
-        col.prop(rpr_scene, 'render_stamp', text="")
+        col.enabled = context.scene.rpr.use_render_stamp
+        col.prop(context.scene.rpr, 'render_stamp', text="")
 
 
 class RPR_RENDER_PT_motion_blur(RPR_Panel):
