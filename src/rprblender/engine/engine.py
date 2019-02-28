@@ -6,11 +6,12 @@ Other modules in this directory could be viewport, etc.
 
 ''' main Render object '''
 
+import bpy
+
 import weakref
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
-import bpy
 from .context import RPRContext
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
 
@@ -34,9 +35,24 @@ class Engine(metaclass=ABCMeta):
         ''' sync all data '''
         pass
 
-    def set_render_result(self, render_passes: bpy.types.RenderPasses):
-        """ Sets render result to render passes """
+    def apply_render_stamp(self, image, channels):
+        """
+        Don't change anything unless it's the final render. Redefined in render_engine to apply render stamp.
+        :param image: source image
+        :type image: np.Array
+        :param channels: image depth in bytes per pixel
+        :type channels: int
+        :return: image with applied render stamp text if text allowed, unchanged source image otherwise
+        :rtype: np.Array
+        """
+        return image
 
+    def set_render_result(self, render_passes: bpy.types.RenderPasses):
+        """
+        Sets render result to render passes
+        :param render_passes: render passes to collect
+        :return: images
+        """
         def zeros_image(channels):
             return np.zeros((self.rpr_context.height, self.rpr_context.width, channels), dtype=np.float32)
 
@@ -58,6 +74,8 @@ class Engine(metaclass=ABCMeta):
 
             if p.channels != image.shape[2]:
                 image = image[:, :, 0:p.channels]
+
+            image = self.apply_render_stamp(image, p.channels)
 
             images.append(image.flatten())
 
