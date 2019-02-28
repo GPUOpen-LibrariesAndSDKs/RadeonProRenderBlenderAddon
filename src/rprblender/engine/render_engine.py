@@ -1,3 +1,4 @@
+import bpy
 import threading
 import time
 
@@ -6,6 +7,7 @@ from rprblender import utils
 from .engine import Engine
 from rprblender.properties import SyncError
 from rprblender.export import world, camera, object, key
+from rprblender.utils import render_stamp
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -24,7 +26,9 @@ class RenderEngine(Engine):
         self.render_layer_name = None
 
         self.render_iterations = 0
+        self.current_iteration = 0
         self.render_time = 0
+        self.current_render_time = 0
         self.render_update_samples = 1
 
         self.status_title = ""
@@ -54,21 +58,23 @@ class RenderEngine(Engine):
     def _do_render(self):
         self.finish_render = False
         try:
-            iterations = 0
+            self.current_iteration = 0
             time_begin = time.perf_counter()
             while True:
                 if self.rpr_engine.test_break():
                     break
 
-                time_render = time.perf_counter() - time_begin
+                self.current_render_time = time.perf_counter() - time_begin
                 if self.render_iterations > 0:
-                    update_samples = min(self.render_update_samples, self.render_iterations - iterations)
-                    self.notify_status(iterations / self.render_iterations,
-                                       "Render Time: %.1f sec | Iteration: %d/%d" % (time_render, iterations, self.render_iterations))
+                    update_samples = min(self.render_update_samples, self.render_iterations - self.current_iteration)
+                    self.notify_status(self.current_iteration / self.render_iterations,
+                                       "Render Time: %.1f sec | Iteration: %d/%d" %
+                                       (self.current_render_time, self.current_iteration, self.render_iterations))
                 else:
                     update_samples = self.render_update_samples
-                    self.notify_status(time_render / self.render_time,
-                                       "Render Time: %.1f/%d sec | Iteration: %d" % (time_render, self.render_time, iterations))
+                    self.notify_status(self.current_render_time / self.render_time,
+                                       "Render Time: %.1f/%d sec | Iteration: %d" %
+                                       (self.current_render_time, self.render_time, self.current_iteration))
 
                 self.rpr_context.set_parameter('iterations', update_samples)
 
@@ -76,14 +82,13 @@ class RenderEngine(Engine):
                     self.rpr_context.render()
                 self.render_event.set()
 
-                iterations += update_samples
+                self.current_iteration += update_samples
                 if self.render_iterations > 0:
-                    if iterations >= self.render_iterations:
+                    if self.current_iteration >= self.render_iterations:
                         break
                 else:
-                    if time_render >= self.render_time:
+                    if self.current_render_time >= self.render_time:
                         break
-
 
         finally:
             self.finish_render = True
@@ -139,6 +144,22 @@ class RenderEngine(Engine):
         self.rpr_engine.end_result(result)
         self.notify_status(1, "Finish render")
         log('Finish render')
+
+    def apply_render_stamp(self, image, channels):
+        """
+        Apply render stamp to image if enabled.
+        :param image: source image
+        :type image: np.Array
+        :param channels: image depth in bytes per pixel
+        :type channels: int
+        :return: image with applied render stamp text if text allowed, unchanged source image otherwise
+        :rtype: np.Array
+        """
+        if bpy.context.scene.rpr.use_render_stamp and render_stamp.render_stamp_supported:
+            image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
+                                              self.rpr_context.width, self.rpr_context.height, channels,
+                                              self.current_iteration, self.current_render_time)
+        return image
 
     @staticmethod
     def is_object_allowed_for_motion_blur(obj):
