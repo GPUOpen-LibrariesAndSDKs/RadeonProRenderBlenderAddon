@@ -162,20 +162,25 @@ class RenderEngine(Engine):
         return image
 
     @staticmethod
-    def is_object_allowed_for_motion_blur(obj):
-        """ Check if object could have motion blur effect: meshes, area lights and cameras can """
+    def is_object_allowed_for_motion_blur(obj: bpy.types.Object) -> bool:
+        """Check if object could have motion blur effect: meshes, area lights and cameras can"""
 
         if not obj.rpr.motion_blur:
             return False
-        # TODO allow cameras
         if obj.type not in ['MESH', 'LIGHT', 'CAMERA']:
             return False
         if obj.type == 'LIGHT' and obj.data.type != 'AREA':
             return False
         return True
 
-    def collect_motion_blur_info(self, scene):
-        if not scene.rpr.motion_blur:
+    def collect_motion_blur_info(self, depsgraph):
+        """
+        Calculate motion blur velocities objects present in both current and previous frames(by frame_step)
+        :param depsgraph: scene dependencies graph
+        :return: dict of collected info for objects
+        :rtype: dict of utils.MotionBlurInfo
+        """
+        if not depsgraph.scene.rpr.motion_blur:
             return {}
 
         motion_blur_info = {}
@@ -184,28 +189,27 @@ class RenderEngine(Engine):
         next_frame_matrices = {}
         scales = {}
 
-        current_frame = scene.frame_current
-        # TODO check for corner case of first animation frame; Should I ask Brian?
-        previous_frame = current_frame - scene.frame_step
+        current_frame = depsgraph.scene.frame_current
+        previous_frame = current_frame - depsgraph.scene.frame_step
 
-        # collect previous frame matrices
-        scene.frame_set(previous_frame)
-        for obj in scene.objects:
-            if not self.is_object_allowed_for_motion_blur(obj):
+        # collect previous frame matrices at start of the frame
+        self.rpr_engine.frame_set(previous_frame, 0.0)
+        for obj in depsgraph.object_instances:
+            if not self.is_object_allowed_for_motion_blur(obj.object):
                 continue
 
             obj_key = key(obj)
             prev_frame_matrices[obj_key] = obj.matrix_world.copy()
 
-        # restore current frame and collect matrices
-        scene.frame_set(current_frame)
-        for obj in scene.objects:
-            if not self.is_object_allowed_for_motion_blur(obj):
+        # restore current frame and collect matrices at start of the frame
+        self.rpr_engine.frame_set(current_frame, 0.0)
+        for obj in depsgraph.object_instances:
+            if not self.is_object_allowed_for_motion_blur(obj.object):
                 continue
 
             obj_key = key(obj)
             next_frame_matrices[obj_key] = obj.matrix_world.copy()
-            scales[obj_key] = float(obj.rpr.motion_blur_scale)
+            scales[obj_key] = float(obj.object.rpr.motion_blur_scale)
 
         for obj_key, prev in prev_frame_matrices.items():
             this = next_frame_matrices.get(obj_key, None)
@@ -244,7 +248,7 @@ class RenderEngine(Engine):
         )
         self.rpr_context.scene.set_name(scene.name)
 
-        frame_motion_blur_info = self.collect_motion_blur_info(scene)
+        frame_motion_blur_info = self.collect_motion_blur_info(depsgraph)
 
         world.sync(self.rpr_context, scene.world)
 
@@ -270,8 +274,7 @@ class RenderEngine(Engine):
         # it's possible that depsgraph.object_instances doesn't contain camera,
         # in this case we need to sync it separately
         if camera_key not in self.rpr_context.objects:
-            obj_motion_blur_info = frame_motion_blur_info.get(camera_key, None)
-            camera.sync(self.rpr_context, scene.camera, motion_blur_info=obj_motion_blur_info)
+            camera.sync(self.rpr_context, scene.camera)
 
         rpr_camera = self.rpr_context.objects[camera_key]
 
