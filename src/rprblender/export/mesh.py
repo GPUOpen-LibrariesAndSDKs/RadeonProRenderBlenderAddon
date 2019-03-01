@@ -148,6 +148,8 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
                 # They will be in memory till mesh exists.
                 face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
                 rpr_shape.set_material_faces(rpr_material, face_indices)
+        else:
+            rpr_shape.set_material(None)
 
     return True
 

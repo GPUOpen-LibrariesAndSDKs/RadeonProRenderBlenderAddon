@@ -1,251 +1,320 @@
+from abc import ABCMeta, abstractmethod
+
+import bpy
 import pyrpr
 import pyrprx
-from . import MaterialError
 
+from rprblender.engine.context import RPRContext
 from rprblender.utils import logging
-log = logging.Log(tag='material', level='debug')
+log = logging.Log(tag='export.node')
 
 
-# Helper functions
+class NodeParser(metaclass=ABCMeta):
+    """
+    This is the base class that parses a blender node.
+    Subclasses should override only export() function.
+    """
 
-def get_node_socket(to_node, name=None, index=None):
-    ''' get the node connected to input socket name | index on in_node '''
-    if name:
-        socket = to_node.inputs.get(name, None)
-        if socket is None:
-            return None
-    elif index:
-        if index < len(to_node.inputs):
-            socket = to_node.inputs[index]
-        else:
-            return None
-    else:
+    def __init__(self, rpr_context: RPRContext, material: bpy.types.Material,
+                 node: bpy.types.Node, socket_out: bpy.types.NodeSocket):
+        self.rpr_context = rpr_context
+        self.material = material
+        self.node = node
+        self.socket_out = socket_out
+
+        log("init", self.material, self.node, self.socket_out)
+
+    # INTERNAL FUNCTIONS
+
+    def _get_node_key(self, node, socket_out):
+        """ Returns key for blender node with output socket """
+
+        return (self.material.name, node.name, socket_out.name if socket_out else None)
+
+    def _export_node(self, node, socket_out):
+        """
+        Exports node with output socket.
+        1. Checks if such node was already exported and returns it.
+        2. Searches corresponded NodeParser class and do export through it
+        """
+
+        # check if such node is already was parsed
+        rpr_node = self.rpr_context.material_nodes.get(self._get_node_key(node, socket_out), None)
+        if rpr_node:
+            return rpr_node
+
+        # getting corresponded NodeParser class
+        node_parser_class = get_node_parser_class(node.bl_idname)
+        if node_parser_class:
+            node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out)
+            return node_parser.export()
+
+        log.warn("Ignoring unsupported node", node, self.material)
         return None
 
-    log("get_node_socket({}, {}, {}): {}; linked {}".
-        format(to_node, name, index, socket,
-               "{}; links number {}".format(socket.is_linked, len(socket.links)) if socket.is_linked else "False"))
+    def _parse_val(self, val):
+        """ Turn a blender node val or default value for input into something that works well with rpr """
 
-    if socket.is_linked:
-        if socket.links[0].is_valid:
-            return socket.links[0].from_socket
+        if isinstance(val, (int, float)):
+            return float(val)
 
-        log.error("Invalid link found: <{}>.{} to <{}>.{}".
-                  format(socket.links[0].from_node.name, socket.links[0].from_socket.name,
-                         socket.links[0].to_node.name, socket.links[0].to_socket.name))
-    return None
+        if len(val) in (3, 4):
+            return tuple(val)
 
+        raise TypeError("Unknown value type to pass to rpr", val)
 
-def get_node_value(material_exporter, node, socket_key):
-    ''' Try to get value from 
-        1.  Input link
-        2.  Input default val
-        3.  Node param (if no socket name) '''
-    val = None
-    # here we have to deal with string or int socket keys
-    socket = node.inputs[socket_key] if isinstance(socket_key, int) or socket_key in node.inputs else None
+    # HELPER FUNCTIONS
+    # Child classes should use them to do their export
 
-    if socket and socket.is_linked:
-        val = get_socket_link(material_exporter, node, socket_key)
-        if val == None:
-            val = get_socket_default(node, socket_key)
-    # need this for if the incoming node is None (not supported)
-    elif socket:
-        val = get_socket_default(node, socket_key)
-    else:
-        val = getattr(node, socket_key, None)
-        
-    return val
+    @property
+    def node_key(self):
+        """ Returns key of current node """
+        return self._get_node_key(self.node, self.socket_out)
 
+    def get_output_default(self, socket_key):
+        """ Returns default value of output socket """
 
-def get_socket_link(material_exporter, node, socket_key):
-    ''' Given a node and input socket, call material.parse_node on the connected node '''
-    socket = node.inputs[socket_key]
+        socket_out = self.node.outputs[socket_key]
+        return self._parse_val(socket_out.default_value)
 
-    if socket.is_linked:
-        link = socket.links[0]
-        if link.is_valid:
-            return material_exporter.parse_node(link.from_node, link.from_socket)
+    def get_input_default(self, socket_key):
+        """ Returns default value of input socket """
 
-        log.error(
-            "Invalid link found: <{}>.{} to <{}>.{}".format(
-                link.from_node.name, link.from_socket.name,
-                link.to_node.name, link.to_socket.name
-            ),
-        )
+        socket_in = self.node.inputs[socket_key]
+        return self._parse_val(socket_in.default_value)
 
-    return None
+    def get_input_link(self, socket_key):
+        """ Returns linked parsed node or None if nothing is linked or not link is not valid """
 
-def parse_val(val):
-    ''' turn a blender node val or default value for input into 
-        something that works well with rpr '''
-    if isinstance(val, (int, float, bool)):
-        fval = float(val)
-        return (fval, fval, fval, fval)
+        socket_in = self.node.inputs[socket_key]
 
-    if len(val) in (3, 4):
-        return tuple(val)
+        if socket_in.is_linked:
+            link = socket_in.links[0]
+            if link.is_valid:
+                return self._export_node(link.from_node, link.from_socket)
 
-    raise MaterialError("Unknown value type to pass to rpr", val)
+            log.error("Invalid link found", link, socket_in, self.node, self.material)
 
-    
-def get_socket_default(node, socket_key):
-    ''' get the default_value from a socket '''
-    socket = node.inputs[socket_key]
-    
-    if hasattr(socket, 'default_value'):
-        return parse_val(socket.default_value)
-    else:
         return None
 
+    def get_input_value(self, socket_key):
+        """ Returns linked node or default socket value """
 
-def get_rpr_val(val_str: str):
-    ''' turns a string such as RPR_MATERIAL_NODE_DIFFUSE into a key 
-        such as pyrpr.MATERIAL_NODE_DIFFUSE '''
-    rpr_val = None
-    if val_str.startswith("RPR_"):
-        rpr_val = getattr(pyrpr, val_str[4:], None)
-    elif val_str.startswith("RPRX_"):
-        rpr_val = getattr(pyrprx, val_str[5:], None)
+        val = self.get_input_link(socket_key)
+        if val is not None:
+            return val
 
-    # rpr_val could be 0
-    if rpr_val is None:
-        raise MaterialError("Unknown RPR value '{}'!".format(val_str))
-    else:
-        return rpr_val
+        return self.get_input_default(socket_key)
+
+    # EXPORT FUNCTION
+    @abstractmethod
+    def export(self):
+        """
+        Main export function which should be overridable in child classes.
+        Example:
+            color = self.get_input_value('Color')
+            normal = self.get_input_link('Normal')
+
+            rpr_node = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_REFLECTION)
+            rpr_node.set_input('color', color)
+            if normal is not None:
+                rpr_node.set_input('normal', normal)
+
+            return rpr_node
+        """
+        pass
+
+    # ADDITIONAL ARITHMETIC NODES
+
+    def arithmetic_node_value(self, val1, val2, op_type, use_key=False):
+        def to_vec4(val):
+            if isinstance(val, float):
+                return (val, val, val, val)
+            if len(val) == 3:
+                return (*val, 1.0)
+            return val
+
+        def create_arithmetic_node():
+            node = self.rpr_context.create_material_node(self.node_key if use_key else None,
+                                                         pyrpr.MATERIAL_NODE_ARITHMETIC)
+            node.set_input('op', op_type)
+            node.set_input('color0', val1)
+            if val2 is not None:
+                node.set_input('color1', val2)  # val2 could be None
+
+            return node
+
+        if isinstance(val1, (pyrpr.MaterialNode, pyrprx.Material)) or isinstance(val2, (pyrpr.MaterialNode, pyrprx.Material)):
+            return create_arithmetic_node()
+
+        val1 = to_vec4(val1)
+        val2 = to_vec4(val2)
+
+        if op_type == pyrpr.MATERIAL_NODE_OP_MUL:
+            return (val1[0] * val2[0], val1[1] * val2[1], val1[2] * val2[2], val1[3] * val2[3])
+
+        if op_type == pyrpr.MATERIAL_NODE_OP_SUB:
+            return (val1[0] - val2[0], val1[1] - val2[1], val1[2] - val2[2], val1[3] - val2[3])
+
+        if op_type == pyrpr.MATERIAL_NODE_OP_ADD:
+            return (val1[0] + val2[0], val1[1] + val2[1], val1[2] + val2[2], val1[3] + val2[3])
+
+        if op_type == pyrpr.MATERIAL_NODE_OP_MAX:
+            return (max(val1[0], val2[0]), max(val1[1], val2[1]), max(val1[2], val2[2]), max(val1[3], val2[3]))
+
+        if op_type == pyrpr.MATERIAL_NODE_OP_MIN:
+            return (min(val1[0], val2[0]), min(val1[1], val2[1]), min(val1[2], val2[2]), min(val1[3], val2[3]))
+
+        return create_arithmetic_node()
+
+    def mul_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MUL, use_key)
+
+    def add_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_ADD, use_key)
+
+    def sub_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB, use_key)
+
+    def max_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX, use_key)
+
+    def min_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN, use_key)
+
+    def blend_node_value(self, val1, val2, weight, use_key=False):
+        node = self.rpr_context.create_material_node(self.node_key if use_key else None,
+                                                     pyrpr.MATERIAL_NODE_BLEND_VALUE)
+        node.set_input('color0', val1)
+        node.set_input('color1', val2)
+        node.set_input('weight', weight)
+
+        return node
 
 
-###########################
+class RuleNodeParser(NodeParser):
+    """
+    Base class that parses material node by rules. It looks up inputs on the blender node and get values,
+    then creates (multiple) rpr nodes from the nodes data structure. rpr_nodes can have inputs based on
+    the blender node inputs, or connected to each other within the list.
 
-class NodeParser:
-    ''' This is a class that parses a blender node.
-        It creates RPR nodes, and takes the inputs to the blender nodes,
-        hooks up all the nodes, then returns a node for the output 
+    Child classes should only reassign 'nodes' class field. Example:
+    nodes =  {
+        "emission_color": {
+            "type": "*",
+            "params": {
+                "color0": "inputs.Color",
+                "color1": "inputs.Strength",
+            }
+        },
+        "Emission": {
+            "type": pyrpr.MATERIAL_NODE_EMISSIVE,
+            "params": {
+                "color": "nodes.emission_color"
+            }
+        }
+    }
+    Supported types: pyrpr.*, pyrprx.*, "*", "+", "-", "max", "min", "blend"
+    Supported params: pyrpr.*, pyrprx.*, str
+    Supported values: pyrpr.*, pyrprx.*, "nodes.*", "inputs.*", "link:inputs.*", "default:inputs.*"
+    Note: if pyrprx.* type is used then field "is_rprx": True should be added
+    """
 
-        Subclasses can override gather_inputs, create_nodes, sync, as needed.
-        Or simply use the basic functionality and specify the inputs and nodes of the 
-        subclass and let it run.
-        '''
-
-    # A list of inputs.  These can be Input sockets, or parameters on the blender node
-    inputs = []
-
-    # RPR nodes to create.  These are nodes by name, and inputs to them.
-    # outputs map by name to node names
     nodes = {}
 
-    def __init__(self, material_exporter, blender_node):
-        self.material_exporter = material_exporter
-        self.blender_node = blender_node
+    def _export_node_rule(self, node_rule, use_key=False):
+        """ Recursively exports current node_rule """
 
-    def get_blender_node_inputs(self):
-        ''' Gather the inputs from the list of needed ones off the blender node'''
-        input_vals = {}
-        for input_name in self.inputs:
-            # special case to deal with int input keys
-            input_key = str(input_name) if isinstance(input_name, int) else input_name
-            input_vals[input_key] = get_node_value(self.material_exporter, self.blender_node, input_name)
-        return input_vals
+        # getting inputs
+        inputs = {}
+        for key, val in node_rule['params'].items():
+            if not isinstance(val, str):
+                inputs[key] = val
+                continue
 
-    def create_rpr_nodes(self, nodes_to_create):
-        ''' create a set of rpr nodes based on list of (name, type_string) 
-            where type_str is RPR_MATERIAL_NODE_DIFFUSE for instance '''
-        return {node_name: self.material_exporter.create_rpr_node(node_type, self.get_subnode_key(node_name)) 
-                for node_name, node_type in nodes_to_create}
+            if val.startswith('nodes.'):
+                node_rule_key = val[6:]
+                inputs[key] = self._export_node_rule(self.nodes[node_rule_key])
+                continue
 
-    def get_rpr_param_values(self, node_params, rpr_nodes, blender_inputs):
-        ''' Get the input params  for a node based on the node_info dictionary.  
-            This should be in the form of { 'param_name': param_val}
-            Valid "values" are int/float/tuples, nodes, and strings
-            of the form of 'input.input_name' or nodes.node_name '''
-        parsed_params = {}
+            if val.startswith('inputs.'):
+                socket_key = val[7:]
+                inputs[key] = self.get_input_value(socket_key)
+                continue
 
-        for param_name, value_source in node_params.items():
-            # is it the value source name?
-            if isinstance(value_source, str):
-                # blender node inputs
-                if value_source.startswith('inputs.'):
-                    target_name = value_source.split('inputs.')[1]
-                    if target_name in blender_inputs:
-                        value = blender_inputs[target_name]
+            if val.startswith('link:inputs.'):
+                socket_key = val[12:]
+                inputs[key] = self.get_input_link(socket_key)
+                continue
 
-                        # special case for normal if unlinked. should this be more robust and check if type is normal?
-                        if target_name in {'Normal', 'Clearcoat Normal'} and isinstance(value, tuple):
-                            continue
-                    else:
-                        log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
-                        continue
-                # internal node links
-                elif value_source.startswith('nodes.'):
-                    target_name = value_source.split('nodes.')[1]
-                    if target_name in rpr_nodes:
-                        value = rpr_nodes[target_name]
-                    else:
-                        log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
-                        continue
-                elif value_source.startswith('RPR'):
-                    # this is an rpr value
-                    value = get_rpr_val(value_source)
-                else:
-                    log.warn("Could not find '{}' on '{}'.'{}'!".format(value_source, self.material_exporter.material.name, self.blender_node.name))
-                    continue
-            else:  # Constant value
-                if isinstance(value_source, (tuple, list)):
-                    value = tuple(value_source)
-                else:  # int, float
-                    value = value_source
+            if val.startswith('default:inputs.'):
+                socket_key = val[15:]
+                inputs[key] = self.get_input_link(socket_key)
+                continue
 
+            raise ValueError("Invalid prefix for input value", key, val, node_rule)
 
-            parsed_params[param_name] = value
+        # creating material node
+        node_key = self.node_key if use_key else None
 
-        return parsed_params
+        node_type = node_rule['type']
+        if isinstance(node_type, int):
+            if node_rule.get('is_rprx', False):
+                rpr_node = self.rpr_context.create_x_material_node(node_key, node_type)
+            else:
+                rpr_node = self.rpr_context.create_material_node(node_key, node_type)
 
-
-    def set_rpr_node_inputs(self, rpr_node, inputs_dict):
-        ''' set the inputs to an rpr node for each input_name, value in the dict '''
-        for input_name, value in inputs_dict.items():
-            param_name = get_rpr_val(input_name) if input_name.startswith('RPR') else input_name
-            val = get_rpr_val(value) if isinstance(value, str) and input_name.startswith('RPR') else value
-            if val:
-                try:
-                    rpr_node.set_input(param_name, val)
-                except TypeError as e:
-                    raise MaterialError("Socket '{}' value assign error on node type {} '{}'.'{}'".
-                                        format(param_name, type(self.blender_node).__name__, 
-                                               self.material_exporter.material.name, self.blender_node.name), val)
-
-    def set_all_node_inputs(self, rpr_nodes, blender_inputs):
-        ''' loop over all node info, get the param inputs and set them on the rpr_node '''
-        for node_name, node_params_info in self.nodes.items():
-            node_params = self.get_rpr_param_values(node_params_info['params'], rpr_nodes, blender_inputs)
-            self.set_rpr_node_inputs(rpr_nodes[node_name], node_params)
-
-
-    def export(self, socket):
-        ''' export all the sub nodes based on the rules in self.nodes, inputs.  
-            can be overridden for complex classes '''
-        
-        # get the needed inputs from the blender node
-        blender_inputs = self.get_blender_node_inputs()
-
-        # create rpr nodes based on the layout
-        rpr_nodes = self.create_rpr_nodes([(node_name, node_info['type']) for node_name, node_info in self.nodes.items()])
-        
-        # set rpr inputs from param layour and inputs
-        self.set_all_node_inputs(rpr_nodes, blender_inputs)
-
-        if socket.name not in rpr_nodes:
-            # some output sockets we might not translate
-            log.warn("Output '{}'' not translated for node type '{}' on '{}'.'{}'!".format(socket.name, type(self.blender_node).__name__, self.material_exporter.material.name, self.blender_node.name))
-            return None
         else:
-            return rpr_nodes[socket.name]
+            if node_type == '*':
+                return self.mul_node_value(inputs['color0'], inputs['color1'], use_key)
+
+            if node_type == '+':
+                return self.add_node_value(inputs['color0'], inputs['color1'], use_key)
+
+            if node_type == '-':
+                return self.sub_node_value(inputs['color0'], inputs['color1'], use_key)
+
+            if node_type == 'max':
+                return self.max_node_value(inputs['color0'], inputs['color1'], use_key)
+
+            if node_type == 'min':
+                return self.min_node_value(inputs['color0'], inputs['color1'], use_key)
+
+            if node_type == 'blend':
+                return self.blend_node_value(inputs['color0'], inputs['color1'], inputs['weight'], use_key)
+
+            raise TypeError("Incorrect type of node_type", node_type)
+
+        # setting inputs
+        for key, val in inputs.items():
+            if val is None:
+                continue
+
+            if key.startswith('pyrprx.'):
+                key = getattr(pyrprx, key[7:])
+
+            rpr_node.set_input(key, val)
+
+        return rpr_node
+
+    def export(self):
+        """ Implements export functionality by rules """
+
+        node_rule = self.nodes.get(self.socket_out.name, None)
+        if not node_rule:
+            log.warn("Ignoring unsupported output socket", self.socket_out, self.node, self.material)
+            return None
+
+        return self._export_node_rule(node_rule, use_key=True)
 
 
-    def get_subnode_key(self, subnode_name):
-        ''' get the key for a new node with subnode_name '''
-        return self.material_exporter.get_node_key(self.blender_node, subnode_name)
+def get_node_parser_class(node_idname: str):
+    """ Returns NodeParser class for node_idname or None if not found """
 
+    from . import blender_nodes
+    parser_class = getattr(blender_nodes, node_idname, None)
+    if parser_class:
+        return parser_class
 
-
-
+    from . import rpr_nodes
+    return getattr(rpr_nodes, node_idname, None)

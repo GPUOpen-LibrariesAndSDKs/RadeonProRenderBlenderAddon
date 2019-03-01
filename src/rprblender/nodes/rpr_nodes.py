@@ -3,17 +3,31 @@ from bpy.props import (
     BoolProperty,
     EnumProperty
 )
+import pyrpr
+import pyrprx
 
-from rprblender.utils import logging
-from .node_parser import NodeParser, get_node_value, get_rpr_val
+from .node_parser import NodeParser
 
 
-class RPRShadingNode(bpy.types.ShaderNode, NodeParser):  # , RPR_Properties):
-    ''' base class for RPR shading nodes.  This is a subclass of nodeparser
-        and can override the same functionality '''
+def get_rpr_val(val_str: str):
+    ''' turns a string such as RPR_MATERIAL_NODE_DIFFUSE into a key
+        such as pyrpr.MATERIAL_NODE_DIFFUSE '''
+
+    if val_str.startswith("RPR_"):
+        return getattr(pyrpr, val_str[4:])
+
+    if val_str.startswith("RPRX_"):
+        return getattr(pyrprx, val_str[5:])
+
+
+class RPRShaderNode(bpy.types.ShaderNode):
+    """
+    Base class for RPR shader nodes.  This is a subclass of nodeparser
+    and can override the same functionality
+    """
 
     bl_compatibility = {'RPR'}
-    bl_idname = 'rpr_shader_node'
+    bl_idname = 'RPRShaderNode'
     bl_label = 'RPR Shader Node'
     bl_icon = 'MATERIAL'
     bl_width_min = 300
@@ -22,13 +36,10 @@ class RPRShadingNode(bpy.types.ShaderNode, NodeParser):  # , RPR_Properties):
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
 
-    def __init__(self):
-        pass
 
-class RPRShadingNodeUber(RPRShadingNode):
-    bl_idname = 'rpr_shader_node_uber'
+class RPRShaderNodeUber_UI(RPRShaderNode):
+    bl_idname = 'RPRShaderNodeUber'
     bl_label = 'RPR Uber'
-
 
     def set_from_principled(self, node:bpy.types.ShaderNodeBsdfPrincipled):
         ''' set the inputs of this from a principled node and replace the outputs
@@ -144,7 +155,7 @@ class RPRShadingNodeUber(RPRShadingNode):
 
             # had value for normal types
             if socket_type == 'rpr_socket_link':
-                socket.hide_value
+                socket.hide_value()
 
         self.outputs.new('rpr_socket_link', 'Shader')
 
@@ -152,43 +163,6 @@ class RPRShadingNodeUber(RPRShadingNode):
         # save self as blender_node
         self.blender_node = self
 
-    def export(self, socket, material_exporter):
-        ''' export sockets to the uber param specced in self.node_sockets '''
-        self.material_exporter = material_exporter
-        uber_node = material_exporter.create_rpr_node('RPRX_MATERIAL_UBER', material_exporter.get_node_key(self, 'Shader'))
-
-        shader_normal_val = get_node_value(material_exporter, self, 'Normal') if self.inputs['Normal'].is_linked else None
-
-        for socket_name, socket_desc in self.node_sockets.items():
-            socket_type, socket_default, rpr_name, eval_string = socket_desc
-
-            # only set the param if enabled
-            if rpr_name and eval(eval_string):
-                val = get_node_value(material_exporter, self, socket_name)
-                if val is not None:
-                    # if this normal and is unlinked skip
-                    if 'Normal' in socket_name and not self.inputs[socket_name].is_linked:
-                        continue
-                    else:
-                        uber_node.set_input(get_rpr_val(rpr_name), val)
-
-            # if normal is not enabled, set to the shader normal
-            elif rpr_name and 'Normal' in socket_name and shader_normal_val:
-                uber_node.set_input(get_rpr_val(rpr_name), shader_normal_val)
-            
-            else:
-                # if this is a weight and not enabled, set to 0
-                if "Weight" in socket_name:
-                    uber_node.set_input(get_rpr_val(rpr_name), 0.0)
-
-        # set reflection mode
-        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFLECTION_MODE'), get_rpr_val(self.reflection_mode))
-
-        # set refraction mode and caustics
-        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE'), self.refraction_thin_surface)
-        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_CAUSTICS'), self.refraction_caustics)
-
-        return uber_node
 
     def draw_buttons(self, context, layout):
         col = layout.column(align=True)
@@ -225,3 +199,46 @@ class RPRShadingNodeUber(RPRShadingNode):
 
         # Don't enable displacements yet
         #col.prop(self, 'enable_displacement', toggle=True)
+
+
+class RPRShaderNodeUber(NodeParser):
+    def export(self):
+        ''' export sockets to the uber param specced in self.node_sockets '''
+        uber_node = self.rpr_context.create_x_material_node(self.node_key, pyrprx.MATERIAL_UBER)
+
+        shader_normal_val = self.get_input_link('Normal')
+
+        for socket_name, socket_desc in self.node_sockets.items():
+            socket_type, socket_default, rpr_name, eval_string = socket_desc
+
+            # only set the param if enabled
+            if rpr_name and eval(eval_string):
+                val = self.get_input_value(socket_name)
+                if val is not None:
+                    # if this normal and is unlinked skip
+                    if 'Normal' in socket_name and not self.node.inputs[socket_name].is_linked:
+                        continue
+
+                    uber_node.set_input(get_rpr_val(rpr_name), val)
+
+
+            # if normal is not enabled, set to the shader normal
+            elif rpr_name and 'Normal' in socket_name and shader_normal_val:
+                uber_node.set_input(get_rpr_val(rpr_name), shader_normal_val)
+
+            else:
+                # if this is a weight and not enabled, set to 0
+                if "Weight" in socket_name:
+                    uber_node.set_input(get_rpr_val(rpr_name), 0.0)
+
+        # set reflection mode
+        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFLECTION_MODE'), get_rpr_val(self.reflection_mode))
+
+        # set refraction mode and caustics
+        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE'), self.refraction_thin_surface)
+        uber_node.set_input(get_rpr_val('RPRX_UBER_MATERIAL_REFRACTION_CAUSTICS'), self.refraction_caustics)
+
+        return uber_node
+
+        return uber_node
+
