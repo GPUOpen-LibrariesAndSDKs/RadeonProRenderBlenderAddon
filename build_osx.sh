@@ -2,7 +2,7 @@
 
 PYTHON_VERSION=`python3 --version`
 
-if [[ $PYTHON_VERSION =~ 'Python 3.5.' ]]; then
+if [[ $PYTHON_VERSION =~ 'Python 3.7.' ]]; then
     echo Found correct python version
 else
     echo Incorrect version of python in path: $PYTHON_VERSION

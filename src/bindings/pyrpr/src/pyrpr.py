@@ -3,7 +3,6 @@ import traceback
 import inspect
 import ctypes
 import os
-import threading
 import time
 import functools
 import sys
@@ -12,6 +11,7 @@ import bgl
 
 import pyrprwrap
 from pyrprwrap import *
+import pyrprx
 
 
 lib_wrapped_log_calls = False
@@ -19,17 +19,23 @@ lib_wrapped_log_calls = False
 
 class CoreError(Exception):
     def __init__(self, status, func_name, argv, module_name):
+        super().__init__()
+        self.status = status
+        self.func_name = func_name
+        self.argv = argv
+        self.module_name = module_name
+
         for name in pyrprwrap._constants_names:
             value = getattr(pyrprwrap, name)
             if name.startswith('ERROR_') and status == value:
                 status = "%s<%d>" % (name, value)
                 break
        
-        error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
+        self.error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
 
-        super().__init__(
-            "%s call %s(%s) returned error code <%s> with error message: '%s'" % 
-                (module_name, func_name, ', '.join(str(a) for a in argv), status, error_message))
+    def __str__(self):
+        return "%s call %s(%s) returned error code <%s> with error message: '%s'" % \
+                    (self.module_name, self.func_name, ', '.join(str(a) for a in self.argv), self.status, self.error_message)
 
     def get_last_error_message(self, context):
         if not isinstance(context, Context):
@@ -75,22 +81,11 @@ def wrap_core_log_call(f, log_fun, module_name):
     return wrapped
 
 
-global_lock = threading.Lock()
-
-
-def wrap_core_sync(f):
-    @functools.wraps(f)
-    def wrapper(*argv):
-        with global_lock:
-            return f(*argv)
-    return wrapper
-
-
 class _init_data:
     _log_fun = None
 
 
-def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
+def init(log_fun, rprsdk_bin_path=None):
 
     _module = __import__(__name__)
 
@@ -147,16 +142,14 @@ def init(log_fun, sync_calls=True, rprsdk_bin_path=None):
         wrapped = getattr(pyrprwrap, name)
         # wrap all functions here(for more flexilibity) to log call, if enabled
         # and to assert that SUCCESS is returned from them
-        if sync_calls:
-            wrapped = wrap_core_sync(wrapped)
         if lib_wrapped_log_calls:
             wrapped = wrap_core_log_call(wrapped, log_fun, 'RPR')
-        if all(name not in wrapped.__name__ for name in ['RegisterPlugin', 'CreateContext']):
+        if wrapped.__name__ != 'RegisterPlugin':
             wrapped = wrap_core_check_success(wrapped, 'RPR')
         setattr(_module, name, wrapped)
 
     del _module
-    
+
 
 def encode(string):
     return string.encode('utf8')
@@ -166,16 +159,52 @@ def decode(bin_str):
     return bin_str.decode('utf8')
 
 
-def register_plugin(path):
-    return RegisterPlugin(encode(path))
-
-
 def is_gpu_enabled(creation_flags):
     for i in range(16):
         if getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i) & creation_flags:
             return True
 
     return False
+
+
+def get_first_gpu_id_used(creation_flags):
+    for i in range(16):
+        if getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i) & creation_flags:
+            return i
+
+    raise IndexError("GPU is not used", creation_flags)
+
+
+class array:
+    def __init__(self, a: np.array):
+        self.array = a if a.flags['C_CONTIGUOUS'] else np.ascontiguousarray(a)
+
+    def __eq__(self, other):
+        return np.array_equal(self.array, other.array)
+
+    @property
+    def nbytes(self):
+        return self.array[0].nbytes
+
+    @property
+    def len(self):
+        return len(self.array)
+
+    @property
+    def data(self):
+        if self.array.dtype == np.float32:
+            return ffi.cast('float*', self.array.ctypes.data)
+
+        if self.array.dtype == np.int32:
+            return ffi.cast('rpr_int*', self.array.ctypes.data)
+
+        if self.array.dtype == np.int64:
+            return ffi.cast('size_t*', self.array.ctypes.data)
+
+        raise KeyError("Not correct dtype of np.array", self.array.dtype)
+
+    def __repr__(self):
+        return 'pyrpr.' + repr(self.array)
 
 
 class Object:
@@ -213,17 +242,55 @@ class Object:
 class Context(Object):
     core_type_name = 'rpr_context'
 
-    def __init__(self, plugins, flags, props=None, cache_path=None):
+    plugins = None
+    cache_path = None
+    cpu_device = None
+    gpu_devices = []
+
+    @staticmethod
+    def register_plugin(tahoe_path, cache_path):
+        plugin_id = RegisterPlugin(encode(tahoe_path))
+        if plugin_id == -1:
+            raise RuntimeError("Plugin is not registered", tahoe_path)
+
+        Context.plugins = [plugin_id, ]
+        Context.cache_path = cache_path
+
+        # getting available devices
+        def get_device(create_flag, info_flag):
+            try:
+                context = Context(create_flag, use_cache=False)
+                device_name = context.get_info_str(info_flag)
+                return {'flag': create_flag, 'name': device_name.strip()}
+
+            except CoreError as err:
+                if err.status == ERROR_UNSUPPORTED:
+                    return None
+
+                raise err
+
+        Context.cpu_device = get_device(CREATION_FLAGS_ENABLE_CPU, CONTEXT_CPU_NAME)
+        for i in range(16):
+            create_flag = getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i)
+            if platform.system() == 'Darwin':
+                create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
+            device = get_device(create_flag,
+                                getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
+            if device:
+                Context.gpu_devices.append(device)
+
+    def __init__(self, flags, props=None, use_cache=True):
         super().__init__()
         self.aovs = {}
+        self.parameters = {}
 
         props_ptr = ffi.NULL
         if props is not None:
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
-        CreateContext(API_VERSION, plugins, len(plugins), flags,
-            props_ptr, encode(cache_path) if cache_path else ffi.NULL,
+        CreateContext(API_VERSION, Context.plugins, len(Context.plugins), flags,
+            props_ptr, encode(Context.cache_path) if use_cache and Context.cache_path else ffi.NULL,
             self)
 
     def set_parameter(self, name, param):
@@ -241,6 +308,8 @@ class Context(Object):
             ContextSetParameter4f(self, encode(name), *param)
         else:
             raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
+
+        self.parameters[name] = param
 
     def set_scene(self, scene):
         ContextSetScene(self, scene)
@@ -294,23 +363,6 @@ class Context(Object):
     def get_cl_command_queue(self):
         return self._get_cl_info(CL_COMMAND_QUEUE, 'rpr_cl_command_queue')
 
-    def get_first_gpu_id_used(self):
-        creation_flags = self.get_creation_flags()
-        gpuids = [CREATION_FLAGS_ENABLE_GPU0, CREATION_FLAGS_ENABLE_GPU1, CREATION_FLAGS_ENABLE_GPU2,
-                CREATION_FLAGS_ENABLE_GPU3, CREATION_FLAGS_ENABLE_GPU4, CREATION_FLAGS_ENABLE_GPU5,
-                CREATION_FLAGS_ENABLE_GPU6, CREATION_FLAGS_ENABLE_GPU7, CREATION_FLAGS_ENABLE_GPU8,
-                CREATION_FLAGS_ENABLE_GPU9, CREATION_FLAGS_ENABLE_GPU10, CREATION_FLAGS_ENABLE_GPU11,
-                CREATION_FLAGS_ENABLE_GPU12, CREATION_FLAGS_ENABLE_GPU13, CREATION_FLAGS_ENABLE_GPU14,
-                CREATION_FLAGS_ENABLE_GPU15
-                ]
-
-        for i,flag in enumerate(gpuids):
-            if creation_flags & flag:
-                return i
-        else:
-            # undefined here.  Should this mean use CPU?
-            return -1
-
 
 class Scene(Object):
     core_type_name = 'rpr_scene'
@@ -330,6 +382,8 @@ class Scene(Object):
     def attach(self, obj):
         if isinstance(obj, Shape):
             SceneAttachShape(self, obj)
+        elif isinstance(obj, AreaLight):
+            SceneAttachShape(self, obj.mesh)
         elif isinstance(obj, Light):
             SceneAttachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
@@ -342,6 +396,8 @@ class Scene(Object):
     def detach(self, obj):
         if isinstance(obj, Shape):
             SceneDetachShape(self, obj)
+        elif isinstance(obj, AreaLight):
+            SceneDetachShape(self, obj.mesh)
         elif isinstance(obj, Light):
             SceneDetachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
@@ -379,6 +435,68 @@ class Shape(Object):
     def __init__(self, context):
         super().__init__()
         self.context = context
+        self.shadow_catcher = False
+
+        self.materials = []
+        self.volume_material = None
+        self.displacement_material = None
+        self.hetero_volume = None
+
+        self.subdivision = None     # { 'factor': int, 'boundary': int, 'crease_weight': float }
+
+    def delete(self):
+        self.set_material(None)
+        self.set_volume_material(None)
+        self.set_displacement_material(None)
+        self.set_hetero_volume(None)
+
+        super().delete()
+
+    def set_material(self, material):
+        if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
+            self.materials[0].detach(self)
+
+        if material is None or isinstance(material, MaterialNode):
+            ShapeSetMaterial(self, material)
+        elif isinstance(material, pyrprx.Material):
+            material.attach(self)
+        else:
+            raise TypeError("Incorrect type of material", self, material)
+
+        self.materials.clear()
+        if material:
+            self.materials.append(material)
+
+    def set_material_faces(self, material, face_indices:np.array):
+        if isinstance(material, MaterialNode):
+            ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
+            self.materials.append(material)
+
+        elif isinstance(material, pyrprx.Material):
+            # attaching pyrprx.Material through blend node
+            blend_node = MaterialNode(material.context.material_system, MATERIAL_NODE_BLEND)
+            blend_node.set_input('color0', material)
+            blend_node.set_input('weight', 0.0)
+
+            self.set_material_faces(blend_node, face_indices)
+
+        else:
+            raise TypeError("Incorrect type of material", self, material)
+
+    def set_volume_material(self, node):
+        self.volume_material = node
+        ShapeSetVolumeMaterial(self, self.volume_material)
+
+    def set_displacement_material(self, node):
+        self.displacement_material = node
+        ShapeSetDisplacementMaterial(self, self.displacement_material)
+
+    def set_displacement_scale(self, minscale, maxscale):
+        ShapeSetDisplacementScale(self, minscale, maxscale)
+
+    def set_hetero_volume(self, hetero_volume):
+        self.hetero_volume = hetero_volume
+        ShapeSetHeteroVolume(self, self.hetero_volume)
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -394,6 +512,7 @@ class Shape(Object):
 
     def set_shadow_catcher(self, shadow_catcher):
         ShapeSetShadowCatcher(self, shadow_catcher)
+        self.shadow_catcher = shadow_catcher
 
     def set_shadow(self, casts_shadow):
         ShapeSetShadow(self, casts_shadow)
@@ -449,11 +568,6 @@ class Mesh(Shape):
                  vertex_indices, normal_indices, texcoord_indices, 
                  num_face_vertices):
         super().__init__(context)
-        self.material = None
-        self.x_material = None    # pyrprx.Material
-        self.volume_material = None
-        self.displacement_material = None
-        self.hetero_volume = None
 
         if texcoords is None:
             texcoords_ptr = ffi.NULL
@@ -478,60 +592,12 @@ class Mesh(Shape):
                  ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                  self)
 
-    def delete(self):
-        if self.material:
-            self.set_material(None)
-        if self.x_material:
-            self.x_material.detach(self)
-        if self.volume_material:
-            self.set_volume_material(None)
-        if self.displacement_material:
-            self.set_displacement_material(None)
-        if self.hetero_volume:
-            self.set_hetero_volume(None)
-
-        super().delete()
-
-    def set_material(self, node):
-        self.material = node
-        ShapeSetMaterial(self, self.material)
-
-    def set_volume_material(self, node):
-        self.volume_material = node
-        ShapeSetVolumeMaterial(self, self.volume_material)
-
-    def set_displacement_material(self, node):
-        self.displacement_material = node
-        ShapeSetDisplacementMaterial(self, self.displacement_material)
-
-    def set_displacement_scale(self, minscale, maxscale):
-        ShapeSetDisplacementScale(self, minscale, maxscale)
-
-    def set_hetero_volume(self, hetero_volume):
-        self.hetero_volume = hetero_volume
-        ShapeSetHeteroVolume(self, self.hetero_volume)
-
 
 class Instance(Shape):
     def __init__(self, context, mesh):
         super().__init__(context)
         self.mesh = mesh
         ContextCreateInstance(self.context, mesh, self)
-
-    def set_material(self, mat_node):
-        pass
-
-    def set_volume_material(self, node):
-        pass
-
-    def set_displacement_material(self, node):
-        pass
-
-    def set_displacement_scale(self, minscale, maxscale):
-        pass
-
-    def set_hetero_volume(self, hetero_volume):
-        pass
 
 
 class HeteroVolume(Object):
@@ -601,9 +667,17 @@ class Camera(Object):
     def set_exposure(self, exposure):
         CameraSetExposure(self, exposure)
 
+    def set_clip_plane(self, near, far):
+        CameraSetNearPlane(self, near)
+        CameraSetFarPlane(self, far)
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        CameraSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
+
 
 class FrameBuffer(Object):
     core_type_name = 'rpr_framebuffer'
+    channels = 4    # core requires always 4 channels
 
     def __init__(self, context, width, height):
         super().__init__()
@@ -622,7 +696,7 @@ class FrameBuffer(Object):
     def _create(self):
         desc = ffi.new("rpr_framebuffer_desc*")
         desc.fb_width, desc.fb_height = self.width, self.height
-        ContextCreateFrameBuffer(self.context, (4, COMPONENT_TYPE_FLOAT32), desc, self)
+        ContextCreateFrameBuffer(self.context, (self.channels, COMPONENT_TYPE_FLOAT32), desc, self)
 
     def resize(self, width, height):
         if self.width == width and self.height == height:
@@ -649,12 +723,12 @@ class FrameBuffer(Object):
             FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
             return buf
 
-        data = np.empty((self.height, self.width, 4), dtype=np.float32)
+        data = np.empty((self.width, self.height, self.channels), dtype=np.float32)
         FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', data.ctypes.data), ffi.NULL)
         return data
 
     def size(self):
-        return self.height*self.width*16    # 16 bytes = 4 channels of float32 values per pixel
+        return self.height * self.width * self.channels * 4    # 4 bytes = sizeof(float32)
 
     def save_to_file(self, file_path):
         FrameBufferSaveToFile(self, encode(file_path))
@@ -672,21 +746,26 @@ class FrameBufferGL(FrameBuffer):
     def _create(self):
         textures = bgl.Buffer(bgl.GL_INT, [1,])
         bgl.glGenTextures(1, textures)
-        self.gl_texture = textures[0]
+        self.texture_id = textures[0]
 
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.gl_texture)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_REPEAT)
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
-        buf = bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, 4])
-        bgl.glTexImage2D(bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA, self.width, self.height, 0, bgl.GL_RGBA, bgl.GL_FLOAT, buf)
 
-        ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.gl_texture, self)
+        bgl.glTexImage2D(
+            bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA,
+            self.width, self.height, 0,
+            bgl.GL_RGBA, bgl.GL_FLOAT,
+            bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, self.channels])
+        )
+
+        ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.texture_id, self)
 
     def delete(self):
         super().delete()
-        textures = bgl.Buffer(bgl.GL_INT, [1,], [self.gl_texture,])
+        textures = bgl.Buffer(bgl.GL_INT, [1,], [self.texture_id, ])
         bgl.glDeleteTextures(1, textures)
 
 
@@ -729,34 +808,43 @@ class MaterialSystem(Object):
 class MaterialNode(Object):
     core_type_name = 'rpr_material_node'
 
-    def __init__(self, mat_sys, in_type):
+    def __init__(self, material_system, material_type):
         super().__init__()
-        self.mat_sys = mat_sys
+        self.material_system = material_system
         self.inputs = {}
-        self.x_inputs = {}
-        MaterialSystemCreateNode(self.mat_sys, in_type, self)
+        MaterialSystemCreateNode(self.material_system, material_type, self)
 
     def delete(self):
-        for param, x_mat in self.x_inputs.items():
-            x_mat.detach_from_node(param, self)
-        
-            super().delete()
+        for in_input, in_value in self.inputs.items():
+            if isinstance(in_value, pyrprx.Material):
+                in_value.detach_from_node(in_input, self)
+        self.inputs.clear()
 
-    def set_input(self, in_input, in_value):
-        if in_value is None or isinstance(in_value, MaterialNode):
-            MaterialNodeSetInputN(self, encode(in_input), in_value)
-        elif isinstance(in_value, int):
-            MaterialNodeSetInputU(self, encode(in_input), in_value)
-        elif isinstance(in_value, tuple) and len(in_value) == 4:
-            MaterialNodeSetInputF(self, encode(in_input), *in_value)
-        elif isinstance(in_value, Image):
-            MaterialNodeSetInputImageData(self, encode(in_input), in_value)
-        elif isinstance(in_value, Buffer):
-            MaterialNodeSetInputBufferData(self, encode(in_input), in_value)
+        super().delete()
+
+    def set_input(self, name, value):
+        if isinstance(value, MaterialNode):
+            MaterialNodeSetInputN(self, encode(name), value)
+        elif isinstance(value, pyrprx.Material):
+            value.attach_to_node(name, self)
+        elif isinstance(value, int):
+            MaterialNodeSetInputU(self, encode(name), value)
+        elif isinstance(value, bool):
+            MaterialNodeSetInputU(self, encode(name), TRUE if value else FALSE)
+        elif isinstance(value, float):
+            MaterialNodeSetInputF(self, encode(name), value, value, value, value)
+        elif isinstance(value, tuple) and len(value) == 3:
+            MaterialNodeSetInputF(self, encode(name), *value, 1.0)
+        elif isinstance(value, tuple) and len(value) == 4:
+            MaterialNodeSetInputF(self, encode(name), *value)
+        elif isinstance(value, Image):
+            MaterialNodeSetInputImageData(self, encode(name), value)
+        elif isinstance(value, Buffer):
+            MaterialNodeSetInputBufferData(self, encode(name), value)
         else:
-            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, in_input, in_value)
+            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
-        self.inputs[in_input] = in_value
+        self.inputs[name] = value
 
 
 class Light(Object):
@@ -780,13 +868,21 @@ class EnvironmentLight(Light):
         self.image = None
         ContextCreateEnvironmentLight(self.context, self)
 
+    def delete(self):
+        self.set_image(None)
+        super().delete()
+
     def set_image(self, image):
         self.image = image
-        EnvironmentLightSetImage(self, self.image)
+        EnvironmentLightSetImage(self, image)
+
+    def set_color(self, r, g, b):
+        self.set_image(ImageData(self.context, np.full((2, 2, 4), (r, g, b, 1.0), dtype=np.float32)))
 
     def set_intensity_scale(self, intensity_scale):
         EnvironmentLightSetIntensityScale(self, intensity_scale)
 
+    # TODO: move work with portals to scene
     def attach_portal(self, scene, portal):
         EnvironmentLightAttachPortal(scene, self, portal)
         self.portals.add(portal)
@@ -839,6 +935,64 @@ class DirectionalLight(Light):
 
     def set_shadow_softness(self, coeff):
         DirectionalLightSetShadowSoftness(self, coeff)
+
+
+class AreaLight(Light):
+    core_type_name = ''
+
+    def __init__(self, mesh, material_system):
+        self.mesh = mesh
+        self.material_system = material_system
+
+        self.color_node = MaterialNode(self.material_system, MATERIAL_NODE_ARITHMETIC)
+        self.color_node.set_input('op', MATERIAL_NODE_OP_MUL)
+        self.color_node.set_input('color0', 1.0)    # for color
+        self.color_node.set_input('color1', 1.0)    # for image
+
+        emissive_node = MaterialNode(self.material_system, MATERIAL_NODE_EMISSIVE)
+        emissive_node.set_input('color', self.color_node)
+
+        self.mesh.set_material(emissive_node)
+
+    def delete(self):
+        # delete() should be empty
+        pass
+
+    def set_name(self, name):
+        self.name = name
+        self.mesh.set_name(name)
+
+    def set_radiant_power(self, r, g, b):
+        self.color_node.set_input('color0', (r, g, b))
+
+    def set_image(self, image):
+        if image:
+            image_node = MaterialNode(self.material_system, MATERIAL_NODE_IMAGE_TEXTURE)
+            image_node.set_input('data', image)
+            self.color_node.set_input('color1', image_node)
+        else:
+            self.color_node.set_input('color1', 1.0)
+
+    def set_shadow(self, casts_shadow):
+        self.mesh.set_shadow(casts_shadow)
+
+    def set_visibility(self, visible):
+        self.mesh.set_visibility_ex('visible.light', visible)
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        self.mesh.set_transform(transform, transpose)
+
+    def set_group_id(self, group_id):
+        self.mesh.set_light_group_id(group_id)
+
+    def set_linear_motion(self, x, y, z):
+        self.mesh.set_linear_motion(x, y, z)
+
+    def set_angular_motion(self, x, y, z, w):
+        self.mesh.set_angular_motion(x, y, z, w)
+
+    def set_scale_motion(self, x, y, z):
+        self.mesh.set_scale_motion(x, y, z)
 
 
 class Image(Object):
@@ -900,6 +1054,11 @@ class PostEffect(Object):
         super().__init__()
         self.context = context
         ContextCreatePostEffect(self.context, post_effect_type, self)
+        ContextAttachPostEffect(self.context, self)
+
+    def delete(self):
+        ContextDetachPostEffect(self.context, self)
+        super().delete()
 
     def set_parameter(self, name, param):
         if isinstance(param, int):
@@ -908,17 +1067,3 @@ class PostEffect(Object):
             PostEffectSetParameter1f(self, encode(name), param)
         else:
             raise TypeError("Not supported parameter type", self, name, param)
-
-    def attach(self):
-        ContextAttachPostEffect(self.context, self)
-
-    def detach(self):
-        ContextDetachPostEffect(self.context, self)
-
-
-def is_transform_matrix_valid(transform):
-    # just checking for 'NaN', everything else - catch failure of SetTransform and recover
-    if not np.all(np.isfinite(transform)):
-        return False
-    return True
-

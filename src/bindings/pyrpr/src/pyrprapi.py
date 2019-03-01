@@ -534,8 +534,7 @@ def export(header_file, includes, json_file_name, prefixes, castxml):
     def extract_function_comments(lines):
         comment = ''
 
-        while True:
-            line = next(lines)
+        for line in lines:
             #print('>>>', line)
 
             if line.startswith('/*'):

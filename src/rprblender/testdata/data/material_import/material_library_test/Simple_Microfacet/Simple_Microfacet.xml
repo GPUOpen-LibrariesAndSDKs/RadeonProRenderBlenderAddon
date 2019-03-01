@@ -1,9 +1,0 @@
-<material name="Simple_Microfacet" version="0x10000236">
-    <description></description>
-    <node name="Simple_Microfacet" type="MICROFACET">
-        <param name="color" type="float4" value="1, 1, 1, 0"/>
-        <param name="roughness" type="float4" value="0.5, 0, 0, 0"/>
-    </node>
-</material>
-
-

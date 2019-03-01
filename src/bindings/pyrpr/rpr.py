@@ -24,7 +24,7 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64', 'ProRenderGLTF']
+    lib_names = ['RadeonProRender64', 'RprSupport64','RadeonImageFilters64', 'ProRenderGLTF','python37']
 
     if "Windows" == platform.system():
         inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),

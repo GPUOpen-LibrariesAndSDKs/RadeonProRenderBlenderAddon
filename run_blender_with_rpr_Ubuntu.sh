@@ -14,8 +14,8 @@ GLTF_LIBNAME="libProRenderGLTF.so"
 
 function init()
 {
-	if [ ! -x "$BLENDER_EXE" ]; then
-		echo "Could not find blender application. Please, specify BLENDER_EXE environment variable"
+	if [ ! -x "$BLENDER_28x_EXE" ]; then
+		echo "Could not find blender application. Please, specify BLENDER_28x_EXE environment variable"
 		exit 1
 	fi
 
@@ -52,7 +52,7 @@ function main()
 
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
-	python3 tests/commandline/run_blender.py "$BLENDER_EXE" tests/commandline/test_rpr.py
+	python3 cmd_tools/run_blender.py "$BLENDER_28x_EXE" cmd_tools/test_rpr.py
 
 }
 
