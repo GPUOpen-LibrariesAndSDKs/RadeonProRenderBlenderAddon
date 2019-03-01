@@ -1,0 +1,53 @@
+{
+    "ambient_occlusion": {
+        "name": "Ambient Occlusion",
+		
+        "inputs": [
+            {
+                "name":"occluded_color",
+                "type":"color",
+                "label":"Occluded Color",
+                "default": [0.0, 0.0, 0.0, 1.0]
+            },
+            {
+                "name":"unoccluded_color",
+                "type":"color",
+                "label":"Unoccluded Color",
+                "default": [1.0, 1.0, 1.0, 1.0]
+            }
+        ],
+
+        "outputs": [
+            {
+                "name":"color",
+                "type":"color",
+                "label":"Color",
+                "node": "blend"
+            },
+            {
+                "name":"value",
+                "type":"float",
+                "label":"Value",
+                "node": "ao"
+            }
+        ],
+
+        "nodes": [
+            {
+                "name": "ao",
+                "type": "RPR_MATERIAL_NODE_AO_MAP"
+            },
+            {
+                "name": "blend",
+                "type": "RPR_MATERIAL_NODE_BLEND",
+                "inputs": {
+                    "RPR_MATERIAL_INPUT_COLOR0": "inputs.occluded_color",
+                    "RPR_MATERIAL_INPUT_COLOR1": "inputs.unoccluded_color",
+                    "RPR_MATERIAL_INPUT_WEIGHT": "nodes.ao"
+                }
+            }
+        ]
+
+        
+    }
+}

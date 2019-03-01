@@ -167,7 +167,7 @@ class ContextGPU(Context):
 class ContextMetal(Context):
     def _create(self, rpr_context):
         cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        metal_device = rpr_context.get_first_gpu_id_used()
+        metal_device = pyrpr.get_first_gpu_id_used(rpr_context.creation_flags())
         CreateContext(API_VERSION, BACKEND_API_METAL, PROCESSOR_GPU, metal_device, pyrpr.encode(cache_path), self)
 
     def create_frame_buffer_image(self, frame_buffer):

@@ -96,37 +96,34 @@ class Material(Object):
     def commit(self):
         MaterialCommit(self.context, self)
 
-    def set_parameter(self, parameter, value):
+    def set_input(self, name, value):
         if value is None or isinstance(value, pyrpr.MaterialNode):
-            MaterialSetParameterN(self.context, self, parameter, value)
+            MaterialSetParameterN(self.context, self, name, value)
+        elif isinstance(value, bool):
+            MaterialSetParameterU(self.context, self, name, pyrpr.TRUE if value else pyrpr.FALSE)
         elif isinstance(value, int):
-            MaterialSetParameterU(self.context, self, parameter, value)
+            MaterialSetParameterU(self.context, self, name, value)
+        elif isinstance(value, float):
+            MaterialSetParameterF(self.context, self, name, value, value, value, value)
+        elif isinstance(value, tuple) and len(value) == 3:
+            MaterialSetParameterF(self.context, self, name, *value, 1.0)
         elif isinstance(value, tuple) and len(value) == 4:
-            MaterialSetParameterF(self.context, self, parameter, *value)
+            MaterialSetParameterF(self.context, self, name, *value)
         else:
-            raise TypeError("Incorrect type for MaterialSetParameter*", self, parameter, value)
+            raise TypeError("Incorrect type for MaterialSetParameter*", self, name, value)
 
-        self.parameters[parameter] = value
+        self.parameters[name] = value
 
-    def attach(self, mesh):
-        mesh.x_material = self
-        ShapeAttachMaterial(self.context, mesh, self)
+    def attach(self, shape):
+        ShapeAttachMaterial(self.context, shape, self)
+        self.commit() # TODO: prabably could be improved by commiting only once, not for every shape attachment
         
-    def detach(self, mesh):
-        mesh.x_material = None
-        ShapeDetachMaterial(self.context, mesh, self)
+    def detach(self, shape):
+        ShapeDetachMaterial(self.context, shape, self)
 
-    def attach_to_node(self, parameter, node):
-        material = node.x_inputs.get(parameter, None)
-        if material:
-            # detaching existing material
-            MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), material)
+    def attach_to_node(self, input_name, material_node):
+        MaterialAttachMaterial(self.context, material_node, pyrpr.encode(input_name), self)
+        self.commit() # TODO: prabably could be improved by commiting only once, not for every node attachment
 
-        node.x_inputs[parameter] = self
-        MaterialAttachMaterial(self.context, node, pyrpr.encode(parameter), self)
-        self.commit()
-
-    def detach_from_node(self, parameter, node):
-        del node.x_inputs[parameter]
-        MaterialAttachMaterial(self.context, None, pyrpr.encode(parameter), self)
-        self.commit()
+    def detach_from_node(self, input_name, material_node):
+        MaterialDetachMaterial(self.context, material_node, pyrpr.encode(input_name), self)

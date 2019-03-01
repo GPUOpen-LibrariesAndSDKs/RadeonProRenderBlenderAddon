@@ -1,8 +1,0 @@
-<material name="Simple_Emissive" version="0x10000236">
-    <description></description>
-    <node name="Simple_Emissive" type="EMISSIVE">
-        <param name="color" type="float4" value="1, 1, 0, 0"/>
-    </node>
-</material>
-
-

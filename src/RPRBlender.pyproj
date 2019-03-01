@@ -1,0 +1,181 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{9865c05a-7858-4fcd-87d9-77609e0eefe9}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile />
+    <SearchPath>..\..\blender-2.8\2.80\scripts\modules\;bindings\pyrpr\src\</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="bindings\pyrpr\.build\gltfwrap.py" />
+    <Compile Include="bindings\pyrpr\.build\pyrprimagefilterswrap.py" />
+    <Compile Include="bindings\pyrpr\.build\pyrprsupportwrap.py" />
+    <Compile Include="bindings\pyrpr\.build\pyrprwrap.py" />
+    <Compile Include="bindings\pyrpr\.build\_pyrpr_load_store.py" />
+    <Compile Include="bindings\pyrpr\conftest.py" />
+    <Compile Include="bindings\pyrpr\pyrprgltfwrap_make.py" />
+    <Compile Include="bindings\pyrpr\pyrprimagefilterswrap_make.py" />
+    <Compile Include="bindings\pyrpr\pyrprsupportwrap_make.py" />
+    <Compile Include="bindings\pyrpr\pyrprwrap_make.py" />
+    <Compile Include="bindings\pyrpr\rpr.py" />
+    <Compile Include="bindings\pyrpr\rprinfo.py" />
+    <Compile Include="bindings\pyrpr\rpr_load_store.py" />
+    <Compile Include="bindings\pyrpr\src\pyrpr.py" />
+    <Compile Include="bindings\pyrpr\src\pyrprapi.py" />
+    <Compile Include="bindings\pyrpr\src\pyrprgltf.py" />
+    <Compile Include="bindings\pyrpr\src\pyrprimagefilters.py" />
+    <Compile Include="bindings\pyrpr\src\pyrprx.py" />
+    <Compile Include="bindings\pyrpr\src\pyrpr_load_store.py" />
+    <Compile Include="bindings\pyrpr\test_.py" />
+    <Compile Include="rprblender\config.py" />
+    <Compile Include="rprblender\configdev.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="rprblender\engine\context.py" />
+    <Compile Include="rprblender\engine\engine.py" />
+    <Compile Include="rprblender\engine\image_filter.py" />
+    <Compile Include="rprblender\engine\preview_engine.py" />
+    <Compile Include="rprblender\engine\render_engine.py" />
+    <Compile Include="rprblender\engine\viewport_engine.py" />
+    <Compile Include="rprblender\engine\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="rprblender\export\camera.py" />
+    <Compile Include="rprblender\export\image.py" />
+    <Compile Include="rprblender\export\light.py" />
+    <Compile Include="rprblender\export\material.py" />
+    <Compile Include="rprblender\export\mesh.py" />
+    <Compile Include="rprblender\export\object.py" />
+    <Compile Include="rprblender\export\world.py" />
+    <Compile Include="rprblender\export\__init__.py" />
+    <Compile Include="rprblender\nodes\blender_nodes.py" />
+    <Compile Include="rprblender\nodes\node_parser.py" />
+    <Compile Include="rprblender\nodes\output_node.py" />
+    <Compile Include="rprblender\nodes\rpr_nodes.py" />
+    <Compile Include="rprblender\nodes\sockets.py" />
+    <Compile Include="rprblender\nodes\__init__.py" />
+    <Compile Include="rprblender\operators\light.py" />
+    <Compile Include="rprblender\operators\render.py" />
+    <Compile Include="rprblender\operators\world.py" />
+    <Compile Include="rprblender\operators\__init__.py" />
+    <Compile Include="rprblender\properties\camera.py" />
+    <Compile Include="rprblender\properties\light.py" />
+    <Compile Include="rprblender\properties\object.py" />
+    <Compile Include="rprblender\properties\render.py" />
+    <Compile Include="rprblender\properties\view_layer.py" />
+    <Compile Include="rprblender\properties\world.py" />
+    <Compile Include="rprblender\properties\__init__.py" />
+    <Compile Include="rprblender\ui\camera.py" />
+    <Compile Include="rprblender\ui\light.py" />
+    <Compile Include="rprblender\ui\material.py" />
+    <Compile Include="rprblender\ui\object.py" />
+    <Compile Include="rprblender\ui\render.py" />
+    <Compile Include="rprblender\ui\view_layer.py" />
+    <Compile Include="rprblender\ui\world.py" />
+    <Compile Include="rprblender\ui\__init__.py" />
+    <Compile Include="rprblender\utils\gl.py" />
+    <Compile Include="rprblender\utils\logging.py" />
+    <Compile Include="rprblender\utils\version_updater.py" />
+    <Compile Include="rprblender\utils\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="rprblender\__init__.py" />
+    <Compile Include="tools\load_addon.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="bindings\pyrpr\baseline\test_aa_box_r0.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_box_r05.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_box_r15.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_box_r1_samples16_i10.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_box_r1_samples16_i50.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_default_i10.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_mitchell_r15.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aa_mitchell_r2.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_depth.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_geometric_normal.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_material_idx.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_object_group_id.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_object_id.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_opacity.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_shading_normal.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_uv.png" />
+    <Content Include="bindings\pyrpr\baseline\test_aov_world_coordinate.png" />
+    <Content Include="bindings\pyrpr\baseline\test_background.png" />
+    <Content Include="bindings\pyrpr\baseline\test_background_image.png" />
+    <Content Include="bindings\pyrpr\baseline\test_background_image_off.png" />
+    <Content Include="bindings\pyrpr\baseline\test_background_off.png" />
+    <Content Include="bindings\pyrpr\baseline\test_bumpmap_image.png" />
+    <Content Include="bindings\pyrpr\baseline\test_camera.png" />
+    <Content Include="bindings\pyrpr\baseline\test_camera_cubemap_stereo.png" />
+    <Content Include="bindings\pyrpr\baseline\test_checker.png" />
+    <Content Include="bindings\pyrpr\baseline\test_diffuse_refraction.png" />
+    <Content Include="bindings\pyrpr\baseline\test_direct_light.png" />
+    <Content Include="bindings\pyrpr\baseline\test_dot.png" />
+    <Content Include="bindings\pyrpr\baseline\test_emissive.png" />
+    <Content Include="bindings\pyrpr\baseline\test_emissive_visibility.png" />
+    <Content Include="bindings\pyrpr\baseline\test_envlight.png" />
+    <Content Include="bindings\pyrpr\baseline\test_envlight_empty_scene.png" />
+    <Content Include="bindings\pyrpr\baseline\test_envlight_replaced_with_point.png" />
+    <Content Include="bindings\pyrpr\baseline\test_gradient.png" />
+    <Content Include="bindings\pyrpr\baseline\test_image_from_file.png" />
+    <Content Include="bindings\pyrpr\baseline\test_motion_blur.png" />
+    <Content Include="bindings\pyrpr\baseline\test_noise2d.png" />
+    <Content Include="bindings\pyrpr\baseline\test_noise2d_bump.png" />
+    <Content Include="bindings\pyrpr\baseline\test_noise2d_diffuse.png" />
+    <Content Include="bindings\pyrpr\baseline\test_op_dot4.png" />
+    <Content Include="bindings\pyrpr\baseline\test_point_light.png" />
+    <Content Include="bindings\pyrpr\baseline\test_posteffect_simple_tonemap.png" />
+    <Content Include="bindings\pyrpr\baseline\test_set_scene_first.png" />
+    <Content Include="bindings\pyrpr\baseline\test_set_scene_second.png" />
+    <Content Include="bindings\pyrpr\baseline\test_shadowcatcher_black.png" />
+    <Content Include="bindings\pyrpr\baseline\test_shadowcatcher_white.png" />
+    <Content Include="bindings\pyrpr\baseline\test_shadowcatcher_with_background_override.png" />
+    <Content Include="bindings\pyrpr\baseline\test_simple.png" />
+    <Content Include="bindings\pyrpr\baseline\test_sky_light.png" />
+    <Content Include="bindings\pyrpr\baseline\test_spot_light.png" />
+    <Content Include="bindings\pyrpr\baseline\test_subdivision.png" />
+    <Content Include="bindings\pyrpr\baseline\test_subdivision_stress.png" />
+    <Content Include="bindings\pyrpr\baseline\test_ward.png" />
+    <Content Include="bindings\pyrpr\baseline\test_ward_degenerate_uv.png" />
+    <Content Include="bindings\pyrpr\readme.txt" />
+    <Content Include="bindings\pyrpr\rprinfo.txt" />
+    <Content Include="bindings\pyrpr\test_trace\CMakeLists.txt" />
+    <Content Include="rprblender\nodes\blender_nodes\ShaderNodeMixRGB.json" />
+    <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
+    <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />
+    <Content Include="rprblender\ui\img\rpr_logo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="bindings\" />
+    <Folder Include="bindings\pyrpr" />
+    <Folder Include="bindings\pyrpr\.build" />
+    <Folder Include="bindings\pyrpr\baseline" />
+    <Folder Include="bindings\pyrpr\src" />
+    <Folder Include="bindings\pyrpr\test_trace" />
+    <Folder Include="rprblender" />
+    <Folder Include="rprblender\engine" />
+    <Folder Include="rprblender\export\" />
+    <Folder Include="rprblender\nodes" />
+    <Folder Include="rprblender\nodes\blender_nodes\" />
+    <Folder Include="rprblender\nodes\rpr_nodes\" />
+    <Folder Include="rprblender\operators\" />
+    <Folder Include="rprblender\properties" />
+    <Folder Include="rprblender\ui\" />
+    <Folder Include="rprblender\ui\img\" />
+    <Folder Include="rprblender\utils\" />
+    <Folder Include="tools" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>
