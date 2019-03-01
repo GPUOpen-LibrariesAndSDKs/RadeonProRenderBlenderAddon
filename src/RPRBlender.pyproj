@@ -51,21 +51,26 @@
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="rprblender\export\camera.py" />
+    <Compile Include="rprblender\export\image.py" />
+    <Compile Include="rprblender\export\light.py" />
+    <Compile Include="rprblender\export\material.py" />
+    <Compile Include="rprblender\export\mesh.py" />
+    <Compile Include="rprblender\export\object.py" />
+    <Compile Include="rprblender\export\world.py" />
+    <Compile Include="rprblender\export\__init__.py" />
     <Compile Include="rprblender\nodes\blender_nodes.py" />
-    <Compile Include="rprblender\nodes\export.py" />
-    <Compile Include="rprblender\nodes\export_by_rules.py" />
+    <Compile Include="rprblender\nodes\node_parser.py" />
     <Compile Include="rprblender\nodes\output_node.py" />
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\sockets.py" />
-    <Compile Include="rprblender\nodes\uber_node.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\operators\light.py" />
+    <Compile Include="rprblender\operators\render.py" />
     <Compile Include="rprblender\operators\world.py" />
     <Compile Include="rprblender\operators\__init__.py" />
     <Compile Include="rprblender\properties\camera.py" />
     <Compile Include="rprblender\properties\light.py" />
-    <Compile Include="rprblender\properties\material.py" />
-    <Compile Include="rprblender\properties\mesh.py" />
     <Compile Include="rprblender\properties\object.py" />
     <Compile Include="rprblender\properties\render.py" />
     <Compile Include="rprblender\properties\view_layer.py" />
@@ -79,12 +84,9 @@
     <Compile Include="rprblender\ui\view_layer.py" />
     <Compile Include="rprblender\ui\world.py" />
     <Compile Include="rprblender\ui\__init__.py" />
-    <Compile Include="rprblender\utils\camera.py" />
     <Compile Include="rprblender\utils\gl.py" />
-    <Compile Include="rprblender\utils\light.py" />
     <Compile Include="rprblender\utils\logging.py" />
-    <Compile Include="rprblender\utils\material.py" />
-    <Compile Include="rprblender\utils\mesh.py" />
+    <Compile Include="rprblender\utils\version_updater.py" />
     <Compile Include="rprblender\utils\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -152,6 +154,7 @@
     <Content Include="rprblender\nodes\blender_nodes\ShaderNodeMixRGB.json" />
     <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
     <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />
+    <Content Include="rprblender\ui\img\rpr_logo.png" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="bindings\" />
@@ -162,12 +165,14 @@
     <Folder Include="bindings\pyrpr\test_trace" />
     <Folder Include="rprblender" />
     <Folder Include="rprblender\engine" />
+    <Folder Include="rprblender\export\" />
     <Folder Include="rprblender\nodes" />
     <Folder Include="rprblender\nodes\blender_nodes\" />
     <Folder Include="rprblender\nodes\rpr_nodes\" />
     <Folder Include="rprblender\operators\" />
     <Folder Include="rprblender\properties" />
     <Folder Include="rprblender\ui\" />
+    <Folder Include="rprblender\ui\img\" />
     <Folder Include="rprblender\utils\" />
     <Folder Include="tools" />
   </ItemGroup>

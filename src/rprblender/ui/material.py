@@ -1,7 +1,7 @@
 from bpy_extras.node_utils import find_node_input
 
 from . import RPR_Panel
-from rprblender.nodes.material_exporter import find_output_node_in_tree
+from rprblender.export.material import get_material_output_node
 
 
 class RPR_MATERIAL_PT_context(RPR_Panel):
@@ -91,23 +91,13 @@ class RPR_MATERIAL_PT_surface(RPR_Panel):
     def draw(self, context):
         layout = self.layout
 
-        material = context.material
-        if not self.panel_node_draw(material, 'OUTPUT_MATERIAL', 'Surface'):
-            layout.prop(material, "diffuse_color")
-
-    def panel_node_draw(self, id_data, output_type, input_name):
-        node_tree = id_data.node_tree
+        node_tree = context.material.node_tree
 
     #    node = node_tree.get_output_node('OUTPUT')
-        node = find_output_node_in_tree(node_tree)
-        if node:
-            input = find_node_input(node, input_name)
-            if input:
-                self.layout.template_node_view(node_tree, node, input)
-            else:
-                self.layout.label(text="Incompatible output node")
-        else:
-            self.layout.label(text="No output node")
+        output_node = get_material_output_node(context.material)
+        if not output_node:
+            layout.label(text="No output node")
+            return
 
-        return True
-
+        input = output_node.inputs['Surface']
+        layout.template_node_view(node_tree, output_node, input)

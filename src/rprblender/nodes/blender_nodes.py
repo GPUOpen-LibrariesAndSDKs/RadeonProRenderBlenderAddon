@@ -1,13 +1,19 @@
-from .node_parser import NodeParser, get_rpr_val
+"""
+All parser classes should:
+- override NodeParser with export() method
+- override RuleNodeParser with class field: node
+"""
+
+import math
+
+from .node_parser import NodeParser, RuleNodeParser
 import pyrpr
-from rprblender.export import image as image_utils
+import pyrprx
+
+from rprblender.export import image
 
 from rprblender.utils import logging
-log = logging.Log(tag='material', level='debug')
-
-''' All parser classes should override NodeParser and override the 
-    export() method if needed, or just set the input/rpr_node mapping '''
-
+log = logging.Log(tag='material')
 
 
 ''' TODO NODES:
@@ -24,205 +30,181 @@ log = logging.Log(tag='material', level='debug')
 '''
 
 
-
 class ShaderNodeAmbientOcclusion(NodeParser):
+    # inputs: Color, Distance
 
-    inputs = ['Color', 'Distance', 'samples']
+    def export(self):
+        color = self.get_input_value('Color')
+        radius = self.get_input_value('Distance')
+        side = (-1.0, 0.0, 0.0, 0.0) if self.node.inside else (1.0, 0.0, 0.0, 0.0)
 
-    nodes = {
-        "AO": {
-            "type": "RPR_MATERIAL_NODE_AO_MAP",
-            "params": {
-                "radius": "inputs.Distance",
-                "side": "inputs.inside"
-            }
-        },
-        "Color": {
-            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-            "params": {
-                "color0": [0.0, 0.0, 0.0, 0.0],
-                "color1": "inputs.Color",
-                "weight": "nodes.AO"
-            }
-        }
-    }
-    
-    def get_blender_node_inputs(self):
-        ''' deal with inside vector being 1,0,0 or 0,0,0 '''
-    
-        input_vals = super(ShaderNodeAmbientOcclusion, self).get_blender_node_inputs()
-        input_vals['inside'] = (-1.0, 0.0, 0.0, 0.0) if self.blender_node.inside else (1.0, 0.0, 0.0, 0.0)
+        ao_map = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_AO_MAP)
+        ao_map.set_input('radius', radius)
+        ao_map.set_input('side', side)
 
-        return input_vals
+        rpr_node = self.blend_node_value((0.0, 0.0, 0.0, 0.0), color, ao_map, use_key=True)
+        return rpr_node
 
 
-class ShaderNodeBrightContrast(NodeParser):
-    ''' formula copied from OSL shader code in cycles.  Basically
-        
-        a = 1 + contrast
-        b = bright - contrast * .5
-        color_out = max(a * color_in + b, 0.0). '''
+class ShaderNodeBrightContrast(RuleNodeParser):
+    # inputs: Bright, Contrast, Color
 
-    inputs = ["Bright", "Contrast", "Image"]
-    
+    # Following formula should be used:
+    #   color_out = max(Bright + (Color - 0.5) * (Contrast + 1) + 0.5, 0.0)
+    # This formula was given from OSL shader code in cycles and modified to correspond to how it works in cycles
+    # In simple operations it could be splitted into:
+    #   a = Color - 0.5
+    #   b = Contrast + 1.0
+    #   c = a * b
+    #   d = c + 0.5
+    #   e = Bright + d
+    #   color_out = max(e, 0.0)
+
     nodes = {
         "a": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": "-",
             "params": {
-                "color0": "inputs.Bright",
-                "color1": [0.5, 0.5, 0.5, 0.5],
-                "op": "RPR_MATERIAL_NODE_OP_ADD"
+                "color0": "inputs.Color",
+                "color1": 0.5,
             }
         },
         "b": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": "+",
             "params": {
-                "color0": "inputs.Image",
-                "color1": [0.5, 0.5, 0.5, 0.5],
-                "op": "RPR_MATERIAL_NODE_OP_SUB"
+                "color0": "inputs.Contrast",
+                "color1": 1.0,
             }
         },
         "c": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": "*",
             "params": {
-                "color0": "inputs.Contrast",
-                "color1": [1.0, 1.0, 1.0, 1.0],
-                "op": "RPR_MATERIAL_NODE_OP_add"
+                "color0": "nodes.a",
+                "color1": "nodes.b",
             }
         },
-        "multiply": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+        "d": {
+            "type": "+",
             "params": {
-                "color0": "nodes.b",
-                "color1": "nodes.c",
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
+                "color0": "nodes.c",
+                "color1": 0.5,
             }
         },
-        "add": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+        "e": {
+            "type": "+",
             "params": {
-                "color0": "nodes.multiply",
-                "color1": "nodes.a",
-                "op": "RPR_MATERIAL_NODE_OP_ADD"
+                "color0": "inputs.Bright",
+                "color1": "nodes.d",
             }
         },
         "Color": { # output
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": "max",
             "params": {
-                "color0": "nodes.add",
-                "color1": [0.0, 0.0, 0.0, 0.0],
-                "op": "RPR_MATERIAL_NODE_OP_MAX"
+                "color0": "nodes.e",
+                "color1": 0.0,
             }
         }
     }
 
 
-class ShaderNodeBsdfAnisotropic(NodeParser):
-
-    inputs = ["Color", "Roughness", "Anisotropy", "Rotation", "Normal"]
+class ShaderNodeBsdfAnisotropic(RuleNodeParser):
+    # inputs: Color, Roughness, Anisotropy, Rotation, Normal
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION",
+            "type": pyrpr.MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION,
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
                 "anisotropic": "inputs.Anisotropy",
                 "rotation": "inputs.Rotation",
-                "normal": "inputs.Normal"
+                "normal": "link:inputs.Normal"
             }
         }
     }
 
 
-class ShaderNodeBsdfDiffuse(NodeParser):
-
-    inputs = ["Color", "Roughness", "Normal"]
+class ShaderNodeBsdfDiffuse(RuleNodeParser):
+    # inputs: Color, Roughness, Normal
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_DIFFUSE",
+            "type": pyrpr.MATERIAL_NODE_DIFFUSE,
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "inputs.Normal"
+                "normal": "link:inputs.Normal"
             }
         }
     }
 
 
-class ShaderNodeBsdfGlass(NodeParser):
-
-    inputs = ["Color", "Roughness", "Normal", "IOR"]
+class ShaderNodeBsdfGlass(RuleNodeParser):
+    # inputs: Color, Roughness, Normal, IOR
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_MICROFACET_REFRACTION",
+            "type": pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION,
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "inputs.Normal",
+                "normal": "link:inputs.Normal",
                 "ior": "inputs.IOR"
             }
         }
     }
 
 
-class ShaderNodeBsdfGlossy(NodeParser):
-
-    inputs = ["Color", "Roughness", "Normal"]
+class ShaderNodeBsdfGlossy(RuleNodeParser):
+    # inputs: Color, Roughness, Normal
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_MICROFACET",
+            "type": pyrpr.MATERIAL_NODE_MICROFACET,
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "inputs.Normal"
+                "normal": "link:inputs.Normal"
             }
         }
     }
 
 
-class ShaderNodeBsdfRefraction(NodeParser):
-
-    inputs = ["Color", "Roughness", "Normal", "IOR"]
+class ShaderNodeBsdfRefraction(RuleNodeParser):
+    # inputs: Color, Roughness, Normal, IOR
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_MICROFACET_REFRACTION",
+            "type": pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION,
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "inputs.Normal",
+                "normal": "link:inputs.Normal",
                 "ior": "inputs.IOR"
             }
         }
     }
 
 
-class ShaderNodeBsdfTranslucent(NodeParser):
-
-    inputs = ["Color", "Normal"]
+class ShaderNodeBsdfTranslucent(RuleNodeParser):
+    # inputs: Color, Normal
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_DIFFUSE_REFRACTION",
+            "type": pyrpr.MATERIAL_NODE_DIFFUSE_REFRACTION,
             "params": {
                 "color": "inputs.Color",
-                "normal": "inputs.Normal"
+                "normal": "link:inputs.Normal"
             }
         }
     }
 
 
-class ShaderNodeBsdfTransparent(NodeParser):
-
-    inputs = ["Color"]
+class ShaderNodeBsdfTransparent(RuleNodeParser):
+    # inputs: Color
 
     nodes = {
         "BSDF": {
-            "type": "RPR_MATERIAL_NODE_TRANSPARENT",
+            "type": pyrpr.MATERIAL_NODE_TRANSPARENT,
             "params": {
                 "color": "inputs.Color",
             }
@@ -230,593 +212,526 @@ class ShaderNodeBsdfTransparent(NodeParser):
     }
 
 
-class ShaderNodeBsdfVelvet(NodeParser):
-
-    inputs = ["Color", "Sigma"]
+class ShaderNodeBsdfVelvet(RuleNodeParser):
+    # inputs: Color, Sigma
 
     nodes = {
         "BSDF": {
-            "type": "RPRX_MATERIAL_UBER",
+            "type": pyrprx.MATERIAL_UBER,
+            "is_rprx": True,
             "params": {
-                "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": 0.0,
-                "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": 0.0,
-                "RPRX_UBER_MATERIAL_SHEEN_WEIGHT": 1.0,
-                "RPRX_UBER_MATERIAL_SHEEN_TINT": "inputs.Sigma",
-                "RPRX_UBER_MATERIAL_SHEEN": "inputs.Color"
+                pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT: 0.0,
+                pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT: 0.0,
+                pyrprx.UBER_MATERIAL_SHEEN_WEIGHT: 1.0,
+                pyrprx.UBER_MATERIAL_SHEEN_TINT: "inputs.Sigma",
+                pyrprx.UBER_MATERIAL_SHEEN: "inputs.Color"
             }
         }
     }
 
 
-class ShaderNodeEmission(NodeParser):
-    inputs = ["Color", "Strength"]
+class ShaderNodeEmission(RuleNodeParser):
+    # inputs: Color, Strength
 
     nodes =  {
-        "multiply": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+        # emission_color = Color * Strength
+        "emission_color": {
+            "type": "*",
             "params": {
                 "color0": "inputs.Color",
                 "color1": "inputs.Strength",
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
             }
         },
         "Emission": {
-            "type": "RPR_MATERIAL_NODE_EMISSIVE",
+            "type": pyrpr.MATERIAL_NODE_EMISSIVE,
             "params": {
-                "color": "nodes.multiply"
+                "color": "nodes.emission_color"
             }
         }
     }
 
 
-class ShaderNodeFresnel(NodeParser):
-    inputs =["IOR", "Normal"]
+class ShaderNodeFresnel(RuleNodeParser):
+    # inputs: IOR, Normal
 
     nodes = {
         "Fac": {
-            "type": "RPR_MATERIAL_NODE_FRESNEL",
+            "type": pyrpr.MATERIAL_NODE_FRESNEL,
             "params": {
                 "ior": "inputs.IOR",
-                "normal": "inputs.Normal"
+                "normal": "link:inputs.Normal"
             }
         }
     }
 
 
-class ShaderNodeGamma(NodeParser):
-    inputs =["Image", "Gamma"]
+class ShaderNodeGamma(RuleNodeParser):
+    # inputs: Image, Gamma
 
     nodes = {
         "Image": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": pyrpr.MATERIAL_NODE_ARITHMETIC,
             "params": {
                 "color0": "inputs.Image",
                 "color1": "inputs.Gamma",
-                "op": "RPR_MATERIAL_NODE_OP_POW"
+                "op": pyrpr.MATERIAL_NODE_OP_POW
             }
         }
     }
 
 
-class ShaderNodeInvert(NodeParser):
-    inputs = ["Factor", "Color"]
+class ShaderNodeInvert(RuleNodeParser):
+    # inputs: Fac, Color
 
     nodes = {
         "invert": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+            "type": "-",
             "params": {
-                "color0": [1.0, 1.0, 1.0, 1.0],
+                "color0": 1.0,
                 "color1": "inputs.Color",
-                "op": "RPR_MATERIAL_NODE_OP_SUB"
             }
         },
         "Color": {
-            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
+            "type": "blend",
             "params": {
-                "color0": "nodes.invert",
-                "color1": "inputs.Color",
-                "weight": "inputs.Factor"
+                "color0": "inputs.Color",
+                "color1": "nodes.invert",
+                "weight": "inputs.Fac"
             }
         }
     }
 
 
-class ShaderNodeSubsurfaceScattering(NodeParser):
-    inputs = ["Color", "Scale", "Radius"]
+class ShaderNodeSubsurfaceScattering(RuleNodeParser):
+    # inputs: Color, Scale, Radius
 
     nodes = {
-        "multiply": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+        "radius_scale": {
+            "type": "*",
             "params": {
                 "color0": "inputs.Scale",
                 "color1": "inputs.Radius",
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
             }
         },
         "BSSRDF": {
-            "type": "RPRX_MATERIAL_UBER",
+            "type": pyrprx.MATERIAL_UBER,
+            "is_rprx": True,
             "params": {
-                "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": 1.0,
-                "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": 0.0,
-                "RPRX_UBER_MATERIAL_BACKSCATTER_WEIGHT": 1.0,
-                "RPRX_UBER_MATERIAL_BACKSCATTER_COLOR": [1.0, 1.0, 1.0, 1.0],
-                "RPRX_UBER_MATERIAL_SSS_WEIGHT": 1.0,
-                "RPRX_UBER_MATERIAL_SSS_SCATTER_COLOR": "inputs.Color",
-                "RPRX_UBER_MATERIAL_SSS_SCATTER_DISTANCE": "nodes.multiply"
+                pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT: 1.0,
+                pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT: 0.0,
+                pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT: 1.0,
+                pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR: (1.0, 1.0, 1.0, 1.0),
+                pyrprx.UBER_MATERIAL_SSS_WEIGHT: 1.0,
+                pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR: "inputs.Color",
+                pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE: "nodes.radius_scale"
             }
         }
     }
 
 
 class ShaderNodeTexChecker(NodeParser):
+    # inputs: Vector, Color1, Color2, Scale
 
-    inputs = ["Scale", "Vector", "Color1", "Color2"]
-    nodes = {
-        "scale": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": "inputs.Scale",
-                "color1": 8.0,
-                "op": "RPR_MATERIAL_NODE_OP_DIV"
-            }
-        },
-        "multiply": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": "nodes.scale",
-                "color1": "inputs.Vector",
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
-            }
-        },
-        "Fac": {
-            "type": "RPR_MATERIAL_NODE_CHECKER_TEXTURE",
-            "params": {
-                "uv": "nodes.multiply"
-            }
-        },
-        "Color": {
-            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-            "params": {
-                "color0": "inputs.Color1",
-                "color1": "inputs.Color2",
-                "weight": "nodes.Fac"
-            }
-        }
-    }
+    def export(self):
+        # TODO: TexChecker export has to be fixed because cycles provides some different results.
+        #  input.Vector is not applied yet
 
-    def get_blender_node_inputs(self):
-        ''' deal vector is disconeected '''
-    
-        input_vals = super(ShaderNodeTexChecker, self).get_blender_node_inputs()
-        node_key = self.get_subnode_key('Vector')
-        node = self.material_exporter.create_rpr_node('RPR_MATERIAL_NODE_INPUT_LOOKUP', node_key)
-        input_vals['Vector'] = node
-        node.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+        scale = self.get_input_value('Scale')
+        scale_rpr = self.mul_node_value(scale, 0.125) # in RPR it is divided by 8 (or multiplied by 0.125)
 
-        return input_vals
+        lookup = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+        lookup.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+
+        uv = self.mul_node_value(scale_rpr, lookup)
+
+        checker = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_CHECKER_TEXTURE)
+        checker.set_input('uv', uv)
+
+        if self.socket_out.name == 'Fac':
+            return checker
+
+        color1 = self.get_input_value('Color1')
+        color2 = self.get_input_value('Color2')
+        blend = self.blend_node_value(color1, color2, checker, use_key=True)
+        return blend
 
 
 class ShaderNodeTexImage(NodeParser):
-    inputs = ["Vector"]
-    nodes = {
-        "Color": {
-            "type": "RPR_MATERIAL_NODE_IMAGE_TEXTURE",
-            "params": {
-                "data": "inputs.image",
-                "uv": "inputs.Vector"
-            }
-        },
-        "Alpha": {
-           "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": "nodes.Color",
-                "op": "RPR_MATERIAL_NODE_OP_SELECT_W"
-            }
+    def export(self):
+        if not self.node.image:
+            return None
+
+        rpr_image = image.sync(self.rpr_context, self.node.image)
+        if self.node.color_space == 'COLOR':
+            rpr_image.set_gamma(2.2)
+
+        wrap_mapping = {
+            'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
+            'EXTEND': pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+            'CLIP': pyrpr.IMAGE_WRAP_TYPE_CLAMP_ZERO
         }
-    }
+        rpr_image.set_wrap(wrap_mapping[self.node.extension])
 
-    def get_blender_node_inputs(self):
-        ''' deal vector is disconnected and get image data'''
-    
-        input_vals = super(ShaderNodeTexImage, self).get_blender_node_inputs()
-        blender_node = self.blender_node
+        rpr_node = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_IMAGE_TEXTURE)
+        rpr_node.set_input('data', rpr_image)
 
-        if not blender_node.inputs['Vector'].is_linked:
-            node_key = self.get_subnode_key('Vector')
-            node = self.material_exporter.create_rpr_node('RPR_MATERIAL_NODE_INPUT_LOOKUP', node_key)
-            input_vals['Vector'] = node
-            node.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+        vector = self.get_input_link('Vector')
+        if vector is not None:
+            lookup = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            lookup.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+            rpr_node.set_input('uv')
+            # TODO: vector should be assigned also
 
-        if blender_node.image:
-            try:
-                rpr_image = image_utils.sync(self.material_exporter.rpr_context, blender_node.image)
-                # set sRGB for color space
-                if blender_node.color_space == 'COLOR':
-                    rpr_image.set_gamma(2.2)
+        if self.socket_out.name == 'Alpha':
+            return self.arithmetic_node_value(rpr_node, None, pyrpr.MATERIAL_NODE_OP_SELECT_W, use_key=True)
 
-                # image wrap
-                wrap_mapping = {'REPEAT': 'RPR_IMAGE_WRAP_TYPE_REPEAT',
-                                'EXTEND': 'RPR_IMAGE_WRAP_TYPE_CLAMP_TO_EDGE', 
-                                'CLIP': 'RPR_IMAGE_WRAP_TYPE_CLAMP_TO_ZERO'}
-                rpr_image.set_wrap(get_rpr_val(wrap_mapping[blender_node.extension]))
+        return rpr_node
 
-            except ValueError as e:  # texture loading error, return "Texture Error/Absence" image
-                log.error("Image error: {}".format(e))
-                rpr_image = ERROR_COLOR 
-            
-            input_vals['image'] = rpr_image
-        return input_vals
 
 class ShaderNodeBsdfPrincipled(NodeParser):
-    inputs = ["Base Color", "Roughness", 
-             "Subsurface", 'Subsurface Radius', 'Subsurface Color', 
-             'Metallic', 'Specular', 'Specular Tint', 'Anisotropic', 'Anisotropic Rotation', 
-             'Clearcoat', 'Clearcoat Roughness', 
-             'Sheen', 'Sheen Tint', 
-             'Transmission', 'IOR', 'Transmission Roughness', 
-             'Normal', 'Clearcoat Normal', 'Tangent']
+    # inputs = ["Base Color", "Roughness",
+    #          "Subsurface", 'Subsurface Radius', 'Subsurface Color',
+    #          'Metallic', 'Specular', 'Specular Tint', 'Anisotropic', 'Anisotropic Rotation',
+    #          'Clearcoat', 'Clearcoat Roughness',
+    #          'Sheen', 'Sheen Tint',
+    #          'Transmission', 'IOR', 'Transmission Roughness',
+    #          'Normal', 'Clearcoat Normal', 'Tangent']
+    #
+    # nodes = {
+    #     "is_glass": {
+    #         "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+    #         "params": {
+    #             "color0": 1.0,
+    #             "color1": "inputs.Transmission",
+    #             "op": "RPR_MATERIAL_NODE_OP_SUB"
+    #         }
+    #     },
+    #     "sss_radius_max": {
+    #         "type": "RPR_MATERIAL_NODE_ARITHMETIC",
+    #         "params": {
+    #             "color0": [0.0001, 0.0001, 0.0001, 0.0001],
+    #             "color1": "inputs.Subsurface Radius",
+    #             "op": "RPR_MATERIAL_NODE_OP_MAX"
+    #         }
+    #     },
+    #     "BSDF": {
+    #         "type": "RPRX_MATERIAL_UBER",
+    #         "params": {
+    #             "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": "nodes.is_glass",
+    #             "RPRX_UBER_MATERIAL_DIFFUSE_COLOR": "inputs.Base Color",
+    #             "RPRX_UBER_MATERIAL_DIFFUSE_ROUGHNESS": "inputs.Roughness",
+    #             "RPRX_UBER_MATERIAL_BACKSCATTER_WEIGHT": "inputs.Subsurface",
+    #             "RPRX_UBER_MATERIAL_BACKSCATTER_COLOR": [1.0, 1.0, 1.0, 1.0],
+    #
+    #             "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": "inputs.Specular",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_COLOR": "inputs.Base Color",
+    #             # what should we do with specular tint ?
+    #             "RPRX_UBER_MATERIAL_REFLECTION_MODE": "RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_METALNESS": "inputs.Metallic",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_ROUGHNESS": "inputs.Roughness",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY": "inputs.Anisotropic",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION": "inputs.Anisotropic Rotation",
+    #
+    #             "RPRX_UBER_MATERIAL_COATING_WEIGHT": "inputs.Clearcoat",
+    #             "RPRX_UBER_MATERIAL_COATING_COLOR": [1.0, 1.0, 1.0, 1.0],
+    #             "RPRX_UBER_MATERIAL_COATING_ROUGHNESS": "inputs.Clearcoat Roughness",
+    #             "RPRX_UBER_MATERIAL_COATING_MODE": "RPRX_UBER_MATERIAL_COATING_MODE_PBR",
+    #             "RPRX_UBER_MATERIAL_COATING_IOR": "inputs.IOR", # this maybe should be hardcoded
+    #
+    #             "RPRX_UBER_MATERIAL_SHEEN_WEIGHT": "inputs.Sheen",
+    #             "RPRX_UBER_MATERIAL_SHEEN": "inputs.Base Color",
+    #             "RPRX_UBER_MATERIAL_SHEEN_TINT": "inputs.Sheen Tint",
+    #
+    #             "RPRX_UBER_MATERIAL_SSS_WEIGHT": "inputs.Subsurface",
+    #             "RPRX_UBER_MATERIAL_SSS_SCATTER_COLOR": "inputs.Subsurface Color",
+    #             "RPRX_UBER_MATERIAL_SSS_SCATTER_DISTANCE": "nodes.sss_radius_max",
+    #             "RPRX_UBER_MATERIAL_SSS_MULTISCATTER": 0,
+    #
+    #             "RPRX_UBER_MATERIAL_REFRACTION_WEIGHT": "inputs.Transmission",
+    #             "RPRX_UBER_MATERIAL_REFRACTION_COLOR": "inputs.Base Color",
+    #             "RPRX_UBER_MATERIAL_REFRACTION_ROUGHNESS": "inputs.Transmission Roughness",
+    #             "RPRX_UBER_MATERIAL_REFRACTION_IOR": "inputs.IOR",
+    #             "RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE": 0, # check?
+    #             "RPRX_UBER_MATERIAL_REFRACTION_CAUSTICS": 0, # I think this is right.
+    #
+    #             "RPRX_UBER_MATERIAL_DIFFUSE_NORMAL": "inputs.Normal",
+    #             "RPRX_UBER_MATERIAL_REFLECTION_NORMAL": "inputs.Normal",
+    #             "RPRX_UBER_MATERIAL_REFRACTION_NORMAL": "inputs.Normal",
+    #             "RPRX_UBER_MATERIAL_COATING_NORMAL": "inputs.Clearcoat Normal",
+    #
+    #         }
+    #     }
+    # }
 
-    nodes = {
-        "is_glass": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": 1.0,
-                "color1": "inputs.Transmission",
-                "op": "RPR_MATERIAL_NODE_OP_SUB"
-            }
-        },
-        "sss_radius_max": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": [0.0001, 0.0001, 0.0001, 0.0001],
-                "color1": "inputs.Subsurface Radius",
-                "op": "RPR_MATERIAL_NODE_OP_MAX"
-            }
-        },
-        "BSDF": {
-            "type": "RPRX_MATERIAL_UBER",
-            "params": {
-                "RPRX_UBER_MATERIAL_DIFFUSE_WEIGHT": "nodes.is_glass",
-                "RPRX_UBER_MATERIAL_DIFFUSE_COLOR": "inputs.Base Color",
-                "RPRX_UBER_MATERIAL_DIFFUSE_ROUGHNESS": "inputs.Roughness",
-                "RPRX_UBER_MATERIAL_BACKSCATTER_WEIGHT": "inputs.Subsurface",
-                "RPRX_UBER_MATERIAL_BACKSCATTER_COLOR": [1.0, 1.0, 1.0, 1.0],
+    def export(self):
+        def enabled(val):
+            if val is None:
+                return False
 
-                "RPRX_UBER_MATERIAL_REFLECTION_WEIGHT": "inputs.Specular",
-                "RPRX_UBER_MATERIAL_REFLECTION_COLOR": "inputs.Base Color",
-                # what should we do with specular tint ? 
-                "RPRX_UBER_MATERIAL_REFLECTION_MODE": "RPRX_UBER_MATERIAL_REFLECTION_MODE_METALNESS",
-                "RPRX_UBER_MATERIAL_REFLECTION_METALNESS": "inputs.Metallic",
-                "RPRX_UBER_MATERIAL_REFLECTION_ROUGHNESS": "inputs.Roughness",
-                "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY": "inputs.Anisotropic",
-                "RPRX_UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION": "inputs.Anisotropic Rotation",
+            if isinstance(val, float) and math.isclose(val, 0.0):
+                return False
 
-                "RPRX_UBER_MATERIAL_COATING_WEIGHT": "inputs.Clearcoat",
-                "RPRX_UBER_MATERIAL_COATING_COLOR": [1.0, 1.0, 1.0, 1.0],
-                "RPRX_UBER_MATERIAL_COATING_ROUGHNESS": "inputs.Clearcoat Roughness",
-                "RPRX_UBER_MATERIAL_COATING_MODE": "RPRX_UBER_MATERIAL_COATING_MODE_PBR",
-                "RPRX_UBER_MATERIAL_COATING_IOR": "inputs.IOR", # this maybe should be hardcoded
+            return True
 
-                "RPRX_UBER_MATERIAL_SHEEN_WEIGHT": "inputs.Sheen",
-                "RPRX_UBER_MATERIAL_SHEEN": "inputs.Base Color",
-                "RPRX_UBER_MATERIAL_SHEEN_TINT": "inputs.Sheen Tint",
+        base_color = self.get_input_value('Base Color')
+        roughness = self.get_input_value('Roughness')
+        subsurface = self.get_input_value('Subsurface')
+        subsurface_radius = self.get_input_value('Subsurface Radius')
+        subsurface_color = self.get_input_value('Subsurface Color')
+        metalness = self.get_input_value('Metallic')
+        specular = self.get_input_value('Specular')
+        # specular_tint = self.get_input_value('Specular Tint')
+        anisotropic = self.get_input_value('Anisotropic')
+        anisotropic_rotation = self.get_input_value('Anisotropic Rotation')
+        clearcoat = self.get_input_value('Clearcoat')
+        clearcoat_roughness = self.get_input_value('Clearcoat Roughness')
+        sheen = self.get_input_value('Sheen')
+        sheen_tint = self.get_input_value('Sheen Tint')
+        transmission = self.get_input_value('Transmission')
+        ior = self.get_input_value('IOR')
+        transmission_roughness = self.get_input_value('Transmission Roughness')
+        normal_map = self.get_input_link('Normal')
+        clearcoat_normal_map = self.get_input_link('Clearcoat Normal')
+        # tangent = self.get_input_link('Tangent')
 
-                "RPRX_UBER_MATERIAL_SSS_WEIGHT": "inputs.Subsurface",
-                "RPRX_UBER_MATERIAL_SSS_SCATTER_COLOR": "inputs.Subsurface Color",
-                "RPRX_UBER_MATERIAL_SSS_SCATTER_DISTANCE": "nodes.sss_radius_max",
-                "RPRX_UBER_MATERIAL_SSS_MULTISCATTER": 0,
+        rpr_node = self.rpr_context.create_x_material_node(self.node_key, pyrprx.MATERIAL_UBER)
 
-                "RPRX_UBER_MATERIAL_REFRACTION_WEIGHT": "inputs.Transmission",
-                "RPRX_UBER_MATERIAL_REFRACTION_COLOR": "inputs.Base Color",
-                "RPRX_UBER_MATERIAL_REFRACTION_ROUGHNESS": "inputs.Transmission Roughness",
-                "RPRX_UBER_MATERIAL_REFRACTION_IOR": "inputs.IOR",
-                "RPRX_UBER_MATERIAL_REFRACTION_THIN_SURFACE": 0, # check?
-                "RPRX_UBER_MATERIAL_REFRACTION_CAUSTICS": 0, # I think this is right.
+        # Glass need PBR reflection type and disabled diffuse channel
+        is_not_glass = enabled(metalness) or not enabled(transmission)
 
-                "RPRX_UBER_MATERIAL_DIFFUSE_NORMAL": "inputs.Normal",
-                "RPRX_UBER_MATERIAL_REFLECTION_NORMAL": "inputs.Normal",
-                "RPRX_UBER_MATERIAL_REFRACTION_NORMAL": "inputs.Normal",
-                "RPRX_UBER_MATERIAL_COATING_NORMAL": "inputs.Clearcoat Normal",
+        # Base color -> Diffuse (always on, except for glass)
+        if is_not_glass:
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, base_color)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, 1.0)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, roughness)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, 0.0)
+        else:
+            # TODO replace with mix of diffuse/refractive shaders with transmission as a mask/factor
+            # TODO also adjust to core changes
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, 0.0)
 
-            }
-        }
-    }
+        # Metallic -> Reflection (always on unless specular is set to non-physical 0.0)
+        if enabled(specular):
+            # Cycles default value of 0.5 is equal to RPR weight of 1.0
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, self.mul_node_value(specular, 2.0))
+
+            # mode 'metal' unless transmission is set and metallic is 0
+            if is_not_glass:
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
+                                        pyrprx.UBER_MATERIAL_REFLECTION_MODE_METALNESS)
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_METALNESS, metalness)
+            else:
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_MODE,
+                                        pyrprx.UBER_MATERIAL_REFLECTION_MODE_PBR)
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_IOR, ior)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_COLOR, base_color)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS, roughness)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY, anisotropic)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_ANISOTROPY_ROTATION, anisotropic_rotation)
+
+        # Clearcloat
+        if enabled(clearcoat):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_WEIGHT, clearcoat)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS, clearcoat_roughness)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_THICKNESS, 0.0)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_MODE,
+                                    pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_IOR, ior)
+
+        # Sheen
+        if enabled(sheen):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SHEEN_WEIGHT, sheen)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SHEEN, base_color)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SHEEN_TINT, sheen_tint)
+
+        # No Emission for Cycles Principled BSDF
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, 0.0)
+
+        # Subsurface
+        if enabled(subsurface):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_WEIGHT, subsurface)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, subsurface_color)
+
+            # check for 0 channel value(for Cycles it means "light shall not pass" unlike "pass it all" of RPR)
+            # that's why we check it with small value like 0.0001
+            subsurface_radius = self.max_node_value(subsurface_radius, 0.0001)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, subsurface_radius)
+            # TODO: check with radius_scale = bpy.context.scene.unit_settings.scale_length * 0.1
+
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_MULTISCATTER, False)
+            # these also need to be set for core SSS to work.
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, subsurface)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, (1.0, 1.0, 1.0, 1.0))
+
+        # Transmission -> Refraction
+        if enabled(transmission):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_WEIGHT, transmission)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_COLOR, base_color)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_ROUGHNESS, transmission_roughness)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_IOR, ior)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_THIN_SURFACE, False)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_CAUSTICS, True)
+
+        if enabled(normal_map):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, normal_map)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, normal_map)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFRACTION_NORMAL, normal_map)
+
+        if enabled(clearcoat_normal_map):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_NORMAL, clearcoat_normal_map)
+        elif enabled(normal_map):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_NORMAL, normal_map)
+
+        return rpr_node
 
 
-class ShaderNodeNewGeometry(NodeParser):
+class ShaderNodeNewGeometry(RuleNodeParser):
     ''' this is the "Geometry" node '''
 
     nodes = {
         "Position": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_P",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_P,
             }
         },
         "Normal": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_N",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_N,
             }
         },
         "Incoming": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_INVEC",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_INVEC,
             }
         }
     }
 
 
 class ShaderNodeAddShader(NodeParser):
-    inputs = [0,1] # blender confusingly has inputs with the same name. 
-    
-    nodes = {
-        "Shader": {
-            "type": "RPR_MATERIAL_NODE_ADD",
-            "params": {
-                "color0": "inputs.0",
-                "color1": "inputs.1",
-            }
-        }
-    }
+    # inputs: 0, 1 - blender confusingly has inputs with the same name.
+    def export(self):
+        val_1 = self.get_input_value(0)
+        val_2 = self.get_input_value(1)
+        return self.add_node_value(val_1, val_2, use_key=True)
 
 
-class ShaderNodeTexCoord(NodeParser):
+class ShaderNodeTexCoord(RuleNodeParser):
     
     nodes = {
         "Generated": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_P",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_P,
             }
         },
         "Normal": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_N",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_N,
             }
         },
         "UV": {
-            "type": "RPR_MATERIAL_NODE_INPUT_LOOKUP",
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": "RPR_MATERIAL_NODE_LOOKUP_UV",
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_UV,
             }
         }
+
     }
 
 class ShaderNodeLightFalloff(NodeParser):
     ''' we don't actually do light falloff in RPR.  
         So we're mainly going to pass through "strength" '''
-    inputs = ['Strength']
+    def export(self):
+        return self.get_input_default('Strength')
 
-    def export(self, socket):
-        return self.get_blender_node_inputs()['Strength']
-
-# these mix types are copied from cycles OSL 
-mix_types_nodes = {'ADD':
-                        {
-                        "add": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_ADD"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "nodes.add",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'MULTIPLY': {
-                        "mul": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_MUL"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "nodes.mul",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'SUBTRACT': {
-                        "sub": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_SUB"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "nodes.sub",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'DIVIDE': {
-                        "div": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_DIV"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "nodes.div",
-                                "color1": "inputs.1",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'DIFFERENCE': {
-                        "sub": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_SUB"
-                            }
-                        },
-                        "abs": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "nodes.sub",
-                                "op": "RPR_MATERIAL_NODE_OP_ABS"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "nodes.abs",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'DARKEN': {
-                        "min": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "op": "RPR_MATERIAL_NODE_OP_MIN"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "nodes.min",
-                                "color1": "inputs.1",
-                                "weight": "inputs.Fac"
-                            }
-                        }},
-                    'LIGHT': {
-                        "mul": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.Fac",
-                                "op": "RPR_MATERIAL_NODE_OP_MUL"
-                            }
-                        },
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "nodes.mul",
-                                "color1": "inputs.1",
-                                "op": "RPR_MATERIAL_NODE_OP_MAX"
-                            }
-                        }},
-                   'MIX': {
-                        "Color": {
-                            "type": "RPR_MATERIAL_NODE_BLEND_VALUE",
-                            "params": {
-                                "color0": "inputs.1",
-                                "color1": "inputs.2",
-                                "weight": "inputs.Fac"
-                            }
-                        }}
-                }
 
 class ShaderNodeMixRGB(NodeParser):
-    inputs = ['Fac', 1, 2]
 
-    def export(self, socket):
-        ''' this makes the self.nodes dict dynamically based on mix type '''
+    def export(self):
+        fac = self.get_input_value('Fac')
+        color1 = self.get_input_value('Color1')
+        color2 = self.get_input_value('Color2')
 
-        # we need to do different mix nodes based on mode
-        mix_type = self.blender_node.blend_type
-        if mix_type in mix_types_nodes:
-            self.nodes = mix_types_nodes[mix_type]
-        else:
-            log.warn("Unknown mix type {} on node: {}.  Defaulting to mix".format(mix_type, self.blender_node.name))
-            self.nodes = mix_types_nodes['MIX']
+        # these mix types are copied from cycles OSL
+        blend_type = self.node.blend_type
+        if blend_type == 'MIX':
+            return self.blend_node_value(color1, color2, fac, use_key=True)
 
+        if blend_type == 'ADD':
+            add = self.add_node_value(color1, color2)
+            return self.blend_node_value(color1, add, fac, use_key=True)
 
-        if self.blender_node.use_clamp:
-            self.nodes['op'] = self.nodes['Color']
-            self.nodes['min_clamp'] = {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "nodes.op",
-                                "color1": [0.0, 0.0, 0.0, 0.0],
-                                "op": "RPR_MATERIAL_NODE_OP_MIN"
-                            }
-                        }
-            self.nodes['Color'] = {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "nodes.op",
-                                "color1": [1.0, 1.0, 1.0, 1.0],
-                                "op": "RPR_MATERIAL_NODE_OP_MAX"
-                            }
-                        }
-        return super(ShaderNodeMixRGB, self).export(socket)
+        if blend_type == 'MULTIPLY':
+            mul = self.mul_node_value(color1, color2)
+            return self.blend_node_value(color1, mul, fac, use_key=True)
+
+        if blend_type == 'SUBTRACT':
+            sub = self.sub_node_value(color1, color2)
+            return self.blend_node_value(color1, sub, fac, use_key=True)
+
+        if blend_type == 'DIVIDE':
+            div = self.arithmetic_node_value(color1, color2, pyrpr.MATERIAL_NODE_OP_DIV)
+            return self.blend_node_value(color1, div, fac, use_key=True)
+
+        if blend_type == 'DIFFERENCE':
+            sub = self.sub_node_value(color1, color2)
+            abs = self.arithmetic_node_value(sub, None, pyrpr.MATERIAL_NODE_OP_ABS)
+            return self.blend_node_value(color1, abs, fac, use_key=True)
+
+        if blend_type == 'DARKEN':
+            min_val = self.min_node_value(color1, color2)
+            return self.blend_node_value(color1, min_val, fac, use_key=True)
+
+        if blend_type == 'LIGHT':
+            mul = self.mul_node_value(color1, fac)
+            return self.max_node_value(color1, mul, use_key=True)
+
+        # TODO: finish other mix types
+        return None
 
 
 class ShaderNodeMixShader(NodeParser):
-    inputs = ['Fac', 1, 2]
+    # inputs = ['Fac', 1, 2]
 
-    nodes = {
-        "Shader": {
-            "type": "RPR_MATERIAL_NODE_BLEND",
-            "params": {
-                "color0": "inputs.1",
-                "color1": "inputs.2",
-                "weight": "inputs.Fac"
-            }
-        }
-    }
+    def export(self):
+        factor = self.get_input_value('Fac')
 
-    def export(self, socket):
-        ''' Special cases to consider. 
-            1.  unconnected socket(s),
-            2.  fac is 0 or 1 '''
-        inputs = self.get_blender_node_inputs()
+        if isinstance(factor, float):
+            socket_key = 1 if math.isclose(factor, 0.0) else \
+                         2 if math.isclose(factor, 1.0) else \
+                         None
+            if socket_key:
+                shader = self.get_input_link(socket_key)
+                if shader:
+                    return shader
+                return self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_DIFFUSE)
 
-        if not self.blender_node.inputs[1].is_linked and not self.blender_node.inputs[2].is_linked:
-            # no connected shaders.  Return white diffuse
-            self.nodes = {
-                "type": "RPR_MATERIAL_NODE_DIFFUSE",
-                "params": {
-                    "color": [1.0, 1.0, 1.0, 1.0]
-                }
-            }
-        
-        elif inputs['Fac'] == 0.0 or not self.blender_node.inputs[2].is_linked:
-            # input 2 not connected or factor 0, return input 1
-            return inputs['1']
+        shader1 = self.get_input_link(1)
+        shader2 = self.get_input_link(2)
 
-        elif inputs['Fac'] == 1.0 or not self.blender_node.inputs[1].is_linked:
-            # input 2 not connected or factor 1, return input 2
-            return inputs['2']
+        rpr_node = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_BLEND)
+        rpr_node.set_input('weight', factor)
+        if shader1:
+            rpr_node.set_input('color0', shader1)
+        if shader2:
+            rpr_node.set_input('color1', shader2)
 
-        else:
-            return super(ShaderNodeMixShader, self).export(socket)
+        return rpr_node
 
 
-
-class ShaderNodeNormalMap(NodeParser):
+class ShaderNodeNormalMap(RuleNodeParser):
     ''' blends between input vec and N based on strength '''
-    inputs = ['Strength', 'Color']
+    # inputs: Strength, Color
 
     nodes = {
         "Normal": {
-            "type": "RPR_MATERIAL_NODE_NORMAL_MAP",
+            "type": pyrpr.MATERIAL_NODE_NORMAL_MAP,
             "params": {
                 "color": "inputs.Color",
                 "bumpscale": "inputs.Strength",
@@ -825,82 +740,33 @@ class ShaderNodeNormalMap(NodeParser):
           
 
 class ShaderNodeBumpMap(NodeParser):
-    inputs = ['Strength', 'Distance', 'invert', 'Height', 'Normal']
+    def export(self):
+        strength = self.get_input_value('Strength')
+        distance = self.get_input_value('Distance')
+        height = self.get_input_link('Height')
 
-    nodes = {
-        "mul": {
-            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-            "params": {
-                "color0": "inputs.Height",
-                "color1": "inputs.Distance",
-                "op": "RPR_MATERIAL_NODE_OP_MUL"
-            }
-        },
-        "Normal": {
-            "type": "RPR_MATERIAL_NODE_BUMP_MAP",
-            "params": {
-                "color": "nodes.mul",
-                "bumpscale": "inputs.Strength",
-            }
-        }}     
+        color = distance
+        if height is not None:
+            color = self.mul_node_value(height, distance)
+            if self.node.invert:
+                color = self.mul_node_value(color, (1.0, 1.0, 1.0, -1.0))
 
-    def export(self, socket):
-        ''' we need to add in invert if set '''
+        bump = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_BUMP_MAP)
+        bump.set_input('color', color)
+        bump.set_input('bumpscale', strength)
 
-        if self.blender_node.invert:
-            self.nodes['mul1'] = self.nodes['mul']
-            self.nodes['mul'] = {
-                            "type": "RPR_MATERIAL_NODE_ARITHMETIC",
-                            "params": {
-                                "color0": "nodes.mul1",
-                                "color1": [1.0, 1.0, 1.0, -1.0],
-                                "op": "RPR_MATERIAL_NODE_OP_MUL"
-                            }
-                        }
-        
-        return super(ShaderNodeBumpMap, self).export(socket)
+        return bump
 
 
 class ShaderNodeValue(NodeParser):
-    ''' simply return val '''
-    def export(self, socket):
-        return self.blender_node.outputs[0].default_value
+    """ simply return val """
+
+    def export(self):
+        return self.get_output_default(0)
+
 
 class ShaderNodeRGB(NodeParser):
-    ''' simply return val '''
-    def export(self, socket):
-        return [f for f in self.blender_node.outputs[0].default_value] # some reason can't read this directly
-
-
-
-blender_node_parsers = {
-    'ShaderNodeAmbientOcclusion': ShaderNodeAmbientOcclusion,
-    'ShaderNodeBrightContrast': ShaderNodeBrightContrast,
-    'ShaderNodeBsdfAnisotropic': ShaderNodeBsdfAnisotropic,
-    'ShaderNodeBsdfDiffuse': ShaderNodeBsdfDiffuse,
-    'ShaderNodeBsdfGlass': ShaderNodeBsdfGlass,
-    'ShaderNodeBsdfGlossy': ShaderNodeBsdfGlossy,
-    'ShaderNodeBsdfRefraction': ShaderNodeBsdfRefraction,
-    'ShaderNodeBsdfTranslucent': ShaderNodeBsdfTranslucent,
-    'ShaderNodeBsdfTransparent': ShaderNodeBsdfTransparent,
-    'ShaderNodeBsdfVelvet': ShaderNodeBsdfVelvet,
-    'ShaderNodeEmission': ShaderNodeEmission,
-    'ShaderNodeFresnel': ShaderNodeFresnel,
-    'ShaderNodeGamma': ShaderNodeGamma,
-    'ShaderNodeInvert': ShaderNodeInvert,
-    'ShaderNodeSubsurfaceScattering': ShaderNodeSubsurfaceScattering,
-    'ShaderNodeTexChecker': ShaderNodeTexChecker,
-    'ShaderNodeTexImage': ShaderNodeTexImage,
-    'ShaderNodeBsdfPrincipled': ShaderNodeBsdfPrincipled,
-    'ShaderNodeNewGeometry': ShaderNodeNewGeometry,
-    'ShaderNodeAddShader': ShaderNodeAddShader,
-    'ShaderNodeTexCoord': ShaderNodeTexCoord, 
-    'ShaderNodeLightFalloff': ShaderNodeLightFalloff,
-    'ShaderNodeMixRGB': ShaderNodeMixRGB,
-    'ShaderNodeMixShader': ShaderNodeMixShader,
-    'ShaderNodeNormalMap': ShaderNodeNormalMap,
-    'ShaderNodeBump': ShaderNodeBumpMap,
-    'ShaderNodeValue': ShaderNodeValue,
-    'ShaderNodeRGB': ShaderNodeRGB
-
-}
+    """ simply return val """
+    
+    def export(self):
+        return self.get_output_default(0)

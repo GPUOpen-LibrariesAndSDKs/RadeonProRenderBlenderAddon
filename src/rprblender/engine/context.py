@@ -440,53 +440,6 @@ class RPRContext:
     def set_material_node_as_material(self, key, material_node):
         self.materials[key] = material_node
 
-    def arithmetic_node_value(self, val1, val2, op_type):
-        def to_vec4(val):
-            if isinstance(val, float):
-                return (val, val, val, val)
-            if len(val) == 3:
-                return (*val, 1.0)
-            return val
-
-        def create_arithmetic_node():
-            node = self.create_material_node(None, pyrpr.MATERIAL_NODE_ARITHMETIC)
-            node.set_input('op', op_type)
-            node.set_input('color0', val1)
-            node.set_input('color1', val2)
-            return node
-
-        if isinstance(val1, (pyrpr.MaterialNode, pyrprx.Material)) or isinstance(val2, (pyrpr.MaterialNode, pyrprx.Material)):
-            return create_arithmetic_node()
-
-        val1 = to_vec4(val1)
-        val2 = to_vec4(val2)
-
-        if op_type == pyrpr.MATERIAL_NODE_OP_MUL:
-            return (val1[0] * val2[0], val1[1] * val2[1], val1[2] * val2[2], val1[3] * val2[3])
-
-        if op_type == pyrpr.MATERIAL_NODE_OP_SUB:
-            return (val1[0] - val2[0], val1[1] - val2[1], val1[2] - val2[2], val1[3] - val2[3])
-
-        if op_type == pyrpr.MATERIAL_NODE_OP_ADD:
-            return (val1[0] + val2[0], val1[1] + val2[1], val1[2] + val2[2], val1[3] + val2[3])
-
-        if op_type == pyrpr.MATERIAL_NODE_OP_MAX:
-            return (max(val1[0], val2[0]), max(val1[1], val2[1]), max(val1[2], val2[2]), max(val1[3], val2[3]))
-
-        return create_arithmetic_node()
-
-    def mul_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MUL)
-
-    def add_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_ADD)
-
-    def sub_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB)
-
-    def max_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX)
-
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)
         image.set_name(key)

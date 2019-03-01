@@ -1,8 +1,8 @@
 from rprblender.utils import logging
-from .rpr_nodes import RPRShadingNode
+from .rpr_nodes import RPRShaderNode
 
 
-class RPR_Node_Output(RPRShadingNode):
+class RPR_Node_Output(RPRShaderNode):
     bl_compatibility = {'RPR'}
     bl_category = "Output"
     bl_class = "OUTPUT"
