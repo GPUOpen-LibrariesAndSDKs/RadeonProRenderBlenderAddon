@@ -21,7 +21,8 @@ rprsdk_path = Path(__file__).parents[3] / 'ThirdParty/RadeonProRender SDK'
 if "Windows" == platform.system():
     bin_folder = 'Win/bin'
 elif "Linux" == platform.system():
-    assert 'Ubuntu-16.04' in platform.platform()
+    assert 'Ubuntu' in platform.version()
+    assert '16.04' in platform.version()
     bin_folder = 'Linux/lib'
 elif "Darwin" == platform.system():
     bin_folder = 'Mac/lib'
