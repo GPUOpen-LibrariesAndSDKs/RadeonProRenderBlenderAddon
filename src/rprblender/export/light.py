@@ -10,46 +10,10 @@ from . import key, get_transform
 from rprblender.properties import SyncError
 from rprblender.properties.light import MAX_LUMINOUS_EFFICACY
 from . import mesh, image
+from rprblender.utils.conversion import convert_kelvins_to_rgb
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.light')
-
-
-def convert_kelvins_to_rgb(color_temperature) -> tuple:
-    """ Converts kelvin color temperature to RGB """
-
-    # range check
-    if color_temperature < 1000:
-        color_temperature = 1000
-    elif color_temperature > 40000:
-        color_temperature = 40000
-
-    tmp_internal = color_temperature / 100.0
-    # red
-    if tmp_internal <= 66:
-        red = 255
-    else:
-        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
-        red = max(0, min(tmp_red, 255))
-
-    # green
-    if tmp_internal <= 66:
-        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
-        green = max(0, min(tmp_green, 255))
-    else:
-        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
-        green = max(0, min(tmp_green, 255))
-
-    # blue
-    if tmp_internal >= 66:
-        blue = 255
-    elif tmp_internal <= 19:
-        blue = 0
-    else:
-        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
-        blue = max(0, min(tmp_blue, 255))
-
-    return (red / 255.0, green / 255.0, blue / 255.0)
 
 
 def get_radiant_power(light: bpy.types.Light, area=0.0):
