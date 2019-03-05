@@ -182,6 +182,30 @@ class NodeParser(metaclass=ABCMeta):
     def min_node_value(self, val1, val2, use_key=False):
         return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN, use_key)
 
+    def dot3_node_value(self, val1, val2, use_key=False):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DOT3, use_key)
+
+    def get_x_node_value(self, val1, use_key=False):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_X, use_key)
+
+    def get_y_node_value(self, val1, use_key=False):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Y, use_key)
+
+    def get_z_node_value(self, val1, use_key=False):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Z, use_key)
+
+    def get_w_node_value(self, val1, use_key=False):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_W, use_key)
+
+    def combine_node_value(self, a, b, c, use_key=False):
+        """Mix values to single"""
+        vX = self.mul_node_value(a, (1, 0, 0), use_key)
+        vY = self.mul_node_value(b, (0, 1, 0), use_key)
+        vZ = self.mul_node_value(c, (0, 0, 1), use_key)
+
+        res = self.add_node_value(self.add_node_value(vX, vY), vZ, use_key)
+        return res
+
     def blend_node_value(self, val1, val2, weight, use_key=False):
         node = self.rpr_context.create_material_node(self.node_key if use_key else None,
                                                      pyrpr.MATERIAL_NODE_BLEND_VALUE)

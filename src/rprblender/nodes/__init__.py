@@ -32,7 +32,6 @@ class RPR_ShaderNodeCategory(NodeCategory):
                and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
 
 
-
 node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
         NodeItem('ShaderNodeAmbientOcclusion'),
@@ -40,15 +39,10 @@ node_categories = [
         NodeItem('ShaderNodeRGB'),
         NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
-    #    NodeItem('ShaderNodeBlackbody'),
         NodeItem('ShaderNodeNewGeometry'),
     ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),
-    ],),
-    RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
-        NodeItem('ShaderNodeTexImage'),
-        NodeItem('ShaderNodeTexChecker'),
     ],),
     RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
@@ -66,17 +60,26 @@ node_categories = [
         NodeItem('ShaderNodeEmission'),
         NodeItem('ShaderNodeSubsurfaceScattering'),
     ]),
-    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
-        NodeItem('ShaderNodeBump'),
-        NodeItem('ShaderNodeNormalMap'),
-    ]),
+    RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
+        NodeItem('ShaderNodeTexChecker'),
+        NodeItem('ShaderNodeTexImage'),
+        NodeItem('ShaderNodeTexNoise'),
+    ],),
     RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
-        NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeBrightContrast'),
-        NodeItem('ShaderNodeLightFalloff'),
         NodeItem('ShaderNodeGamma'),
+        NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeMixRGB'),
     ]),
+    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
+        NodeItem('ShaderNodeBump'),
+        NodeItem('ShaderNodeMapping'),
+        NodeItem('ShaderNodeNormalMap'),
+    ]),
+    RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
+        NodeItem('ShaderNodeBlackbody'),
+        NodeItem('ShaderNodeRGBToBW'),
+    ])
     # Temporary removing till it'll be working
     # RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
     #     NodeItem('RPRShaderNodeUber'),

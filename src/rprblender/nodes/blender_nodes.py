@@ -11,6 +11,7 @@ import pyrpr
 import pyrprx
 
 from rprblender.export import image
+from rprblender.utils.conversion import convert_kelvins_to_rgb
 
 from rprblender.utils import logging
 log = logging.Log(tag='material')
@@ -20,12 +21,9 @@ log = logging.Log(tag='material')
     ShaderNodeMath
     ShaderNodeUVMap
     ShaderNodeAttribute
-    ShaderNodeMapping
-    ShaderNodeBlackbody
     ShaderNodeRGBCurve
     NodeGroups
     ShaderNodeHueSaturation
-    ShaderNodeTexNoise
     ShaderNodeValToRGB
 '''
 
@@ -337,12 +335,14 @@ class ShaderNodeTexChecker(NodeParser):
         #  input.Vector is not applied yet
 
         scale = self.get_input_value('Scale')
-        scale_rpr = self.mul_node_value(scale, 0.125) # in RPR it is divided by 8 (or multiplied by 0.125)
+        scale_rpr = self.mul_node_value(scale, 0.125)  # in RPR it is divided by 8 (or multiplied by 0.125)
 
-        lookup = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
-        lookup.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+        mapping = self.get_input_link('Vector')
+        if mapping is None:  # use default mapping if no external mapping nodes attached
+            mapping = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            mapping.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
 
-        uv = self.mul_node_value(scale_rpr, lookup)
+        uv = self.mul_node_value(scale_rpr, mapping)
 
         checker = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_CHECKER_TEXTURE)
         checker.set_input('uv', uv)
@@ -377,10 +377,7 @@ class ShaderNodeTexImage(NodeParser):
 
         vector = self.get_input_link('Vector')
         if vector is not None:
-            lookup = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
-            lookup.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
-            rpr_node.set_input('uv')
-            # TODO: vector should be assigned also
+            rpr_node.set_input('uv', vector)
 
         if self.socket_out.name == 'Alpha':
             return self.arithmetic_node_value(rpr_node, None, pyrpr.MATERIAL_NODE_OP_SELECT_W, use_key=True)
@@ -623,10 +620,10 @@ class ShaderNodeAddShader(NodeParser):
 class ShaderNodeTexCoord(RuleNodeParser):
     
     nodes = {
-        "Generated": {
+        "Generated": {  # Use UV as we don't have generated UV's right now
             "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                "value": pyrpr.MATERIAL_NODE_LOOKUP_P,
+                "value": pyrpr.MATERIAL_NODE_LOOKUP_UV,
             }
         },
         "Normal": {
@@ -643,6 +640,7 @@ class ShaderNodeTexCoord(RuleNodeParser):
         }
 
     }
+
 
 class ShaderNodeLightFalloff(NodeParser):
     ''' we don't actually do light falloff in RPR.  
@@ -770,3 +768,81 @@ class ShaderNodeRGB(NodeParser):
     
     def export(self):
         return self.get_output_default(0)
+
+
+class ShaderNodeBlackbody(NodeParser):
+    """Return RGB color by blackbody temperature"""
+
+    def export(self):
+        temperature = self.get_input_default('Temperature')
+        return convert_kelvins_to_rgb(temperature)
+
+
+class ShaderNodeTexNoise(NodeParser):
+    """Create RPR Noise node"""
+    def export(self):
+        scale = self.get_input_value('Scale')
+        scale_rpr = self.mul_node_value(scale, 0.6)  # RPR Noise texture visually is about 60% of Blender Noise
+
+        mapping = self.get_input_link('Vector')
+        if mapping is None:  # use default mapping if no external mapping nodes attached
+            mapping = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            mapping.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+
+        uv = self.mul_node_value(scale_rpr, mapping)
+
+        noise = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_NOISE2D_TEXTURE)
+        noise.set_input('uv', uv)
+
+        return noise
+
+
+class ShaderNodeMapping(NodeParser):
+    """Creating mix of lookup and math nodes to adjust texture coordinates mapping in a way Cycles do"""
+
+    def export(self):
+        mapping = self.get_input_link('Vector')
+        if not mapping:
+            mapping = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            mapping.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+
+        # apply position
+        offset = self.node.translation
+        if not (math.isclose(offset.x, 0.0) and math.isclose(offset.y, 0.0)):
+            mapping = self.sub_node_value(mapping, offset[:])
+
+        # apply rotation, Z axis only
+        angle = self.node.rotation[2]  # Blender Mapping node angle is already in radians
+        if angle:
+            part1 = self.dot3_node_value(mapping, (math.cos(angle), math.sin(angle), 0.0))
+            part2 = self.dot3_node_value(mapping, (-math.sin(angle), math.cos(angle), 0.0))
+            mapping = self.combine_node_value(part1, part2, (1.0, 1.0, 1.0))
+
+        # apply scale
+        scale = list(self.node.scale)
+        if not (math.isclose(scale[0], 1.0) and math.isclose(scale[1], 1.0)):
+            scale[0] = 1/scale[0] if not math.isclose(math.fabs(scale[0]), 0.0) else 0.0
+            scale[1] = 1/scale[1] if not math.isclose(math.fabs(scale[0]), 0.0) else 0.0
+            mapping = self.mul_node_value(mapping, tuple(scale))
+
+        return mapping
+
+
+class ShaderNodeRGBToBW(NodeParser):
+    """Convert input color or texture from RGB to grayscale colors"""
+
+    def export(self):
+        link = self.get_input_link('Color')
+        if link:
+            r_val = self.mul_node_value(self.get_x_node_value(link), (0.2126, 0.2126, 0.2126, 0.0))
+            g_val = self.mul_node_value(self.get_y_node_value(link), (0.7152, 0.7152, 0.7152, 0.0))
+            b_val = self.mul_node_value(self.get_z_node_value(link), (0.0722, 0.0722, 0.0722, 0.0))
+            a_val = self.mul_node_value(self.get_w_node_value(link), (0.0, 0.0, 0.0, 1.0))
+            res = self.add_node_value(r_val, g_val)
+            res = self.add_node_value(res, b_val)
+            res = self.add_node_value(res, a_val)
+            return res
+
+        color = self.get_input_default('Color')
+        val = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722
+        return (val, val, val, color[3])
