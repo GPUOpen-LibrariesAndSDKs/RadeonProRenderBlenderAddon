@@ -1,24 +1,11 @@
 import bpy
-import pyrpr
 
 from rprblender.engine.context import RPRContext
-from rprblender.nodes.node_parser import NodeParser
+from rprblender.nodes.blender_nodes import ShaderNodeOutputMaterial
 from . import key
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.Material')
-
-
-class ShaderNodeOutputMaterial(NodeParser):
-    def export(self, input_socket_key='Surface'):
-        rpr_node = self.get_input_link(input_socket_key)
-        if not rpr_node:
-            if input_socket_key == 'Surface':
-                # creating error shader
-                rpr_node = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_PASSTHROUGH)
-                rpr_node.set_input('color', (0.0, 0.0, 0.0, 1.0))   # set it to black to correspond to cycles behavior
-
-        return rpr_node
 
 
 def get_material_output_node(material):

@@ -1,8 +1,6 @@
 import numpy as np
 import math
 
-import bmesh
-import mathutils
 import bpy
 
 from rprblender.engine.context import RPRContext
