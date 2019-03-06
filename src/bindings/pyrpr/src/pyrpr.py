@@ -240,12 +240,14 @@ class Object:
 
 
 class Context(Object):
+    ''' Context wraps the rpr_context type with useful methods '''
     core_type_name = 'rpr_context'
 
     plugins = None
     cache_path = None
     cpu_device = None
     gpu_devices = []
+    
 
     @staticmethod
     def register_plugin(tahoe_path, cache_path):
@@ -283,7 +285,7 @@ class Context(Object):
         super().__init__()
         self.aovs = {}
         self.parameters = {}
-
+        
         props_ptr = ffi.NULL
         if props is not None:
             props_ptr = ffi.new("rpr_context_properties[]",
@@ -316,7 +318,7 @@ class Context(Object):
 
     def render(self):
         ContextRender(self)
-
+        
     def render_tile(self, xmin, xmax, ymin, ymax):
         ContextRenderTile(self, xmin, xmax, ymin, ymax)
 
@@ -717,7 +719,7 @@ class FrameBuffer(Object):
 
     def resolve(self, resolved_fb):
         ContextResolveFrameBuffer(self.context, self, resolved_fb, True)
-
+        
     def get_data(self, buf=None):
         if buf:
             FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
