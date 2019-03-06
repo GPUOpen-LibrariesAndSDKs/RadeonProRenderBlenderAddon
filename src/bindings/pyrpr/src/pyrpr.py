@@ -1042,9 +1042,9 @@ class Buffer(Object):
         self.context = context
 
         desc = ffi.new("rpr_buffer_desc*")
-        desc.nb_element = len(data);
-        desc.element_type = element_type;
-        desc.element_channel_size = len(data[0]);
+        desc.nb_element = len(data)
+        desc.element_type = element_type
+        desc.element_channel_size = len(data[0])
 
         ContextCreateBuffer(self.context, desc, ffi.cast("float *", data.ctypes.data), self)
 

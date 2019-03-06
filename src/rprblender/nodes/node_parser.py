@@ -71,11 +71,10 @@ class NodeParser(metaclass=ABCMeta):
         """ Returns key of current node """
         return self._get_node_key(self.node, self.socket_out)
 
-    def get_output_default(self, socket_key):
+    def get_output_default(self):
         """ Returns default value of output socket """
 
-        socket_out = self.node.outputs[socket_key]
-        return self._parse_val(socket_out.default_value)
+        return self._parse_val(self.socket_out.default_value)
 
     def get_input_default(self, socket_key):
         """ Returns default value of input socket """
@@ -148,7 +147,8 @@ class NodeParser(metaclass=ABCMeta):
             return create_arithmetic_node()
 
         val1 = to_vec4(val1)
-        val2 = to_vec4(val2)
+        if val2 is not None:
+            val2 = to_vec4(val2)
 
         if op_type == pyrpr.MATERIAL_NODE_OP_MUL:
             return (val1[0] * val2[0], val1[1] * val2[1], val1[2] * val2[2], val1[3] * val2[3])
@@ -249,6 +249,9 @@ class RuleNodeParser(NodeParser):
     def _export_node_rule(self, node_rule, use_key=False):
         """ Recursively exports current node_rule """
 
+        if 'warn' in node_rule:
+            log.warn(node_rule['warn'], self.socket_out, self.node, self.material)
+
         # getting inputs
         inputs = {}
         for key, val in node_rule['params'].items():
@@ -313,9 +316,6 @@ class RuleNodeParser(NodeParser):
         for key, val in inputs.items():
             if val is None:
                 continue
-
-            if key.startswith('pyrprx.'):
-                key = getattr(pyrprx, key[7:])
 
             rpr_node.set_input(key, val)
 

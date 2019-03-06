@@ -151,7 +151,6 @@
     <Content Include="bindings\pyrpr\readme.txt" />
     <Content Include="bindings\pyrpr\rprinfo.txt" />
     <Content Include="bindings\pyrpr\test_trace\CMakeLists.txt" />
-    <Content Include="rprblender\nodes\blender_nodes\ShaderNodeMixRGB.json" />
     <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
     <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />
     <Content Include="rprblender\ui\img\rpr_logo.png" />
@@ -167,7 +166,6 @@
     <Folder Include="rprblender\engine" />
     <Folder Include="rprblender\export\" />
     <Folder Include="rprblender\nodes" />
-    <Folder Include="rprblender\nodes\blender_nodes\" />
     <Folder Include="rprblender\nodes\rpr_nodes\" />
     <Folder Include="rprblender\operators\" />
     <Folder Include="rprblender\properties" />
