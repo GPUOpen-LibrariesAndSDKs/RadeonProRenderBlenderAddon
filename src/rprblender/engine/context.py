@@ -2,9 +2,11 @@ import pyrpr
 import pyrprx
 
 from . import image_filter
-
+import threading
 
 class RPRContext:
+    ''' Manager of pyrpr and pyrprx calls.  Also includes threading lock to make sure 
+        calls aren't made simultaneously '''
     def __init__(self):
         self.context = None
         self.material_system = None
@@ -12,6 +14,7 @@ class RPRContext:
         self.width = None
         self.height = None
         self.gl_interop = None
+        self.lock = threading.Lock()
 
         # scene and objects
         self.scene = None
@@ -62,16 +65,18 @@ class RPRContext:
             fbs['aov'].clear()
 
     def render(self, tile=None):
-        if tile is None:
-            self.context.render()
-        else:
-            self.context.render_tile(*tile)
+        with self.lock:
+            if tile is None:
+                self.context.render()
+            else:
+                self.context.render_tile(*tile)
 
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
-        if aov_type == pyrpr.AOV_COLOR and self.image_filter:
-            return self.image_filter.get_data()
+        with self.lock:
+            if aov_type == pyrpr.AOV_COLOR and self.image_filter:
+                return self.image_filter.get_data()
 
-        return self.get_frame_buffer(aov_type).get_data()
+            return self.get_frame_buffer(aov_type).get_data()
 
     def get_frame_buffer(self, aov_type):
         if aov_type == pyrpr.AOV_COLOR:
@@ -91,14 +96,16 @@ class RPRContext:
         return self.frame_buffers_aovs[aov_type]['res']
 
     def resolve(self):
-        for fbs in self.frame_buffers_aovs.values():
-            fbs['aov'].resolve(fbs['res'])
+        with self.lock:
+            for fbs in self.frame_buffers_aovs.values():
+                fbs['aov'].resolve(fbs['res'])
 
     def resolve_extras(self):
         if self.sc_composite:
-            self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
-            if self.gl_interop and not self.image_filter:
-                self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
+            with self.lock:
+                self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
+                if self.gl_interop and not self.image_filter:
+                    self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
 
         if self.image_filter:
             self.image_filter.run()

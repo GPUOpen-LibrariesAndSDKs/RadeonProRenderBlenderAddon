@@ -45,8 +45,7 @@ class RenderEngine(Engine):
             self.render_event.wait()
             self.render_event.clear()
 
-            with self.render_lock:
-                self.rpr_context.resolve()
+            self.rpr_context.resolve()
 
             log("Updating render result")
             self.rpr_context.resolve_extras()
@@ -78,8 +77,7 @@ class RenderEngine(Engine):
 
                 self.rpr_context.set_parameter('iterations', update_samples)
 
-                with self.render_lock:
-                    self.rpr_context.render()
+                self.rpr_context.render()
                 self.render_event.set()
 
                 self.current_iteration += update_samples
@@ -107,8 +105,7 @@ class RenderEngine(Engine):
 
                 self.notify_status(i / (n * m), "Tile: %d/%d" % (i, n * m))
 
-                with self.render_lock:
-                    self.rpr_context.render(tile)
+                self.rpr_context.render(tile)
 
                 self.render_event.set()
         finally:
