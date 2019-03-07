@@ -57,6 +57,7 @@ node_categories = [
         NodeItem('ShaderNodeGamma'),
         NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeMixRGB'),
+        NodeItem('ShaderNodeRGBCurve'),
     ]),
     RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
         NodeItem('ShaderNodeBump'),
@@ -66,6 +67,8 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
         NodeItem('ShaderNodeBlackbody'),
         NodeItem('ShaderNodeRGBToBW'),
+        NodeItem('ShaderNodeValToRGB'),
+        NodeItem('ShaderNodeMath'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('RPRShaderNodeUber'),
