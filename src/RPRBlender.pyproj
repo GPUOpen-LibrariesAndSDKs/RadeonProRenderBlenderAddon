@@ -84,8 +84,10 @@
     <Compile Include="rprblender\ui\view_layer.py" />
     <Compile Include="rprblender\ui\world.py" />
     <Compile Include="rprblender\ui\__init__.py" />
+    <Compile Include="rprblender\utils\conversion.py" />
     <Compile Include="rprblender\utils\gl.py" />
     <Compile Include="rprblender\utils\logging.py" />
+    <Compile Include="rprblender\utils\render_stamp.py" />
     <Compile Include="rprblender\utils\version_updater.py" />
     <Compile Include="rprblender\utils\__init__.py">
       <SubType>Code</SubType>

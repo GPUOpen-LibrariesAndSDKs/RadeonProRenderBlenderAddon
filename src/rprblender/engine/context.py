@@ -429,20 +429,14 @@ class RPRContext:
             self.objects[key] = camera
         return camera
 
-    def create_material_node(self, key, material_type):
-        node = pyrpr.MaterialNode(self.material_system, material_type)
+    def create_material_node(self, material_type):
+        return pyrpr.MaterialNode(self.material_system, material_type)
 
-        # key could be None for supported nodes which no need to add into material_nodes
-        if key:
-            self.material_nodes[key] = node
+    def create_x_material_node(self, material_type):
+        return pyrprx.Material(self.x_context, material_type)
 
-        node.set_name(str(key) if key else str(material_type))
-        return node
-
-    def create_x_material_node(self, key, material_type):
-        node = pyrprx.Material(self.x_context, material_type)
-        self.material_nodes[key] = node
-        return node
+    def set_material_node_key(self, key, material_node):
+        self.material_nodes[key] = material_node
 
     def set_material_node_as_material(self, key, material_node):
         self.materials[key] = material_node

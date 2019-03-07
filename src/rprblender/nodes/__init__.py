@@ -10,19 +10,6 @@ from nodeitems_builtins import (
 )
 
 from rprblender.utils import is_rpr_active
-from rprblender.utils import logging
-
-from .sockets import classes
-
-log = logging.Log(tag='nodes')
-
-
-class MaterialError(Exception):
-    pass
-
-# have to put these after the Material Error
-from .rpr_nodes import RPRShaderNodeUber_UI, RPRShaderNode
-from .output_node import RPR_Node_Output
 
 
 class RPR_ShaderNodeCategory(NodeCategory):
@@ -79,11 +66,12 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
         NodeItem('ShaderNodeBlackbody'),
         NodeItem('ShaderNodeRGBToBW'),
+    ]),
+    RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
+        NodeItem('RPRShaderNodeUber'),
+        # temporary disable this diffuse node
+        # NodeItem('RPRShaderNodeDiffuse'),
     ])
-    # Temporary removing till it'll be working
-    # RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
-    #     NodeItem('RPRShaderNodeUber'),
-    # ])
 ]
 
 
@@ -94,11 +82,26 @@ def hide_cycles_and_eevee_poll(method):
     return func
 
 
+from . import sockets
+from . import rpr_nodes
+
+register_classes, unregister_classes = bpy.utils.register_classes_factory([
+    sockets.RPRSocketColor,
+    sockets.RPRSocketFloat,
+    sockets.RPRSocketWeight,
+    sockets.RPRSocketWeightSoft,
+    sockets.RPRSocketMin1Max1,
+    sockets.RPRSocketLink,
+    sockets.RPRSocketIOR,
+    sockets.RPRSocket_Float_Min0_SoftMax10,
+    sockets.RPRSocketAngle360,
+
+    rpr_nodes.RPRShaderNodeUber,
+    rpr_nodes.RPRShaderNodeDiffuse,
+])
+
+
 old_shader_node_category_poll = None
-
-
-classes += (RPRShaderNode, RPR_Node_Output, RPRShaderNodeUber_UI)
-register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
 
 
 def register():

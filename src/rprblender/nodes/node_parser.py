@@ -22,8 +22,6 @@ class NodeParser(metaclass=ABCMeta):
         self.node = node
         self.socket_out = socket_out
 
-        log("init", self.material, self.node, self.socket_out)
-
     # INTERNAL FUNCTIONS
 
     def _get_node_key(self, node, socket_out):
@@ -47,7 +45,7 @@ class NodeParser(metaclass=ABCMeta):
         node_parser_class = get_node_parser_class(node.bl_idname)
         if node_parser_class:
             node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out)
-            return node_parser.export()
+            return node_parser.final_export()
 
         log.warn("Ignoring unsupported node", node, self.material)
         return None
@@ -65,11 +63,6 @@ class NodeParser(metaclass=ABCMeta):
 
     # HELPER FUNCTIONS
     # Child classes should use them to do their export
-
-    @property
-    def node_key(self):
-        """ Returns key of current node """
-        return self._get_node_key(self.node, self.socket_out)
 
     def get_output_default(self):
         """ Returns default value of output socket """
@@ -114,7 +107,7 @@ class NodeParser(metaclass=ABCMeta):
             color = self.get_input_value('Color')
             normal = self.get_input_link('Normal')
 
-            rpr_node = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_REFLECTION)
+            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_REFLECTION)
             rpr_node.set_input('color', color)
             if normal is not None:
                 rpr_node.set_input('normal', normal)
@@ -123,9 +116,25 @@ class NodeParser(metaclass=ABCMeta):
         """
         pass
 
+    def final_export(self):
+        """
+        This is the entry point of NodeParser classes.
+        This function does some useful preparation before and after calling export() function.
+        """
+
+        log("export", self.material, self.node, self.socket_out)
+        rpr_node = self.export()
+        
+        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+            node_key = self._get_node_key(self.node, self.socket_out)
+            self.rpr_context.set_material_node_key(node_key, rpr_node)
+            rpr_node.set_name(str(node_key))
+
+        return rpr_node
+
     # ADDITIONAL ARITHMETIC NODES
 
-    def arithmetic_node_value(self, val1, val2, op_type, use_key=False):
+    def arithmetic_node_value(self, val1, val2, op_type):
         def to_vec4(val):
             if isinstance(val, float):
                 return (val, val, val, val)
@@ -134,8 +143,7 @@ class NodeParser(metaclass=ABCMeta):
             return val
 
         def create_arithmetic_node():
-            node = self.rpr_context.create_material_node(self.node_key if use_key else None,
-                                                         pyrpr.MATERIAL_NODE_ARITHMETIC)
+            node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
             node.set_input('op', op_type)
             node.set_input('color0', val1)
             if val2 is not None:
@@ -167,48 +175,47 @@ class NodeParser(metaclass=ABCMeta):
 
         return create_arithmetic_node()
 
-    def mul_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MUL, use_key)
+    def mul_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MUL)
 
-    def add_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_ADD, use_key)
+    def add_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_ADD)
 
-    def sub_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB, use_key)
+    def sub_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB)
 
-    def max_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX, use_key)
+    def max_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX)
 
-    def min_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN, use_key)
+    def min_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN)
 
-    def dot3_node_value(self, val1, val2, use_key=False):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DOT3, use_key)
+    def dot3_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DOT3)
 
-    def get_x_node_value(self, val1, use_key=False):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_X, use_key)
+    def get_x_node_value(self, val1):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_X)
 
-    def get_y_node_value(self, val1, use_key=False):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Y, use_key)
+    def get_y_node_value(self, val1):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Y)
 
-    def get_z_node_value(self, val1, use_key=False):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Z, use_key)
+    def get_z_node_value(self, val1):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Z)
 
-    def get_w_node_value(self, val1, use_key=False):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_W, use_key)
+    def get_w_node_value(self, val1):
+        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_W)
 
-    def combine_node_value(self, a, b, c, use_key=False):
+    def combine_node_value(self, a, b, c):
         """Mix values to single"""
-        vX = self.mul_node_value(a, (1, 0, 0), use_key)
-        vY = self.mul_node_value(b, (0, 1, 0), use_key)
-        vZ = self.mul_node_value(c, (0, 0, 1), use_key)
+        vX = self.mul_node_value(a, (1, 0, 0))
+        vY = self.mul_node_value(b, (0, 1, 0))
+        vZ = self.mul_node_value(c, (0, 0, 1))
 
-        res = self.add_node_value(self.add_node_value(vX, vY), vZ, use_key)
+        res = self.add_node_value(self.add_node_value(vX, vY), vZ)
         return res
 
-    def blend_node_value(self, val1, val2, weight, use_key=False):
-        node = self.rpr_context.create_material_node(self.node_key if use_key else None,
-                                                     pyrpr.MATERIAL_NODE_BLEND_VALUE)
+    def blend_node_value(self, val1, val2, weight):
+        node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND_VALUE)
         node.set_input('color0', val1)
         node.set_input('color1', val2)
         node.set_input('weight', weight)
@@ -246,7 +253,7 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
-    def _export_node_rule(self, node_rule, use_key=False):
+    def _export_node_rule(self, node_rule):
         """ Recursively exports current node_rule """
 
         if 'warn' in node_rule:
@@ -282,33 +289,31 @@ class RuleNodeParser(NodeParser):
             raise ValueError("Invalid prefix for input value", key, val, node_rule)
 
         # creating material node
-        node_key = self.node_key if use_key else None
-
         node_type = node_rule['type']
         if isinstance(node_type, int):
             if node_rule.get('is_rprx', False):
-                rpr_node = self.rpr_context.create_x_material_node(node_key, node_type)
+                rpr_node = self.rpr_context.create_x_material_node(node_type)
             else:
-                rpr_node = self.rpr_context.create_material_node(node_key, node_type)
+                rpr_node = self.rpr_context.create_material_node(node_type)
 
         else:
             if node_type == '*':
-                return self.mul_node_value(inputs['color0'], inputs['color1'], use_key)
+                return self.mul_node_value(inputs['color0'], inputs['color1'])
 
             if node_type == '+':
-                return self.add_node_value(inputs['color0'], inputs['color1'], use_key)
+                return self.add_node_value(inputs['color0'], inputs['color1'])
 
             if node_type == '-':
-                return self.sub_node_value(inputs['color0'], inputs['color1'], use_key)
+                return self.sub_node_value(inputs['color0'], inputs['color1'])
 
             if node_type == 'max':
-                return self.max_node_value(inputs['color0'], inputs['color1'], use_key)
+                return self.max_node_value(inputs['color0'], inputs['color1'])
 
             if node_type == 'min':
-                return self.min_node_value(inputs['color0'], inputs['color1'], use_key)
+                return self.min_node_value(inputs['color0'], inputs['color1'])
 
             if node_type == 'blend':
-                return self.blend_node_value(inputs['color0'], inputs['color1'], inputs['weight'], use_key)
+                return self.blend_node_value(inputs['color0'], inputs['color1'], inputs['weight'])
 
             raise TypeError("Incorrect type of node_type", node_type)
 
@@ -329,7 +334,7 @@ class RuleNodeParser(NodeParser):
             log.warn("Ignoring unsupported output socket", self.socket_out, self.node, self.material)
             return None
 
-        return self._export_node_rule(node_rule, use_key=True)
+        return self._export_node_rule(node_rule)
 
 
 def get_node_parser_class(node_idname: str):
@@ -341,4 +346,8 @@ def get_node_parser_class(node_idname: str):
         return parser_class
 
     from . import rpr_nodes
-    return getattr(rpr_nodes, node_idname, None)
+    rpr_shader_node = getattr(rpr_nodes, node_idname, None)
+    if rpr_shader_node:
+        return rpr_shader_node.Exporter
+
+    return None

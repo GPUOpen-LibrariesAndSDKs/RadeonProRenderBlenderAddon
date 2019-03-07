@@ -35,7 +35,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material):
         return None
 
     node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None)
-    rpr_material = node_parser.export()
+    rpr_material = node_parser.final_export()
 
     if rpr_material:
         rpr_context.set_material_node_as_material(mat_key, rpr_material)
