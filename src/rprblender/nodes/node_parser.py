@@ -136,9 +136,12 @@ class NodeParser(metaclass=ABCMeta):
 
     def arithmetic_node_value(self, val1, val2, op_type):
         def to_vec4(val):
+            ''' val is of of type tuple, float, Node, None 
+                if float or tuple make into a 4 tuple
+            ''' 
             if isinstance(val, float):
                 return (val, val, val, val)
-            if len(val) == 3:
+            if isinstance(val, tuple) and len(val) == 3:
                 return (*val, 1.0)
             return val
 
@@ -151,12 +154,13 @@ class NodeParser(metaclass=ABCMeta):
 
             return node
 
-        if isinstance(val1, (pyrpr.MaterialNode, pyrprx.Material)) or isinstance(val2, (pyrpr.MaterialNode, pyrprx.Material)):
-            return create_arithmetic_node()
-
+        # this has to be before create_arithmetic_node
         val1 = to_vec4(val1)
         if val2 is not None:
             val2 = to_vec4(val2)
+
+        if isinstance(val1, (pyrpr.MaterialNode, pyrprx.Material)) or isinstance(val2, (pyrpr.MaterialNode, pyrprx.Material)):
+            return create_arithmetic_node()
 
         if op_type == pyrpr.MATERIAL_NODE_OP_MUL:
             return (val1[0] * val2[0], val1[1] * val2[1], val1[2] * val2[2], val1[3] * val2[3])
@@ -184,8 +188,8 @@ class NodeParser(metaclass=ABCMeta):
     def sub_node_value(self, val1, val2):
         return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB)
 
-    def max_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX)
+    def div_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DIV)
 
     def min_node_value(self, val1, val2):
         return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN)
@@ -213,6 +217,7 @@ class NodeParser(metaclass=ABCMeta):
 
         res = self.add_node_value(self.add_node_value(vX, vY), vZ)
         return res
+
 
     def blend_node_value(self, val1, val2, weight):
         node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND_VALUE)

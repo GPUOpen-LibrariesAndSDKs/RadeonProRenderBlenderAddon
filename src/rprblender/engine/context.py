@@ -453,6 +453,9 @@ class RPRContext:
         self.images[key] = image
         return image
 
+    def create_buffer(self, data, dtype):
+        return pyrpr.Buffer(self.context, data, dtype)
+    
     def set_parameter(self, name, param):
         if param == self.context.parameters.get(name, None):
             return False
