@@ -27,12 +27,11 @@ class RPRSocketColor(NodeSocket):
             layout.label(text=self.name)
         else:
             row = layout.row()
-            row.alignment = 'LEFT'
-            row.prop(self, 'default_value', text='')
             row.label(text=text)
+            row.prop(self, 'default_value', text='')
 
     def draw_color(self, context, node):
-        return COLORS['link']
+        return COLORS['color']
 
 
 class RPRSocketFloat(NodeSocket):
@@ -159,8 +158,3 @@ class RPRSocketWeightSoft(NodeSocket):
 
     def draw_color(self, context, node):
         return COLORS['gray']
-
-
-classes = (RPRSocketColor, RPRSocketFloat, RPRSocketWeight, RPRSocketWeightSoft,
-           RPRSocketMin1Max1, RPRSocketLink, RPRSocketIOR, RPRSocket_Float_Min0_SoftMax10,
-           RPRSocketAngle360)

@@ -88,10 +88,14 @@ class Material(Object):
         self.context = context
         self.parameters = {}
         self.material_nodes = {}
+        self.name = None    # this is only for consistency with pyrpr.MaterialNode and could help with debugging
         CreateMaterial(self.context, material_type, self)
 
     def __del__(self):
         MaterialDelete(self.context, self)
+
+    def set_name(self, name):
+        self.name = name
 
     def commit(self):
         MaterialCommit(self.context, self)
@@ -99,6 +103,8 @@ class Material(Object):
     def set_input(self, name, value):
         if value is None or isinstance(value, pyrpr.MaterialNode):
             MaterialSetParameterN(self.context, self, name, value)
+        elif isinstance(value, Material):
+            MaterialSetParameterUber(self.context, self, name, value)
         elif isinstance(value, bool):
             MaterialSetParameterU(self.context, self, name, pyrpr.TRUE if value else pyrpr.FALSE)
         elif isinstance(value, int):
