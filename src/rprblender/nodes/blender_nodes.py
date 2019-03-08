@@ -944,7 +944,7 @@ class ShaderNodeBlackbody(NodeParser):
             math1 = self.sub_node_value(link, 1000)
             math2 = self.div_node_value(math1, 100)
 
-            temperature = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
+            temperature = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             temperature.set_input('data', rpr_buffer)
             temperature.set_input('uv', math2)
             return temperature
@@ -970,7 +970,7 @@ class ShaderNodeValToRGB(NodeParser):
             rpr_buffer = self.rpr_context.create_buffer(arr, pyrpr.BUFFER_ELEMENT_TYPE_FLOAT32)
 
             uv = self.mul_node_value(link, float(buffer_size))
-            read = self.rpr_context.create_material_node(self.node_key, pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
+            read = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             read.set_input('data', rpr_buffer)
             read.set_input('uv', uv)
             if self.socket_out.name == 'Alpha':
