@@ -22,7 +22,7 @@ if "Windows" == platform.system():
     bin_folder = 'Win/bin'
 elif "Linux" == platform.system():
     assert 'Ubuntu' in platform.version()
-    assert '16.04' in platform.version()
+    # assert '16.04' in platform.version()
     bin_folder = 'Linux/lib'
 elif "Darwin" == platform.system():
     bin_folder = 'Mac/lib'

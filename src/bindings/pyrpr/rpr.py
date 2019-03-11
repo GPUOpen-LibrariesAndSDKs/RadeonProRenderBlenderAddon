@@ -36,7 +36,7 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
                    str(rprsdk_path / "../RadeonProRender-GLTF/Win/lib")]
     elif "Linux" == platform.system():
         assert 'Ubuntu' in platform.version()
-        assert '16.04' in platform.version()
+        # assert '16.04' in platform.version()
         inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
                    str(rprsdk_path / "Linux-Ubuntu/inc"),
                    str(rprsdk_path / "../RadeonProImageProcessing/Linux/Ubuntu/include"),
