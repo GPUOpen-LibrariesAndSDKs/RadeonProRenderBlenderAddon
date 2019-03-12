@@ -191,6 +191,9 @@ class NodeParser(metaclass=ABCMeta):
     def div_node_value(self, val1, val2):
         return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DIV)
 
+    def max_node_value(self, val1, val2):
+        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX)
+
     def min_node_value(self, val1, val2):
         return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN)
 

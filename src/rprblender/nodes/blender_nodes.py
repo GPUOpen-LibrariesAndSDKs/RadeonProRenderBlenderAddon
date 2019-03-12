@@ -5,6 +5,7 @@ All parser classes should:
 """
 
 import math
+import numpy as np
 
 from .node_parser import NodeParser, RuleNodeParser
 import pyrpr
@@ -14,8 +15,7 @@ from rprblender.export import image
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 
 from rprblender.utils import logging
-log = logging.Log(tag='material')
-import numpy as np
+log = logging.Log(tag='export.rpr_nodes')
 
 
 ''' TODO NODES:
