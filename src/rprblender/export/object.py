@@ -32,7 +32,7 @@ def sync(rpr_context, obj: bpy.types.Object, obj_instance, motion_blur_info):
         camera.sync(rpr_context, obj)
         sync_motion_blur(rpr_context, obj, motion_blur_info)
     else:
-        log.warn("Not supported object to sync", obj)
+        log.warn("Object to sync not supported", obj, obj.type)
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):

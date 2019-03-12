@@ -273,10 +273,17 @@ class ShaderNodeEmission(RuleNodeParser):
                 "color1": "inputs.Strength",
             }
         },
-        "Emission": {
+        "emission_node": {
             "type": pyrpr.MATERIAL_NODE_EMISSIVE,
             "params": {
                 "color": "nodes.emission_color"
+            }
+        },
+        "Emission": {
+            "type": pyrpr.MATERIAL_NODE_TWOSIDED,
+            "params": {
+                "frontface": "nodes.emission_node",
+                "backface": "nodes.emission_node"
             }
         }
     }
@@ -685,7 +692,9 @@ class ShaderNodeLightFalloff(NodeParser):
     ''' we don't actually do light falloff in RPR.  
         So we're mainly going to pass through "strength" '''
     def export(self):
-        log.warn("Light Falloff node is not supported, only strength will be taken", self.node, self.material)
+        # This shader is used in materials preview, no need to spam log.warn() here. Changing to log.debug()
+        log.debug("Light Falloff node is not supported, only strength will be taken", self.node, self.material)
+
         return self.get_input_default('Strength')
 
 
@@ -1014,19 +1023,19 @@ class ShaderNodeRGBCurve(NodeParser):
             # apply mapping to each channel
             select_r = self.get_x_node_value(in_col)
             mul_r = self.mul_node_value(select_r, float(buffer_size))
-            map_r = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
+            map_r = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             map_r.set_input('data', rpr_buffer)
             map_r.set_input('uv', mul_r)
 
             select_g = self.get_y_node_value(in_col)
             mul_g = self.mul_node_value(select_g, float(buffer_size))
-            map_g = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
+            map_g = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             map_g.set_input('data', rpr_buffer)
             map_g.set_input('uv', mul_g)
 
             select_b = self.get_y_node_value(in_col)
             mul_b = self.mul_node_value(select_b, float(buffer_size))
-            map_b = self.rpr_context.create_material_node(None, pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
+            map_b = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             map_b.set_input('data', rpr_buffer)
             map_b.set_input('uv', mul_b)
 
