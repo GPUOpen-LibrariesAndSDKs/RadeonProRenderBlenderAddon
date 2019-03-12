@@ -202,22 +202,8 @@ class RPR_RenderProperties(RPR_Properties):
         for obj in selected:
             if obj.type != 'CAMERA':
                 continue
-            obj.rpr.motion_blur = True
-            obj.rpr.motion_blur_exposure = self.motion_blur_exposure
-
-    def update_motion_blur_scale(self, context):
-        if self.motion_blur_scale_apply == 'SELECTED':
-            selected = context.selected_editable_objects
-        else:
-            selected = context.editable_objects
-
-        for obj in selected:
-            if obj.type not in ('MESH', 'CURVE', 'SURFACE', 'FONT', 'META', 'LIGHT'):
-                continue
-            if obj.type == 'LIGHT' and obj.data.type != 'AREA':
-                continue
-            obj.rpr.motion_blur = True
-            obj.rpr.motion_blur_scale = self.motion_blur_scale
+            obj.data.rpr.motion_blur = True
+            obj.data.rpr.motion_blur_exposure = self.motion_blur_exposure
 
     motion_blur: bpy.props.BoolProperty(
         name="Motion Blur", description="Enable Motion Blur",
@@ -238,21 +224,6 @@ class RPR_RenderProperties(RPR_Properties):
         min=0.0,
         default=1.0,
         update=update_motion_blur_exposure
-    )
-
-    motion_blur_scale_apply: bpy.props.EnumProperty(
-        name="Apply scale",
-        items=(('SELECTED', "Selected Object(s)", "Selected Object(s) (self explanatory)"),
-               ('ALL', "Entire scene", "Entire scene (autoselects all objects)")),
-        description="Apply scale to object(s)",
-        default='SELECTED'
-    )
-
-    motion_blur_scale: bpy.props.FloatProperty(
-        name="Scale", description="Motion Blur Scale for object(s)",
-        min=0.0,
-        default=1.0,
-        update=update_motion_blur_scale
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):

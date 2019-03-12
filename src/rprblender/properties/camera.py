@@ -21,7 +21,7 @@ class RPR_CameraProperties(RPR_Properties):
     )
 
     motion_blur_exposure: FloatProperty(
-        name="Motion Blur Exposure",
+        name="Exposure",
         description="Motion Blur Exposure",
         min=0,
         default=1.0,

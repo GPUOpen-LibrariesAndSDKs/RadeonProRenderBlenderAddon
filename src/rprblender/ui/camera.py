@@ -2,7 +2,7 @@ from . import RPR_Panel
 
 
 class RPR_CAMERA_PT_motion_blur(RPR_Panel):
-    bl_label = "RPR Motion Blur"
+    bl_label = "Motion Blur"
     bl_context = 'data'
 
     @classmethod

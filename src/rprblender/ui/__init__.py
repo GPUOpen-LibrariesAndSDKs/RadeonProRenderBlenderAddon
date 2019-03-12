@@ -122,7 +122,6 @@ register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_debug,
 
     object.RPR_OBJECT_PT_object,
-    object.RPR_OBJECT_PT_motion_blur,
     object.RPR_OBJECT_PT_subdivision,
 
     light.RPR_LIGHT_PT_light,
