@@ -211,10 +211,6 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         col.prop(context.scene.rpr, 'motion_blur_exposure_apply')
         col.prop(context.scene.rpr, 'motion_blur_exposure')
 
-        col.separator()
-        col.prop(context.scene.rpr, 'motion_blur_scale_apply')
-        col.prop(context.scene.rpr, 'motion_blur_scale')
-
 
 class RPR_RENDER_PT_help_about(RPR_Panel):
     ''' Help/About UI panel '''

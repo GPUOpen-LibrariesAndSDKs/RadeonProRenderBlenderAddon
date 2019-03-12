@@ -62,6 +62,10 @@ class RPR_LIGHT_PT_light(RPR_Panel):
             row.enabled = rpr_light.visible
             row.prop(rpr_light, 'cast_shadows')
 
+            row = col.row()
+            row.active = context.scene.rpr.motion_blur
+            row.prop(context.object.rpr, "motion_blur")
+
         main_col.separator()
         main_col.row(align=True).prop(light.rpr, 'group')
 

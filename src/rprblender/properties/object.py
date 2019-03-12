@@ -46,18 +46,6 @@ class RPR_ObjectProperites(RPR_Properties):
         description="Enable Motion Blur",
         default=True,
     )
-    motion_blur_scale: FloatProperty(
-        name="Scale",
-        description="Motion Blur Scale",
-        default=1.0,
-        min=0.0,
-    )
-    motion_blur_exposure: bpy.props.FloatProperty(
-        name="Exposure",
-        description="Motion Blur Exposure for camera",
-        min=0.0,
-        default=1.0,
-    )
 
     # Subdivision
     subdivision: BoolProperty(

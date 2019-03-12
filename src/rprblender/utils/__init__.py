@@ -32,19 +32,18 @@ class MotionBlurInfo:
     angular_momentum: tuple = (0.0, 0.0, 0.0, 0.0)
     momentum_scale: tuple = (1.0, 0.0, 0.0)
 
-    def __init__(self, previous_frame, current_frame, scale):
+    def __init__(self, previous_frame, current_frame):
         """Calculate object velocities for two frames from corresponding world matrices"""
         mul_diff = previous_frame @ current_frame.inverted()
         transform_quat = mul_diff.to_quaternion()
 
         scale_vec = mul_diff.to_scale()
 
-        translation = (previous_frame - current_frame).to_translation()
+        velocity = (previous_frame - current_frame).to_translation()
 
-        velocity = translation * scale
         momentum_axis = transform_quat.axis
-        momentum_angle = transform_quat.angle * scale
-        momentum_scale = (scale_vec - mathutils.Vector((1, 1, 1))) * scale
+        momentum_angle = transform_quat.angle
+        momentum_scale = (scale_vec - mathutils.Vector((1, 1, 1)))
         if momentum_axis.length < 0.5:
             momentum_axis.x, momentum_axis.y, momentum_axis.z, momentum_angle = 1.0, 0.0, 0.0, 0.0
 

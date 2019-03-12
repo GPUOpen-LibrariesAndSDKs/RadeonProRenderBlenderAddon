@@ -206,7 +206,6 @@ class RenderEngine(Engine):
 
             obj_key = key(obj)
             next_frame_matrices[obj_key] = obj.matrix_world.copy()
-            scales[obj_key] = float(obj.object.rpr.motion_blur_scale)
 
         for obj_key, prev in prev_frame_matrices.items():
             this = next_frame_matrices.get(obj_key, None)
@@ -217,7 +216,7 @@ class RenderEngine(Engine):
                 continue
 
             # calculate velocities
-            info = utils.MotionBlurInfo(prev, this, scales[obj_key])
+            info = utils.MotionBlurInfo(prev, this)
 
             motion_blur_info[obj_key] = info
 
@@ -276,7 +275,7 @@ class RenderEngine(Engine):
         rpr_camera = self.rpr_context.objects[camera_key]
 
         if scene.camera.rpr.motion_blur:
-            rpr_camera.set_exposure(scene.camera.rpr.motion_blur_exposure)
+            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
 
             if camera_key in frame_motion_blur_info:
                 camera_motion_blur = frame_motion_blur_info[camera_key]
