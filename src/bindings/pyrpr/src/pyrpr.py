@@ -457,6 +457,8 @@ class Shape(Object):
     def set_material(self, material):
         if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
             self.materials[0].detach(self)
+            ShapeSetMaterial(self, None)    # additional cleanup should be executed after detaching pyrprx.Material
+                                            # otherwise it could crash after resetting emissive shader
 
         if material is None or isinstance(material, MaterialNode):
             ShapeSetMaterial(self, material)
