@@ -261,6 +261,18 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
+    def __init__(self, rpr_context, material, node, socket_out):
+        super().__init__(rpr_context, material, node, socket_out)
+
+        # internal cache of parsed node rules
+        self._parsed_node_rules = {}
+
+    def _export_node_rule_by_key(self, node_rule_key):
+        if node_rule_key not in self._parsed_node_rules:
+            self._parsed_node_rules[node_rule_key] = self._export_node_rule(self.nodes[node_rule_key])
+
+        return self._parsed_node_rules[node_rule_key]
+
     def _export_node_rule(self, node_rule):
         """ Recursively exports current node_rule """
 
@@ -276,7 +288,7 @@ class RuleNodeParser(NodeParser):
 
             if val.startswith('nodes.'):
                 node_rule_key = val[6:]
-                inputs[key] = self._export_node_rule(self.nodes[node_rule_key])
+                inputs[key] = self._export_node_rule_by_key(node_rule_key)
                 continue
 
             if val.startswith('inputs.'):
@@ -337,12 +349,11 @@ class RuleNodeParser(NodeParser):
     def export(self):
         """ Implements export functionality by rules """
 
-        node_rule = self.nodes.get(self.socket_out.name, None)
-        if not node_rule:
+        if self.socket_out.name not in self.nodes:
             log.warn("Ignoring unsupported output socket", self.socket_out, self.node, self.material)
             return None
 
-        return self._export_node_rule(node_rule)
+        return self._export_node_rule_by_key(self.socket_out.name)
 
 
 def get_node_parser_class(node_idname: str):
