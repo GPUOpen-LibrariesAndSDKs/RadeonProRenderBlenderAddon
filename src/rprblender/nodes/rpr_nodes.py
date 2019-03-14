@@ -118,7 +118,7 @@ class RPRShaderNodeUber(RPRShaderNode):
         'Emission Color': ('rpr_socket_color', (1.0, 1.0, 1.0, 1.0), "self.enable_emission"),
     
         'Subsurface Weight': ('rpr_socket_weight_soft', 1.0, "self.enable_sss"),
-        'Subsurface Color': ('rpr_socket_color', (0.436, 0.227, 0.131, 1.0), "self.enable_sss and self.sss_use_diffuse_color"),
+        'Subsurface Color': ('rpr_socket_color', (0.436, 0.227, 0.131, 1.0), "self.enable_sss and not self.sss_use_diffuse_color"),
         'Subsurface Radius': ('NodeSocketVector', (3.67, 1.37, 0.68), "self.enable_sss"),
         'Subsurface Direction': ('rpr_socket_float_min1_max1', 0.0, "self.enable_sss"),
         
