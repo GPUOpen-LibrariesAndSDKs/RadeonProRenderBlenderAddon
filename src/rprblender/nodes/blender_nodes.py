@@ -837,8 +837,8 @@ class ShaderNodeMath(NodeParser):
             math_node.set_input('color2', floor)
 
         if self.node.use_clamp:
-            min_node = self.min_node(1.0, math_node)
-            return self.max_node(0.0, min_node)
+            min_node = self.min_node_value(1.0, math_node)
+            return self.max_node_value(0.0, min_node)
         else:
             return math_node
 
@@ -1091,10 +1091,14 @@ class ShaderNodeMapping(NodeParser):
 
         # apply scale
         scale = list(self.node.scale)
-        if not (math.isclose(scale[0], 1.0) and math.isclose(scale[1], 1.0)):
-            scale[0] = 1 / scale[0] if not math.isclose(scale[0], 0.0) else 0.0
-            scale[1] = (1 / scale[1]) if not math.isclose(scale[0], 0.0) else 0.0
+        if not (math.isclose(scale[0], 1.0) and math.isclose(scale[1], 1.0) and not (math.isclose(scale[2], 1.0))):
             mapping = self.mul_node_value(mapping, tuple(scale))
+
+        if self.node.use_min:
+            mapping = self.min_node_value(mapping, tuple(self.node.min))
+
+        if self.node.use_max:
+            mapping = self.max_node_value(mapping, tuple(self.node.min))
 
         return mapping
 
