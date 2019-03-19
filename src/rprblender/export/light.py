@@ -149,22 +149,26 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     light = obj.data
     log("sync_update", light, obj, is_updated_geometry, is_updated_transform)
 
-    res = False
 
-    rpr_light = rpr_context.objects.get(key(obj), None)
-    if rpr_light:
-        if is_updated_geometry:
-            # TODO: recreate light
-            pass
+    light_key = key(obj)
+    rpr_light = rpr_context.objects.get(light_key, None)
 
-        if is_updated_transform:
-            rpr_light.set_transform(get_transform(obj))
-            res = True
-
-    else:
+    if not rpr_light:
+        # no such light => creating light
         sync(rpr_context, obj)
-        res = True
+        return True
 
-    return res
+    if is_updated_geometry:
+        # light exists, but its settigns were changed => recreating light
+        rpr_context.remove_object(light_key)
+        sync(rpr_context, obj)
+        # TODO: Better to set only changed parameters without recreating.
+        #  But this idea has to be applied to other objects also with refactoring.
+        return True
 
+    if is_updated_transform:
+        # updating only light transform
+        rpr_light.set_transform(get_transform(obj))
+        return True
 
+    return False

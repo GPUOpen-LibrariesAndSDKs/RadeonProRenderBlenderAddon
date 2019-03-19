@@ -75,10 +75,10 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
 
     build_dir = Path(__file__).parent / '.build'
-    src_dir = Path(__file__).parent
 
     if not '--no-compile' in sys.argv:
         ffi.compile(tmpdir=str(build_dir), verbose=True)
+
     import _cffi_backend
     import shutil
     import subprocess
@@ -87,8 +87,6 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         cmd = [sys.executable, output_name_make, str(api_desc_fpath)]
         print(cmd)
         subprocess.check_call(cmd, stdout=pyrprwrap)
-
-    import _cffi_backend
 
     shutil.copy(_cffi_backend.__file__, str(build_dir))
 
