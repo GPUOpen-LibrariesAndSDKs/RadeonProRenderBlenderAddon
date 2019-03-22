@@ -8,6 +8,7 @@ from .engine import Engine
 from rprblender.properties import SyncError
 from rprblender.export import world, camera, object, instance
 from rprblender.utils import render_stamp
+import pyrpr
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -55,36 +56,58 @@ class RenderEngine(Engine):
             time.sleep(config.render_update_result_interval)
 
     def _do_render(self):
+        ''' This is the main render loop.  
+            Renders can be limited by max samples AND time.  Stop at whatever comes first
+            A render will be N number of calls to rpr_context.render() 
+            Where max_samples = N * samples_per_update 
+            up to max time.  Note max samples is always > 0 '''
+
         self.finish_render = False
         try:
             self.current_iteration = 0
             time_begin = time.perf_counter()
+
+            is_initial_render = True
+
             while True:
                 if self.rpr_engine.test_break():
                     break
 
                 self.current_render_time = time.perf_counter() - time_begin
-                if self.render_iterations > 0:
-                    update_samples = min(self.render_update_samples, self.render_iterations - self.current_iteration)
-                    self.notify_status(self.current_iteration / self.render_iterations,
-                                       "Render Time: %.1f sec | Iteration: %d/%d" %
-                                       (self.current_render_time, self.current_iteration, self.render_iterations))
-                else:
-                    update_samples = self.render_update_samples
-                    self.notify_status(self.current_render_time / self.render_time,
-                                       "Render Time: %.1f/%d sec | Iteration: %d" %
-                                       (self.current_render_time, self.render_time, self.current_iteration))
+                
+                # if less that update_samples left, use the remainder
+                update_samples = min(self.render_update_samples, self.render_iterations - self.current_iteration)
+                
+                # if initial render, use min_samples unless min is > max
+                if is_initial_render:
+                    update_samples = min(self.render_iterations, self.min_samples)
+                    is_initial_render = False
 
+                # we report time/iterations left as fractions if limit enabled
+                render_time_string = "%.1f/%d" % (self.current_render_time, self.render_time) if self.render_time \
+                                        else "%.1f" % self.current_render_time
+                render_iterations_string = "%d/%d" % (self.current_iteration, self.render_iterations)
+
+                # percent done is one of percent iterations or percent time so pick whichever is greater
+                percent_iterations = self.current_iteration / self.render_iterations
+                percent_time = self.current_render_time / self.render_time if self.render_time else 0
+                percent_done = max(percent_iterations, percent_time)
+
+                self.notify_status(percent_done,
+                                       "Render Time: %s sec | Iteration: %s" %
+                                       (render_time_string, render_iterations_string))
                 self.rpr_context.set_parameter('iterations', update_samples)
 
                 self.rpr_context.render()
                 self.render_event.set()
 
                 self.current_iteration += update_samples
-                if self.render_iterations > 0:
-                    if self.current_iteration >= self.render_iterations:
-                        break
-                else:
+                
+                # stop at whichever comes first, max samples or max time if enabled
+                if self.current_iteration >= self.render_iterations:
+                    break
+                
+                if self.render_time:
                     if self.current_render_time >= self.render_time:
                         break
 
@@ -303,16 +326,20 @@ class RenderEngine(Engine):
 
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine)
 
+        if scene.rpr.viewport_limits.noise_threshold > 0.0:
+            # if adaptive is enable turn on aov and settings
+            self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
+            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
+
         self.rpr_context.sync_shadow_catcher()
         view_layer.rpr.denoiser.export_denoiser(self.rpr_context)
 
         self.rpr_context.set_parameter('preview', False)
         scene.rpr.export_ray_depth(self.rpr_context)
 
-        self.render_iterations, self.render_time = \
-            (scene.rpr.limits.iterations, 0) if scene.rpr.limits.type == 'ITERATIONS' else \
-            (0, scene.rpr.limits.seconds)
+        self.render_iterations, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.render_update_samples = scene.rpr.limits.update_samples
+        self.min_samples = scene.rpr.limits.min_samples
 
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
