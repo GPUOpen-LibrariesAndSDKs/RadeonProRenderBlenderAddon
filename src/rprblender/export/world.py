@@ -119,6 +119,8 @@ def sync(rpr_context: RPRContext, world: bpy.types.World):
 
         return env_light
 
+    log("sync", world)
+
     rpr = world.rpr
     if not rpr.enabled:
         return
@@ -180,6 +182,8 @@ def sync_update(rpr_context: RPRContext, world: bpy.types.World, old_settings: W
         env_light.set_intensity_scale(rpr.ibl_intensity)
         env_light.set_transform(matrix, False)
         return env_light
+
+    log("sync_update", world)
 
     # environment lightning enabled/disabled
     rpr = world.rpr

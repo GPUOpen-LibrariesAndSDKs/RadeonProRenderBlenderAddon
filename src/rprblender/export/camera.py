@@ -5,7 +5,7 @@ import bpy
 import pyrpr
 
 from rprblender.engine.context import RPRContext
-from . import key, get_transform
+from . import object
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.camera')
@@ -160,8 +160,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     camera = obj.data
     log("sync", camera)
 
-    rpr_camera = rpr_context.create_camera(key(obj))
+    rpr_camera = rpr_context.create_camera(object.key(obj))
     rpr_camera.set_name(camera.name)
 
-    settings = CameraData.init_from_camera(camera, get_transform(obj), rpr_context.width / rpr_context.height)
+    settings = CameraData.init_from_camera(camera, object.get_transform(obj), rpr_context.width / rpr_context.height)
     settings.export(rpr_camera)

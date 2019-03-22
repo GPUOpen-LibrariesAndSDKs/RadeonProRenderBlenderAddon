@@ -5,8 +5,13 @@ import pyrpr
 import pyrprx
 
 from rprblender.engine.context import RPRContext
+
 from rprblender.utils import logging
 log = logging.Log(tag='export.node')
+
+
+def key(material, node, socket_out):
+    return (material.name, node.name, socket_out.name if socket_out else None)
 
 
 class NodeParser(metaclass=ABCMeta):
@@ -24,11 +29,6 @@ class NodeParser(metaclass=ABCMeta):
 
     # INTERNAL FUNCTIONS
 
-    def _get_node_key(self, node, socket_out):
-        """ Returns key for blender node with output socket """
-
-        return (self.material.name, node.name, socket_out.name if socket_out else None)
-
     def _export_node(self, node, socket_out):
         """
         Exports node with output socket.
@@ -37,7 +37,7 @@ class NodeParser(metaclass=ABCMeta):
         """
 
         # check if such node is already was parsed
-        rpr_node = self.rpr_context.material_nodes.get(self._get_node_key(node, socket_out), None)
+        rpr_node = self.rpr_context.material_nodes.get(key(self.material, node, socket_out), None)
         if rpr_node:
             return rpr_node
 
@@ -126,7 +126,7 @@ class NodeParser(metaclass=ABCMeta):
         rpr_node = self.export()
         
         if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
-            node_key = self._get_node_key(self.node, self.socket_out)
+            node_key = key(self.material, self.node, self.socket_out)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
 

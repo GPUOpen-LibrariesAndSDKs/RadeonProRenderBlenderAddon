@@ -2,10 +2,13 @@ import bpy
 
 from rprblender.engine.context import RPRContext
 from rprblender.nodes.blender_nodes import ShaderNodeOutputMaterial
-from . import key
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.Material')
+
+
+def key(material: bpy.types.Material):
+    return material.name
 
 
 def get_material_output_node(material):

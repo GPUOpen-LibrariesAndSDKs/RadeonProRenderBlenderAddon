@@ -81,3 +81,16 @@ class Engine(metaclass=ABCMeta):
 
         # efficient way to copy all AOV images
         render_passes.foreach_set('rect', np.concatenate(images))
+
+    def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph):
+        """ Iterates evaluated objects in depsgraph """
+        return iter(depsgraph.objects)
+
+    def depsgraph_instances(self, depsgraph: bpy.types.Depsgraph):
+        """ Iterates evaluated instances in depsgraph """
+
+        # Comment from Depsgrapgh.object_instances description:
+        # WARNING: only use this as an iterator, never as a sequence, and do not keep any references to its items
+        for instance in depsgraph.object_instances:
+            if instance.is_instance:
+                yield instance

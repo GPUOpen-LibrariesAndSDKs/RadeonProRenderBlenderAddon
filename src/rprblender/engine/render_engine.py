@@ -6,7 +6,7 @@ from rprblender import config
 from rprblender import utils
 from .engine import Engine
 from rprblender.properties import SyncError
-from rprblender.export import world, camera, object, key
+from rprblender.export import world, camera, object, instance
 from rprblender.utils import render_stamp
 
 from rprblender.utils import logging
@@ -161,14 +161,8 @@ class RenderEngine(Engine):
     @staticmethod
     def is_object_allowed_for_motion_blur(obj: bpy.types.Object) -> bool:
         """Check if object could have motion blur effect: meshes, area lights and cameras can"""
-
-        if not obj.rpr.motion_blur:
-            return False
-        if obj.type not in ['MESH', 'LIGHT', 'CAMERA']:
-            return False
-        if obj.type == 'LIGHT' and obj.data.type != 'AREA':
-            return False
-        return True
+        
+        return obj.rpr.motion_blur and (obj.type == 'MESH' or (obj.type == 'LIGHT' and obj.data.type == 'AREA'))
 
     def collect_motion_blur_info(self, depsgraph):
         """
@@ -184,34 +178,39 @@ class RenderEngine(Engine):
 
         prev_frame_matrices = {}
         next_frame_matrices = {}
-        scales = {}
 
         current_frame = depsgraph.scene.frame_current
         previous_frame = current_frame - depsgraph.scene.frame_step
 
         # collect previous frame matrices at start of the frame
         self.rpr_engine.frame_set(previous_frame, 0.0)
-        for obj in depsgraph.object_instances:
-            if not self.is_object_allowed_for_motion_blur(obj.object):
-                continue
 
-            obj_key = key(obj)
-            prev_frame_matrices[obj_key] = obj.matrix_world.copy()
+        # getting previous frame matrices
+        for obj in self.depsgraph_objects(depsgraph):
+            if self.is_object_allowed_for_motion_blur(obj):
+                prev_frame_matrices[object.key(obj)] = obj.matrix_world.copy()
+
+        for inst in self.depsgraph_instances(depsgraph):
+            if self.is_object_allowed_for_motion_blur(inst.parent):
+                prev_frame_matrices[instance.key(inst)] = inst.matrix_world.copy()
 
         # restore current frame and collect matrices at start of the frame
         self.rpr_engine.frame_set(current_frame, 0.0)
-        for obj in depsgraph.object_instances:
-            if not self.is_object_allowed_for_motion_blur(obj.object):
-                continue
 
-            obj_key = key(obj)
-            next_frame_matrices[obj_key] = obj.matrix_world.copy()
+        # getting current frame matrices
+        for obj in self.depsgraph_objects(depsgraph):
+            if self.is_object_allowed_for_motion_blur(obj):
+                next_frame_matrices[object.key(obj)] = obj.matrix_world.copy()
 
+        for inst in self.depsgraph_instances(depsgraph):
+            if self.is_object_allowed_for_motion_blur(inst.parent):
+                next_frame_matrices[instance.key(inst)] = inst.matrix_world.copy()
+
+        # calculating motion blur info
         for obj_key, prev in prev_frame_matrices.items():
-            this = next_frame_matrices.get(obj_key, None)
-
             # User can animate the object's "motion_blur" flag.
             # Ignore such objects at ON-OFF/OFF-ON frames. Calculate difference for anything else
+            this = next_frame_matrices.get(obj_key, None)
             if not this:
                 continue
 
@@ -248,24 +247,42 @@ class RenderEngine(Engine):
 
         world.sync(self.rpr_context, scene.world)
 
-        # getting visible objects
-        for i, obj_instance in enumerate(depsgraph.object_instances):
-            obj = obj_instance.object
-            self.notify_status(0, "Syncing (%d/%d): %s" % (i, len(depsgraph.object_instances), obj.name))
-            obj_motion_blur_info = None
-            if obj.type != 'CAMERA':
-                obj_motion_blur_info = frame_motion_blur_info.get(key(obj), None)
+        # exporting objects
+        objects_len = len(depsgraph.objects)
+        for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
+            self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
+
+            obj_motion_blur_info = frame_motion_blur_info.get(object.key(obj), None)
 
             try:
-                object.sync(self.rpr_context, obj, obj_instance, motion_blur_info=obj_motion_blur_info)
+                object.sync(self.rpr_context, obj, motion_blur_info=obj_motion_blur_info)
+
             except SyncError as e:
-                log.warn("Skipping to add mesh", e)   # TODO: Error to UI log
+                log.warn("Object syncing error", e)   # TODO: Error to UI log
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
 
-        camera_key = key(scene.camera)
+        # exporting instances
+        instances_len = len(depsgraph.object_instances)
+        for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
+            obj = inst.object
+            self.notify_status(0, "Syncing instance (%d/%d): %s" % (i, instances_len - objects_len, obj.name))
+
+            obj_motion_blur_info = frame_motion_blur_info.get(instance.key(inst), None)
+
+            try:
+                instance.sync(self.rpr_context, inst, motion_blur_info=obj_motion_blur_info)
+
+            except SyncError as e:
+                log.warn("Object syncing error", e)   # TODO: Error to UI log
+
+            if self.rpr_engine.test_break():
+                log.warn("Syncing stopped by user termination")
+                return
+
+        camera_key = object.key(scene.camera)
 
         # it's possible that depsgraph.object_instances doesn't contain camera,
         # in this case we need to sync it separately

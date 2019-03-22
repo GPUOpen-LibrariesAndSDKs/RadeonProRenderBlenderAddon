@@ -2,8 +2,7 @@ import bpy
 
 import pyrpr
 from .engine import Engine
-from rprblender.properties import SyncError
-from rprblender.export import object, key
+from rprblender.export import object
 
 from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
@@ -46,15 +45,11 @@ class PreviewEngine(Engine):
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
 
         # getting visible objects
-        for i, obj_instance in enumerate(depsgraph.object_instances):
-            obj = obj_instance.object
-            try:
-                object.sync(self.rpr_context, obj, obj_instance, motion_blur_info=None)
-            except SyncError as e:
-                log.warn(e, "Skipping")
+        for obj in self.depsgraph_objects(depsgraph):
+            object.sync(self.rpr_context, obj)
 
         self.rpr_context.scene.set_name(scene.name)
-        self.rpr_context.scene.set_camera(self.rpr_context.objects[key(depsgraph.scene.camera)])
+        self.rpr_context.scene.set_camera(self.rpr_context.objects[object.key(depsgraph.scene.camera)])
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 

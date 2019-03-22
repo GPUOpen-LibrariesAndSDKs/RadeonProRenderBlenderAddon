@@ -8,9 +8,8 @@ import mathutils
 
 import pyrpr
 from rprblender.properties import SyncError
-from . import key, get_transform
 from rprblender.engine.context import RPRContext
-from . import material
+from . import object, material
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.mesh')
@@ -154,42 +153,26 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
     return True
 
 
-def sync(rpr_context: RPRContext, obj_instance: [bpy.types.DepsgraphObjectInstance, bpy.types.Object]):
-    """ Creates pyrpr.Shape from bpy.types.Mesh """
-
-    log("sync", obj_instance)
-
-    obj = obj_instance.object if isinstance(obj_instance, bpy.types.DepsgraphObjectInstance) else obj_instance
+def sync(rpr_context: RPRContext, obj: bpy.types.Object):
+    """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
     mesh = obj.data
-    mesh_key = key(mesh)
-    obj_key = key(obj_instance)
+    log("sync", mesh, obj)
 
-    rpr_mesh = rpr_context.meshes.get(mesh_key, None)
-    if rpr_mesh:
-        instance_name = "%s/%s" % (mesh.name, obj.name)
-        log("sync instance", obj, mesh, instance_name)
+    data = MeshData.init_from_mesh(mesh)
+    rpr_shape = rpr_context.create_mesh(
+        object.key(obj),
+        data.vertices, data.normals, data.uvs,
+        data.vertex_indices, data.normal_indices, data.uv_indices,
+        data.num_face_vertices
+    )
 
-        rpr_shape = rpr_context.create_instance(obj_key, rpr_mesh)
-        rpr_shape.set_name(instance_name)
-
-    else:
-        log("sync mesh", mesh)
-        data = MeshData.init_from_mesh(mesh)
-        rpr_shape = rpr_context.create_mesh(
-            obj_key, mesh_key,
-            data.vertices, data.normals, data.uvs,
-            data.vertex_indices, data.normal_indices, data.uv_indices,
-            data.num_face_vertices
-        )
-
-        assign_materials(rpr_context, rpr_shape, obj)
+    assign_materials(rpr_context, rpr_shape, obj)
 
     rpr_context.scene.attach(rpr_shape)
-    rpr_shape.set_transform(get_transform(obj_instance))
+    rpr_shape.set_transform(object.get_transform(obj))
     obj.rpr.export_visibility(rpr_shape)
     obj.rpr.export_subdivision(rpr_shape)
-
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
@@ -197,7 +180,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     mesh = obj.data
     log("Updating mesh: %s" % mesh.name)
 
-    obj_key = key(obj)
+    obj_key = object.key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
     if rpr_shape:
         if is_updated_geometry:
@@ -206,7 +189,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             return True
 
         if is_updated_transform:
-            rpr_shape.set_transform(get_transform(obj))
+            rpr_shape.set_transform(object.get_transform(obj))
             return True
 
         return assign_materials(rpr_context, rpr_shape, obj)

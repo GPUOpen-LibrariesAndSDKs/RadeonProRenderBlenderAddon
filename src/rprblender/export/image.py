@@ -2,10 +2,12 @@ import bpy
 import numpy as np
 import os
 
-from . import key
-
 from rprblender.utils import logging
 log = logging.Log(tag='export.image')
+
+
+def key(image: bpy.types.Image):
+    return image.name
 
 
 def sync(rpr_context, image: bpy.types.Image):
@@ -15,6 +17,8 @@ def sync(rpr_context, image: bpy.types.Image):
 
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
+
+    log("sync", image)
 
     # Load texture file if provided, it's about 3-5 times faster than loading Blender pixels
     filepath = image.filepath_from_user()

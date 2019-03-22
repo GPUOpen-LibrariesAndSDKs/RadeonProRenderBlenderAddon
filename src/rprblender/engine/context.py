@@ -19,7 +19,6 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
-        self.meshes = {}
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
@@ -403,7 +402,7 @@ class RPRContext:
         return light
 
     def create_mesh(
-            self, key, mesh_key,
+            self, key,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
@@ -414,7 +413,6 @@ class RPRContext:
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
         )
-        self.meshes[mesh_key] = mesh
         self.objects[key] = mesh
         return mesh
 
@@ -464,28 +462,16 @@ class RPRContext:
         return True
 
     def remove_object(self, key):
-        def get_mesh_key(mesh):
-            for key, m in self.meshes.items():
-                if m == mesh:
-                    return key
-
-            raise KeyError("No such mesh", mesh)
-
         obj = self.objects.pop(key)
-        self.scene.detach(obj)
 
         if isinstance(obj, pyrpr.Mesh):
-            # TODO: This is temporary decision how to remove meshes. It has to be improved.
+            # removing and detaching related instances
+            instance_keys = tuple(k for k in self.objects.keys() if isinstance(k, tuple) and k[0] == key)
+            for k in instance_keys:
+                instance = self.objects.pop(k)
+                self.scene.detach(instance)
 
-            # check if mesh is not used in other instances then delete it also
-            used = False
-            for o in self.objects.values():
-                if isinstance(o, pyrpr.Instance) and o.mesh == obj:
-                    used = True
-                    break
-
-            if not used:
-                del self.meshes[get_mesh_key(obj)]
+        self.scene.detach(obj)
 
     def remove_image(self, key):
         del self.images[key]
