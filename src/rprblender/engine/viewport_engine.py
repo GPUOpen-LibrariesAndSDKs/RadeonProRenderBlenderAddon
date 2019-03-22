@@ -7,7 +7,7 @@ from gpu_extras.presets import draw_texture_2d
 import pyrpr
 from .engine import Engine
 from rprblender.properties import SyncError
-from rprblender.export import camera, material, world, object, key
+from rprblender.export import camera, material, world, object, instance
 from rprblender.utils import gl
 from rprblender import config
 
@@ -155,16 +155,24 @@ class ViewportEngine(Engine):
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        # getting visible objects
-        for obj_instance in depsgraph.object_instances:
-            obj = obj_instance.object
+        # exporting objects
+        for obj in self.depsgraph_objects(depsgraph):
             if obj.type == 'CAMERA':
                 continue
 
             try:
-                object.sync(self.rpr_context, obj, obj_instance, motion_blur_info=None)
+                object.sync(self.rpr_context, obj)
+
             except SyncError as e:
-                log.warn(e, "Skipping")
+                log.warn("Object syncing error", e)
+
+        # exporting instances
+        for inst in self.depsgraph_instances(depsgraph):
+            try:
+                instance.sync(self.rpr_context, inst)
+
+            except SyncError as e:
+                log.warn("Object syncing error", e)
 
         if not self.rpr_context.gl_interop:
             self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
@@ -223,7 +231,7 @@ class ViewportEngine(Engine):
 
                 if isinstance(obj, bpy.types.Collection):
                     # Here we need only remove deleted objects. Additional objects should be already added before
-                    is_updated |= self.remove_deleted_objects(depsgraph.object_instances)
+                    is_updated |= self.remove_deleted_objects(depsgraph)
                     continue
 
                 # TODO: sync_update for other object types
@@ -263,16 +271,18 @@ class ViewportEngine(Engine):
 
         draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
 
-    def remove_deleted_objects(self, obj_instances):
-
-        keys = set(key(obj_instance) for obj_instance in obj_instances)
+    def remove_deleted_objects(self, depsgrapgh):
+        keys = set.union(
+            set(object.key(obj) for obj in self.depsgraph_objects(depsgrapgh)),
+            set(instance.key(obj) for obj in self.depsgraph_instances(depsgrapgh))
+        )
 
         res = False
         for obj_key in tuple(self.rpr_context.objects.keys()):
             if obj_key in world.ENVIRONMENT_LIGHTS_NAMES:
                 continue
 
-            if obj_key not in keys:
+            if obj_key not in keys and obj_key in self.rpr_context.objects:
                 self.rpr_context.remove_object(obj_key)
                 res = True
 

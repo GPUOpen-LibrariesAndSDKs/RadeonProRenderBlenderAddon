@@ -1044,7 +1044,7 @@ class ShaderNodeRGBCurve(NodeParser):
         else:
             # just eval value
             in_col = self.get_input_default('Color')
-            out_col = (self.node.mapping.curves[i].evaluate(in_col[i]) for i in range(4))
+            out_col = tuple(self.node.mapping.curves[i].evaluate(in_col[i]) for i in range(4))
             
         return self.blend_node_value(in_col, out_col, fac)
 

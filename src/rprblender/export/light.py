@@ -4,10 +4,9 @@ import math
 import bpy
 
 from rprblender.engine.context import RPRContext
-from . import key, get_transform
 from rprblender.properties import SyncError
 from rprblender.properties.light import MAX_LUMINOUS_EFFICACY
-from . import mesh, image
+from . import mesh, image, object
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 
 from rprblender.utils import logging
@@ -86,7 +85,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     log("sync", light, obj)
 
     area = 0.0
-    light_key = key(obj)
+    light_key = object.key(obj)
 
     if light.type == 'POINT':
         if light.rpr.ies_file_name:
@@ -137,7 +136,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
 
     power = get_radiant_power(light, area)
     rpr_light.set_radiant_power(*power)
-    rpr_light.set_transform(get_transform(obj))
+    rpr_light.set_transform(object.get_transform(obj))
     rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
 
     rpr_context.scene.attach(rpr_light)
@@ -150,7 +149,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     log("sync_update", light, obj, is_updated_geometry, is_updated_transform)
 
 
-    light_key = key(obj)
+    light_key = object.key(obj)
     rpr_light = rpr_context.objects.get(light_key, None)
 
     if not rpr_light:
@@ -168,7 +167,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
     if is_updated_transform:
         # updating only light transform
-        rpr_light.set_transform(get_transform(obj))
+        rpr_light.set_transform(object.get_transform(obj))
         return True
 
     return False

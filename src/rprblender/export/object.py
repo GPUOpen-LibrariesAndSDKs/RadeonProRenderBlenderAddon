@@ -1,8 +1,17 @@
+import numpy as np
 import bpy
 
-from . import mesh, light, camera, key
+from . import mesh, light, camera
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
+
+
+def key(obj: bpy.types.Object):
+    return obj.name
+
+
+def get_transform(obj: bpy.types.Object):
+    return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
 def sync_motion_blur(rpr_context, obj: bpy.types.Object, motion_blur_info):
@@ -17,13 +26,13 @@ def sync_motion_blur(rpr_context, obj: bpy.types.Object, motion_blur_info):
     rpr_obj.set_scale_motion(*motion_blur_info.momentum_scale)
 
 
-def sync(rpr_context, obj: bpy.types.Object, obj_instance, motion_blur_info):
+def sync(rpr_context, obj: bpy.types.Object, motion_blur_info=None):
     """ sync the object and any data attached """
 
-    log("Syncing object", obj)
+    log("sync", obj)
 
     if obj.type == 'MESH':
-        mesh.sync(rpr_context, obj_instance)
+        mesh.sync(rpr_context, obj)
         sync_motion_blur(rpr_context, obj, motion_blur_info)
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
