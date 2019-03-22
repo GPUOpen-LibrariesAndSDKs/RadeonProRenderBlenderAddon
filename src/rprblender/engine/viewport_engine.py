@@ -269,7 +269,7 @@ class ViewportEngine(Engine):
 
         res = False
         for obj_key in tuple(self.rpr_context.objects.keys()):
-            if obj_key == world.IBL_LIGHT_NAME:
+            if obj_key in world.ENVIRONMENT_LIGHTS_NAMES:
                 continue
 
             if obj_key not in keys:

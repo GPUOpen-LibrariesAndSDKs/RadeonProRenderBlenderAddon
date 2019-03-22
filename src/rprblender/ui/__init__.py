@@ -134,6 +134,7 @@ register, unregister = bpy.utils.register_classes_factory([
     camera.RPR_CAMERA_PT_motion_blur,
 
     world.RPR_WORLD_PT_environment,
+    world.RPR_WORLD_PT_overrides,
 
     view_layer.RPR_VIEWLAYER_PT_aovs,
     view_layer.RPR_RENDER_PT_denoiser,
