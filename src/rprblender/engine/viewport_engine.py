@@ -23,6 +23,7 @@ class ViewportEngine(Engine):
         self.is_synced = False
         self.render_iterations = 0
         self.render_time = 0
+        self.noise_threshold = 0.0
         self.gl_texture: gl.GLTexture = None
 
         self.camera_settings = {}
@@ -146,6 +147,12 @@ class ViewportEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
+        self.noise_threshold = scene.rpr.viewport_limits.noise_threshold
+        if self.noise_threshold > 0.0:
+            # if adaptive is enable turn on aov and settings
+            self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
+            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
+
         self.world_settings = world.WorldData(scene.world)
         world.sync(self.rpr_context, scene.world)
 
@@ -183,9 +190,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter('iterations', 1)
         scene.rpr.export_ray_depth(self.rpr_context)
 
-        self.render_iterations, self.render_time = \
-            (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \
-            (0, scene.rpr.viewport_limits.seconds)
+        self.render_iterations, self.render_time = (scene.rpr.viewport_limits.max_samples, 0) 
 
         self.is_synced = True
         log('Finish sync')
@@ -289,15 +294,21 @@ class ViewportEngine(Engine):
         return res
 
     def update_render(self, scene: bpy.types.Scene):
-        res = scene.rpr.export_ray_depth(self.rpr_context)
+        ''' update settings if changed while live returns True if restart needed'''
+        restart = scene.rpr.export_ray_depth(self.rpr_context)
 
-        render_iterations, render_time = \
-            (scene.rpr.viewport_limits.iterations, 0) if scene.rpr.viewport_limits.type == 'ITERATIONS' else \
-            (0, scene.rpr.viewport_limits.seconds)
+        render_iterations, render_time = (scene.rpr.viewport_limits.max_samples, 0)
 
         if self.render_iterations != render_iterations or self.render_time != render_time:
             self.render_iterations = render_iterations
             self.render_time = render_time
-            res = True
+            restart = True
 
-        return res
+        noise_threshold = scene.rpr.viewport_limits.noise_threshold
+        if noise_threshold != self.noise_threshold:
+            # only update settings if changed
+            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
+            self.noise_threshold = noise_threshold
+            restart = True
+
+        return restart

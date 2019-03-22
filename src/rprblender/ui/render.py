@@ -78,7 +78,7 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
 
 
 class RPR_RENDER_PT_limits(RPR_Panel):
-    bl_label = "Render Limits"
+    bl_label = "Sampling"
     bl_context = 'render'
 
     def draw(self, context):
@@ -87,18 +87,16 @@ class RPR_RENDER_PT_limits(RPR_Panel):
 
         limits = context.scene.rpr.limits
 
-        col = self.layout.column()
-        col.prop(limits, 'type')
-        col1 = col.column(align=True)
-        if limits.type == 'ITERATIONS':
-            col1.prop(limits, 'iterations')
-        else:
-            col.prop(limits, 'seconds')
-        col1.prop(limits, 'update_samples')
+        col = self.layout.column(align=True)
+        col.prop(limits, 'min_samples')
+        col.prop(limits, 'max_samples')
+        col.prop(limits, 'noise_threshold', slider = True)
+        col.prop(limits, 'seconds')
+        col.prop(limits, 'update_samples')
 
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
-    bl_label = "Viewport & Preview Render Limits"
+    bl_label = "Viewport & Preview Sampling"
     bl_parent_id = 'RPR_RENDER_PT_limits'
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -109,18 +107,15 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         limits = context.scene.rpr.viewport_limits
 
         col = self.layout.column()
-        col.prop(limits, 'type')
-        if limits.type == 'ITERATIONS':
-            col.prop(limits, 'iterations')
-        else:
-            col.prop(limits, 'seconds')
-
+        col.prop(limits, 'max_samples')
+        col.prop(limits, 'noise_threshold', slider = True)
+        
         col.separator()
         col.prop(limits, 'thumbnail_iterations')
 
 
 class RPR_RENDER_PT_quality(RPR_Panel):
-    bl_label = "Render Quality"
+    bl_label = "Quality"
     bl_context = 'render'
     bl_options = {'DEFAULT_CLOSED'}
 

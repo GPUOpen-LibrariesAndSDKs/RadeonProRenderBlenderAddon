@@ -250,6 +250,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'name': "Emissive Lighting",
             'channel': 'RGB'
         },
+        {
+            'rpr': pyrpr.AOV_VARIANCE,
+            'name': "Color Variance",
+            'channel': 'RGB'
+        },
     ]
 
     enable_aovs: BoolVectorProperty(
@@ -279,6 +284,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
             aov = self.aovs_info[i]
             if aov['name'] not in ["Combined", "Depth"]:
+                # TODO this seems to assume that combine and depth enabled already?
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
             rpr_context.enable_aov(aov['rpr'])

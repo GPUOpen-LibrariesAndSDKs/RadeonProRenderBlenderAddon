@@ -22,37 +22,58 @@ log = logging.Log(tag='properties.render')
 
 
 class RPR_RenderLimits(bpy.types.PropertyGroup):
-    """ Properties for render limits: iteration limit or time limit """
+    """ Properties for render limits: 
+        we use both a time and a max sample limit.
+        if noise threshold > 0 then use adaptive sampling.
+    """
 
-    type: EnumProperty(
-        name="Iterations Limit",
-        description="When to stop rendering a frame",
-        items=(
-            ('ITERATIONS', "Iterations", "Number of iterations"),
-            ('TIME', "Time", "Time limit")
-        ),
-        default='ITERATIONS'
+    min_samples: IntProperty(
+        name="Min Samples",
+        description="Minimum number of samples to render for each pixel.  After this, adaptive sampling will stop sampling pixels where noise is less than threshold.",
+        min=1, default=16,
     )
-    iterations: IntProperty(
-        name="Iterations",
-        description="Number of iterations to render for each pixel",
-        min=1, default=50,
+
+    max_samples: IntProperty(
+        name="Max Samples",
+        description="Number of iterations to render for each pixel.",
+        min=1, default=64,
     )
+
+    noise_threshold: FloatProperty(
+        name="Noise Threshold",
+        description="Cutoff for adaptive sampling.  Once pixels are below this amount of noise, no more samples are added.  Set to 0 for no cutoff.",
+        min=0.0, default=.05, max=1.0,
+    )
+
+    adaptive_tile_size: IntProperty(
+        name="Adaptive tile size",
+        min=4, default=4, max=16
+    )
+
     update_samples: IntProperty(
         name="Samples per View Update",
         description="The more samples, the less viewport updates for shorter render times",
         min=1, default=1,
     )
+
     seconds: IntProperty(
-        name="Seconds",
-        description="Limit rendering process in seconds",
-        min=1, default=10
+        name="Time Limit",
+        description="Limit rendering process in seconds.  0 means limit by num samples",
+        min=0, default=0
     )
+
     thumbnail_iterations: IntProperty(
-        name="Thumbnail Iterations",
-        description="Material and light previews number of iterations to render for each pixel",
+        name="Thumbnail Samples",
+        description="Material and light previews number of samples to render for each pixel",
         min=1, default=50,
     )
+
+    def set_adaptive_params(self, rpr_context):
+        ''' Set the adaptive sampling parameters for this context. 
+            adaptive_threshold, adaptive_min_samples, and adaptive_tile_size '''
+        rpr_context.set_parameter('as.tilesize', self.adaptive_tile_size)
+        rpr_context.set_parameter('as.minspp', self.min_samples)
+        rpr_context.set_parameter('as.threshold', self.noise_threshold)
 
 
 # Getting list of available devices for RPR_RenderDevices
@@ -236,7 +257,8 @@ class RPR_RenderProperties(RPR_Properties):
                   self.viewport_devices
 
         context_flags = 0
-        context_props = []
+        # enable CMJ sampler for adaptive sampling
+        context_props = [pyrpr.CONTEXT_CREATEPROP_SAMPLER_TYPE, pyrpr.CONTEXT_SAMPLER_TYPE_CMJ]
         if devices.cpu_state:
             context_flags |= pyrpr.Context.cpu_device['flag']
             context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, devices.cpu_threads])
