@@ -412,8 +412,8 @@ class Scene(Object):
     def clear(self):
         for obj in tuple(self.objects):
             self.detach(obj)
-        for override in tuple(self.environments.keys()):
-            self.remove_environment(override)
+        for override_type in tuple(self.environments.keys()):
+            self.remove_environment_override(override_type)
 
         self.set_camera(None)
         SceneClear(self)
@@ -422,13 +422,13 @@ class Scene(Object):
         self.camera = camera
         SceneSetCamera(self, self.camera)
 
-    def add_environment(self, override, light):
-        self.environments[override] = light
-        SceneSetEnvironmentOverride(self, override, light)
+    def add_environment_override(self, core_id, light):
+        self.environments[core_id] = light
+        SceneSetEnvironmentOverride(self, core_id, light)
 
-    def remove_environment(self, override):
-        del self.environments[override]
-        SceneSetEnvironmentOverride(self, override, None)
+    def remove_environment_override(self, core_id):
+        SceneSetEnvironmentOverride(self, core_id, None)
+        del self.environments[core_id]
 
 
 class Shape(Object):
@@ -564,7 +564,6 @@ class Shape(Object):
 
     def set_light_group_id(self, group_id):
         ShapeSetLightGroupID(self, group_id)
-
 
 
 class Mesh(Shape):

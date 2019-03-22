@@ -27,8 +27,6 @@ class RPR_WORLD_PT_environment(RPR_Panel):
         else:
             self.draw_sun_sky(layout, environment)
 
-        # TODO: Overrides
-
         self.draw_environment_gizmo(layout.column(), context, environment)
 
     def draw_ibl(self, layout, environment):
@@ -63,3 +61,47 @@ class RPR_WORLD_PT_environment(RPR_Panel):
             if gizmo:
                 gizmo.rotation = environment.gizmo_rotation
         column2.prop(environment, 'gizmo_rotation')
+
+
+class RPR_WORLD_PT_overrides(RPR_Panel):
+    bl_label = "Overrides"
+    bl_parent_id = 'RPR_WORLD_PT_environment'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        def draw_override_section(data_type_name, data_type, color_name, image_name):
+            # For each override show type selector and color/image input.
+            box = self.layout.box()
+            row = box.row()
+            row.alignment = 'EXPAND'
+            row.prop(environment, data_type_name, expand=True)
+            row = box.row()
+            row.alignment = 'EXPAND'
+            if data_type == 'IMAGE':
+                row.template_ID(environment, image_name, open="image.open")
+            else:
+                row.prop(environment, color_name)
+
+        environment = context.scene.world.rpr
+
+        self.layout.enabled = environment.enabled
+
+        self.layout.prop(environment, 'override_background')
+        if environment.override_background:
+            draw_override_section('background_type', environment.background_type,
+                                  'background_color', 'background_image')
+
+        self.layout.prop(environment, 'override_reflection')
+        if environment.override_reflection:
+            draw_override_section('reflection_type', environment.reflection_type,
+                                  'reflection_color', 'reflection_image')
+
+        self.layout.prop(environment, 'override_refraction')
+        if environment.override_refraction:
+            draw_override_section('refraction_type', environment.refraction_type,
+                                  'refraction_color', 'refraction_image')
+
+        self.layout.prop(environment, 'override_transparency')
+        if environment.override_transparency:
+            draw_override_section('transparency_type', environment.transparency_type,
+                                  'transparency_color', 'transparency_image')
