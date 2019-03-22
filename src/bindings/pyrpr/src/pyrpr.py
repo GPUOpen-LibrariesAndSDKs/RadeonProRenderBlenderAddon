@@ -519,7 +519,7 @@ class Shape(Object):
         self.shadow_catcher = shadow_catcher
 
     def set_shadow(self, casts_shadow):
-        ShapeSetShadow(self, casts_shadow)
+        self.set_visibility_ex('visible.shadow',casts_shadow)
 
     def set_visibility(self, visible):
         ShapeSetVisibility(self, visible)
