@@ -1,5 +1,7 @@
 from bpy.types import NodeSocket
 from bpy.props import (
+    BoolProperty,
+    EnumProperty,
     FloatProperty,
     FloatVectorProperty,
 )
@@ -158,3 +160,111 @@ class RPRSocketWeightSoft(NodeSocket):
 
     def draw_color(self, context, node):
         return COLORS['gray']
+
+
+class RPRSocketValue(NodeSocket):
+    """ Socket to represent value as a float/vector/color by display_type """
+    bl_idname = 'rpr_socket_value'
+    bl_label = 'RPR socket value'
+
+    def value_to_vector4(self):
+        if self.display_type == 'COLOR':
+            return self.value_color
+        if self.display_type == 'FLOAT':
+            return (self.value_float, self.value_float, self.value_float, self.value_float)
+        return self.value_vector4
+
+    @staticmethod
+    def is_vector4_equal(a, b):
+        return list(a) == list(b)
+
+    def clamp_color(self, color):
+        r = min(1, max(0, color[0]))
+        g = min(1, max(0, color[1]))
+        b = min(1, max(0, color[2]))
+        a = min(1, max(0, color[3]))
+        return (r, g, b, a)
+
+    def update_value(self, context):
+        """ Update display value at input value change """
+        if self.display_type == 'COLOR':
+            self.value_color = self.clamp_color(self.default_value)
+        elif self.display_type == 'FLOAT':
+            self.value_float = self.default_value[0]
+        else:
+            self.value_vector4 = self.default_value[:]
+
+    def update_default_value(self, context):
+        """ Update other representations and default_value at currently displayed value change """
+        val = self.value_to_vector4()
+        self['default_value'] = val
+
+        if self.display_type != 'VECTOR':
+            self['value_vector4'] = self.default_value[:]
+        if self.display_type != 'COLOR':
+            self['value_color'] = self.clamp_color(self.default_value)
+        if self.display_type != 'FLOAT':
+            self['value_float'] = val[0]
+
+    # socket display type, hidden in UI; value changed by material node that uses this socket type
+    display_type: EnumProperty(
+        name='Type',
+        items=(
+            ('COLOR', "Color", "Color"),
+            ('FLOAT', "Float", "Float"),
+            ('VECTOR', "Vector", "Vector")
+        ),
+        default='VECTOR'
+    )
+
+    # store values for different display types
+    value_vector4: FloatVectorProperty(
+        name="Vector4",
+        size=4,
+        default=(1.0, 1.0, 1.0, 1.0),
+        update=update_default_value
+    )
+    value_float: FloatProperty(
+        name="Float",
+        default=1.0,
+        update=update_default_value)
+    value_color: FloatVectorProperty(
+        name='Color', description="Color",
+        subtype='COLOR', min=0.0, max=1.0, size=4,
+        default=(1.0, 1.0, 1.0, 1.0),
+        update=update_default_value
+    )
+
+    # store main/output value
+    default_value: FloatVectorProperty(
+        name="Vector4", size=4,
+        default=(1.0, 1.0, 1.0, 1.0),
+        update=update_value
+    )
+
+    # show/hide vector value type edit boxes
+    show: BoolProperty(
+        name="Show/Hide",
+        default=False,
+    )
+
+    def draw(self, context, layout, node, text):
+        """ Display different UI for color, vector and float display types """
+        if self.is_linked or self.is_output:
+            layout.label(text=self.name)
+        else:
+            if self.display_type == 'COLOR':
+                layout.prop(self, 'value_color', text='')
+                layout.label(text=self.name)
+            elif self.display_type == 'FLOAT':
+                layout.prop(self, 'value_float', text=self.name)
+            else:
+                col = layout.column()
+                row = col.row()
+                row.label(text=self.name)
+                row.prop(self, 'show', text='', icon='TRIA_UP' if self.show else 'TRIA_DOWN')
+                if self.show:
+                    col.prop(self, 'value_vector4', text='')
+
+    def draw_color(self, context, node):
+        return COLORS['float']

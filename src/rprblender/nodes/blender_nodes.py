@@ -31,6 +31,11 @@ ERROR_IMAGE_COLOR = (1.0, 0.0, 1.0, 1.0)    # Corresponds Cycles error image col
 COLOR_GAMMA = 2.2
 SSS_MIN_RADIUS = 0.0001
 
+# RGB to BW conversion constants by R-G-B channels
+RED_GRAYSCALE_COEF = 0.2126
+GREEN_GRAYSCALE_COEF = 0.7152
+BLUE_GRAYSCALE_COEF = 0.0722
+
 
 class ShaderNodeOutputMaterial(NodeParser):
     # inputs: Surface, Volume, Displacement
@@ -748,31 +753,32 @@ class ShaderNodeMixRGB(NodeParser):
 
         return rpr_node
 
-# map blender node op to rpr math op and number of inputs
-math_map = {'ADD': (pyrpr.MATERIAL_NODE_OP_ADD, 2), 
-            'SUBTRACT': (pyrpr.MATERIAL_NODE_OP_SUB, 2), 
-            'MULTIPLY': (pyrpr.MATERIAL_NODE_OP_MUL, 2), 
-            'DIVIDE': (pyrpr.MATERIAL_NODE_OP_DIV, 2),
-            'SINE': (pyrpr.MATERIAL_NODE_OP_SIN, 1), 
-            'COSINE': (pyrpr.MATERIAL_NODE_OP_COS, 1), 
-            'TANGENT': (pyrpr.MATERIAL_NODE_OP_TAN, 1), 
-            'ARCSINE': (pyrpr.MATERIAL_NODE_OP_ASIN, 1), 
-            'ARCCOSINE': (pyrpr.MATERIAL_NODE_OP_ACOS, 1), 
-            'ARCTANGENT': (pyrpr.MATERIAL_NODE_OP_ATAN, 1), 
-            'POWER': (pyrpr.MATERIAL_NODE_OP_POW, 2), 
-            'LOGARITHM': (pyrpr.MATERIAL_NODE_OP_LOG, 1), 
-            'MINIMUM': (pyrpr.MATERIAL_NODE_OP_MIN, 2), 
-            'MAXIMUM': (pyrpr.MATERIAL_NODE_OP_MAX, 2), 
-            'LESS_THAN': (pyrpr.MATERIAL_NODE_OP_LOWER, 2), 
-            'GREATER_THAN': (pyrpr.MATERIAL_NODE_OP_GREATER, 2), 
-            'MODULO': (pyrpr.MATERIAL_NODE_OP_MOD, 2), 
-            'ABSOLUTE': (pyrpr.MATERIAL_NODE_OP_ABS, 1),
-            'FLOOR': (pyrpr.MATERIAL_NODE_OP_FLOOR, 1),
-            }
 
 class ShaderNodeMath(NodeParser):
-    ''' simply map the blender op types to rpr op types with above map.  
+    ''' simply map the blender op types to rpr op types with included map.
         We could be more correct with "round" but I've never seen this used. '''
+    # map blender node op to rpr math op and number of inputs
+    math_map = {
+        'ADD': (pyrpr.MATERIAL_NODE_OP_ADD, 2),
+        'SUBTRACT': (pyrpr.MATERIAL_NODE_OP_SUB, 2),
+        'MULTIPLY': (pyrpr.MATERIAL_NODE_OP_MUL, 2),
+        'DIVIDE': (pyrpr.MATERIAL_NODE_OP_DIV, 2),
+        'SINE': (pyrpr.MATERIAL_NODE_OP_SIN, 1),
+        'COSINE': (pyrpr.MATERIAL_NODE_OP_COS, 1),
+        'TANGENT': (pyrpr.MATERIAL_NODE_OP_TAN, 1),
+        'ARCSINE': (pyrpr.MATERIAL_NODE_OP_ASIN, 1),
+        'ARCCOSINE': (pyrpr.MATERIAL_NODE_OP_ACOS, 1),
+        'ARCTANGENT': (pyrpr.MATERIAL_NODE_OP_ATAN, 1),
+        'POWER': (pyrpr.MATERIAL_NODE_OP_POW, 2),
+        'LOGARITHM': (pyrpr.MATERIAL_NODE_OP_LOG, 1),
+        'MINIMUM': (pyrpr.MATERIAL_NODE_OP_MIN, 2),
+        'MAXIMUM': (pyrpr.MATERIAL_NODE_OP_MAX, 2),
+        'LESS_THAN': (pyrpr.MATERIAL_NODE_OP_LOWER, 2),
+        'GREATER_THAN': (pyrpr.MATERIAL_NODE_OP_GREATER, 2),
+        'MODULO': (pyrpr.MATERIAL_NODE_OP_MOD, 2),
+        'ABSOLUTE': (pyrpr.MATERIAL_NODE_OP_ABS, 1),
+        'FLOOR': (pyrpr.MATERIAL_NODE_OP_FLOOR, 1),
+    }
 
     def export(self):
         ''' special cases 
@@ -784,10 +790,10 @@ class ShaderNodeMath(NodeParser):
         '''
 
         blender_op = self.node.operation
-        if blender_op in math_map:
+        if blender_op in self.math_map:
             # this is the simple case we can handle automatically
             in1 = self.get_input_value(0)
-            rpr_op, num_inputs = math_map[blender_op]
+            rpr_op, num_inputs = self.math_map[blender_op]
             in2 = self.get_input_value(1) if num_inputs == 2 else None
 
             # if use clamp is set we don't want this to be the out node so don't use_key
@@ -842,6 +848,43 @@ class ShaderNodeMath(NodeParser):
         else:
             return math_node
 
+
+class ShaderNodeVectorMath(NodeParser):
+    """ Apply vector math operations assuming Blender node was designed to work with 3-axis vectors """
+    # map blender vector math node operations to rpr math operations and number of inputs
+    vector_math_map = {
+        'ADD': (pyrpr.MATERIAL_NODE_OP_ADD, 2),
+        'SUBTRACT': (pyrpr.MATERIAL_NODE_OP_SUB, 2),
+        'AVERAGE': (pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ, 2),
+        'DOT_PRODUCT': (pyrpr.MATERIAL_NODE_OP_DOT3, 2),
+        'CROSS_PRODUCT': (pyrpr.MATERIAL_NODE_OP_CROSS3, 2),
+        'NORMALIZE': (pyrpr.MATERIAL_NODE_OP_NORMALIZE3, 1),
+    }
+
+    def export(self):
+        blender_op = self.node.operation
+
+        in1 = self.get_input_value(0)
+        rpr_op, num_inputs = self.vector_math_map[blender_op]
+        in2 = self.get_input_value(1) if num_inputs == 2 else None
+
+        math_node = self.arithmetic_node_value(in1, in2, rpr_op)
+
+        # Apply RGB to BW conversion for "Value" output
+        if self.socket_out.name == 'Value':
+            red_val = self.mul_node_value(self.get_x_node_value(math_node),
+                                          (RED_GRAYSCALE_COEF, RED_GRAYSCALE_COEF, RED_GRAYSCALE_COEF, 0.0))
+            green_val = self.mul_node_value(self.get_y_node_value(math_node),
+                                            (GREEN_GRAYSCALE_COEF, GREEN_GRAYSCALE_COEF, GREEN_GRAYSCALE_COEF, 0.0))
+            blue_val = self.mul_node_value(self.get_z_node_value(math_node),
+                                           (BLUE_GRAYSCALE_COEF, BLUE_GRAYSCALE_COEF, BLUE_GRAYSCALE_COEF, 0.0))
+            alpha_val = self.mul_node_value(self.get_w_node_value(math_node), (0.0, 0.0, 0.0, 1.0))
+            res = self.add_node_value(red_val, green_val)
+            res = self.add_node_value(res, blue_val)
+            res = self.add_node_value(res, alpha_val)
+            return res
+
+        return math_node
 
 
 class ShaderNodeMixShader(NodeParser):
@@ -995,7 +1038,6 @@ class ShaderNodeValToRGB(NodeParser):
                 return val
 
 
-
 class ShaderNodeRGBCurve(NodeParser):
     """ Similar to color ramp, except read each channel and apply mapping
         There are two inputs here, color and Fac.  What cycles does is remap color with the mapping
@@ -1109,15 +1151,62 @@ class ShaderNodeRGBToBW(NodeParser):
     def export(self):
         link = self.get_input_link('Color')
         if link:
-            r_val = self.mul_node_value(self.get_x_node_value(link), (0.2126, 0.2126, 0.2126, 0.0))
-            g_val = self.mul_node_value(self.get_y_node_value(link), (0.7152, 0.7152, 0.7152, 0.0))
-            b_val = self.mul_node_value(self.get_z_node_value(link), (0.0722, 0.0722, 0.0722, 0.0))
-            a_val = self.mul_node_value(self.get_w_node_value(link), (0.0, 0.0, 0.0, 1.0))
-            res = self.add_node_value(r_val, g_val)
-            res = self.add_node_value(res, b_val)
-            res = self.add_node_value(res, a_val)
+            red_val = self.mul_node_value(self.get_x_node_value(link),
+                                          (RED_GRAYSCALE_COEF, RED_GRAYSCALE_COEF, RED_GRAYSCALE_COEF, 0.0))
+            green_val = self.mul_node_value(self.get_y_node_value(link),
+                                            (GREEN_GRAYSCALE_COEF, GREEN_GRAYSCALE_COEF, GREEN_GRAYSCALE_COEF, 0.0))
+            blue_val = self.mul_node_value(self.get_z_node_value(link),
+                                           (BLUE_GRAYSCALE_COEF, BLUE_GRAYSCALE_COEF, BLUE_GRAYSCALE_COEF, 0.0))
+            alpha_val = self.mul_node_value(self.get_w_node_value(link), (0.0, 0.0, 0.0, 1.0))
+            res = self.add_node_value(red_val, green_val)
+            res = self.add_node_value(res, blue_val)
+            res = self.add_node_value(res, alpha_val)
             return res
 
         color = self.get_input_default('Color')
-        val = color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722
+        val = color[0] * RED_GRAYSCALE_COEF + color[1] * GREEN_GRAYSCALE_COEF + color[2] * BLUE_GRAYSCALE_COEF
         return (val, val, val, color[3])
+
+
+class ShaderNodeCombineXYZ(NodeParser):
+    """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
+    def export(self):
+        value1 = self.get_input_value('X')
+        value2 = self.get_input_value('Y')
+        value3 = self.get_input_value('Z')
+
+        return self.combine_node_value(value1, value2, value3)
+
+
+class ShaderNodeCombineRGB(NodeParser):
+    """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
+    def export(self):
+        value1 = self.get_input_value('R')
+        value2 = self.get_input_value('G')
+        value3 = self.get_input_value('B')
+
+        return self.combine_node_value(value1, value2, value3)
+
+
+class ShaderNodeSeparateRGB(NodeParser):
+    """ Split input value(color) to 3 separate values by R-G-B channels """
+    def export(self):
+        value = self.get_input_value(0)
+
+        if self.socket_out.name == 'R':
+            return self.get_x_node_value(value)
+        if self.socket_out.name == 'G':
+            return self.get_y_node_value(value)
+        return self.get_z_node_value(value)
+
+
+class ShaderNodeSeparateXYZ(NodeParser):
+    """ Split input value(vector) to 3 separate values by X-Y-Z channels """
+    def export(self):
+        value = self.get_input_value(0)
+
+        if self.socket_out.name == 'X':
+            return self.get_x_node_value(value)
+        if self.socket_out.name == 'Y':
+            return self.get_y_node_value(value)
+        return self.get_z_node_value(value)
