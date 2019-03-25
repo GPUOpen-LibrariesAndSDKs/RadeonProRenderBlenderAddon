@@ -221,7 +221,6 @@ class NodeParser(metaclass=ABCMeta):
         res = self.add_node_value(self.add_node_value(vX, vY), vZ)
         return res
 
-
     def blend_node_value(self, val1, val2, weight):
         node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND_VALUE)
         node.set_input('color0', val1)

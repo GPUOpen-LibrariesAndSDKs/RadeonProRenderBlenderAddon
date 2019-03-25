@@ -1,3 +1,5 @@
+import math
+from collections import OrderedDict
 import bpy
 from bpy.props import (
     BoolProperty,
@@ -8,7 +10,9 @@ import pyrpr
 import pyrprx
 
 from .node_parser import NodeParser, RuleNodeParser
-from .blender_nodes import SSS_MIN_RADIUS
+from .blender_nodes import SSS_MIN_RADIUS, COLOR_GAMMA, ERROR_IMAGE_COLOR
+
+from rprblender.export import image as image_export
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -33,6 +37,7 @@ class RPRShaderNode(bpy.types.ShaderNode):
     @classmethod
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
+
 
 class RPRShaderNodeDiffuse(RPRShaderNode):
 
@@ -419,3 +424,613 @@ class RPRShaderNodeUber(RPRShaderNode):
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_TRANSPARENCY, transparency)
 
             return rpr_node
+
+
+class RPRShaderNodeImageTexture(RPRShaderNode):
+    ''' Texture node.  Has UV input, image texture input and controls for image UV wrap and color space '''
+    bl_label = 'RPR Image Texture'
+    bl_width_min = 235
+
+    image: bpy.props.PointerProperty(type=bpy.types.Image)
+    # color space, sRGB or linear for gamma
+    color_space: bpy.props.EnumProperty(
+        name='Color Space',
+        items=(('LINEAR', "Linear", "Linear"),
+               ('SRGB', "sRGB", "sRGB")),
+        default='LINEAR')
+
+    wrap: bpy.props.EnumProperty(
+        name='Wrap Type',
+        items= (
+            ('REPEAT', "Repeat", "Repeating Texture"),
+            ('MIRRORED_REPEAT', "Mirror", "Texture mirrors outside of 0-1"),
+            ('CLAMP_TO_EDGE', "Clamp to Edge", "Clamp to Edge.  Outside of 0-1 the texture will smear."),
+            ('CLAMP_ZERO', "Clamp to Black", "Clamp to Black outside of 0-1"),
+            ('CLAMP_ONE', "Clamp to White", "Clamp to White outside of 0-1"),
+        ),
+        default='REPEAT'
+    )
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', "UV").hide_value = True
+
+        # adding output socket
+        self.outputs.new('rpr_socket_color', "Color")
+
+    def draw_buttons(self, context, layout):
+        col = layout.column()
+        
+        col.template_ID(self, 'image', open='image.open', new='image.new')
+
+        col.prop(self, 'color_space', text='')
+        col.prop(self, 'wrap', text='')
+    
+    class Exporter(NodeParser):
+        def export(self):
+            if not self.node.image:
+                return ERROR_IMAGE_COLOR
+
+            rpr_image = image_export.sync(self.rpr_context, self.node.image)
+
+            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE)
+
+            # get image wrap type and set
+            image_wrap_val = getattr(pyrpr, 'IMAGE_WRAP_TYPE_' + self.node.wrap)
+            rpr_image.set_wrap(image_wrap_val)
+
+            # set image data for node:
+            rpr_node.set_input('data', rpr_image)
+
+            uv = self.get_input_link('UV')
+            if uv is not None:
+                rpr_node.set_input('uv', uv)
+
+            # apply gamma correction if needed
+            if self.node.color_space == 'SRGB':
+                rpr_node = self.arithmetic_node_value(rpr_node, COLOR_GAMMA, pyrpr.MATERIAL_NODE_OP_POW)
+
+            return rpr_node
+
+
+class RPRShaderNodeLookup(RPRShaderNode):
+    ''' Looks up geometry values '''
+    bl_label = 'RPR Lookup'
+
+    lookup_type: bpy.props.EnumProperty(
+        name='Type',
+        items=(
+            ('UV', "UV", "Texture coordinates"),
+            ('NORMAL', "Normal", "Normal"),
+            ('POS', "Position", "World position"),
+            ('INVEC', "InVec", "Incident direction"),
+            ('UV1', "UV1", "Second set of texture coordinates")
+        ),
+        default='UV'
+    )
+
+    def init(self, context):
+        # adding output socket
+        self.outputs.new('rpr_socket_link', "Value")
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'lookup_type')
+
+    class Exporter(NodeParser):
+        lookup_type_to_id = {
+            'UV': pyrpr.MATERIAL_NODE_LOOKUP_UV,
+            'NORMAL': pyrpr.MATERIAL_NODE_LOOKUP_N,
+            'POS': pyrpr.MATERIAL_NODE_LOOKUP_P,
+            'INVEC': pyrpr.MATERIAL_NODE_LOOKUP_INVEC,
+            'UV1': pyrpr.MATERIAL_NODE_LOOKUP_UV1,
+        }
+
+        def export(self):
+            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+
+            # RPR LookUp node types are not continuous sequence, thus the translation
+            rpr_node.set_input('value', self.lookup_type_to_id[self.node.lookup_type])
+
+            return rpr_node
+
+
+class RPRShaderNodeBumpMap(RPRShaderNode):
+    ''' Simple Bump map node with bump value and scale '''
+    bl_label = 'RPR Bump Map'
+
+    def init(self, context):
+        self.inputs.new('rpr_socket_link', 'Map').hide_value = True
+        self.inputs.new('rpr_socket_float', 'Scale').default_value = 1.0
+
+        # adding output socket
+        self.outputs.new('rpr_socket_link', "Normal")
+
+    class Exporter(RuleNodeParser):
+        nodes = {
+            "Normal": {
+                "type": pyrpr.MATERIAL_NODE_BUMP_MAP,
+                "params": {
+                    "color": "link:inputs.Map",
+                    "bumpscale": "inputs.Scale",
+                }
+            }
+        }
+
+
+class RPRShaderNodeNormalMap(RPRShaderNode):
+    ''' Simple Normal map node with normal value and scale
+        User can also flip vector at X(up-dow) and Y(left-right) axis '''
+    bl_label = 'RPR Normal Map'
+    bl_width_min = 150  # to stop "Flip X" checkbox name clipping
+
+    flip_x: bpy.props.BoolProperty(
+        name='Flip X', description="Flip X coordinate", default=False
+    )
+
+    flip_y: bpy.props.BoolProperty(
+        name='Flip Y', description="Flip Y coordinate", default=False
+    )
+
+    def init(self, context):
+        self.inputs.new('NodeSocketVector', 'Map').hide_value = True
+        self.inputs.new('rpr_socket_float', 'Scale').default_value = .1
+
+        # adding output socket
+        self.outputs.new('rpr_socket_link', "Normal")
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'flip_x')
+        row.prop(self, 'flip_y')
+
+    class Exporter(NodeParser):
+        def export(self):
+            
+            normal_map = self.get_input_link('Map')
+            if not normal_map:
+                return None
+
+            if self.node.flip_x or self.node.flip_y:
+                # For flip_x the calculation is following: final_x = 1-x
+                # therefore for vector map_value it would be: map_value = (1,0,0,0) + (-1,1,1,1)*map_value
+                # The same calculation for Y coordinate
+                mul_vector = (-1 if self.node.flip_x else 1,
+                              -1 if self.node.flip_y else 1,
+                              1, 1)
+                add_vector = (1 if self.node.flip_x else 0,
+                              1 if self.node.flip_y else 0,
+                              0, 0)
+                normal_map = self.add_node_value(self.mul_node_value(normal_map, mul_vector),
+                                                add_vector)
+
+            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_NORMAL_MAP)
+
+            rpr_node.set_input('color', normal_map)
+            rpr_node.set_input('bumpscale', self.get_input_value('Scale'))
+
+            return rpr_node
+
+
+class RPRShaderNodeEmissive(RPRShaderNode):
+    ''' Emissive node, only has a color and intensity '''
+    bl_label = 'RPR Emissive'
+
+    emission_doublesided: BoolProperty(
+        name="Double Sided", description="Enable double-sided emission", default=False
+    )
+
+    def init(self, context):
+        self.inputs.new('rpr_socket_color', 'Color')
+        self.inputs.new('rpr_socket_float', 'Intensity').default_value = 1.0
+
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    def draw_buttons(self, context, layout):
+        col = layout.column()
+        col.prop(self, 'emission_doublesided')
+
+    class Exporter(NodeParser):
+        def export(self):
+            value = self.mul_node_value(self.get_input_value('Color'), self.get_input_value('Intensity'))
+
+            rpr_node_emissive = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_EMISSIVE)
+            rpr_node_emissive.set_input("color", value)
+
+            if self.node.emission_doublesided:
+                rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TWOSIDED)
+                rpr_node.set_input("frontface", rpr_node_emissive)
+                rpr_node.set_input("backface", rpr_node_emissive)
+                return rpr_node
+            return rpr_node_emissive
+
+
+class RPRShaderNodeBlend(RPRShaderNode):
+    ''' Shader Blend node '''
+    bl_label = 'RPR Shader Blend'
+
+    def init(self, context):
+        self.inputs.new('rpr_socket_weight', 'Weight').default_value = 0.5
+        self.inputs.new('NodeSocketShader', 'Shader 1')
+        self.inputs.new('NodeSocketShader', 'Shader 2')
+
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    class Exporter(NodeParser):
+        def export(self):
+            # Just like ShaderNodeMixShader
+            factor = self.get_input_value('Weight')
+
+            if isinstance(factor, float):
+                socket_key = 1 if math.isclose(factor, 0.0) else \
+                    2 if math.isclose(factor, 1.0) else \
+                        None
+                if socket_key:
+                    shader = self.get_input_link(socket_key)
+                    if shader:
+                        return shader
+                    return self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+
+            shader1 = self.get_input_link(1)
+            shader2 = self.get_input_link(2)
+
+            # like the Blender Mix Shader return default gray diffuse if no shaders connected
+            if not shader1 and not shader2:
+                return self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+
+            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND)
+            rpr_node.set_input('weight', self.get_input_value('Weight'))
+            if shader1:
+                rpr_node.set_input('color0', shader1)
+            if shader2:
+                rpr_node.set_input('color1', shader2)
+
+            return rpr_node
+
+
+class RPRValueNode_Math(RPRShaderNode):
+    ''' RPR node for all Arithmetics operations, equivalent of Math, Vector Math, RGB Mix with some nice additions.
+    Display different number of input sockets for various operations. '''
+    bl_label = 'RPR Math'
+    bl_width_min = 150  # for better fit of value type selector
+
+    def change_display_type(self, context):
+        """ Change inputs display type to new node display_type mode """
+        for i in range(3):
+            self.inputs[i].display_type = self.display_type
+
+    def change_operation(self, context):
+        """ Enable input sockets and change input names by selected operation settings """
+        info = self.operations_settings[self.operation]
+        params = info['params']
+        for i in range(3):
+            if i in params:
+                self.inputs[i].enabled = True
+                self.inputs[i].name = params[i]
+            else:
+                self.inputs[i].enabled = False
+
+    # Operations settings:
+    # (ID, {
+    #    'name': name & description,
+    #    'params': enabled inputs, dict of (index: input name)
+    #   })
+    operations_settings = OrderedDict([
+        ('ABS', {
+            'name': 'Abs',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('ACOS', {
+            'name': 'Arccosine',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('ADD', {
+            'name': 'Add',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('ASIN', {
+            'name': 'Arcsine',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('ATAN', {
+            'name': 'Arctangent',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('AVERAGE', {
+            'name': 'Average',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('AVERAGE_XYZ', {
+            'name': 'Average XYZ',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('COMBINE', {
+            'name': 'Combine',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+                2: 'Value 3',
+            },
+        }),
+        ('COS', {
+            'name': 'Cosine',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('CROSS3', {
+            'name': 'Cross Product',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('DOT3', {
+            'name': 'Dot3 Product',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('FLOOR', {
+            'name': 'Floor',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('LENGTH3', {
+            'name': 'Length3',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('MAX', {
+            'name': 'Max',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('MIN', {
+            'name': 'Min',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('MOD', {
+            'name': 'Mod',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('MUL', {
+            'name': 'Multiply',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('NORMALIZE3', {
+            'name': 'Normalize',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('POW', {
+            'name': 'Pow',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('SELECT_X', {
+            'name': 'Select X',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SELECT_Y', {
+            'name': 'Select Y',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SELECT_Z', {
+            'name': 'Select Z',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SIN', {
+            'name': 'Sine',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SUB', {
+            'name': 'Subtract',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('TAN', {
+            'name': 'Tangent',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('DIV', {
+            'name': 'Divide',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('DOT4', {
+            'name': 'Dot4 Product',
+            'params': {
+                0: 'Value 1',
+                1: 'Value 2',
+            },
+        }),
+        ('SELECT_W', {
+            'name': 'Select W',
+            'params': {
+                0: 'Value',
+            },
+        }),
+    ])
+
+    def get_operations_items(settings):
+        """ Convert operations settings to EnumProperty items list, using name as description """
+        items = []
+        indices = list(settings)
+        for k in sorted(settings, key=lambda k: settings[k]['name']):
+            name = settings[k]['name']
+            items.append((k, name, name, indices.index(k)))
+        return items
+
+    # operation types selector
+    operation: EnumProperty(
+        name='Operation',
+        items=get_operations_items(operations_settings),
+        default='ADD',
+        update=change_operation,
+    )
+
+    # Node values display type, same as in RPRSocketValue
+    display_type: EnumProperty(
+        name='Type',
+        items=(
+            ('COLOR', "Color", "Color"),
+            ('FLOAT', "Float", "Float"),
+            ('VECTOR', "Vector", "Vector")
+        ),
+        default='COLOR',
+        update=change_display_type,
+    )
+
+    use_clamp: BoolProperty(
+        name='Clamp',
+        description='Clamp result to 0..1 range',
+        default=False
+    )
+
+    def init(self, context):
+        # Note: input names could be changed when operation type changed
+        self.inputs.new('rpr_socket_value', 'Value 1')
+        self.inputs.new('rpr_socket_value', 'Value 2')
+        self.inputs.new('rpr_socket_value', 'Value 3')
+
+        # adding output socket
+        self.outputs.new('rpr_socket_value', "Out")
+        self.change_display_type(context)
+        self.change_operation(context)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'operation', text='')
+        layout.prop(self, 'use_clamp')
+        layout.prop(self, 'display_type', expand=True)
+
+    def draw_label(self):
+        info = self.operations_settings[self.operation]
+        return self.bl_label + ' - ' + info['name']
+
+    class Exporter(NodeParser):
+        def export(self):
+            op = self.node.operation
+            # input names could be changed, use index
+            value1 = self.get_input_value(0)
+
+            # parse inputs "Value 2" and "Value 3" only when they are used by operation
+            if self.node.inputs[1].enabled:
+                value2 = self.get_input_value(1)
+            if self.node.inputs[2].enabled:
+                value3 = self.get_input_value(2)
+
+            val = None
+            if op == 'ADD':
+                val = self.add_node_value(value1, value2)
+            elif op == 'SUB':
+                val = self.sub_node_value(value1, value2)
+            elif op == 'MUL':
+                val = self.mul_node_value(value1, value2)
+            elif op == 'SIN':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SIN)
+            elif op == 'COS':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_COS)
+            elif op == 'TAN':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_TAN)
+            elif op == 'ASIN':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ASIN)
+            elif op == 'ACOS':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ACOS)
+            elif op == 'ATAN':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ATAN)
+            elif op == 'DOT3':
+                val = self.dot3_node_value(value1, value2)
+            elif op == 'DOT4':
+                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_DOT4)
+            elif op == 'CROSS3':
+                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_CROSS3)
+            elif op == 'LENGTH3':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_LENGTH3)
+            elif op == 'NORMALIZE3':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3)
+            elif op == 'POW':
+                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_POW)
+            elif op == 'MIN':
+                val = self.min_node_value(value1, value2)
+            elif op == 'MAX':
+                val = self.max_node_value(value1, value2)
+            elif op == 'FLOOR':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_FLOOR)
+            elif op == 'MOD':
+                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_MOD)
+            elif op == 'ABS':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ABS)
+            elif op == 'SELECT_X':
+                val = self.get_x_node_value(value1)
+            elif op == 'SELECT_Y':
+                val = self.get_y_node_value(value1)
+            elif op == 'SELECT_Z':
+                val = self.get_z_node_value(value1)
+            elif op == 'SELECT_W':
+                val = self.get_w_node_value(value1)
+            elif op == 'COMBINE':
+                # TODO: check if this is correct. By docs this should be (v1.x, v2.x, v1.y, v2.y), 2 arguments operation
+                val = self.combine_node_value(value1, value2, value3)
+            elif op == 'AVERAGE_XYZ':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ)
+            elif op == 'AVERAGE':
+                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_AVERAGE)
+            elif op == 'DIV':
+                val = self.div_node_value(value1, value2)
+            else:
+                log.warn('RPR Math : unknown operator type ({})'.format(op))
+                return ERROR_IMAGE_COLOR
+
+            if self.node.use_clamp:
+                log.debug('   use_clamp: True')
+                val = self.max_node_value(self.min_node_value(val, 1.0), 0.0)
+
+            return val

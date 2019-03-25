@@ -66,9 +66,15 @@ node_categories = [
     ]),
     RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
         NodeItem('ShaderNodeBlackbody'),
-        NodeItem('ShaderNodeRGBToBW'),
         NodeItem('ShaderNodeValToRGB'),
+        NodeItem('ShaderNodeCombineXYZ'),
+        NodeItem('ShaderNodeCombineRGB'),
         NodeItem('ShaderNodeMath'),
+        NodeItem('ShaderNodeRGBToBW'),
+        NodeItem('ShaderNodeSeparateRGB'),
+        NodeItem('ShaderNodeSeparateXYZ'),
+        NodeItem('ShaderNodeVectorMath'),
+        NodeItem('RPRValueNode_Math'),
     ]),
     RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
         NodeItem('RPRShaderNodeUber'),
@@ -98,9 +104,17 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     sockets.RPRSocketIOR,
     sockets.RPRSocket_Float_Min0_SoftMax10,
     sockets.RPRSocketAngle360,
+    sockets.RPRSocketValue,
 
     rpr_nodes.RPRShaderNodeUber,
     rpr_nodes.RPRShaderNodeDiffuse,
+    rpr_nodes.RPRShaderNodeBlend,
+    rpr_nodes.RPRShaderNodeEmissive,
+    rpr_nodes.RPRShaderNodeNormalMap,
+    rpr_nodes.RPRShaderNodeBumpMap,
+    rpr_nodes.RPRShaderNodeLookup,
+    rpr_nodes.RPRShaderNodeImageTexture,
+    rpr_nodes.RPRValueNode_Math,
 ])
 
 
