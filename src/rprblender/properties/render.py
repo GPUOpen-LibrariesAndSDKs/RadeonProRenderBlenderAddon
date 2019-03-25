@@ -269,19 +269,20 @@ class RPR_RenderProperties(RPR_Properties):
                     context_flags |= pyrpr.Context.gpu_devices[i]['flag']
                     if use_gl_interop:
                         context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
-
                 
                     if not metal_enabled and platform.system() == 'Darwin':
                         # only enable metal once and if a GPU is turned on
                         metal_enabled = True
                         context_flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
-                        mac_vers_major = platform.mac_ver()[0].split('.')[1]
-                        # if this is mojave turn on MPS
-                        if float(mac_vers_major) >= 14:
-                            context_props.extend([pyrpr.CONTEXT_METAL_PERFORMANCE_SHADER, 1])
-
+                        
         context_props.append(0) # should be followed by 0
         rpr_context.init(context_flags, context_props)
+
+        if metal_enabled:
+            mac_vers_major = platform.mac_ver()[0].split('.')[1]
+            # if this is mojave turn on MPS
+            if float(mac_vers_major) >= 14:
+                rpr_context.set_parameter("metalperformanceshader", 1)
 
     def export_ray_depth(self, rpr_context):
         """ Exports ray depth settings """
