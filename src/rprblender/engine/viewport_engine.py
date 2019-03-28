@@ -35,6 +35,7 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_event = threading.Event()
         self.finish_render = False
+        self.rpr_context.is_preview = True
 
     def render(self):
         self.finish_render = False

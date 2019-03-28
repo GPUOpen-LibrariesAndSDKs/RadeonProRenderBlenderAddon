@@ -19,6 +19,8 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
+        self.do_motion_blur = False
+        self.is_preview = False
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
@@ -430,6 +432,11 @@ class RPRContext:
         instance = pyrpr.Instance(self.context, mesh)
         self.objects[key] = instance
         return instance
+
+    def create_curve(self, key, num_curves, curve_length, control_points, uvs, radius):
+        curve = pyrpr.Curve(self.context, num_curves, curve_length, control_points, uvs, radius)
+        self.objects[key] = curve
+        return curve
 
     def create_camera(self, key=None):
         camera = pyrpr.Camera(self.context)

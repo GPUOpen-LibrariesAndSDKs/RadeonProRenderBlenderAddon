@@ -97,7 +97,7 @@ for name, t in api.functions.items():
                                                       'rprPostEffect',
                                                       'rprIESLight',
                                                       'rprImage',
-                                                      'rprHeteroVolume',
+                                                      'rprHeteroVolume', 'rprCurve',
                                                       'rprBuffer']):
 
             if argtype.split('*')[0].strip() in ['rpr_context', 'rpr_framebuffer', 'rpr_composite', 'rpr_scene',
@@ -106,7 +106,7 @@ for name, t in api.functions.items():
                                                  'rpr_light',
                                                  'rpr_post_effect',
                                                  'rpr_image',
-                                                 'rpr_hetero_volume',
+                                                 'rpr_hetero_volume', 'rpr_curve',
                                                  'rpr_buffer']:
                 replace_arg = 'value'
                 if '*' in argtype:
