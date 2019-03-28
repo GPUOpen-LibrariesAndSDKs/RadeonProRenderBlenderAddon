@@ -360,6 +360,9 @@ class RenderEngine(Engine):
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
 
+        # set the do_motion_blur flag on the rpr_context
+        self.rpr_context.do_motion_blur = scene.rpr.motion_blur
+
         self.render_layer_name = view_layer.name
         self.status_title = "%s: %s" % (scene.name, self.render_layer_name)
 
@@ -391,7 +394,7 @@ class RenderEngine(Engine):
                 object.sync(self.rpr_context, obj, motion_blur_info=obj_motion_blur_info)
 
             except SyncError as e:
-                log.warn("Object syncing error", e)   # TODO: Error to UI log
+                log.warn("Error syncing mesh", e)   # TODO: Error to UI log
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")

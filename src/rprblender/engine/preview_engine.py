@@ -15,6 +15,7 @@ class PreviewEngine(Engine):
         super().__init__(rpr_engine)
         self.is_synced = False
         self.render_iterations = 0
+        self.rpr_context.is_preview = True
 
     def render(self):
         if not self.is_synced:

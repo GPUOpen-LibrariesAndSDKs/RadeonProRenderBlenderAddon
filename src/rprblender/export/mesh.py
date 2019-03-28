@@ -83,6 +83,9 @@ class MeshData:
             elif shape_type in ('DISK', 'ELLIPSE'):
                 bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=segments, radius=0.5)
 
+            elif shape_type in ('SPHERE'):
+                bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+
             else:
                 raise TypeError("Incorrect shape type", shape_type)
 
@@ -94,7 +97,7 @@ class MeshData:
 
             # scale and rotate mesh around Y axis
             bmesh.ops.scale(bm, verts=bm.verts,
-                            vec=(size, size if shape_type in ('SQUARE', 'DISK') else size_y, 1.0))
+                            vec=(size, size if shape_type in ('SQUARE', 'DISK', 'SPHERE') else size_y, size))
             bmesh.ops.rotate(bm, verts=bm.verts,
                              matrix=mathutils.Matrix.Rotation(math.pi, 4, 'Y'))
 

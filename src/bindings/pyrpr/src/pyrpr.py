@@ -390,6 +390,8 @@ class Scene(Object):
             SceneAttachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
             SceneAttachHeteroVolume(self, obj)
+        elif isinstance(obj, Curve):
+            SceneAttachCurve(self, obj)
         else:
             raise TypeError("Incorrect type for SceneAttach*", self, obj)
 
@@ -404,6 +406,8 @@ class Scene(Object):
             SceneDetachLight(self, obj)
         elif isinstance(obj, HeteroVolume):
             SceneDetachHeteroVolume(self, obj)
+        elif isinstance(obj, Curve):
+            SceneDetachCurve(self, obj)
         else:
             raise TypeError("Incorrect type for SceneDetach*", self, obj)
  
@@ -565,6 +569,56 @@ class Shape(Object):
 
     def set_light_group_id(self, group_id):
         ShapeSetLightGroupID(self, group_id)
+
+
+class Curve(Object):
+    core_type_name = 'rpr_curve'
+
+    def __init__(self, context, num_curves, curve_length, control_points, uvs, radius):
+        super().__init__()
+        self.context = context
+        self.material = None
+
+        if uvs is None:
+            texcoords_ptr = ffi.NULL
+        else:
+            texcoords_ptr = ffi.cast("float *", uvs.ctypes.data)
+       
+        # create list of indices 0-control_points length
+        indices = np.arange(len(control_points), dtype=np.uint32)
+        # create list of full radius values for each curve
+        radii = np.full(num_curves, radius, dtype=np.float32)
+        # create list of segments per curve num_segments = length / 4
+        segments = np.full(num_curves, curve_length // 4, dtype=np.int32)
+        
+        ContextCreateCurve(self.context, self,
+                 len(control_points), ffi.cast("float *", control_points.ctypes.data), control_points[0].nbytes,
+                 len(indices), num_curves, 
+                 ffi.cast('rpr_uint*', indices.ctypes.data), ffi.cast("float *", radii.ctypes.data),
+                 texcoords_ptr, ffi.cast('rpr_int*', segments.ctypes.data))
+        
+    def delete(self):
+        self.set_material(None)
+        super().delete()
+
+    def set_material(self, material):
+        if self.material:
+            self.material.detach(self)
+            CurveSetMaterial(self, None)    # additional cleanup should be executed after detaching pyrprx.Material
+                                            # otherwise it could crash after resetting emissive shader
+
+        if isinstance(material, MaterialNode):
+            CurveSetMaterial(self, material)
+        elif isinstance(material, pyrprx.Material):
+            material.attach(self)
+        else:
+            raise TypeError("Incorrect type of material", self, material)
+
+        if material:
+            self.material = material
+
+    def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        CurveSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
 
 class Mesh(Shape):

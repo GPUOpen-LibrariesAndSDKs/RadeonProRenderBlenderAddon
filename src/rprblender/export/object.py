@@ -1,7 +1,8 @@
 import numpy as np
 import bpy
 
-from . import mesh, light, camera
+from . import mesh, light, camera, particle
+from rprblender.properties import SyncError
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -42,6 +43,15 @@ def sync(rpr_context, obj: bpy.types.Object, motion_blur_info=None):
         sync_motion_blur(rpr_context, obj, motion_blur_info)
     else:
         log.warn("Object to sync not supported", obj, obj.type)
+
+    # sync particles on object
+    if len(obj.particle_systems):
+        for particle_system in obj.particle_systems:
+            try:
+                particle.sync(rpr_context, particle_system, obj)
+            except SyncError as e:
+                log.warn("Error syncing particle system", e)
+            
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
