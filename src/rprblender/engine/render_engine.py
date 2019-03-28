@@ -67,8 +67,6 @@ class RenderEngine(Engine):
             self.current_iteration = 0
             time_begin = time.perf_counter()
 
-            is_initial_render = True
-
             while True:
                 if self.rpr_engine.test_break():
                     break
@@ -78,11 +76,6 @@ class RenderEngine(Engine):
                 # if less that update_samples left, use the remainder
                 update_samples = min(self.render_update_samples, self.render_iterations - self.current_iteration)
                 
-                # if initial render, use min_samples unless min is > max
-                if is_initial_render:
-                    update_samples = min(self.render_iterations, self.min_samples)
-                    is_initial_render = False
-
                 # we report time/iterations left as fractions if limit enabled
                 render_time_string = "%.1f/%d" % (self.current_render_time, self.render_time) if self.render_time \
                                         else "%.1f" % self.current_render_time
@@ -326,10 +319,10 @@ class RenderEngine(Engine):
 
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine)
 
-        if scene.rpr.viewport_limits.noise_threshold > 0.0:
+        if scene.rpr.limits.noise_threshold > 0.0:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
-            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
+            scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
         self.rpr_context.sync_shadow_catcher()
         view_layer.rpr.denoiser.export_denoiser(self.rpr_context)
@@ -339,8 +332,7 @@ class RenderEngine(Engine):
 
         self.render_iterations, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.render_update_samples = scene.rpr.limits.update_samples
-        self.min_samples = scene.rpr.limits.min_samples
-
+        
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
         log('Finish sync')
