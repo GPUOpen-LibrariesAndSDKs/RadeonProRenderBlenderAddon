@@ -91,8 +91,20 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'min_samples')
         col.prop(limits, 'max_samples')
         col.prop(limits, 'noise_threshold', slider = True)
+
+        col = self.layout.column(align=True)
+        col.enabled = not context.scene.rpr.use_tile_render
         col.prop(limits, 'seconds')
         col.prop(limits, 'update_samples')
+
+        col = self.layout.column(align=True)
+        col.prop(context.scene.rpr, 'use_tile_render')
+
+        col = col.column(align=True)
+        col.enabled = context.scene.rpr.use_tile_render
+        col.prop(context.scene.rpr, 'tile_x')
+        col.prop(context.scene.rpr, 'tile_y')
+        col.prop(context.scene.rpr, 'tile_order')
 
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):

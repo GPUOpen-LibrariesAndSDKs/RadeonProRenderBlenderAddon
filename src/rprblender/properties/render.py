@@ -138,6 +138,32 @@ class RPR_RenderProperties(RPR_Properties):
     limits: PointerProperty(type=RPR_RenderLimits)
     viewport_limits: PointerProperty(type=RPR_RenderLimits)
 
+    # RENDER TILES
+    use_tile_render: BoolProperty(
+        name="Use tiles rendering",
+        description="Use tiles to do final rendering",
+        default=False,
+    )
+    tile_x: IntProperty(
+        name="Tile X", description="Horizontal tile size to use while rendering",
+        min=32, max=2048,
+        default=512,
+    )
+    tile_y: IntProperty(
+        name="Y", description="Vertical tile size to use while rendering",
+        min=32, max=2048,
+        default=512,
+    )
+    tile_order: EnumProperty(
+        name="Tile Order",
+        items=(
+            ('CENTER_SPIRAL', "Center Spiral", "Render from center by spiral"),
+            ('VERTICAL', "Vertical", "Render from vertically from left to right"),
+            ('HORIZONTAL', "Horizontal", "Render horizontally from top to bottom"),
+        ),
+        default='CENTER_SPIRAL'
+    )
+
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
         name="Clamp",

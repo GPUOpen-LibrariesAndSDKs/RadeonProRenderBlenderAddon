@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import copy
 
 import bpy
 import pyrpr
@@ -153,6 +154,34 @@ class CameraData:
 
         rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
 
+    def export_tile(self, rpr_camera: pyrpr.Camera, resolution, tile_pos, tile_size):
+        """ Set CameraData to pyrpr.Camera """
+
+        rpr_camera.set_mode(self.mode)
+        rpr_camera.set_clip_plane(*self.clip_plane)
+
+        # following formula is used:
+        #   lens_shift = lens_shift * resolution / tile_size + (center - resolution/2) / tile_size
+        # where: center = tile_pos + tile_size/2
+        lens_shift = tuple((self.lens_shift[i] * resolution[i] + tile_pos[i] + tile_size[i] * 0.5 - resolution[i] * 0.5) / tile_size[i] for i in (0, 1))
+        rpr_camera.set_lens_shift(*lens_shift)
+
+        if self.mode == pyrpr.CAMERA_MODE_PERSPECTIVE:
+            sensor_size = tuple(self.sensor_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
+            rpr_camera.set_sensor_size(*sensor_size)
+            rpr_camera.set_focal_length(self.focal_length)
+
+        elif self.mode == pyrpr.CAMERA_MODE_ORTHOGRAPHIC:
+            ortho_size = tuple(self.ortho_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
+            rpr_camera.set_ortho(*ortho_size)
+
+        elif self.mode == pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360:
+            # TODO: Fix panoramic camera with tile render
+            sensor_size = tuple(self.sensor_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
+            rpr_camera.set_sensor_size(*sensor_size)
+            rpr_camera.set_focal_length(self.focal_length)
+
+        rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     """ Creates pyrpr.Camera from obj.data: bpy.types.Camera """

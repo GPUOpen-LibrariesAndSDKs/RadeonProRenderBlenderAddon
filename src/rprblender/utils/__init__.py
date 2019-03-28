@@ -19,13 +19,6 @@ def get_cpu_threads_number():
     return multiprocessing.cpu_count()
 
 
-def get_tiles(width, height, n, m):
-    for i in range(n):
-        for j in range(m):
-            yield (width * i // n, width * (i + 1) // n - 1,
-                   height * j // n, height * (i + 1) // n - 1)
-
-
 @dataclass(eq=False)
 class MotionBlurInfo:
     linear_velocity: tuple = (0.0, 0.0, 0.0)

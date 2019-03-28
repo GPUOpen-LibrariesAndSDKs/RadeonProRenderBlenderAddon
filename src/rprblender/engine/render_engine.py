@@ -1,6 +1,7 @@
 import bpy
 import threading
 import time
+import math
 
 from rprblender import config
 from rprblender import utils
@@ -20,6 +21,9 @@ class RenderEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
+        self.width = 0
+        self.height = 0
+
         self.render_lock = threading.Lock()
         self.is_synced = False
         self.render_event = threading.Event()
@@ -33,6 +37,10 @@ class RenderEngine(Engine):
         self.render_update_samples = 1
 
         self.status_title = ""
+
+        self.tile_size = None
+        self.camera_data: camera.CameraData = None
+        self.tile_order = None
 
     def notify_status(self, progress, info):
         self.rpr_engine.update_progress(progress)
@@ -107,44 +115,15 @@ class RenderEngine(Engine):
         finally:
             self.finish_render = True
 
-    def _do_render_tile(self, n, m, samples):
-        # TODO: This is a prototype of tile render
-        #  currently it produces core error, needs to be checked
-
-        self.finish_render = False
-        try:
-            self.rpr_context.set_parameter('iterations', samples)
-
-            for i, tile in enumerate(utils.get_tiles(self.rpr_context.width, self.rpr_context.height, n, m)):
-                if self.rpr_engine.test_break():
-                    break
-
-                self.notify_status(i / (n * m), "Tile: %d/%d" % (i, n * m))
-
-                self.rpr_context.render(tile)
-
-                self.render_event.set()
-        finally:
-            self.finish_render = True
-
-    def render(self):
-        if not self.is_synced:
-            return
-
-        log("Start render")
-
-        self.notify_status(0, "Start render")
-
+    def _render(self):
         result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height, layer=self.render_layer_name)
         self.rpr_context.clear_frame_buffers()
-        self.rpr_context.sync_auto_adapt_subdivision()
         self.render_event.clear()
 
         update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
         update_result_thread.start()
 
         self._do_render()
-        # self._do_render_tile(20, 20)
 
         update_result_thread.join()
 
@@ -155,6 +134,137 @@ class RenderEngine(Engine):
             self.set_render_result(result.layers[0].passes)
 
         self.rpr_engine.end_result(result)
+
+    def _render_tile(self):
+        def get_tiles_vertical():
+            for x in range(0, self.width, self.tile_size[0]):
+                for y in range(self.height, 0, -self.tile_size[1]):
+                    y1 = max(y - self.tile_size[1], 0)
+                    yield (x, y1), (min(self.tile_size[0], self.width - x), min(self.tile_size[1], y - y1))
+
+        def get_tiles_horizontal():
+            for y in range(self.height, 0, -self.tile_size[1]):
+                y1 = max(y - self.tile_size[1], 0)
+                for x in range(0, self.width, self.tile_size[0]):
+                    yield (x, y1), (min(self.tile_size[0], self.width - x), min(self.tile_size[1], y - y1))
+
+        def get_tiles_center_spiral():
+            x = (self.width - self.tile_size[0]) // 2
+            y = (self.height - self.tile_size[1]) // 2
+
+            def get_tile():
+                if x + self.tile_size[0] > 0 and x < self.width and y + self.tile_size[1] > 0 and y < self.height:
+                    x1 = max(x, 0)
+                    y1 = max(y, 0)
+                    x2 = min(x + self.tile_size[0], self.width)
+                    y2 = min(y + self.tile_size[1], self.height)
+                    return (x1, y1), (x2 - x1, y2 - y1)
+
+                return None
+
+            tile = get_tile()
+            if tile:
+                yield tile
+
+            side = 0
+            have_tiles = True
+            while have_tiles:
+                have_tiles = False
+
+                side += 1
+                for _ in range(side):
+                    y -= self.tile_size[1]
+                    tile = get_tile()
+                    if tile:
+                        have_tiles = True
+                        yield tile
+                for _ in range(side):
+                    x += self.tile_size[0]
+                    tile = get_tile()
+                    if tile:
+                        have_tiles = True
+                        yield tile
+                side += 1
+                for _ in range(side):
+                    y += self.tile_size[1]
+                    tile = get_tile()
+                    if tile:
+                        have_tiles = True
+                        yield tile
+                for _ in range(side):
+                    x -= self.tile_size[0]
+                    tile = get_tile()
+                    if tile:
+                        have_tiles = True
+                        yield tile
+
+        def get_tiles_number(order):
+            if order != 'CENTER_SPIRAL':
+                x_count = math.ceil(self.width / self.tile_size[0])
+                y_count = math.ceil(self.height / self.tile_size[1])
+            else:
+                x = (self.width - self.tile_size[0]) // 2
+                y = (self.height - self.tile_size[1]) // 2
+
+                x_count = math.ceil(x / self.tile_size[0]) + math.ceil((self.width - x) / self.tile_size[0])
+                y_count = math.ceil(y / self.tile_size[1]) + math.ceil((self.height - y) / self.tile_size[1])
+
+            return x_count * y_count
+
+        tile_func = {
+            'VERTICAL': get_tiles_vertical,
+            'HORIZONTAL': get_tiles_horizontal,
+            'CENTER_SPIRAL': get_tiles_center_spiral,
+        }[self.tile_order]
+
+        rpr_camera = self.rpr_context.scene.camera
+        self.rpr_context.set_parameter('iterations', self.render_iterations)
+
+        tiles_number = get_tiles_number(self.tile_order)
+        time_begin = time.perf_counter()
+
+        for i, (tile_pos, tile_size) in enumerate(tile_func()):
+            if self.rpr_engine.test_break():
+                break
+
+            log('Render tile', i, tile_pos, tile_size)
+
+            self.current_render_time = time.perf_counter() - time_begin
+
+            self.notify_status(
+                i / tiles_number,
+                "Render Time: %.1f sec | Tile: %d/%d" % (self.current_render_time, i, tiles_number)
+            )
+
+            self.camera_data.export_tile(rpr_camera, (self.width, self.height), tile_pos, tile_size)
+
+            result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=self.render_layer_name)
+            self.rpr_context.resize(*tile_size)
+            self.rpr_context.clear_frame_buffers()
+
+            self.rpr_context.render()
+
+            log('Getting tile render result')
+            self.rpr_context.resolve()
+            self.rpr_context.resolve_extras()
+            self.set_render_result(result.layers[0].passes)
+
+            self.rpr_engine.end_result(result)
+
+    def render(self):
+        if not self.is_synced:
+            return
+
+        self.rpr_context.sync_auto_adapt_subdivision(self.width, self.height)
+
+        log("Start render")
+        self.notify_status(0, "Start render")
+
+        if self.tile_size:
+            self._render_tile()
+        else:
+            self._render()
+
         self.notify_status(1, "Finish render")
         log('Finish render')
 
@@ -168,7 +278,11 @@ class RenderEngine(Engine):
         :return: image with applied render stamp text if text allowed, unchanged source image otherwise
         :rtype: np.Array
         """
-        if bpy.context.scene.rpr.use_render_stamp and render_stamp.render_stamp_supported:
+        if bpy.context.scene.rpr.use_render_stamp \
+                and render_stamp.render_stamp_supported \
+                and not bpy.context.scene.rpr.use_tile_render:
+
+            # TODO: Apply render stamp after tile rendering
             image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
                                               self.rpr_context.width, self.rpr_context.height, channels,
                                               self.current_iteration, self.current_render_time)
@@ -253,11 +367,11 @@ class RenderEngine(Engine):
 
         # Initializing rpr_context
         scene.rpr.init_rpr_context(self.rpr_context)
-        self.rpr_context.resize(
-            int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
-            int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
-        )
         self.rpr_context.scene.set_name(scene.name)
+
+        self.width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
+        self.height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+        self.rpr_context.resize(self.width, self.height)
 
         frame_motion_blur_info = self.collect_motion_blur_info(depsgraph)
 
@@ -266,6 +380,9 @@ class RenderEngine(Engine):
         # exporting objects
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
+            if obj.type == 'CAMERA':
+                continue
+
             self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
             obj_motion_blur_info = frame_motion_blur_info.get(object.key(obj), None)
@@ -292,19 +409,15 @@ class RenderEngine(Engine):
                 instance.sync(self.rpr_context, inst, motion_blur_info=obj_motion_blur_info)
 
             except SyncError as e:
-                log.warn("Object syncing error", e)   # TODO: Error to UI log
+                log.warn("Instance syncing error", e)   # TODO: Error to UI log
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
 
+        # export camera
         camera_key = object.key(scene.camera)
-
-        # it's possible that depsgraph.object_instances doesn't contain camera,
-        # in this case we need to sync it separately
-        if camera_key not in self.rpr_context.objects:
-            camera.sync(self.rpr_context, scene.camera)
-
+        camera.sync(self.rpr_context, scene.camera)
         rpr_camera = self.rpr_context.objects[camera_key]
 
         if scene.camera.rpr.motion_blur:
@@ -316,6 +429,16 @@ class RenderEngine(Engine):
                 rpr_camera.set_linear_motion(*camera_motion_blur.linear_velocity)
 
         self.rpr_context.scene.set_camera(rpr_camera)
+
+        if scene.rpr.use_tile_render:
+            if scene.camera.data.type == 'PANO':
+                log.warn("Tiles rendering is not supported for Panoramic camera")
+            else:
+                self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, object.get_transform(scene.camera),
+                                                                      self.width / self.height)
+                self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
+                self.tile_order = scene.rpr.tile_order
+                self.rpr_context.resize(*self.tile_size)
 
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine)
 
