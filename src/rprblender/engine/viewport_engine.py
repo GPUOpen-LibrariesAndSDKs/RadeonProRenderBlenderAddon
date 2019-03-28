@@ -179,7 +179,7 @@ class ViewportEngine(Engine):
                 instance.sync(self.rpr_context, inst)
 
             except SyncError as e:
-                log.warn("Object syncing error", e)
+                log.warn("Instance syncing error", e)
 
         if not self.rpr_context.gl_interop:
             self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
