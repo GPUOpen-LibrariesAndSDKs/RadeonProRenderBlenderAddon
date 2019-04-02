@@ -25,8 +25,10 @@ class CameraData:
     ortho_size: (float, float) = None
 
     @staticmethod
-    def init_from_camera(camera: bpy.types.Camera, transform, ratio):
+    def init_from_camera(camera: bpy.types.Camera, transform, ratio, border=((0, 0), (1, 1))):
         """ Returns CameraData from bpy.types.Camera """
+
+        pos, size = border
 
         data = CameraData()
         data.clip_plane = (camera.clip_start, camera.clip_end)
@@ -39,6 +41,10 @@ class CameraData:
         elif camera.sensor_fit == 'AUTO':
             data.lens_shift = (camera.shift_x, camera.shift_y * ratio) if ratio > 1.0 else \
                 (camera.shift_x / ratio, camera.shift_y)
+        else:
+            raise ValueError("Incorrect camera.sensor_fit value", camera, camera.sensor_fit)
+
+        data.lens_shift = tuple(data.lens_shift[i] / size[i] + (pos[i] + size[i] * 0.5 - 0.5) / size[i] for i in (0, 1))
 
         if camera.type == 'PERSP':
             data.mode = pyrpr.CAMERA_MODE_PERSPECTIVE
@@ -47,11 +53,12 @@ class CameraData:
                 data.sensor_size = (camera.sensor_height * ratio, camera.sensor_height)
             elif camera.sensor_fit == 'HORIZONTAL':
                 data.sensor_size = (camera.sensor_width, camera.sensor_width / ratio)
-            elif camera.sensor_fit == 'AUTO':
+            else:
                 data.sensor_size = (camera.sensor_width, camera.sensor_width / ratio) if ratio > 1.0 else \
                                    (camera.sensor_width * ratio, camera.sensor_width)
-            else:
-                raise ValueError("Incorrect camera.sensor_fit value", camera, camera.sensor_fit)
+
+            data.sensor_size = tuple(data.sensor_size[i] * size[i] for i in (0, 1))
+
 
         elif camera.type == 'ORTHO':
             data.mode = pyrpr.CAMERA_MODE_ORTHOGRAPHIC
@@ -59,9 +66,11 @@ class CameraData:
                 data.ortho_size = (camera.ortho_scale * ratio, camera.ortho_scale)
             elif camera.sensor_fit == 'HORIZONTAL':
                 data.ortho_size = (camera.ortho_scale, camera.ortho_scale / ratio)
-            elif camera.sensor_fit == 'AUTO':
+            else:
                 data.ortho_size = (camera.ortho_scale, camera.ortho_scale / ratio) if ratio > 1.0 else \
                                   (camera.ortho_scale * ratio, camera.ortho_scale)
+
+            data.ortho_size = tuple(data.ortho_size[i] * size[i] for i in (0, 1))
 
         elif camera.type == 'PANO':
             # TODO: Recheck parameters for PANO camera
@@ -71,11 +80,11 @@ class CameraData:
                 data.sensor_size = (camera.sensor_height * ratio, camera.sensor_height)
             elif camera.sensor_fit == 'HORIZONTAL':
                 data.sensor_size = (camera.sensor_width, camera.sensor_width / ratio)
-            elif camera.sensor_fit == 'AUTO':
+            else:
                 data.sensor_size = (camera.sensor_width, camera.sensor_width / ratio) if ratio > 1.0 else \
                                    (camera.sensor_width * ratio, camera.sensor_width)
-            else:
-                raise ValueError("Incorrect camera.sensor_fit value", camera, camera.sensor_fit)
+
+            data.sensor_size = tuple(data.sensor_size[i] * size[i] for i in (0, 1))
 
         else:
             raise ValueError("Incorrect camera.type value",camera, camera.type)
@@ -134,28 +143,14 @@ class CameraData:
 
         return data
 
-    def export(self, rpr_camera: pyrpr.Camera):
-        """ Set CameraData to pyrpr.Camera """
+    def export(self, rpr_camera: pyrpr.Camera, tile=((0.0, 0.0), (1.0, 1.0))):
+        """
+        Set CameraData to pyrpr.Camera
+        :param rpr_camera: pyrpr.Camera
+        :param tile: tuple of tile position <tuple> and tile size <tuple> normalized to 1
+        """
 
-        rpr_camera.set_mode(self.mode)
-        rpr_camera.set_clip_plane(*self.clip_plane)
-        rpr_camera.set_lens_shift(*self.lens_shift)
-
-        if self.mode == pyrpr.CAMERA_MODE_PERSPECTIVE:
-            rpr_camera.set_sensor_size(*self.sensor_size)
-            rpr_camera.set_focal_length(self.focal_length)
-
-        elif self.mode == pyrpr.CAMERA_MODE_ORTHOGRAPHIC:
-            rpr_camera.set_ortho(*self.ortho_size)
-
-        elif self.mode == pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360:
-            rpr_camera.set_sensor_size(*self.sensor_size)
-            rpr_camera.set_focal_length(self.focal_length)
-
-        rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
-
-    def export_tile(self, rpr_camera: pyrpr.Camera, resolution, tile_pos, tile_size):
-        """ Set CameraData to pyrpr.Camera """
+        pos, size = tile
 
         rpr_camera.set_mode(self.mode)
         rpr_camera.set_clip_plane(*self.clip_plane)
@@ -163,25 +158,25 @@ class CameraData:
         # following formula is used:
         #   lens_shift = lens_shift * resolution / tile_size + (center - resolution/2) / tile_size
         # where: center = tile_pos + tile_size/2
-        lens_shift = tuple((self.lens_shift[i] * resolution[i] + tile_pos[i] + tile_size[i] * 0.5 - resolution[i] * 0.5) / tile_size[i] for i in (0, 1))
+        lens_shift = tuple(self.lens_shift[i] / size[i] + (pos[i] + size[i] * 0.5 - 0.5) / size[i] for i in (0, 1))
         rpr_camera.set_lens_shift(*lens_shift)
 
         if self.mode == pyrpr.CAMERA_MODE_PERSPECTIVE:
-            sensor_size = tuple(self.sensor_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
+            sensor_size = tuple(self.sensor_size[i] * size[i] for i in (0, 1))
             rpr_camera.set_sensor_size(*sensor_size)
             rpr_camera.set_focal_length(self.focal_length)
 
         elif self.mode == pyrpr.CAMERA_MODE_ORTHOGRAPHIC:
-            ortho_size = tuple(self.ortho_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
+            ortho_size = tuple(self.ortho_size[i] * size[i] for i in (0, 1))
             rpr_camera.set_ortho(*ortho_size)
 
         elif self.mode == pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360:
             # TODO: Fix panoramic camera with tile render
-            sensor_size = tuple(self.sensor_size[i] * tile_size[i] / resolution[i] for i in (0, 1))
-            rpr_camera.set_sensor_size(*sensor_size)
+            rpr_camera.set_sensor_size(*self.sensor_size)
             rpr_camera.set_focal_length(self.focal_length)
 
         rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
+
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     """ Creates pyrpr.Camera from obj.data: bpy.types.Camera """

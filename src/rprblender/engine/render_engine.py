@@ -116,7 +116,8 @@ class RenderEngine(Engine):
             self.finish_render = True
 
     def _render(self):
-        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height, layer=self.render_layer_name)
+        result = self.rpr_engine.begin_result(0, 0, self.width, self.height, layer=self.render_layer_name)
+
         self.rpr_context.clear_frame_buffers()
         self.render_event.clear()
 
@@ -136,94 +137,15 @@ class RenderEngine(Engine):
         self.rpr_engine.end_result(result)
 
     def _render_tile(self):
-        def get_tiles_vertical():
-            for x in range(0, self.width, self.tile_size[0]):
-                for y in range(self.height, 0, -self.tile_size[1]):
-                    y1 = max(y - self.tile_size[1], 0)
-                    yield (x, y1), (min(self.tile_size[0], self.width - x), min(self.tile_size[1], y - y1))
-
-        def get_tiles_horizontal():
-            for y in range(self.height, 0, -self.tile_size[1]):
-                y1 = max(y - self.tile_size[1], 0)
-                for x in range(0, self.width, self.tile_size[0]):
-                    yield (x, y1), (min(self.tile_size[0], self.width - x), min(self.tile_size[1], y - y1))
-
-        def get_tiles_center_spiral():
-            x = (self.width - self.tile_size[0]) // 2
-            y = (self.height - self.tile_size[1]) // 2
-
-            def get_tile():
-                if x + self.tile_size[0] > 0 and x < self.width and y + self.tile_size[1] > 0 and y < self.height:
-                    x1 = max(x, 0)
-                    y1 = max(y, 0)
-                    x2 = min(x + self.tile_size[0], self.width)
-                    y2 = min(y + self.tile_size[1], self.height)
-                    return (x1, y1), (x2 - x1, y2 - y1)
-
-                return None
-
-            tile = get_tile()
-            if tile:
-                yield tile
-
-            side = 0
-            have_tiles = True
-            while have_tiles:
-                have_tiles = False
-
-                side += 1
-                for _ in range(side):
-                    y -= self.tile_size[1]
-                    tile = get_tile()
-                    if tile:
-                        have_tiles = True
-                        yield tile
-                for _ in range(side):
-                    x += self.tile_size[0]
-                    tile = get_tile()
-                    if tile:
-                        have_tiles = True
-                        yield tile
-                side += 1
-                for _ in range(side):
-                    y += self.tile_size[1]
-                    tile = get_tile()
-                    if tile:
-                        have_tiles = True
-                        yield tile
-                for _ in range(side):
-                    x -= self.tile_size[0]
-                    tile = get_tile()
-                    if tile:
-                        have_tiles = True
-                        yield tile
-
-        def get_tiles_number(order):
-            if order != 'CENTER_SPIRAL':
-                x_count = math.ceil(self.width / self.tile_size[0])
-                y_count = math.ceil(self.height / self.tile_size[1])
-            else:
-                x = (self.width - self.tile_size[0]) // 2
-                y = (self.height - self.tile_size[1]) // 2
-
-                x_count = math.ceil(x / self.tile_size[0]) + math.ceil((self.width - x) / self.tile_size[0])
-                y_count = math.ceil(y / self.tile_size[1]) + math.ceil((self.height - y) / self.tile_size[1])
-
-            return x_count * y_count
-
-        tile_func = {
-            'VERTICAL': get_tiles_vertical,
-            'HORIZONTAL': get_tiles_horizontal,
-            'CENTER_SPIRAL': get_tiles_center_spiral,
-        }[self.tile_order]
+        tile_iterator = utils.tile_iterator(self.tile_order, self.width, self.height, *self.tile_size)
 
         rpr_camera = self.rpr_context.scene.camera
         self.rpr_context.set_parameter('iterations', self.render_iterations)
 
-        tiles_number = get_tiles_number(self.tile_order)
+        tiles_number = tile_iterator.len
         time_begin = time.perf_counter()
 
-        for i, (tile_pos, tile_size) in enumerate(tile_func()):
+        for i, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
                 break
 
@@ -236,7 +158,8 @@ class RenderEngine(Engine):
                 "Render Time: %.1f sec | Tile: %d/%d" % (self.current_render_time, i, tiles_number)
             )
 
-            self.camera_data.export_tile(rpr_camera, (self.width, self.height), tile_pos, tile_size)
+            self.camera_data.export(rpr_camera, tile=((tile_pos[0]/self.width, tile_pos[1]/self.height),
+                                                      (tile_size[0]/self.width, tile_size[1]/self.height)))
 
             result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=self.render_layer_name)
             self.rpr_context.resize(*tile_size)
@@ -372,8 +295,16 @@ class RenderEngine(Engine):
         scene.rpr.init_rpr_context(self.rpr_context)
         self.rpr_context.scene.set_name(scene.name)
 
-        self.width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
-        self.height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+        border = ((0, 0), (1, 1)) if not scene.render.use_border else \
+            ((scene.render.border_min_x, scene.render.border_min_y),
+             (scene.render.border_max_x - scene.render.border_min_x, scene.render.border_max_y - scene.render.border_min_y))
+
+        screen_width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
+        screen_height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+
+        self.width = int(screen_width * border[1][0])
+        self.height = int(screen_height * border[1][1])
+
         self.rpr_context.resize(self.width, self.height)
 
         frame_motion_blur_info = self.collect_motion_blur_info(depsgraph)
@@ -433,15 +364,19 @@ class RenderEngine(Engine):
 
         self.rpr_context.scene.set_camera(rpr_camera)
 
+        self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, object.get_transform(scene.camera),
+                                                              screen_width / screen_height, border)
+
         if scene.rpr.use_tile_render:
             if scene.camera.data.type == 'PANO':
                 log.warn("Tiles rendering is not supported for Panoramic camera")
             else:
-                self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, object.get_transform(scene.camera),
-                                                                      self.width / self.height)
                 self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
                 self.tile_order = scene.rpr.tile_order
                 self.rpr_context.resize(*self.tile_size)
+
+        else:
+            self.camera_data.export(rpr_camera)
 
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine)
 
