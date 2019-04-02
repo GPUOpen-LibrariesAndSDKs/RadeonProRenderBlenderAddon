@@ -288,8 +288,9 @@ class RPR_RenderProperties(RPR_Properties):
         if devices.cpu_state:
             context_flags |= pyrpr.Context.cpu_device['flag']
             context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, devices.cpu_threads])
+
+        metal_enabled = False
         if hasattr(devices, 'gpu_states'):
-            metal_enabled = False
             for i, gpu_state in enumerate(devices.gpu_states):
                 if gpu_state:
                     context_flags |= pyrpr.Context.gpu_devices[i]['flag']

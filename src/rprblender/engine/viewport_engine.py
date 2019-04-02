@@ -2,7 +2,7 @@ import threading
 import time
 
 import bpy
-from gpu_extras.presets import draw_texture_2d
+import bgl
 
 import pyrpr
 from .engine import Engine
@@ -245,12 +245,65 @@ class ViewportEngine(Engine):
         if is_updated:
             self.restart_render_event.set()
 
+    @staticmethod
+    def _draw_texture(texture_id, x, y, width, height):
+        # INITIALIZATION
+
+        # Getting shader program
+        shader_program = bgl.Buffer(bgl.GL_INT, 1)
+        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
+
+        # Generate vertex array
+        vertex_array = bgl.Buffer(bgl.GL_INT, 1)
+        bgl.glGenVertexArrays(1, vertex_array)
+
+        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
+        position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
+
+        # Generate geometry buffers for drawing textured quad
+        position = [x, y, x + width, y, x + width, y + height, x, y + height]
+        position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
+        texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
+        texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
+
+        vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
+        bgl.glGenBuffers(2, vertex_buffer)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[0])
+        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[1])
+        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
+
+        # DRAWING
+        bgl.glActiveTexture(bgl.GL_TEXTURE0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, texture_id)
+
+        bgl.glBindVertexArray(vertex_array[0])
+        bgl.glEnableVertexAttribArray(texturecoord_location)
+        bgl.glEnableVertexAttribArray(position_location)
+
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[0])
+        bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[1])
+        bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
+        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
+
+        bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4)
+
+        bgl.glBindVertexArray(0)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
+
+        # DELETING
+        bgl.glDeleteBuffers(2, vertex_buffer)
+        bgl.glDeleteVertexArrays(1, vertex_array)
+
     def draw(self, context):
         log("Draw")
 
         camera_settings = camera.CameraData.init_from_context(context)
         width = context.region.width
         height = context.region.height
+        scene = context.depsgraph.scene
 
         is_camera_update = self.camera_settings != camera_settings
         is_resize_update = self.rpr_context.width != width or self.rpr_context.height != height
@@ -275,7 +328,15 @@ class ViewportEngine(Engine):
             self.gl_texture.set_image(im)
             texture_id = self.gl_texture.texture_id
 
-        draw_texture_2d(texture_id, (0, 0), self.rpr_context.width, self.rpr_context.height)
+        # Bind shader that converts from scene linear to display space,
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+        self.rpr_engine.bind_display_space_shader(scene)
+
+        self._draw_texture(texture_id, 0, 0, self.rpr_context.width, self.rpr_context.height)
+
+        self.rpr_engine.unbind_display_space_shader()
+        bgl.glDisable(bgl.GL_BLEND)
 
     def remove_deleted_objects(self, depsgrapgh):
         keys = set.union(
