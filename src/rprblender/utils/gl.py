@@ -1,3 +1,4 @@
+import platform
 import numpy as np
 import bgl
 
@@ -33,7 +34,7 @@ class GLTexture:
         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
 
         bgl.glTexImage2D(
-            bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA,
+            bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA if platform.system() == 'Darwin' else bgl.GL_RGBA16F,
             self.width, self.height, 0,
             bgl.GL_RGBA, bgl.GL_FLOAT,
             bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, self.channels])
