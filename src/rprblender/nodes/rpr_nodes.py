@@ -109,8 +109,7 @@ class RPRShaderNodeUber(RPRShaderNode):
         'Coating Weight': ('rpr_socket_weight_soft', 1.0, "self.enable_coating"),
         'Coating Color': ('rpr_socket_color', (1.0, 1.0, 1.0, 1.0), "self.enable_coating"),
         'Coating Roughness': ('rpr_socket_weight', 0.01, "self.enable_coating"),
-        'Coating IOR': ('rpr_socket_ior', 1.5, "self.enable_coating and self.coating_mode == 'PBR'"),
-        'Coating Metalness': ('rpr_socket_weight', 0.0, "self.enable_coating and self.coating_mode == 'METALNESS'"),
+        'Coating IOR': ('rpr_socket_ior', 1.5, "self.enable_coating"),
         'Coating Thickness': ('rpr_socket_float_min0_softmax10', 0.0, "self.enable_coating"),
         'Coating Transmission Color': ('rpr_socket_color', (1.0, 1.0, 1.0, 1.0), "self.enable_coating"),
         'Coating Normal': ('NodeSocketVector', None, "self.enable_coating and not self.coating_use_shader_normal"),
@@ -165,15 +164,7 @@ class RPRShaderNodeUber(RPRShaderNode):
 
     enable_coating: BoolProperty(name="Coating", description="Enable Coating", default=False, update=update_visibility)
     coating_use_shader_normal: BoolProperty(name="Coating use shader normal", description="Use the master shader normal (disable to override)", default=True, update=update_visibility)
-    coating_mode: EnumProperty(
-        name="Coating Mode",
-        description="Set coating via metalness or IOR",
-        items=(('METALNESS', "Metalness", ""),
-               ('PBR', "IOR", "")),
-        default='METALNESS',
-        update=update_visibility
-    )
-
+    
     enable_sheen: BoolProperty(name="Sheen", description="Enable Sheen", default=False, update=update_visibility)
 
     enable_emission: BoolProperty(name="Emission", description="Enable Emission", default=False, update=update_visibility)
@@ -237,8 +228,7 @@ class RPRShaderNodeUber(RPRShaderNode):
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'coating_use_shader_normal')
-            c.prop(self, 'coating_mode', text="")
-        
+            
         col.prop(self, 'enable_sheen', toggle=True)
 
         col.prop(self, 'enable_emission', toggle=True)
@@ -361,17 +351,10 @@ class RPRShaderNodeUber(RPRShaderNode):
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_THICKNESS, coating_thickness)
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_TRANSMISSION_COLOR, coating_transmission_color)
 
-                if self.node.coating_mode == 'PBR':
-                    coating_ior = self.get_input_value('Coating IOR')
+                coating_ior = self.get_input_value('Coating IOR')
 
-                    rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_MODE, pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
-                    rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_IOR, coating_ior)
-
-                else:
-                    coating_metalness = self.get_input_value('Coating Metalness')
-
-                    rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_MODE, pyrprx.UBER_MATERIAL_COATING_MODE_METALNESS)
-                    rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_METALNESS, coating_metalness)
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_MODE, pyrprx.UBER_MATERIAL_COATING_MODE_PBR)
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_IOR, coating_ior)
 
                 set_normal('Coating Normal', self.node.coating_use_shader_normal, pyrprx.UBER_MATERIAL_COATING_NORMAL)
 
