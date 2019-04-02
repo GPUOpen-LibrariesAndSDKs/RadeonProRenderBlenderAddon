@@ -68,6 +68,12 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, default=50,
     )
 
+    limit_viewport_resolution: BoolProperty(
+        name="Limit Viewport Resolution",
+        description="Limits viewport resolution to final render resolution",
+        default=True,
+    )
+
     def set_adaptive_params(self, rpr_context):
         ''' Set the adaptive sampling parameters for this context. 
             adaptive_threshold, adaptive_min_samples, and adaptive_tile_size '''
@@ -140,7 +146,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     # RENDER TILES
     use_tile_render: BoolProperty(
-        name="Use tiles rendering",
+        name="Tiled rendering",
         description="Use tiles to do final rendering",
         default=False,
     )

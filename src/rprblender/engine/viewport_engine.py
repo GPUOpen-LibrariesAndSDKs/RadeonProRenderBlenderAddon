@@ -136,23 +136,56 @@ class ViewportEngine(Engine):
 
         log("Finish resolve thread")
 
+    def get_viewport_resolution(self, context):
+        ''' Gets the viewport resolution.  If limit is turned on,
+            scales the region resolution down to max of a given resolution with the same 
+            aspect ratio as the region, returns scaled resolution'''
+        scene = context.depsgraph.scene
+
+        region_w,region_h = (context.region.width, context.region.height)
+        if not scene.rpr.viewport_limits.limit_viewport_resolution:
+            # simply return region width/height
+            return region_w,region_h
+
+        # else we have to scale
+        render_w = int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
+        render_h = int(scene.render.resolution_y * scene.render.resolution_percentage / 100.0)
+            
+        region_aspect = region_w/region_h
+        render_aspect = render_w/render_h
+
+        if render_aspect > region_aspect:
+            # if render resolution is wider, use the max height from render and scale to aspect ratio
+            region_h = min(render_h, region_h)
+            region_w = int(region_aspect * region_h)
+        else:
+            # scale to render width and maintain aspect ratio
+            region_w = min(render_w, region_w)
+            region_h = int(region_w / region_aspect)
+
+        return region_w, region_h
+
+
     def sync(self, context):
         log('Start sync')
-
+    
         depsgraph = context.depsgraph
         scene = depsgraph.scene
+        viewport_limits = scene.rpr.viewport_limits
 
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False, use_gl_interop=config.use_gl_interop)
-        self.rpr_context.resize(context.region.width, context.region.height)
-
+        
+        w,h = self.get_viewport_resolution(context)
+        self.rpr_context.resize(w, h)
+        
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        self.noise_threshold = scene.rpr.viewport_limits.noise_threshold
+        self.noise_threshold = viewport_limits.noise_threshold
         if self.noise_threshold > 0.0:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
-            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
+            viewport_limits.set_adaptive_params(self.rpr_context)
 
         self.world_settings = world.WorldData(scene.world)
         world.sync(self.rpr_context, scene.world)
@@ -183,7 +216,7 @@ class ViewportEngine(Engine):
                 log.warn("Instance syncing error", e)
 
         if not self.rpr_context.gl_interop:
-            self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
+            self.gl_texture = gl.GLTexture(w, h)
 
         self.rpr_context.sync_shadow_catcher()
 
@@ -191,7 +224,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter('iterations', 1)
         scene.rpr.export_ray_depth(self.rpr_context)
 
-        self.render_iterations, self.render_time = (scene.rpr.viewport_limits.max_samples, 0) 
+        self.render_iterations, self.render_time = (viewport_limits.max_samples, 0) 
 
         self.is_synced = True
         log('Finish sync')
@@ -301,8 +334,7 @@ class ViewportEngine(Engine):
         log("Draw")
 
         camera_settings = camera.CameraData.init_from_context(context)
-        width = context.region.width
-        height = context.region.height
+        width, height = self.get_viewport_resolution(context)
         scene = context.depsgraph.scene
 
         is_camera_update = self.camera_settings != camera_settings
@@ -333,7 +365,8 @@ class ViewportEngine(Engine):
         bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
         self.rpr_engine.bind_display_space_shader(scene)
 
-        self._draw_texture(texture_id, 0, 0, self.rpr_context.width, self.rpr_context.height)
+        # note this has to draw to region size, not scaled down size
+        self._draw_texture(texture_id, 0, 0, context.region.width, context.region.height)
 
         self.rpr_engine.unbind_display_space_shader()
         bgl.glDisable(bgl.GL_BLEND)

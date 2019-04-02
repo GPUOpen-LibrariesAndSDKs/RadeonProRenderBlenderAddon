@@ -121,6 +121,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col = self.layout.column()
         col.prop(limits, 'max_samples')
         col.prop(limits, 'noise_threshold', slider = True)
+        col.prop(limits, 'limit_viewport_resolution')
         
         col.separator()
         col.prop(limits, 'thumbnail_iterations')
