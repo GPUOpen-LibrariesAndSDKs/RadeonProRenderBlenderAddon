@@ -14,6 +14,11 @@ def key(material, node, socket_out):
     return (material.name, node.name, socket_out.name if socket_out else None)
 
 
+class MaterialError(BaseException):
+    """ Unsupported shader nodes setup """
+    pass
+
+
 class NodeParser(metaclass=ABCMeta):
     """
     This is the base class that parses a blender node.
@@ -82,12 +87,36 @@ class NodeParser(metaclass=ABCMeta):
 
         if socket_in.is_linked:
             link = socket_in.links[0]
-            if link.is_valid:
-                return self._export_node(link.from_node, link.from_socket)
 
-            log.error("Invalid link found", link, socket_in, self.node, self.material)
+            # check if linked is correct
+            if not self.is_link_allowed(link):
+                raise MaterialError("Invalid link found", link, socket_in, self.node, self.material)
+
+            return self._export_node(link.from_node, link.from_socket)
 
         return None
+
+    def is_link_allowed(self, link):
+        """
+        Check if linked socket could be linked to destination socket
+        Some links are not allowed for RPR, like any shader to non-shader
+        """
+
+        # link loop
+        if not link.is_valid:
+            return False
+
+        source = link.from_socket
+        destination = link.to_socket
+
+        is_source_shader = isinstance(source, bpy.types.NodeSocketShader)
+        is_destination_shader = isinstance(destination, bpy.types.NodeSocketShader)
+
+        # Linking shaders and non-shaders
+        if is_source_shader ^ is_destination_shader:
+            return False
+
+        return True
 
     def get_input_value(self, socket_key):
         """ Returns linked node or default socket value """
@@ -124,7 +153,7 @@ class NodeParser(metaclass=ABCMeta):
 
         log("export", self.material, self.node, self.socket_out)
         rpr_node = self.export()
-        
+
         if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
             node_key = key(self.material, self.node, self.socket_out)
             self.rpr_context.set_material_node_key(node_key, rpr_node)

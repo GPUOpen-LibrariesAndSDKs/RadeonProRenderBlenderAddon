@@ -7,7 +7,7 @@ All parser classes should:
 import math
 import numpy as np
 
-from .node_parser import NodeParser, RuleNodeParser
+from .node_parser import NodeParser, RuleNodeParser, MaterialError
 import pyrpr
 import pyrprx
 
@@ -26,7 +26,7 @@ log = logging.Log(tag='export.rpr_nodes')
 '''
 
 
-ERROR_OUTPUT_COLOR = (0.0, 0.0, 0.0, 1.0)   # Corresponds Cycles error output color
+ERROR_OUTPUT_COLOR = (1.0, 0.0, 1.0, 1.0)   # Corresponds Cycles error output color
 ERROR_IMAGE_COLOR = (1.0, 0.0, 1.0, 1.0)    # Corresponds Cycles error image color
 COLOR_GAMMA = 2.2
 SSS_MIN_RADIUS = 0.0001
@@ -44,14 +44,19 @@ class ShaderNodeOutputMaterial(NodeParser):
         rpr_node = self.get_input_link(input_socket_key)
         if not rpr_node:
             if input_socket_key == 'Surface':
-                # creating error shader
-                rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_PASSTHROUGH)
-                rpr_node.set_input('color', ERROR_OUTPUT_COLOR)
+                raise MaterialError("Empty Surface input socket")
 
         return rpr_node
 
     def final_export(self, input_socket_key='Surface'):
-        return self.export(input_socket_key)
+        try:
+            return self.export(input_socket_key)
+        except MaterialError as e:  # material nodes setup error, stop parsing and inform user
+            log.error(e)
+            # creating error shader
+            rpr_material = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_PASSTHROUGH)
+            rpr_material.set_input('color', ERROR_OUTPUT_COLOR)
+            return rpr_material
 
 
 class ShaderNodeAmbientOcclusion(NodeParser):
