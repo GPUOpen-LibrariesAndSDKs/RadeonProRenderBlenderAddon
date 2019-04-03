@@ -589,7 +589,7 @@ if __name__=='__main__':
     # ImageProcessing
     rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap.h'
     json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
-    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/inc']
+    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include']
 
     # GLTF
     rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc/ProRenderGLTF.h'
