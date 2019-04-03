@@ -364,7 +364,7 @@ class RenderEngine(Engine):
 
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, object.get_transform(scene.camera),
+        self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, scene.camera.matrix_world,
                                                               screen_width / screen_height, border)
 
         if scene.rpr.use_tile_render:

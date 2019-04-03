@@ -38,7 +38,6 @@ def get_panels():
 
     exclude_panels = {
         'DATA_PT_area',
-        'DATA_PT_camera_dof',
         'DATA_PT_context_light',
         'DATA_PT_falloff_curve',
         'DATA_PT_light',
@@ -132,6 +131,7 @@ register, unregister = bpy.utils.register_classes_factory([
     material.RPR_MATERIAL_PT_surface,
 
     camera.RPR_CAMERA_PT_motion_blur,
+    camera.DATA_PT_RPR_camera_dof_aperture,
 
     world.RPR_WORLD_PT_environment,
     world.RPR_WORLD_PT_overrides,
