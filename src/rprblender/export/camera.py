@@ -25,7 +25,7 @@ class CameraData:
     lens_shift: (float, float) = None
     ortho_size: (float, float) = None
     dof_enable: bool = False
-    dof_stop: float = None
+    dof_fstop: float = None
     dof_blades: int = None
     dof_focus_distance: float = None
 
