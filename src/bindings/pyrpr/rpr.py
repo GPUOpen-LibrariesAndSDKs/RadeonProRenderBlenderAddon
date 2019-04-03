@@ -29,10 +29,10 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     if "Windows" == platform.system():
         inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
                    str(rprsdk_path / "Win/inc"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Win/inc"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Windows/inc"),
                    str(rprsdk_path / "../RadeonProRender-GLTF/Win/inc")]
         lib_dir = [str(rprsdk_path / "Win/lib"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Win/lib"),
+                   str(rprsdk_path / "../RadeonProImageProcessing/Windows/lib"),
                    str(rprsdk_path / "../RadeonProRender-GLTF/Win/lib")]
     elif "Linux" == platform.system():
         assert 'Ubuntu' in platform.version()
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     export('pyrprsupportapi.json', ['pyrprapi.json'], 'RprSupport.h',
            '__rprx', 'pyrprsupportwrap.py', 'pyrprsupportwrap_make.py', abi_mode)
 
-    export('pyrprimagefiltersapi.json', [], 'imagefilterswrap.h',
+    export('pyrprimagefiltersapi.json', [], 'imagefilterswrap.h' if platform.system() != 'Darwin' else 'imagefilterswrap_metal.h',
            '__imagefilters', 'pyrprimagefilterswrap.py', 'pyrprimagefilterswrap_make.py', abi_mode)
 
     export('pyrprgltfapi.json', ['pyrprapi.json', 'pyrprsupportapi.json'], 'ProRenderGLTF.h',

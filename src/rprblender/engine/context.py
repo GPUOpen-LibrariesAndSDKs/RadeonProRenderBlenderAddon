@@ -188,6 +188,7 @@ class RPRContext:
         self.enable_aov(pyrpr.AOV_OBJECT_ID)
         self.enable_aov(pyrpr.AOV_SHADING_NORMAL)
         self.enable_aov(pyrpr.AOV_DEPTH)
+        self.enable_aov(pyrpr.AOV_DIFFUSE_ALBEDO)
 
         if self.gl_interop and not self.sc_composite:
             # splitting resolved and gl framebuffers
@@ -199,6 +200,7 @@ class RPRContext:
         object_fb = self.frame_buffers_aovs[pyrpr.AOV_OBJECT_ID]['res']
         shading_fb = self.frame_buffers_aovs[pyrpr.AOV_SHADING_NORMAL]['res']
         depth_fb = self.frame_buffers_aovs[pyrpr.AOV_DEPTH]['res']
+        albedo_fb = self.frame_buffers_aovs[pyrpr.AOV_DIFFUSE_ALBEDO]['res']
         frame_buffer_gl = self.frame_buffers_aovs[pyrpr.AOV_COLOR].get('gl', None)
 
         if settings['filter_type'] == 'BILATERAL':
@@ -250,6 +252,17 @@ class RPRContext:
                 'bandwidth': settings['bandwidth'],
             }
             self.image_filter = image_filter.ImageFilterLwr(self.context, inputs, {}, params, self.width, self.height, frame_buffer_gl)
+
+        elif settings['filter_type'] == 'ML':
+            inputs = {
+                'color': color_fb,
+                'normal': shading_fb,
+                'depth': depth_fb,
+                'albedo': albedo_fb,
+            }
+            self.image_filter = image_filter.ImageFilterML(self.context, inputs, {}, {}, self.width, self.height, frame_buffer_gl)
+
+
 
     def _disable_image_filter(self):
         self.image_filter = None

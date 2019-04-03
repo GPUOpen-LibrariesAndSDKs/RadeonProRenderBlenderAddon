@@ -91,19 +91,46 @@ def init(log_fun, rprsdk_bin_path=None):
 
     _init_data._log_fun = log_fun
 
-    alternate_relative_paths = ["../../../RadeonProImageProcessing", "../../../RadeonProRender-GLTF"]
-    lib_platform = ""
     if platform.system() == "Windows":
-        # preload OpenImage dll so we don't have to add PATH
-        ctypes.CDLL(str(rprsdk_bin_path / 'OpenImageIO_RPR.dll'))
+        alternate_relative_paths = [
+            "../../../RadeonProImageProcessing/Windows/lib",
+            "../../../RadeonProRender-GLTF/Win/lib"
+        ]
+        lib_names = [
+            'OpenImageIO_RPR.dll',
+            'RadeonProRender64.dll',
+            'RprSupport64.dll',
 
-        lib_names = ['RadeonProRender64.dll', 'RprSupport64.dll','RadeonImageFilters64.dll', 'ProRenderGLTF.dll']
-        lib_platform = "Win/lib"
+            'libcrypto-1_1-x64.dll',
+            'MIOpen.dll',
+            'RadeonProML.dll',
+            'RadeonImageFilters64.dll',
+
+            'ProRenderGLTF.dll',
+        ]
+
     elif platform.system() == "Linux":
-        lib_names = ['libRadeonProRender64.so', 'libRprSupport64.so', 'libRadeonImageFilters64.so']
-        lib_platform = "Linux/Ubuntu/lib64"
+        alternate_relative_paths = [
+            "../../../RadeonProImageProcessing/Linux/Ubuntu/lib64",
+            "../../../RadeonProRender-GLTF/Linux-Ubuntu/lib"
+        ]
+        lib_names = [
+            'libRadeonProRender64.so',
+            'libRprSupport64.so',
+            'libRadeonImageFilters64.so'
+        ]
+
     elif platform.system() == "Darwin":
-        lib_names = ['libRadeonProRender64.dylib', 'libRprSupport64.dylib','libRadeonImageFilters64.dylib']
+        alternate_relative_paths = [
+            "../../../RadeonProImageProcessing/Mac/lib",
+            "../../../RadeonProRender-GLTF/Mac/lib"
+        ]
+        lib_names = [
+            'libRadeonProRender64.dylib',
+            'libRprSupport64.dylib',
+            'libRadeonImageFilters64.dylib'
+        ]
+
     else:
         raise ValueError("Not supported OS", platform.system())
 
@@ -114,7 +141,7 @@ def init(log_fun, rprsdk_bin_path=None):
         else:
             found = False
             for relpath in alternate_relative_paths:
-                rpr_lib_path = rprsdk_bin_path / relpath / lib_platform / lib_name
+                rpr_lib_path = rprsdk_bin_path / relpath / lib_name
                 if os.path.isfile(str(rpr_lib_path)):
                     ctypes.CDLL(str(rpr_lib_path))
                     found = True
