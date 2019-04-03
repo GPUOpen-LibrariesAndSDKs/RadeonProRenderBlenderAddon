@@ -3,7 +3,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (2, 0, 38),
+    "version": (2, 0, 39),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
