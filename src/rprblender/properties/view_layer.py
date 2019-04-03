@@ -11,6 +11,7 @@ from bpy.props import (
 import pyrpr
 from rprblender.utils import logging
 from . import RPR_Properties
+import platform
 
 
 log = logging.Log(tag='properties.view_layer')
@@ -23,13 +24,29 @@ class RPR_DenoiserProperties(RPR_Properties):
         default=False,
     )
 
-    filter_type: EnumProperty(
-        name="Filter Type",
-        items=(
+    # only enable ML denoiser on windows
+    if platform.system() == "Windows":
+        items = (
             ('BILATERAL', "Bilateral", "Bilateral", 0),
             ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
             ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
-        ),
+            ('ML', "Machine Learning", "Machine Learning", 3)
+        )
+    elif platform.system() == "Darwin":
+        items = (
+            ('BILATERAL', "Bilateral", "Bilateral", 0),
+            ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 1),
+        )
+    else:
+        items = (
+            ('BILATERAL', "Bilateral", "Bilateral", 0),
+            ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
+            ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
+        )
+
+    filter_type: EnumProperty(
+        name="Filter Type",
+        items=items,
         description="Filter type",
         default='EAW'
     )

@@ -100,9 +100,9 @@ class ArrayObject:
         self._handle_ptr = ffi.new(core_type_name, init_data)
 
 
-def get_device_count(backend_api_type, proctype):
+def get_device_count(backend_api_type):
     device_count = ffi.new('rif_int *', 0)
-    GetDeviceCount(backend_api_type, proctype, device_count)
+    GetDeviceCount(backend_api_type, device_count)
     return device_count[0]
 
         
@@ -123,8 +123,8 @@ class Context(Object, metaclass=ABCMeta):
     def _create(self, rpr_context):
         pass
 
-    def create_image(self, width, height):
-        return Image(self, width, height)
+    def create_image(self, width, height, components=4):
+        return Image(self, width, height, components)
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImage(self, frame_buffer)
@@ -142,10 +142,10 @@ class Context(Object, metaclass=ABCMeta):
 class ContextCPU(Context):
     def _create(self, rpr_context):
         cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, PROCESSOR_CPU, 0, pyrpr.encode(cache_path), self)
+        CreateContext(API_VERSION, BACKEND_API_OPENCL, pyrpr.CREATION_FLAGS_ENABLE_CPU, pyrpr.encode(cache_path), self)
 
     def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL, PROCESSOR_CPU) > 0
+        return get_device_count(BACKEND_API_OPENCL) > 0
 
 
 class ContextGPU(Context):
@@ -161,30 +161,31 @@ class ContextGPU(Context):
         return FrameBufferImageCL(self, frame_buffer)
 
     def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL, PROCESSOR_GPU) > 0
+        return get_device_count(BACKEND_API_OPENCL) > 0
 
 
 class ContextMetal(Context):
     def _create(self, rpr_context):
         cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        metal_device = pyrpr.get_first_gpu_id_used(rpr_context.creation_flags())
-        CreateContext(API_VERSION, BACKEND_API_METAL, PROCESSOR_GPU, metal_device, pyrpr.encode(cache_path), self)
+        metal_device = pyrpr.get_first_gpu_id_used(rpr_context.get_creation_flags())
+        CreateContext(API_VERSION, BACKEND_API_METAL, metal_device, pyrpr.encode(cache_path), self)
 
     def create_frame_buffer_image(self, frame_buffer):
-        return FrameBufferImageCL(self, frame_buffer)
+        return FrameBufferImageMetal(self, frame_buffer)
 
     def _check_devices(self):
-        return get_device_count(BACKEND_API_METAL, PROCESSOR_GPU) > 0
+        return get_device_count(BACKEND_API_METAL) > 0
 
 
 class Image(Object):
     core_type_name = 'rif_image'
 
-    def __init__(self, context, width, height):
+    def __init__(self, context, width, height, components=4):
         super().__init__()
         self.context = context
         self.width = width
         self.height = height
+        self.components = components
 
         self._create()
 
@@ -193,7 +194,7 @@ class Image(Object):
         desc.image_width =  self.width
         desc.image_height =  self.height
         desc.image_depth = 1
-        desc.num_components = 4
+        desc.num_components = self.components
         desc.image_row_pitch = 0
         desc.image_slice_pitch = 0
         desc.type = COMPONENT_TYPE_FLOAT32
@@ -207,8 +208,9 @@ class Image(Object):
         ImageMap(self, IMAGE_MAP_READ, mapped_data)
 
         float_data = ffi.cast("float*", mapped_data[0])
-        buffer_size = self.width * self.height * 4*4    # 4*4 is the size in bytes of pixel as RGBA color as 4 floats (every color component is float value)
-        data = np.frombuffer(ffi.buffer(float_data, buffer_size), dtype=np.float32).reshape(self.height, self.width, 4)
+        buffer_size = self.width * self.height * self.components * 4    # 4 floats per color components (every color component is float value)
+        data = np.frombuffer(ffi.buffer(float_data, buffer_size), dtype=np.float32)\
+            .reshape(self.height, self.width, self.components)
 
         ImageUnmap(self, mapped_data[0])
 
@@ -246,6 +248,16 @@ class FrameBufferImageGL(FrameBufferImage):
         pass
 
 
+class FrameBufferImageMetal(FrameBufferImage):
+    def _create(self):
+        ContextCreateImageFromMetalMemory(self.context, self._get_desc(), 
+                                           self.frame_buffer.get_cl_mem(), self.frame_buffer.size(), self)
+
+    def update(self):
+        # image is updated directly
+        pass
+
+
 class ImageFilter(Object):
     core_type_name = 'rif_image_filter'
 
@@ -271,9 +283,15 @@ class ImageFilter(Object):
         elif isinstance(value, Image):
             ImageFilterSetParameterImage(self, pyrpr.encode(name), value)
             self.parameters[name] = value
+        elif isinstance(value, tuple) and len(value) == 2:
+            if isinstance(value[0], int):
+                ImageFilterSetParameter2u(self, pyrpr.encode(name), *value)
+            else:
+                raise TypeError("Incorrect type for ImageFilterSetParameter*", self, name, value)
+            self.parameters[name] = value
         elif isinstance(value, list) and isinstance(value[0], float):
             arr = ffi.new('float[]', value)
-            ImageFilterSetParameterFloatArray(self,pyrpr.encode(name), arr, len(value))
+            ImageFilterSetParameterFloatArray(self, pyrpr.encode(name), arr, len(value))
             self.parameters[name] = (value, arr)
         elif isinstance(value, list) and isinstance(value[0], Image):
             handles = []

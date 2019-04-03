@@ -589,7 +589,7 @@ if __name__=='__main__':
     # ImageProcessing
     rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap.h'
     json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
-    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include']
+    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/inc']
 
     # GLTF
     rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc/ProRenderGLTF.h'
@@ -597,6 +597,7 @@ if __name__=='__main__':
     json_file_name_gltf = 'src/bindings/pyrpr/src/pyrprgltfapi.json'
 
     if "Darwin" == platform.system():
+        rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap_metal.h'
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender.h'
         includes_rpr = ['ThirdParty/RadeonProRender SDK/Mac/inc']
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Mac/inc/RprSupport.h'
@@ -608,7 +609,7 @@ if __name__=='__main__':
         rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
         includes_rpr = ['ThirdParty/RadeonProRender SDK/Win/inc']
         rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
-        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Win/inc']
+        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Windows/inc']
         rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
         includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Win/inc']
 
