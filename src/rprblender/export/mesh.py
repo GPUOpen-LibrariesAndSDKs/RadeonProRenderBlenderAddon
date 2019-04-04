@@ -177,6 +177,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     obj.rpr.export_visibility(rpr_shape)
     obj.rpr.export_subdivision(rpr_shape)
 
+    # all meshes are set to light group 3 for emissive objects
+    rpr_shape.set_light_group_id(3)
+
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
 
