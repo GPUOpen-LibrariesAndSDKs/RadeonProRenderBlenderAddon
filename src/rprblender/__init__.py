@@ -21,6 +21,7 @@ from . import (
     properties,
     ui,
     operators,
+    material_library,
 )
 
 from .engine.render_engine import RenderEngine
@@ -108,6 +109,7 @@ def get_addon_version():
 
 def register():
     bpy.utils.register_class(RPREngine)
+    material_library.register()
     properties.register()
     operators.register()
     nodes.register()
@@ -125,5 +127,6 @@ def unregister():
     nodes.unregister()
     operators.unregister()
     properties.unregister()
+    material_library.unregister()
     bpy.utils.unregister_class(RPREngine)
 

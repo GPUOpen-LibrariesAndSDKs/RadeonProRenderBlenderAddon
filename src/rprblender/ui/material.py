@@ -101,3 +101,19 @@ class RPR_MATERIAL_PT_surface(RPR_Panel):
 
         input = output_node.inputs['Surface']
         layout.template_node_view(node_tree, output_node, input)
+
+
+class RPR_MATERIAL_PT_node_arrange(RPR_Panel):
+    bl_label = "RPR Node Arrange"
+    bl_context = "material"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object and context.active_object.active_material and RPR_Panel.poll(context)
+
+    def draw(self, context):
+        self.layout.operator('rpr.arrange_material_nodes', text='Arrange')
+

@@ -16,6 +16,8 @@ from . import (
     render,
     world,
     light,
+    nodes,
+    material_library,
 )
 
 register, unregister = bpy.utils.register_classes_factory([
@@ -26,4 +28,8 @@ register, unregister = bpy.utils.register_classes_factory([
 
     light.RPR_LIGHT_OP_select_ies_file,
     light.RPR_LIGHT_OP_remove_ies_file,
+
+    nodes.RPR_MATERIAL_LIBRARY_OP_arrage_nodes,
+
+    material_library.RPR_MATERIAL_LIBRARY_OP_import_material,
 ])
