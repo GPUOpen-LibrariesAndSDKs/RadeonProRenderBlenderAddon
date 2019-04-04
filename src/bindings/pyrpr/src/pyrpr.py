@@ -731,7 +731,11 @@ class Camera(Object):
         CameraSetSensorSize(self, width, height)
 
     def set_f_stop(self, fstop):
-        CameraSetFStop(self, fstop)
+        if fstop is None:
+            # if disabled fstop will be max float
+            CameraSetFStop(self, np.finfo(np.float32).max)
+        else:
+            CameraSetFStop(self, fstop)
 
     def set_aperture_blades(self, num_blades):
         CameraSetApertureBlades(self, num_blades)

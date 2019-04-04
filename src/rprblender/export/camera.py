@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 import numpy as np
-import copy
+import math
 
 import bpy
 import pyrpr
-import sys
 
 from rprblender.engine.context import RPRContext
 from . import object
@@ -24,10 +23,7 @@ class CameraData:
     transform: tuple = None
     lens_shift: (float, float) = None
     ortho_size: (float, float) = None
-    dof_enable: bool = False
-    dof_fstop: float = None
-    dof_blades: int = None
-    dof_focus_distance: float = None
+    dof_data: (float, float, int) = None # tuple which holds data in following order: focus_distance, f_stop, blades
 
     @staticmethod
     def init_from_camera(camera: bpy.types.Camera, transform, ratio, border=((0, 0), (1, 1))):
@@ -48,17 +44,13 @@ class CameraData:
         data = CameraData()
         data.clip_plane = (camera.clip_start, camera.clip_end)
         data.transform = tuple(transform)
-
         
         focus_distance = get_focus_distance(camera)
         # enable dof is distance is set
-        data.dof_enable = (focus_distance != 0.0)
-        if data.dof_enable:
-            data.dof_fstop = camera.gpu_dof.fstop
-            data.dof_blades = max(camera.gpu_dof.blades, 4)
-            data.dof_focus_distance = max(focus_distance, 0.001)
+        if math.isclose(focus_distance, 0.0):
+            data.dof_data = None
         else:
-            data.dof_fstop = sys.float_info.max
+            data.dof_data = (max(focus_distance, 0.001), camera.gpu_dof.fstop, max(camera.gpu_dof.blades, 4))
 
         if camera.sensor_fit == 'VERTICAL':
             data.lens_shift = (camera.shift_x / ratio, camera.shift_y)
@@ -201,17 +193,14 @@ class CameraData:
             rpr_camera.set_sensor_size(*self.sensor_size)
             rpr_camera.set_focal_length(self.focal_length)
 
-        if self.dof_enable:
-            rpr_camera.set_focus_distance(self.dof_focus_distance)
-            rpr_camera.set_f_stop(self.dof_fstop)
-            rpr_camera.set_aperture_blades(self.dof_blades)
+        if self.dof_data:
+            rpr_camera.set_focus_distance(self.dof_data[0])
+            rpr_camera.set_f_stop(self.dof_data[1])
+            rpr_camera.set_aperture_blades(self.dof_data[2])
         else:
-            # if disabled f_stop will be max float
-            rpr_camera.set_f_stop(self.dof_fstop)
+            rpr_camera.set_f_stop(None)
 
         rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
-
-
 
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):
