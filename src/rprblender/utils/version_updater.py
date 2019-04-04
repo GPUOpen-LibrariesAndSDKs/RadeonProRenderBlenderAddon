@@ -59,20 +59,20 @@ def update_environment():
 
     ibl_type = ibl.get('type', None)
     if ibl_type is not None:
-        world.rpr.ibl.ibl_type = {0: 'COLOR', 1: 'IBL'}[ibl_type]
+        world.rpr.ibl_type = {0: 'COLOR', 1: 'IBL'}[ibl_type]
 
     # Environment light
     color = ibl.get('color', None)
     if color:
-        world.rpr.ibl.color = color[:]
+        world.rpr.ibl_color = color[:]
 
     ibl_image = ibl.get('ibl_image', None)
     if ibl_image:
-        world.rpr.ibl.ibl_image = ibl_image
+        world.rpr.ibl_image = ibl_image
 
     intensity = ibl.get('intensity', None)
     if intensity is not None:
-        world.rpr.ibl.intensity = intensity
+        world.rpr.ibl_intensity = intensity
 
     # Rotation Gizmo
     gizmo_object = environment.get('gizmo', None)

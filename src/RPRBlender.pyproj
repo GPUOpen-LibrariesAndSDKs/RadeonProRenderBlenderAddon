@@ -53,10 +53,12 @@
     </Compile>
     <Compile Include="rprblender\export\camera.py" />
     <Compile Include="rprblender\export\image.py" />
+    <Compile Include="rprblender\export\instance.py" />
     <Compile Include="rprblender\export\light.py" />
     <Compile Include="rprblender\export\material.py" />
     <Compile Include="rprblender\export\mesh.py" />
     <Compile Include="rprblender\export\object.py" />
+    <Compile Include="rprblender\export\particle.py" />
     <Compile Include="rprblender\export\world.py" />
     <Compile Include="rprblender\export\__init__.py" />
     <Compile Include="rprblender\nodes\blender_nodes.py" />
