@@ -13,6 +13,8 @@ render_update_result_interval = 0.5     # in seconds
 
 use_gl_interop = True
 
+material_library_path = None
+
 try:
     # configdev.py example for logging setup:
     # from . import logging

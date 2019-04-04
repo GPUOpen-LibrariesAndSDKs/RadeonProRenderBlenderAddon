@@ -9,7 +9,7 @@ import platform
 import pyrpr
 
 from . import logging
-log = logging.Log(tag="render_stamp", level='info')
+log = logging.Log(tag="render_stamp")
 
 
 if 'Windows' != platform.system():

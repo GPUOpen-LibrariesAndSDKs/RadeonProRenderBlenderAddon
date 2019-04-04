@@ -881,6 +881,30 @@ class RPRValueNode_Math(RPRShaderNode):
                 0: 'Value',
             },
         }),
+        ('LOG', {
+            'name': 'Log',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SHUFFLE_YZWX', {
+            'name': 'XYZW -> YZWX',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SHUFFLE_ZWXY', {
+            'name': 'XYZW -> ZWXY',
+            'params': {
+                0: 'Value',
+            },
+        }),
+        ('SHUFFLE_WXYZ', {
+            'name': 'XYZW -> WXYZ',
+            'params': {
+                0: 'Value',
+            },
+        }),
     ])
 
     def get_operations_items(settings):
@@ -941,6 +965,7 @@ class RPRValueNode_Math(RPRShaderNode):
     class Exporter(NodeParser):
         def export(self):
             op = self.node.operation
+
             # input names could be changed, use index
             value1 = self.get_input_value(0)
 
@@ -951,6 +976,7 @@ class RPRValueNode_Math(RPRShaderNode):
                 value3 = self.get_input_value(2)
 
             val = None
+
             if op == 'ADD':
                 val = self.add_node_value(value1, value2)
             elif op == 'SUB':
@@ -1008,6 +1034,14 @@ class RPRValueNode_Math(RPRShaderNode):
                 val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_AVERAGE)
             elif op == 'DIV':
                 val = self.div_node_value(value1, value2)
+            elif op == 'LOG':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_LOG)
+            elif op == 'SHUFFLE_YZWX':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_YZWX)
+            elif op == 'SHUFFLE_ZWXY':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_ZWXY)
+            elif op == 'SHUFFLE_WXYZ':
+                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_WXYZ)
             else:
                 log.warn('RPR Math : unknown operator type ({})'.format(op))
                 return ERROR_IMAGE_COLOR

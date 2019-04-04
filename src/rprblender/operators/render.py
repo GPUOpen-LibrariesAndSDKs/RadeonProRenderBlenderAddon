@@ -16,14 +16,15 @@ class RPR_RENDER_OP_open_web_page(RPR_Operator):
 
     bl_idname = "rpr.op_open_web_page"
     bl_label = "Open Web Page"
+    bl_description = "Open web page in browser"
 
     page: bpy.props.StringProperty(name="Page")
 
     def execute(self, context):
         url = {
-            'main_site':     "https://pro.radeon.com/en/software/prorender/",
-            'documentation': "https://pro.radeon.com/en/software/prorender/",
-            'downloads':     "https://pro.radeon.com/en/software/prorender/blender/",
+            'main_site':     "https://www.amd.com/en/technologies/radeon-prorender",
+            'documentation': "https://radeon-pro.github.io/RadeonProRenderDocs/plugins/blender/about.html",
+            'downloads':     "https://www.amd.com/en/technologies/radeon-prorender-downloads",
             'community':     "https://community.amd.com/community/prorender/",
             'bug_reports':   "https://community.amd.com/community/prorender/blender/",
         }[self.page]

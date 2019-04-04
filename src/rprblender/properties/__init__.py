@@ -36,6 +36,7 @@ from . import (
     camera,
     world,
     view_layer,
+    material_browser,
 )
 
 register, unregister = bpy.utils.register_classes_factory([
@@ -53,4 +54,6 @@ register, unregister = bpy.utils.register_classes_factory([
 
     view_layer.RPR_DenoiserProperties,
     view_layer.RPR_ViewLayerProperites,
+
+    material_browser.RPR_MaterialBrowserProperties,
 ])

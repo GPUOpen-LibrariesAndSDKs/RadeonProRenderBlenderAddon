@@ -104,6 +104,7 @@ from . import (
     camera,
     world,
     view_layer,
+    material_browser,
 )
 
 
@@ -129,6 +130,8 @@ register, unregister = bpy.utils.register_classes_factory([
     material.RPR_MATERIAL_PT_context,
     material.RPR_MATERIAL_PT_preview,
     material.RPR_MATERIAL_PT_surface,
+    material_browser.RPR_MATERIL_PT_material_browser,
+    material.RPR_MATERIAL_PT_node_arrange,
 
     camera.RPR_CAMERA_PT_motion_blur,
     camera.DATA_PT_RPR_camera_dof_aperture,
