@@ -629,18 +629,19 @@ class Curve(Object):
         super().delete()
 
     def set_material(self, material):
-        if self.material:
+        if isinstance(self.material, pyrprx.Material):
             self.material.detach(self)
             CurveSetMaterial(self, None)    # additional cleanup should be executed after detaching pyrprx.Material
                                             # otherwise it could crash after resetting emissive shader
 
-        if isinstance(material, MaterialNode):
+        if material is None or isinstance(material, MaterialNode):
             CurveSetMaterial(self, material)
         elif isinstance(material, pyrprx.Material):
             material.attach(self)
         else:
             raise TypeError("Incorrect type of material", self, material)
 
+        self.material = None
         if material:
             self.material = material
 

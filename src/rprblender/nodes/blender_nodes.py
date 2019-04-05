@@ -420,7 +420,10 @@ class ShaderNodeTexImage(NodeParser):
         if not self.node.image:
             return ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else ERROR_IMAGE_COLOR[3]
 
-        rpr_image = image.sync(self.rpr_context, self.node.image)
+        try:
+            rpr_image = image.sync(self.rpr_context, self.node.image)
+        except ValueError as e:
+            raise MaterialError(e, self.node, self.material)
 
         wrap_mapping = {
             'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
