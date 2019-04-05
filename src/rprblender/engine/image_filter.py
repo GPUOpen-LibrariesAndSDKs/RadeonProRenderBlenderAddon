@@ -135,10 +135,12 @@ class ImageFilterML(ImageFilter):
         normal_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
         normal_remap_filter.set_parameter('dstLo', -1.0)
         normal_remap_filter.set_parameter('dstHi', 1.0)
+        normal_remap_image = self.context.create_image(self.width, self.height)
 
         depth_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
         depth_remap_filter.set_parameter('dstLo', 0.0)
         depth_remap_filter.set_parameter('dstHi', 1.0)
+        depth_remap_image = self.context.create_image(self.width, self.height)
 
         output_resample_filter = self.context.create_filter(rif.IMAGE_FILTER_RESAMPLE)
         output_resample_filter.set_parameter('interpOperator', rif.IMAGE_INTERPOLATION_NEAREST)
@@ -146,15 +148,15 @@ class ImageFilterML(ImageFilter):
 
         # configure Filter
         self.filter.set_parameter('colorImg', self.inputs['color'])
-        self.filter.set_parameter('normalsImg', self.inputs['normal'])
-        self.filter.set_parameter('depthImg', self.inputs['normal'])
+        self.filter.set_parameter('normalsImg', normal_remap_image)
+        self.filter.set_parameter('depthImg', depth_remap_image)
         self.filter.set_parameter('albedoImg', self.inputs['albedo'])
 
         # setup remap normals filter
-        self.command_queue.attach_image_filter(normal_remap_filter, self.inputs['normal'], self.inputs['normal'])
+        self.command_queue.attach_image_filter(normal_remap_filter, self.inputs['normal'], normal_remap_image)
         
         # setup remap depth filter
-        self.command_queue.attach_image_filter(depth_remap_filter, self.inputs['depth'], self.inputs['depth'])
+        self.command_queue.attach_image_filter(depth_remap_filter, self.inputs['depth'], depth_remap_image)
 
         # attach filters
         self.command_queue.attach_image_filter(self.filter, self.inputs['color'], ml_output_image)

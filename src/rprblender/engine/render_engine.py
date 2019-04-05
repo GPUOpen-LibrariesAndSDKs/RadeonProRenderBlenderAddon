@@ -370,6 +370,8 @@ class RenderEngine(Engine):
         if scene.rpr.use_tile_render:
             if scene.camera.data.type == 'PANO':
                 log.warn("Tiles rendering is not supported for Panoramic camera")
+            elif view_layer.rpr.denoiser.filter_type == 'ML':
+                log.warn("Tiles rendering is not supported with enabled ML (Machine Learning) denoiser")
             else:
                 self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
                 self.tile_order = scene.rpr.tile_order
