@@ -44,7 +44,7 @@ class ShaderNodeOutputMaterial(NodeParser):
         rpr_node = self.get_input_link(input_socket_key)
         if not rpr_node:
             if input_socket_key == 'Surface':
-                raise MaterialError("Empty Surface input socket")
+                raise MaterialError("Empty Surface input socket", self.node, self.material)
 
         return rpr_node
 
