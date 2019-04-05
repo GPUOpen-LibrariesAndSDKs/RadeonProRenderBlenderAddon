@@ -36,6 +36,12 @@ class RPRMaterialLibrary:
 
         self.is_valid = self.load_manifest()
 
+    # Perform clean up operations before exiting.
+    def clean_up(self):
+        # Remove previews.
+        previews.remove(self.previews)
+        self.material_preview_cache.clear()
+
     def load_manifest(self) -> bool:
         """ Load the material manifest from Json file, return loading success status """
 
