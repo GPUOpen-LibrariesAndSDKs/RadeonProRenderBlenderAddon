@@ -132,7 +132,7 @@ class Material(Object):
         if isinstance(shape, pyrpr.Shape):
             ShapeDetachMaterial(self.context, shape, self)
         elif isinstance(shape, pyrpr.Curve):
-            CurveAttachMaterial(self.context, shape, self)
+            CurveDetachMaterial(self.context, shape, self)
 
     def attach_to_node(self, input_name, material_node):
         MaterialAttachMaterial(self.context, material_node, pyrpr.encode(input_name), self)
