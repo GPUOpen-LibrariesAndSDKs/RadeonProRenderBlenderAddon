@@ -293,7 +293,7 @@ class Context(Object):
                 return {'flag': create_flag, 'name': device_name.strip()}
 
             except CoreError as err:
-                if err.status == ERROR_UNSUPPORTED:
+                if err.status == ERROR_UNSUPPORTED or platform.system() == "Darwin":
                     return None
 
                 raise err
