@@ -273,7 +273,6 @@ class UberMaterialCompiler(MappedNodeCompiler):
         'reflection.mode': MatLibSocketInfo('reflection_mode', 'str'),
         'refraction.thinSurface': MatLibSocketInfo('refraction_thin_surface', 'bool'),
         'refraction.caustics': MatLibSocketInfo('refraction_caustics', 'bool'),
-        'coating.mode': MatLibSocketInfo('coating_mode', 'str'),
         'emission.mode': MatLibSocketInfo('emission_doublesided', 'bool'),
         'sss.multiscatter': MatLibSocketInfo('sss_multiscatter', 'bool'),
 
@@ -303,7 +302,7 @@ class UberMaterialCompiler(MappedNodeCompiler):
     sections_to_update = ('diffuse.weight', 'reflection.weight', 'refraction.weight', 'coating.weight', 'sss.weight',
                           'sheen.weight', 'emission.weight',)
 
-    ui_values_for_import = ('reflection.mode', 'refraction.thinSurface', 'refraction.caustics', 'coating.mode',
+    ui_values_for_import = ('reflection.mode', 'refraction.thinSurface', 'refraction.caustics',
                             'emission.mode', 'sss.multiscatter')
 
     def get_input_socket(self, name):
@@ -334,7 +333,7 @@ class UberMaterialCompiler(MappedNodeCompiler):
         if socket_info is None:
             return
 
-        if name in ('reflection.mode', 'coating.mode'):
+        if name == 'reflection.mode':
             value = {'1': 'PBR', '2': 'METALNESS'}[value]
         elif name == 'emission.mode':
             value = {'1': False, '2': True}[value]
