@@ -177,6 +177,10 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     obj.rpr.export_visibility(rpr_shape)
     obj.rpr.export_subdivision(rpr_shape)
 
+    # if this is an emitter and is hidde hide it
+    if not obj.show_instancer_for_render:
+        rpr_shape.set_visibility(False)
+
     # all meshes are set to light group 3 for emissive objects
     rpr_shape.set_light_group_id(3)
 
