@@ -60,7 +60,7 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
                 "params": {
                     "color": "inputs.Color",
                     "roughness": "inputs.Roughness",
-                    "normal": "link:inputs.Normal"
+                    "normal": "normal:inputs.Normal"
                 }
             }
         }
@@ -255,13 +255,9 @@ class RPRShaderNodeUber(RPRShaderNode):
             def set_normal(normal_socket_key, use_shader_normal, rprx_input):
                 normal = None
                 if not use_shader_normal:
-                    normal = self.get_input_link(normal_socket_key)
-                    if normal is None:
-                        log.warn("Option use_shader_normal is disabled, but nothing is connected to '%s'" % normal_socket_key,
-                                 self.node, self.material)
-
+                    normal = self.get_input_normal(normal_socket_key)
                 elif self.node.enable_normal:
-                    normal = self.get_input_link("Normal")
+                    normal = self.get_input_normal("Normal")
 
                 if normal is not None:
                     rpr_node.set_input(rprx_input, normal)
@@ -532,7 +528,7 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
             "Normal": {
                 "type": pyrpr.MATERIAL_NODE_BUMP_MAP,
                 "params": {
-                    "color": "link:inputs.Map",
+                    "color": "normal:inputs.Map",
                     "bumpscale": "inputs.Scale",
                 }
             }
@@ -568,7 +564,7 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
     class Exporter(NodeParser):
         def export(self):
             
-            normal_map = self.get_input_link('Map')
+            normal_map = self.get_input_normal('Map')
             if not normal_map:
                 return None
 
