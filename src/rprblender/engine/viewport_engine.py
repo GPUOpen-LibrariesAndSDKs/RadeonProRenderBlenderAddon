@@ -29,7 +29,6 @@ class ViewportEngine(Engine):
         self.camera_settings = {}
         self.world_settings = None
 
-        self.render_lock = threading.Lock()
         self.render_thread: threading.Thread = None
         self.resolve_thread: threading.Thread = None
         self.restart_render_event = threading.Event()
@@ -76,6 +75,10 @@ class ViewportEngine(Engine):
             if self.finish_render:
                 break
 
+            iteration = 0
+            time_begin = 0.0
+            time_render = 0.0
+
             while True:
                 if self.finish_render:
                     break
@@ -83,17 +86,13 @@ class ViewportEngine(Engine):
                 if self.restart_render_event.is_set():
                     self.restart_render_event.clear()
                     iteration = 0
+                    self.rpr_context.sync_auto_adapt_subdivision()
                     time_begin = time.perf_counter()
                     log("Restart render")
 
                 log("Render iteration: %d / %d" % (iteration, self.render_iterations))
 
-                with self.render_lock:
-                    if iteration == 0:
-                        self.rpr_context.clear_frame_buffers()
-                        self.rpr_context.sync_auto_adapt_subdivision()
-
-                    self.rpr_context.render()
+                self.rpr_context.render(restart=(iteration == 0))
 
                 self.render_event.set()
 
@@ -127,9 +126,7 @@ class ViewportEngine(Engine):
             if self.finish_render:
                 break
 
-            with self.render_lock:
-                self.rpr_context.resolve()
-
+            self.rpr_context.resolve()
             self.rpr_context.resolve_extras()
 
             self.rpr_engine.tag_redraw()
@@ -240,7 +237,7 @@ class ViewportEngine(Engine):
 
         is_updated = False
 
-        with self.render_lock:
+        with self.rpr_context.lock:
             for update in updates:
                 obj = update.id
                 log("sync_update", obj)
@@ -341,7 +338,7 @@ class ViewportEngine(Engine):
         is_resize_update = self.rpr_context.width != width or self.rpr_context.height != height
 
         if is_camera_update or is_resize_update:
-            with self.render_lock:
+            with self.rpr_context.lock:
                 if is_camera_update:
                     self.camera_settings = camera_settings
                     self.camera_settings.export(self.rpr_context.scene.camera)

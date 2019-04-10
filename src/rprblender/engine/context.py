@@ -65,8 +65,11 @@ class RPRContext:
         for fbs in self.frame_buffers_aovs.values():
             fbs['aov'].clear()
 
-    def render(self, tile=None):
+    def render(self, restart=False, tile=None):
         with self.lock:
+            if restart:
+                self.clear_frame_buffers()
+
             if tile is None:
                 self.context.render()
             else:

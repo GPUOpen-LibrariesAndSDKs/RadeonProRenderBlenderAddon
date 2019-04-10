@@ -25,9 +25,8 @@ class PreviewEngine(Engine):
 
         result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
 
-        self.rpr_context.clear_frame_buffers()
         self.rpr_context.set_parameter('iterations', self.render_iterations)
-        self.rpr_context.render()
+        self.rpr_context.render(restart=True)
 
         self.rpr_context.resolve()
         self.set_render_result(result.layers[0].passes)
