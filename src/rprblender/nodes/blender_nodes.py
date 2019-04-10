@@ -7,7 +7,7 @@ All parser classes should:
 import math
 import numpy as np
 
-from .node_parser import NodeParser, RuleNodeParser, MaterialError
+from .node_parser import NodeParser, RuleNodeParser, MaterialError, get_node_parser_class
 import pyrpr
 import pyrprx
 
@@ -151,7 +151,7 @@ class ShaderNodeBsdfAnisotropic(RuleNodeParser):
                 "roughness": "inputs.Roughness",
                 "anisotropic": "inputs.Anisotropy",
                 "rotation": "inputs.Rotation",
-                "normal": "link:inputs.Normal"
+                "normal": "normal:inputs.Normal"
             }
         }
     }
@@ -167,7 +167,7 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "link:inputs.Normal"
+                "normal": "normal:inputs.Normal"
             }
         }
     }
@@ -182,7 +182,7 @@ class ShaderNodeBsdfGlass(RuleNodeParser):
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "link:inputs.Normal",
+                "normal": "normal:inputs.Normal",
                 "ior": "inputs.IOR"
             }
         }
@@ -199,7 +199,7 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "link:inputs.Normal"
+                "normal": "normal:inputs.Normal"
             }
         }
     }
@@ -215,7 +215,7 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
             "params": {
                 "color": "inputs.Color",
                 "roughness": "inputs.Roughness",
-                "normal": "link:inputs.Normal",
+                "normal": "normal:inputs.Normal",
                 "ior": "inputs.IOR"
             }
         }
@@ -231,7 +231,7 @@ class ShaderNodeBsdfTranslucent(RuleNodeParser):
             "type": pyrpr.MATERIAL_NODE_DIFFUSE_REFRACTION,
             "params": {
                 "color": "inputs.Color",
-                "normal": "link:inputs.Normal"
+                "normal": "normal:inputs.Normal"
             }
         }
     }
@@ -260,7 +260,7 @@ class ShaderNodeBsdfVelvet(RuleNodeParser):
             "params": {
                 pyrprx.UBER_MATERIAL_DIFFUSE_COLOR: "inputs.Color",
                 pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT: "inputs.Sigma",
-                pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL: "link:inputs.Normal",
+                pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL: "normal:inputs.Normal",
                 pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT: 0.0,
                 pyrprx.UBER_MATERIAL_SHEEN_WEIGHT: 1.0,
                 pyrprx.UBER_MATERIAL_SHEEN_TINT: "inputs.Sigma",
@@ -307,7 +307,7 @@ class ShaderNodeFresnel(RuleNodeParser):
             "type": pyrpr.MATERIAL_NODE_FRESNEL,
             "params": {
                 "ior": "inputs.IOR",
-                "normal": "link:inputs.Normal"
+                "normal": "normal:inputs.Normal"
             }
         }
     }
@@ -379,7 +379,7 @@ class ShaderNodeSubsurfaceScattering(RuleNodeParser):
                 pyrprx.UBER_MATERIAL_SSS_WEIGHT: 1.0,
                 pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR: "inputs.Color",
                 pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE: "nodes.radius",
-                pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL: "link:inputs.Normal"
+                pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL: "normal:inputs.Normal"
             }
         }
     }
@@ -506,7 +506,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         clearcoat_normal = None
         if enabled(clearcoat):
             clearcoat_roughness = self.get_input_value('Clearcoat Roughness')
-            clearcoat_normal = self.get_input_link('Clearcoat Normal')
+            clearcoat_normal = self.get_input_normal('Clearcoat Normal')
 
         ior = self.get_input_value('IOR')
 
@@ -515,7 +515,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         if enabled(transmission):
             transmission_roughness = self.get_input_value('Transmission Roughness')
 
-        normal = self.get_input_link('Normal')
+        normal = self.get_input_normal('Normal')
 
         # TODO: use Tangent input
 
@@ -1218,3 +1218,67 @@ class ShaderNodeSeparateXYZ(NodeParser):
         if self.socket_out.name == 'Y':
             return self.get_y_node_value(value)
         return self.get_z_node_value(value)
+
+
+##
+# Node Group is the material tree hidden under the ShaderNodeGroup node, with GroupInput and GroupOutput nodes.
+# To parse it we have to save group node reference, walk in, parse everything inside.
+# If any link goes to GroupInput socket we have to walk out via stored group node reference and find linked node.
+
+class ShaderNodeGroup(NodeParser):
+    """ Parse Group Node: find nested GroupOutput and walk from there  """
+    def export(self):
+        # Group Node has node tree nested, to parse it we need to find active group output node
+        # that mirrors internal inputs to external outputs. Sockets have exactly the same position, name and identifier
+        # 1. find inside output node
+        output_node = next(
+            (node for node in self.node.node_tree.nodes if node.type == 'GROUP_OUTPUT' and node.is_active_output),
+            None
+        )
+
+        # raise error if user has removed active group output node
+        if not output_node:
+            raise MaterialError("Group has no output", self.node, self.material, self.group_node)
+
+        # 2. find mirrored socket by socket identifier
+        socket_in = next(entry for entry in output_node.inputs if entry.identifier == self.socket_out.identifier)
+
+        # 3. Create parser, store group node reference in parser to walk out of group
+        if socket_in.is_linked:
+            link = socket_in.links[0]
+
+            if not self.is_link_allowed(link):
+                raise MaterialError("Invalid link found", link, socket_in, self.node, self.material, self.group_node)
+
+            # store group node for linked node parser to walk out
+            return self._export_node(link.from_node, link.from_socket, group_node=self.node)
+
+        # Ignore group output sockets with default value
+        return None
+
+
+class NodeGroupInput(NodeParser):
+    """
+    Internal group node contains incoming links.
+    Walk out of the group, parse the link if requested socket linked, otherwise check for default value
+    """
+    def export(self):
+        # The GroupNode input sockets are mirrored by GroupInput outputs with the same identifier, name and position
+        # find mirrored socket by identifier
+        socket_in = next(entry for entry in self.group_node.inputs if entry.identifier == self.socket_out.identifier)
+
+        if socket_in.is_linked:
+            link = socket_in.links[0]
+
+            if not self.is_link_allowed(link):
+                raise MaterialError("Invalid link found", link, socket_in, self.node, self.material, self.group_node)
+
+            # going out of the group, drop the containing group node info
+            self.group_node = None
+            return self._export_node(link.from_node, link.from_socket)
+
+        # Some sockets can have no default value. Check if we got one
+        if hasattr(socket_in, 'default_value'):
+            return self._parse_val(socket_in.default_value)
+
+        return None
