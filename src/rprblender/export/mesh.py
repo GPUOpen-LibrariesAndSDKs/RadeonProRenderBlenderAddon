@@ -43,24 +43,26 @@ class MeshData:
         if tris_len == 0:
             raise SyncError("Mesh %s has no polygons" % mesh.name, mesh)
 
-        data.vertices = np.array([vert.co for vert in mesh.vertices], dtype=np.float32)
-        data.normals = np.array(
-            [norm for tri in mesh.loop_triangles
-                  for norm in tri.split_normals],
-            dtype=np.float32
-        )
+        data.vertices = np.fromiter(
+            (x for vert in mesh.vertices for x in vert.co), 
+            dtype=np.float32).reshape((len(mesh.vertices), 3))
+        data.normals = np.fromiter(
+            (x for tri in mesh.loop_triangles for norm in tri.split_normals for x in norm),
+            dtype=np.float32).reshape((tris_len * 3, 3))
 
         data.uvs = None
         data.uv_indices = None
         if len(mesh.uv_layers) > 0:
             uv_layer = mesh.uv_layers.active
-            uvs = np.array([[d.uv.x, d.uv.y] for d in uv_layer.data], dtype=np.float32)
+            uvs = np.fromiter(
+                (x for d in uv_layer.data for x in d.uv),
+                dtype=np.float32).reshape((len(uv_layer.data), 2))
             if len(uvs) > 0:
                 data.uvs = uvs
-                data.uv_indices = np.array([tri.loops for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len * 3,))
+                data.uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops), dtype=np.int32)
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
-        data.vertex_indices = np.array([tri.vertices for tri in mesh.loop_triangles], dtype=np.int32).reshape((tris_len * 3,))
+        data.vertex_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.vertices), dtype=np.int32)
         data.normal_indices = np.arange(tris_len * 3, dtype=np.int32)
 
         if calc_area:
