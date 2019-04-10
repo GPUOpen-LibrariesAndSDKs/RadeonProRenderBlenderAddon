@@ -24,7 +24,6 @@ class RenderEngine(Engine):
         self.width = 0
         self.height = 0
 
-        self.render_lock = threading.Lock()
         self.is_synced = False
         self.render_event = threading.Event()
         self.finish_render = False
@@ -99,7 +98,7 @@ class RenderEngine(Engine):
                                        (render_time_string, render_iterations_string))
                 self.rpr_context.set_parameter('iterations', update_samples)
 
-                self.rpr_context.render()
+                self.rpr_context.render(restart=(self.current_iteration == 0))
                 self.render_event.set()
 
                 self.current_iteration += update_samples
@@ -118,7 +117,6 @@ class RenderEngine(Engine):
     def _render(self):
         result = self.rpr_engine.begin_result(0, 0, self.width, self.height, layer=self.render_layer_name)
 
-        self.rpr_context.clear_frame_buffers()
         self.render_event.clear()
 
         update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
@@ -163,9 +161,8 @@ class RenderEngine(Engine):
 
             result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=self.render_layer_name)
             self.rpr_context.resize(*tile_size)
-            self.rpr_context.clear_frame_buffers()
 
-            self.rpr_context.render()
+            self.rpr_context.render(restart=True)
 
             log('Getting tile render result')
             self.rpr_context.resolve()
