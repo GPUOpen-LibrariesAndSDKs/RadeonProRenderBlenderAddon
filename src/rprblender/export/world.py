@@ -110,7 +110,13 @@ def sync(rpr_context: RPRContext, world: bpy.types.World):
             env_light.set_color(*color_data)
         else:
             if image_data:
-                env_light.set_image(image.sync(rpr_context, image_data))
+                try:
+                    rpr_image = image.sync(rpr_context, image_data)
+                except ValueError as e:
+                    log.warn(e)
+                    env_light.set_color(*WARNING_IMAGE_NOT_DEFINED_COLOR)
+                else:
+                    env_light.set_image(rpr_image)
             else:
                 env_light.set_color(*WARNING_IMAGE_NOT_DEFINED_COLOR)
 
@@ -167,7 +173,13 @@ def sync_update(rpr_context: RPRContext, world: bpy.types.World, old_settings: W
             light.set_color(*color_data)
         else:
             if image_data:
-                light.set_image(image.sync(rpr_context, image_data))
+                try:
+                    rpr_image = image.sync(rpr_context, image_data)
+                except ValueError as e:
+                    log.warn(e)
+                    light.set_color(*WARNING_IMAGE_NOT_DEFINED_COLOR)
+                else:
+                    light.set_image(rpr_image)
             else:
                 light.set_color(*WARNING_IMAGE_NOT_DEFINED_COLOR)
 
