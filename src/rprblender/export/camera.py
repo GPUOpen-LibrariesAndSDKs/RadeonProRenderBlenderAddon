@@ -12,6 +12,12 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.camera')
 
 
+# Core has issues with drawing faces in orthographic camera view with big
+# ortho depth (far_clip_plane - near_clip_plane).
+# Experimentally found quite suited value = 200
+MAX_ORTHO_DEPTH = 200.0
+
+
 @dataclass(init=False, eq=True)
 class CameraData:
     """ Comparable dataclass which holds all camera settings """
@@ -89,6 +95,7 @@ class CameraData:
                                   (camera.ortho_scale * ratio, camera.ortho_scale)
 
             data.ortho_size = tuple(data.ortho_size[i] * size[i] for i in (0, 1))
+            data.clip_plane = (camera.clip_start, min(camera.clip_end, MAX_ORTHO_DEPTH + camera.clip_start))
 
         elif camera.type == 'PANO':
             # TODO: Recheck parameters for PANO camera
@@ -132,7 +139,8 @@ class CameraData:
             data.mode = pyrpr.CAMERA_MODE_ORTHOGRAPHIC
             ortho_size = context.region_data.view_distance * VIEWPORT_SENSOR_SIZE / context.space_data.lens
             data.lens_shift = (0.0, 0.0)
-            data.clip_plane = (-context.space_data.clip_end * 0.5, context.space_data.clip_end * 0.5)
+            ortho_depth = min(context.space_data.clip_end, MAX_ORTHO_DEPTH)
+            data.clip_plane = (-ortho_depth * 0.5, ortho_depth * 0.5)
             data.ortho_size = (ortho_size, ortho_size / ratio) if ratio > 1.0 else \
                               (ortho_size * ratio, ortho_size)
 
@@ -168,7 +176,7 @@ class CameraData:
         :param tile: tuple of tile position <tuple> and tile size <tuple> normalized to 1
         """
 
-        pos, size = tile
+        tile_pos, tile_size = tile
 
         rpr_camera.set_mode(self.mode)
         rpr_camera.set_clip_plane(*self.clip_plane)
@@ -176,16 +184,16 @@ class CameraData:
         # following formula is used:
         #   lens_shift = lens_shift * resolution / tile_size + (center - resolution/2) / tile_size
         # where: center = tile_pos + tile_size/2
-        lens_shift = tuple(self.lens_shift[i] / size[i] + (pos[i] + size[i] * 0.5 - 0.5) / size[i] for i in (0, 1))
+        lens_shift = tuple((self.lens_shift[i] + tile_pos[i] + tile_size[i] * 0.5 - 0.5) / tile_size[i] for i in (0, 1))
         rpr_camera.set_lens_shift(*lens_shift)
 
         if self.mode == pyrpr.CAMERA_MODE_PERSPECTIVE:
-            sensor_size = tuple(self.sensor_size[i] * size[i] for i in (0, 1))
+            sensor_size = tuple(self.sensor_size[i] * tile_size[i] for i in (0, 1))
             rpr_camera.set_sensor_size(*sensor_size)
             rpr_camera.set_focal_length(self.focal_length)
 
         elif self.mode == pyrpr.CAMERA_MODE_ORTHOGRAPHIC:
-            ortho_size = tuple(self.ortho_size[i] * size[i] for i in (0, 1))
+            ortho_size = tuple(self.ortho_size[i] * tile_size[i] for i in (0, 1))
             rpr_camera.set_ortho(*ortho_size)
 
         elif self.mode == pyrpr.CAMERA_MODE_LATITUDE_LONGITUDE_360:
