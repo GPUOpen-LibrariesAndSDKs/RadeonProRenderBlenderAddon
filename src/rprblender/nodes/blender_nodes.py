@@ -312,6 +312,49 @@ class ShaderNodeFresnel(RuleNodeParser):
         }
     }
 
+class ShaderNodeLayerWeight(NodeParser):
+    # inputs: Blend, Normal
+    ''' This should do a fresnel and blend based on that.  Use Blend for ior 
+        Thif follows the cycles OSL code '''
+
+    def export(self):
+        blend = self.get_input_value('Blend')
+        normal = self.get_input_normal('Normal')
+        if not normal:
+            normal = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            normal.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_N)
+        I = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+        I.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_INVEC)
+        IdotN = self.dot3_node_value(I, normal)
+        
+        if self.socket_out.name == 'Fresnel':
+            # backfacing if I.N < 0
+            backfacing = self.arithmetic_node_value(IdotN, 0.0, pyrpr.MATERIAL_NODE_OP_GREATER)
+
+            eta = self.max_node_value(self.sub_node_value(1.0, blend), 0.00001)
+            # if not backfacing eta = 1/eta
+            eta2 = self.arithmetic_node_value(backfacing, eta, pyrpr.MATERIAL_NODE_OP_TERNARY)
+            eta2.set_input('color2', self.div_node_value(1.0, eta))
+            
+
+            fresnel = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_FRESNEL)
+            #fresnel.set_input('normal', normal)
+            fresnel.set_input('ior', eta2)
+
+            return fresnel
+
+        else:
+            # Facing input
+            blend2 = self.min_node_value(self.max_node_value(blend, 0.0), 1.0)
+            blend_less_than_half = self.arithmetic_node_value(blend2, 0.5, pyrpr.MATERIAL_NODE_OP_LOWER)
+            blend3 = self.arithmetic_node_value(blend_less_than_half, self.mul_node_value(blend2, 2.0), pyrpr.MATERIAL_NODE_OP_TERNARY)
+            blend3.set_input('color2', self.div_node_value(0.5, self.sub_node_value(1.0, blend2)))
+
+            abs_IdotN = self.arithmetic_node_value(IdotN, None, pyrpr.MATERIAL_NODE_OP_ABS)
+            facing = self.arithmetic_node_value(abs_IdotN, blend3, pyrpr.MATERIAL_NODE_OP_POW)
+            return self.sub_node_value(1.0, facing)
+
+        
 
 class ShaderNodeGamma(RuleNodeParser):
     # inputs: Color, Gamma
