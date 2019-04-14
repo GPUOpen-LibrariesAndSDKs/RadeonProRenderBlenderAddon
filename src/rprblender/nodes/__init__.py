@@ -23,6 +23,7 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
         NodeItem('ShaderNodeAmbientOcclusion'),
         NodeItem('ShaderNodeFresnel'),
+        NodeItem('ShaderNodeLayerWeight'),
         NodeItem('ShaderNodeRGB'),
         NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
