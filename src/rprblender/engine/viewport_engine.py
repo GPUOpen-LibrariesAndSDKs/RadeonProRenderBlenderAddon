@@ -195,9 +195,6 @@ class ViewportEngine(Engine):
 
         # exporting objects
         for obj in self.depsgraph_objects(depsgraph):
-            if obj.type == 'CAMERA':
-                continue
-
             try:
                 object.sync(self.rpr_context, obj)
 
@@ -228,6 +225,7 @@ class ViewportEngine(Engine):
 
     def sync_update(self, context):
         """ sync just the updated things """
+
         depsgraph = context.depsgraph
 
         # get supported updates and sort by priorities
@@ -235,14 +233,24 @@ class ViewportEngine(Engine):
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
             updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
 
+        if not updates:
+            return
+
         is_updated = False
 
         with self.rpr_context.lock:
+            sync_collection = False
+
             for update in updates:
                 obj = update.id
                 log("sync_update", obj)
                 if isinstance(obj, bpy.types.Scene):
                     is_updated |= self.update_render(obj)
+
+                    # Outliner object visibilty change will provide us only bpy.types.Scene update
+                    # That's why we need to sync objects collection in the end
+                    sync_collection = True
+
                     continue
 
                 if isinstance(obj, bpy.types.Material):
@@ -266,11 +274,11 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Collection):
-                    # Here we need only remove deleted objects. Additional objects should be already added before
-                    is_updated |= self.remove_deleted_objects(depsgraph)
+                    sync_collection = True
                     continue
 
-                # TODO: sync_update for other object types
+            if sync_collection:
+                is_updated |= self.sync_objects_collection(depsgraph)
 
         if is_updated:
             self.restart_render_event.set()
@@ -368,20 +376,61 @@ class ViewportEngine(Engine):
         self.rpr_engine.unbind_display_space_shader()
         bgl.glDisable(bgl.GL_BLEND)
 
-    def remove_deleted_objects(self, depsgrapgh):
-        keys = set.union(
-            set(object.key(obj) for obj in self.depsgraph_objects(depsgrapgh)),
-            set(instance.key(obj) for obj in self.depsgraph_instances(depsgrapgh))
+    def sync_objects_collection(self, depsgraph):
+        """
+        Removes objects which are not present in depsgraph anymore.
+        Adds objects which are not present in rpr_context but existed in depsgraph
+        """
+
+        # set of depsgraph object keys
+        depsgraph_keys = set.union(
+            set(object.key(obj) for obj in self.depsgraph_objects(depsgraph)),
+            set(instance.key(obj) for obj in self.depsgraph_instances(depsgraph))
         )
 
-        res = False
-        for obj_key in tuple(self.rpr_context.objects.keys()):
-            if obj_key in world.ENVIRONMENT_LIGHTS_NAMES:
-                continue
+        # set of rpr object keys except environment lights
+        rpr_object_keys = self.rpr_context.objects.keys() - world.ENVIRONMENT_LIGHTS_NAMES
 
-            if obj_key not in keys and obj_key in self.rpr_context.objects:
-                self.rpr_context.remove_object(obj_key)
-                res = True
+        # sets of objetcs keys to remove from rpr
+        object_keys_to_remove = rpr_object_keys - depsgraph_keys
+
+        # sets of objetcs keys to export into rpr
+        object_keys_to_export = depsgraph_keys - rpr_object_keys
+
+        res = False
+        if object_keys_to_remove:
+            log("Object keys to remove", object_keys_to_remove)
+            for obj_key in object_keys_to_remove:
+                if obj_key in self.rpr_context.objects:
+                    self.rpr_context.remove_object(obj_key)
+                    res = True
+
+        if object_keys_to_export:
+            log("Object keys to add", object_keys_to_export)
+
+            # exporting objects
+            for obj in self.depsgraph_objects(depsgraph):
+                if object.key(obj) not in object_keys_to_export:
+                    continue
+
+                try:
+                    object.sync(self.rpr_context, obj)
+                    res = True
+
+                except SyncError as e:
+                    log.warn("Object syncing error", e)
+
+            # exporting instances
+            for inst in self.depsgraph_instances(depsgraph):
+                if instance.key(inst) not in object_keys_to_export:
+                    continue
+
+                try:
+                    instance.sync(self.rpr_context, inst)
+                    res = True
+
+                except SyncError as e:
+                    log.warn("Instance syncing error", e)
 
         return res
 
@@ -404,3 +453,17 @@ class ViewportEngine(Engine):
             restart = True
 
         return restart
+
+    def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph):
+        """ Iterates over super().depsgraph_objects() and excludes cameras """
+
+        for obj in super().depsgraph_objects(depsgraph):
+            if obj.type != 'CAMERA':
+                yield obj
+
+    def depsgraph_instances(self, depsgraph: bpy.types.Depsgraph):
+        """ Iterates over super().depsgraph_instances() and excludes cameras """
+
+        for instance in super().depsgraph_instances(depsgraph):
+            if instance.object.type != 'CAMERA':
+                yield instance
