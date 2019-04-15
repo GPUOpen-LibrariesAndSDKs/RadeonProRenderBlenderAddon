@@ -19,6 +19,9 @@ from rprblender.utils import logging
 log = logging.Log(tag='Engine')
 
 
+SUPPORTED_OBJECT_TYPES = ('CAMERA', 'MESH', 'LIGHT')
+
+
 class Engine(metaclass=ABCMeta):
     """ This is the basic Engine class """
 
@@ -60,12 +63,13 @@ class Engine(metaclass=ABCMeta):
 
         for p in render_passes:
             try:
-                aov = next(aov for aov in RPR_ViewLayerProperites.aovs_info if aov['name'] == p.name)  # finding corresponded aov
-                image = self.rpr_context.get_image(aov['rpr'])
+                # finding corresponded aov
+                aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info if aov['name'] == p.name), None)
+                if not aov:
+                    log.warn("AOV '{}' is not found in aovs_info".format(p.name))
+                    image = zeros_image(p.channels)
 
-            except StopIteration:
-                log.warn("AOV '{}' is not found in aovs_info".format(p.name))
-                image = zeros_image(p.channels)
+                image = self.rpr_context.get_image(aov['rpr'])
 
             except KeyError:
                 # This could happen when Depth or Combined was not selected, but they still are in view_layer.use_pass_*
@@ -83,14 +87,17 @@ class Engine(metaclass=ABCMeta):
         render_passes.foreach_set('rect', np.concatenate(images))
 
     def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph):
-        """ Iterates evaluated objects in depsgraph """
-        return iter(depsgraph.objects)
+        """ Iterates evaluated objects in depsgraph with SUPPORTED_OBJECT_TYPES """
+
+        for obj in depsgraph.objects:
+            if obj.type in SUPPORTED_OBJECT_TYPES:
+                yield obj
 
     def depsgraph_instances(self, depsgraph: bpy.types.Depsgraph):
-        """ Iterates evaluated instances in depsgraph """
+        """ Iterates evaluated instances in depsgraph with SUPPORTED_OBJECT_TYPES """
 
         # Comment from Depsgrapgh.object_instances description:
         # WARNING: only use this as an iterator, never as a sequence, and do not keep any references to its items
         for instance in depsgraph.object_instances:
-            if instance.is_instance:
+            if instance.is_instance and instance.object.type in SUPPORTED_OBJECT_TYPES:
                 yield instance
