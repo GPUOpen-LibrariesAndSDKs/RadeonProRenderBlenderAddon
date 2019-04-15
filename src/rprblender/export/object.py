@@ -51,7 +51,6 @@ def sync(rpr_context, obj: bpy.types.Object, motion_blur_info=None):
                 particle.sync(rpr_context, particle_system, obj)
             except SyncError as e:
                 log.warn("Error syncing particle system", e)
-            
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):

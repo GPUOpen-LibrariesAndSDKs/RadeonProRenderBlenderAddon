@@ -139,7 +139,7 @@ def sync(rpr_context: RPRContext, world: bpy.types.World):
     # Main IBL light
     if rpr.light_type == 'IBL':
         light = create_environment_light(IBL_LIGHT_NAME, rpr.ibl_type, rpr.ibl_color, rpr.ibl_image)
-        rpr_context.scene.attach(light)
+        rpr_context.scene.add_environment_light(light)
     # TODO: Implement "Sun and Sky" IBL
 
     # Environment overrides
@@ -203,7 +203,7 @@ def sync_update(rpr_context: RPRContext, world: bpy.types.World, old_settings: W
         if rpr.enabled:
             sync(rpr_context, world)
         else:
-            rpr_context.remove_object(IBL_LIGHT_NAME)
+            rpr_context.scene.remove_environment_light()
 
         return True
 

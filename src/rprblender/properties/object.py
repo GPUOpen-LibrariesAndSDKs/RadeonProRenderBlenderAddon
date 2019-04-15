@@ -39,6 +39,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="Use this object as a shadowcatcher",
         default=False,
     )
+    portal_light: BoolProperty(
+        name="Portal Light",
+        description="Use this object as a portal light",
+        default=False,
+    )
 
     # Motion Blur
     motion_blur: BoolProperty(
