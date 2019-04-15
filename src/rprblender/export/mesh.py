@@ -124,6 +124,7 @@ class MeshData:
         finally:
             bm.free()
 
+
 def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object):
     """ Assigns materials from obj.material_slots to rpr_shape. It also syncs new material """
 
@@ -179,12 +180,19 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     obj.rpr.export_visibility(rpr_shape)
     obj.rpr.export_subdivision(rpr_shape)
 
-    # if this is an emitter and is hidde hide it
+    # if this is an hidden instances emitter
     if not obj.show_instancer_for_render:
         rpr_shape.set_visibility(False)
 
-    # all meshes are set to light group 3 for emissive objects
-    rpr_shape.set_light_group_id(3)
+    if obj.rpr.portal_light:
+        # Register mesh as a portal light, set "Environment" light group
+        rpr_shape.set_light_group_id(0)
+        rpr_shape.set_portal_light(True)
+    else:
+        # all non-portal light meshes are set to light group 3 for emissive objects
+        rpr_shape.set_light_group_id(3)
+        rpr_shape.set_portal_light(False)
+
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """

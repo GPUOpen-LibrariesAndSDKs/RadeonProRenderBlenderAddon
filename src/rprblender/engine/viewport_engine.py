@@ -87,6 +87,7 @@ class ViewportEngine(Engine):
                     self.restart_render_event.clear()
                     iteration = 0
                     self.rpr_context.sync_auto_adapt_subdivision()
+                    self.rpr_context.sync_portal_lights()
                     time_begin = time.perf_counter()
                     log("Restart render")
 

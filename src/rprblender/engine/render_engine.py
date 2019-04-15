@@ -176,6 +176,7 @@ class RenderEngine(Engine):
             return
 
         self.rpr_context.sync_auto_adapt_subdivision(self.width, self.height)
+        self.rpr_context.sync_portal_lights()
 
         log("Start render")
         self.notify_status(0, "Start render")

@@ -4,6 +4,7 @@ import pyrprx
 from . import image_filter
 import threading
 
+
 class RPRContext:
     ''' Manager of pyrpr and pyrprx calls.  Also includes threading lock to make sure 
         calls aren't made simultaneously '''
@@ -265,8 +266,6 @@ class RPRContext:
             }
             self.image_filter = image_filter.ImageFilterML(self.context, inputs, {}, {}, self.width, self.height, frame_buffer_gl)
 
-
-
     def _disable_image_filter(self):
         self.image_filter = None
         self.image_filter_settings = None
@@ -392,6 +391,21 @@ class RPRContext:
                 obj.set_auto_adapt_subdivision_factor(fb, self.scene.camera, obj.subdivision['factor'])
                 obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
                 obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+
+    def sync_portal_lights(self):
+        """ Attach active Portal Light objects to active environment light """
+        light = self.scene.environment_light
+        if not light:
+            return
+
+        portals = set(obj for obj in self.scene.objects if isinstance(obj, pyrpr.Shape) and obj.is_portal_light)
+        # detach disabled portals
+        for obj in light.portals - portals:
+            light.detach_portal(self.scene, obj)
+
+        # attach added portal lights
+        for obj in portals - light.portals:
+            light.attach_portal(self.scene, obj)
 
     #
     # OBJECT'S CREATION FUNCTIONS

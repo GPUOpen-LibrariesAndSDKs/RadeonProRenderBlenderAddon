@@ -401,7 +401,8 @@ class Scene(Object):
         self.context = context
         self.objects = set()
         self.camera = None
-        self.environments = {}
+        self.environment_light = None
+        self.environment_overrides = {}
         ContextCreateScene(self.context, self)
 
     def delete(self):
@@ -441,9 +442,11 @@ class Scene(Object):
         self.objects.remove(obj)
 
     def clear(self):
+        for portal in tuple(self.portals):
+            self.detach_portal(portal)
         for obj in tuple(self.objects):
             self.detach(obj)
-        for override_type in tuple(self.environments.keys()):
+        for override_type in tuple(self.environment_overrides.keys()):
             self.remove_environment_override(override_type)
 
         self.set_camera(None)
@@ -453,13 +456,21 @@ class Scene(Object):
         self.camera = camera
         SceneSetCamera(self, self.camera)
 
+    def add_environment_light(self, light):
+        self.environment_light = light
+        self.attach(light)
+
+    def remove_environment_light(self):
+        self.detach(self.environment_light)
+        self.environment_light = None
+
     def add_environment_override(self, core_id, light):
-        self.environments[core_id] = light
+        self.environment_overrides[core_id] = light
         SceneSetEnvironmentOverride(self, core_id, light)
 
     def remove_environment_override(self, core_id):
         SceneSetEnvironmentOverride(self, core_id, None)
-        del self.environments[core_id]
+        del self.environment_overrides[core_id]
 
 
 class Shape(Object):
@@ -476,6 +487,7 @@ class Shape(Object):
         self.hetero_volume = None
 
         self.subdivision = None     # { 'factor': int, 'boundary': int, 'crease_weight': float }
+        self.is_portal_light = False
 
     def delete(self):
         self.set_material(None)
@@ -596,6 +608,9 @@ class Shape(Object):
 
     def set_light_group_id(self, group_id):
         ShapeSetLightGroupID(self, group_id)
+
+    def set_portal_light(self, is_portal):
+        self.is_portal_light = is_portal
 
 
 class Curve(Object):
@@ -972,10 +987,9 @@ class EnvironmentLight(Light):
     def set_intensity_scale(self, intensity_scale):
         EnvironmentLightSetIntensityScale(self, intensity_scale)
 
-    # TODO: move work with portals to scene
     def attach_portal(self, scene, portal):
-        EnvironmentLightAttachPortal(scene, self, portal)
         self.portals.add(portal)
+        EnvironmentLightAttachPortal(scene, self, portal)
 
     def detach_portal(self, scene, portal):
         EnvironmentLightDetachPortal(scene, self, portal)

@@ -19,6 +19,7 @@ class RPR_OBJECT_PT_object(RPR_Panel):
         flow.column().prop(rpr, 'reflection_visibility')
         flow.column().prop(rpr, 'shadows')
         flow.column().prop(rpr, 'shadowcatcher')
+        flow.column().prop(rpr, 'portal_light')
 
         col = flow.column()
         col.active = context.scene.rpr.motion_blur
