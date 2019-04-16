@@ -14,16 +14,35 @@ class RPR_OBJECT_PT_object(RPR_Panel):
         self.layout.use_property_decorate = False
 
         rpr = context.object.rpr
-        flow = self.layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-        flow.column().prop(rpr, 'visibility_in_primary_rays')
-        flow.column().prop(rpr, 'reflection_visibility')
-        flow.column().prop(rpr, 'shadows')
-        flow.column().prop(rpr, 'shadowcatcher')
-        flow.column().prop(rpr, 'portal_light')
 
-        col = flow.column()
+        self.layout.prop(rpr, 'shadowcatcher')
+        self.layout.prop(rpr, 'portal_light')
+        col = self.layout.column()
         col.active = context.scene.rpr.motion_blur
         col.prop(rpr, "motion_blur")
+
+
+class RPR_OBJECT_PT_visibility(RPR_Panel):
+    bl_label = "Visibility"
+    bl_context = 'object'
+    bl_parent_id = 'RPR_OBJECT_PT_object'
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.type == 'MESH' and super().poll(context)
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        rpr = context.object.rpr
+
+        flow = self.layout.grid_flow(row_major=True, even_columns=True)
+        flow.column().prop(rpr, 'visibility_in_primary_rays')
+        flow.column().prop(rpr, 'reflection_visibility')
+        flow.column().prop(rpr, 'refraction_visibility')
+        flow.column().prop(rpr, 'diffuse_visibility')
+        flow.column().prop(rpr, 'shadows')
 
 
 class RPR_OBJECT_PT_subdivision(RPR_Panel):
