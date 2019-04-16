@@ -338,14 +338,14 @@ class ShaderNodeLayerWeight(NodeParser):
             
 
             fresnel = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_FRESNEL)
-            #fresnel.set_input('normal', normal)
+            fresnel.set_input('normal', normal)
             fresnel.set_input('ior', eta2)
 
             return fresnel
 
         else:
             # Facing input
-            blend2 = self.min_node_value(self.max_node_value(blend, 0.0), 1.0)
+            blend2 = self.min_node_value(self.max_node_value(blend, 0.0), .99999)
             blend_less_than_half = self.arithmetic_node_value(blend2, 0.5, pyrpr.MATERIAL_NODE_OP_LOWER)
             blend3 = self.arithmetic_node_value(blend_less_than_half, self.mul_node_value(blend2, 2.0), pyrpr.MATERIAL_NODE_OP_TERNARY)
             blend3.set_input('color2', self.div_node_value(0.5, self.sub_node_value(1.0, blend2)))
