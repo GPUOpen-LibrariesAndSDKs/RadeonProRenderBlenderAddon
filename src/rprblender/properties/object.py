@@ -20,17 +20,27 @@ class RPR_ObjectProperites(RPR_Properties):
 
     # Visibility
     visibility_in_primary_rays: BoolProperty(
-        name="Camera Visibility",
+        name="Camera",
         description="This object will be visible in camera rays",
         default=True,
     )
     reflection_visibility: BoolProperty(
-        name="Reflections Visibility",
+        name="Reflections",
         description="This object will be visible in reflections",
         default=True,
     )
+    refraction_visibility: BoolProperty(
+        name="Refraction",
+        description="This object will be visible in refractions",
+        default=True,
+    )
+    diffuse_visibility: BoolProperty(
+        name="Diffuse",
+        description="This object will be visible in indirect diffuse reflections",
+        default=True,
+    )
     shadows: BoolProperty(
-        name="Casts Shadows",
+        name="Shadows",
         description="This object will cast shadows",
         default=True,
     )
@@ -84,11 +94,14 @@ class RPR_ObjectProperites(RPR_Properties):
         """ Exports visibility settings """
 
         rpr_shape.set_visibility_primary_only(self.visibility_in_primary_rays)
-        rpr_shape.set_visibility_in_specular(self.reflection_visibility)
         rpr_shape.set_visibility_ex("visible.reflection", self.reflection_visibility)
         rpr_shape.set_visibility_ex("visible.reflection.glossy", self.reflection_visibility)
+        rpr_shape.set_visibility_ex("visible.refraction", self.refraction_visibility)
+        rpr_shape.set_visibility_ex("visible.refraction.glossy", self.refraction_visibility)
+        rpr_shape.set_visibility_ex("visible.diffuse", self.diffuse_visibility)
         rpr_shape.set_shadow_catcher(self.shadowcatcher)
         rpr_shape.set_shadow(self.shadows)
+        rpr_shape.set_visibility_ex("visible.shadow", self.shadows)
 
     def export_subdivision(self, rpr_shape):
         """ Exports subdivision settings """
