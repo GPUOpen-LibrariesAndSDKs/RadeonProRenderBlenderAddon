@@ -1,5 +1,0 @@
-
-class SyncError(RuntimeError):
-    pass
-
-

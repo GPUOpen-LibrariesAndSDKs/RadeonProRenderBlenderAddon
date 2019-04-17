@@ -6,7 +6,6 @@ import bgl
 
 import pyrpr
 from .engine import Engine
-from rprblender.properties import SyncError
 from rprblender.export import camera, material, world, object, instance
 from rprblender.utils import gl
 from rprblender import config
@@ -196,19 +195,11 @@ class ViewportEngine(Engine):
 
         # exporting objects
         for obj in self.depsgraph_objects(depsgraph):
-            try:
-                object.sync(self.rpr_context, obj)
-
-            except SyncError as e:
-                log.warn("Object syncing error", e)
+            object.sync(self.rpr_context, obj, depsgraph)
 
         # exporting instances
         for inst in self.depsgraph_instances(depsgraph):
-            try:
-                instance.sync(self.rpr_context, inst)
-
-            except SyncError as e:
-                log.warn("Instance syncing error", e)
+            instance.sync(self.rpr_context, inst, depsgraph)
 
         if not self.rpr_context.gl_interop:
             self.gl_texture = gl.GLTexture(w, h)
@@ -262,7 +253,8 @@ class ViewportEngine(Engine):
                     if obj.type == 'CAMERA':
                         continue
 
-                    is_updated |= object.sync_update(self.rpr_context, obj, update.is_updated_geometry, update.is_updated_transform)
+                    is_updated |= object.sync_update(self.rpr_context, obj, depsgraph,
+                                                     update.is_updated_geometry, update.is_updated_transform)
                     continue
 
                 if isinstance(obj, bpy.types.World):
@@ -414,24 +406,16 @@ class ViewportEngine(Engine):
                 if object.key(obj) not in object_keys_to_export:
                     continue
 
-                try:
-                    object.sync(self.rpr_context, obj)
-                    res = True
-
-                except SyncError as e:
-                    log.warn("Object syncing error", e)
+                object.sync(self.rpr_context, obj, depsgraph)
+                res = True
 
             # exporting instances
             for inst in self.depsgraph_instances(depsgraph):
                 if instance.key(inst) not in object_keys_to_export:
                     continue
 
-                try:
-                    instance.sync(self.rpr_context, inst)
-                    res = True
-
-                except SyncError as e:
-                    log.warn("Instance syncing error", e)
+                instance.sync(self.rpr_context, inst, depsgraph)
+                res = True
 
         return res
 

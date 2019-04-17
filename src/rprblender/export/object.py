@@ -1,8 +1,7 @@
 import numpy as np
 import bpy
 
-from . import mesh, light, camera, particle
-from rprblender.properties import SyncError
+from . import mesh, light, camera, particle, to_mesh
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -27,7 +26,7 @@ def sync_motion_blur(rpr_context, obj: bpy.types.Object, motion_blur_info):
     rpr_obj.set_scale_motion(*motion_blur_info.momentum_scale)
 
 
-def sync(rpr_context, obj: bpy.types.Object, motion_blur_info=None):
+def sync(rpr_context, obj: bpy.types.Object, depsgraph, motion_blur_info=None):
     """ sync the object and any data attached """
 
     log("sync", obj)
@@ -35,25 +34,29 @@ def sync(rpr_context, obj: bpy.types.Object, motion_blur_info=None):
     if obj.type == 'MESH':
         mesh.sync(rpr_context, obj)
         sync_motion_blur(rpr_context, obj, motion_blur_info)
+
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
         sync_motion_blur(rpr_context, obj, motion_blur_info)
+
     elif obj.type == 'CAMERA':
         camera.sync(rpr_context, obj)
         sync_motion_blur(rpr_context, obj, motion_blur_info)
+
+    elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
+        if to_mesh.sync(rpr_context, obj, depsgraph):
+            sync_motion_blur(rpr_context, obj, motion_blur_info)
+
     else:
         log.warn("Object to sync not supported", obj, obj.type)
 
     # sync particles on object
     if len(obj.particle_systems):
         for particle_system in obj.particle_systems:
-            try:
-                particle.sync(rpr_context, particle_system, obj)
-            except SyncError as e:
-                log.warn("Error syncing particle system", e)
+            particle.sync(rpr_context, particle_system, obj)
 
 
-def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geometry, is_updated_transform):
     """ Updates existing rpr object. Checks obj.type and calls corresponded sync_update() """
 
     log("sync_update", obj, is_updated_geometry, is_updated_transform)
@@ -63,6 +66,9 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     if obj.type == 'MESH':
         return mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+
+    if obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
+        return to_mesh.sync_update(rpr_context, obj, depsgraph, is_updated_geometry, is_updated_transform)
 
     log.warn("Not supported object to sync_update", obj)
 

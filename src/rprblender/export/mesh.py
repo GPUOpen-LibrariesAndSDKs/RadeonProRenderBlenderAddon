@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 import numpy as np
 import math
+from typing import List
 
 import bpy
 import bmesh
 import mathutils
 
 import pyrpr
-from rprblender.properties import SyncError
 from rprblender.engine.context import RPRContext
 from . import object, material
 
@@ -32,8 +32,6 @@ class MeshData:
     def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False):
         """ Returns MeshData from bpy.types.Mesh """
 
-        data = MeshData()
-
         # preparing mesh to export
         mesh.calc_normals_split()
         mesh.calc_loop_triangles()
@@ -41,14 +39,15 @@ class MeshData:
         # getting mesh export data
         tris_len = len(mesh.loop_triangles)
         if tris_len == 0:
-            raise SyncError("Mesh %s has no polygons" % mesh.name, mesh)
+            return None
 
+        data = MeshData()
         data.vertices = np.fromiter(
             (x for vert in mesh.vertices for x in vert.co), 
-            dtype=np.float32).reshape((len(mesh.vertices), 3))
+            dtype=np.float32).reshape(-1, 3)
         data.normals = np.fromiter(
             (x for tri in mesh.loop_triangles for norm in tri.split_normals for x in norm),
-            dtype=np.float32).reshape((tris_len * 3, 3))
+            dtype=np.float32).reshape(-1, 3)
 
         data.uvs = None
         data.uv_indices = None
@@ -56,7 +55,7 @@ class MeshData:
             uv_layer = mesh.uv_layers.active
             uvs = np.fromiter(
                 (x for d in uv_layer.data for x in d.uv),
-                dtype=np.float32).reshape((len(uv_layer.data), 2))
+                dtype=np.float32).reshape(-1, 2)
             if len(uvs) > 0:
                 data.uvs = uvs
                 data.uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops), dtype=np.int32)
@@ -95,7 +94,9 @@ class MeshData:
 
             # getting uvs before modifying mesh
             bm.verts.ensure_lookup_table()
-            data.uvs = np.array([(vert.co[0] + 0.5, vert.co[1] + 0.5) for vert in bm.verts], dtype=np.float32)
+            data.uvs = np.fromiter(
+                (vert.co[i] + 0.5 for vert in bm.verts for i in (0, 1)),
+                dtype=np.float32).reshape(-1, 2)
 
             # scale and rotate mesh around Y axis
             bmesh.ops.scale(bm, verts=bm.verts,
@@ -109,11 +110,15 @@ class MeshData:
             loop_triangles = bm.calc_loop_triangles()
             tris_len = len(loop_triangles)
 
-            data.vertices = np.array([vert.co for vert in bm.verts], dtype=np.float32)
-            data.normals = np.array([vert.normal for vert in bm.verts], dtype=np.float32)
+            data.vertices = np.fromiter(
+                (x for vert in bm.verts for x in vert.co),
+                dtype=np.float32).reshape(-1, 3)
+            data.normals = np.fromiter(
+                (x for vert in bm.verts for x in vert.normal),
+                dtype=np.float32).reshape(-1, 3)
 
             data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
-            data.vertex_indices = np.array([vert.vert.index for tri in loop_triangles for vert in tri], dtype=np.int32)
+            data.vertex_indices = np.fromiter((vert.vert.index for tri in loop_triangles for vert in tri), dtype=np.int32)
             data.normal_indices = data.vertex_indices
             data.uv_indices = data.vertex_indices
 
@@ -124,19 +129,20 @@ class MeshData:
         finally:
             bm.free()
 
+def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
+                     material_slots: List[bpy.types.MaterialSlot], mesh: bpy.types.Mesh):
+    """ Assigns materials from material_slots to rpr_shape. It also syncs new material """
 
-def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object):
-    """ Assigns materials from obj.material_slots to rpr_shape. It also syncs new material """
-
-    if len(obj.material_slots) == 0:
+    if len(material_slots) == 0:
         return False
 
-    mesh = obj.data
+    material_indices = np.fromiter((tri.material_index for tri in mesh.loop_triangles), dtype=np.int32) \
+        if mesh else np.zeros(1, dtype=np.int32)
 
-    material_indices = np.array([tri.material_index for tri in mesh.loop_triangles], dtype=np.int32)
     material_unique_indices = np.unique(material_indices)
+
     for i in material_unique_indices:
-        slot = obj.material_slots[i]
+        slot = material_slots[i]
 
         log("Syncing material '%s'" % slot.name, slot)
 
@@ -159,21 +165,28 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
     return True
 
 
-def sync(rpr_context: RPRContext, obj: bpy.types.Object):
+def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh:bpy.types.Mesh=None):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
-    mesh = obj.data
+    if not mesh:
+        mesh = obj.data
+
     log("sync", mesh, obj)
 
+    obj_key = object.key(obj)
     data = MeshData.init_from_mesh(mesh)
+    if not data:
+        rpr_context.create_empty_object(obj_key)
+        return
+
     rpr_shape = rpr_context.create_mesh(
-        object.key(obj),
+        obj_key,
         data.vertices, data.normals, data.uvs,
         data.vertex_indices, data.normal_indices, data.uv_indices,
         data.num_face_vertices
     )
 
-    assign_materials(rpr_context, rpr_shape, obj)
+    assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
 
     rpr_context.scene.attach(rpr_shape)
     rpr_shape.set_transform(object.get_transform(obj))
@@ -198,7 +211,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
 
     mesh = obj.data
-    log("Updating mesh: %s" % mesh.name)
+    log("sync_update", obj, mesh)
 
     obj_key = object.key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
@@ -212,7 +225,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             rpr_shape.set_transform(object.get_transform(obj))
             return True
 
-        return assign_materials(rpr_context, rpr_shape, obj)
+        return assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
 
     sync(rpr_context, obj)
     return True

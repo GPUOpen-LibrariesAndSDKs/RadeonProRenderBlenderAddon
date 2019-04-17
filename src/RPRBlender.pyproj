@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>Global|PythonCore|3.7</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
@@ -59,6 +60,7 @@
     <Compile Include="rprblender\export\mesh.py" />
     <Compile Include="rprblender\export\object.py" />
     <Compile Include="rprblender\export\particle.py" />
+    <Compile Include="rprblender\export\to_mesh.py" />
     <Compile Include="rprblender\export\world.py" />
     <Compile Include="rprblender\export\__init__.py" />
     <Compile Include="rprblender\nodes\blender_nodes.py" />
@@ -68,11 +70,14 @@
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\operators\light.py" />
+    <Compile Include="rprblender\operators\material_library.py" />
+    <Compile Include="rprblender\operators\nodes.py" />
     <Compile Include="rprblender\operators\render.py" />
     <Compile Include="rprblender\operators\world.py" />
     <Compile Include="rprblender\operators\__init__.py" />
     <Compile Include="rprblender\properties\camera.py" />
     <Compile Include="rprblender\properties\light.py" />
+    <Compile Include="rprblender\properties\material_browser.py" />
     <Compile Include="rprblender\properties\object.py" />
     <Compile Include="rprblender\properties\render.py" />
     <Compile Include="rprblender\properties\view_layer.py" />
@@ -81,6 +86,7 @@
     <Compile Include="rprblender\ui\camera.py" />
     <Compile Include="rprblender\ui\light.py" />
     <Compile Include="rprblender\ui\material.py" />
+    <Compile Include="rprblender\ui\material_browser.py" />
     <Compile Include="rprblender\ui\object.py" />
     <Compile Include="rprblender\ui\render.py" />
     <Compile Include="rprblender\ui\view_layer.py" />
@@ -178,6 +184,8 @@
     <Folder Include="rprblender\utils\" />
     <Folder Include="tools" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.7" />
+  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>

@@ -24,10 +24,6 @@ class RPR_Properties(bpy.types.PropertyGroup):
         pass
 
 
-class SyncError(RuntimeError):
-    pass
-
-
 # Register/unregister all required classes of RPR properties in one go
 from . import (
     render,
