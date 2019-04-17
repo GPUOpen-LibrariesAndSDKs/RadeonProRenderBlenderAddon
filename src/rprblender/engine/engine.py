@@ -19,7 +19,7 @@ from rprblender.utils import logging
 log = logging.Log(tag='Engine')
 
 
-SUPPORTED_OBJECT_TYPES = ('CAMERA', 'MESH', 'LIGHT')
+SUPPORTED_OBJECT_TYPES = ('CAMERA', 'MESH', 'LIGHT', 'CURVE', 'FONT', 'SURFACE', 'META')
 
 
 class Engine(metaclass=ABCMeta):

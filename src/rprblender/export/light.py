@@ -4,7 +4,6 @@ import math
 import bpy
 
 from rprblender.engine.context import RPRContext
-from rprblender.properties import SyncError
 from rprblender.properties.light import MAX_LUMINOUS_EFFICACY
 from . import mesh, image, object
 from rprblender.utils.conversion import convert_kelvins_to_rgb
@@ -77,7 +76,7 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
         return luminance / MAX_LUMINOUS_EFFICACY
 
 
-def sync(rpr_context: RPRContext, obj: bpy.types.Object):
+def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     """ Creates pyrpr.Light from obj.data: bpy.types.Light """
 
     light = obj.data
@@ -85,7 +84,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     log("sync", light, obj)
 
     area = 0.0
-    light_key = object.key(obj)
+    light_key = object.key(obj) if not instance_key else instance_key
 
     if light.type == 'POINT':
         if light.rpr.ies_file_name:
@@ -107,9 +106,14 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
     elif light.type == 'AREA':
         if rpr.shape == 'MESH':
             if not rpr.mesh:
-                raise SyncError("Area light %s has no mesh" % light.name, light)
+                log.warn("Area light has no mesh", light)
+                rpr_context.create_empty_object(light_key)
+                return
 
             data = mesh.MeshData.init_from_mesh(rpr.mesh, calc_area=True)
+            if not data:
+                rpr_context.create_empty_object(light_key)
+                return
 
         else:
             data = mesh.MeshData.init_from_shape_type(rpr.shape, light.size, light.size_y, segments=32)
@@ -130,7 +134,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
             rpr_light.set_image(image.sync(rpr_context, rpr.color_map))
 
     else:
-        raise SyncError("Light %s has unsupported type %s" % (light.name, light.type), light)
+        raise ValueError("Unsupported light type", light, light.type)
 
     rpr_light.set_name(light.name)
 

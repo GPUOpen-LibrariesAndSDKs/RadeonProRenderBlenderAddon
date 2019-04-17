@@ -1,12 +1,10 @@
 import bpy
 import threading
 import time
-import math
 
 from rprblender import config
 from rprblender import utils
 from .engine import Engine
-from rprblender.properties import SyncError
 from rprblender.export import world, camera, object, instance
 from rprblender.utils import render_stamp
 import pyrpr
@@ -318,12 +316,7 @@ class RenderEngine(Engine):
             self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
             obj_motion_blur_info = frame_motion_blur_info.get(object.key(obj), None)
-
-            try:
-                object.sync(self.rpr_context, obj, motion_blur_info=obj_motion_blur_info)
-
-            except SyncError as e:
-                log.warn("Error syncing mesh", e)   # TODO: Error to UI log
+            object.sync(self.rpr_context, obj, depsgraph, motion_blur_info=obj_motion_blur_info)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -336,12 +329,7 @@ class RenderEngine(Engine):
             self.notify_status(0, "Syncing instance (%d/%d): %s" % (i, instances_len - objects_len, obj.name))
 
             obj_motion_blur_info = frame_motion_blur_info.get(instance.key(inst), None)
-
-            try:
-                instance.sync(self.rpr_context, inst, motion_blur_info=obj_motion_blur_info)
-
-            except SyncError as e:
-                log.warn("Instance syncing error", e)   # TODO: Error to UI log
+            instance.sync(self.rpr_context, inst, depsgraph, motion_blur_info=obj_motion_blur_info)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")

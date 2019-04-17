@@ -46,7 +46,7 @@ class PreviewEngine(Engine):
 
         # getting visible objects
         for obj in self.depsgraph_objects(depsgraph):
-            object.sync(self.rpr_context, obj)
+            object.sync(self.rpr_context, obj, depsgraph)
 
         self.rpr_context.scene.set_name(scene.name)
         self.rpr_context.scene.set_camera(self.rpr_context.objects[object.key(depsgraph.scene.camera)])

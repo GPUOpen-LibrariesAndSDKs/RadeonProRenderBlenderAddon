@@ -410,6 +410,10 @@ class RPRContext:
     #
     # OBJECT'S CREATION FUNCTIONS
     #
+    def create_empty_object(self, key):
+        self.objects[key] = None
+        return None
+
     def create_light(self, key, light_type):
         if light_type == 'point':
             light = pyrpr.PointLight(self.context)
@@ -518,7 +522,8 @@ class RPRContext:
                 instance = self.objects.pop(k)
                 self.scene.detach(instance)
 
-        self.scene.detach(obj)
+        if obj:
+            self.scene.detach(obj)
 
     def remove_image(self, key):
         del self.images[key]

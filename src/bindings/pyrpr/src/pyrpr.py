@@ -442,8 +442,6 @@ class Scene(Object):
         self.objects.remove(obj)
 
     def clear(self):
-        for portal in tuple(self.portals):
-            self.detach_portal(portal)
         for obj in tuple(self.objects):
             self.detach(obj)
         for override_type in tuple(self.environment_overrides.keys()):
