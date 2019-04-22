@@ -14,10 +14,9 @@ from bpy.props import (
 import platform
 
 from rprblender import utils
-from rprblender.utils import logging
 from . import RPR_Properties
 
-
+from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
 
 

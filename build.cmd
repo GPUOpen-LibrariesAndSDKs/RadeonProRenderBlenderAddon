@@ -39,11 +39,11 @@ if %vs_major%==14 (
 
 set vs17=""
 
-if %vs_major%==15 (
-	echo Visual Studio 2017 is installed.
+if %vs_major%==15 or %vs_major%==16 (
+	echo Visual Studio 2017/2019 is installed.
 	echo "%vs_dir%"
 
-	echo Trying to setup toolset 14 [Visual Studio 2015] of Visual Studio 2017.
+	echo Trying to setup toolset 14 [Visual Studio 2015] of Visual Studio 2017/2019.
 
 	set vs17="%vs_dir%\VC\Auxiliary\Build\vcvarsall.bat"
 

@@ -2,20 +2,12 @@
 
 ### Build Requirements
 
-2.78c
-=====
-- Blender 2.78c
-- Python 3.5.2(Blender 2.78c uses one) x64(for Core) - all code, addon and misc tested with python3
-- python-cffi. e.g. following works for me on windows - `py -m pip install cffi`
-- Visual Studio 2015 SP3 or Visual Studio 2017 (15.6.7) with SDK 8.1 and 2015.3 v140 toolset installed
-- cmake 3.x
-
 2.80
 ====
 - Blender 2.80
 - Python 3.7.1(Blender 2.80 uses 3.7.0) x64(for Core) - all code, addon and misc tested with python3
 - python-cffi. e.g. following works for me on windows - `py -m pip install cffi`
-- Visual Studio 2015 SP3 or Visual Studio 2017 (15.6.7) with SDK 8.1 and 2015.3 v140 toolset installed
+- Visual Studio 2015 SP3 / 2017 / 2019 with SDK 8.1 and 2015.3 v140 toolset installed
 - cmake 3.x
 
 Note that the .sln provided is for easy editing and searching of files on Windows.  The blender
@@ -24,11 +16,7 @@ support for debugging Python when you attach to a process.
 
 ### Software, required for development - to run tests and more:
 
-- pytest - `py -m pip install pytest`
-- imageio - `py -m pip install imageio`
-- numpy - `py -m pip install numpy`
-- pyopengl - `py -3 -m pip install pyopengl`
-- pypiwin32 - `py -3 -m pip install pypiwin32`
+- numpy - `py -3.7 -m pip install numpy`
 
 ### ThirdParty libraries
 
@@ -72,14 +60,20 @@ example is here - run_blender_with_rpr.cmd
 ### Debugging
 
 #### log
- using python's 'logging' module underneath, rprblender.logging has functions similar to logging(but different, probably not good)
+Using python's 'logging' module underneath, rprblender.utils.logging has functions similar to logging. It also includes callable class Log which provides simplified interface to do logging.
+Example:
+    from rprblender.utils import logging
+    log = logging.Log(tag='export.mesh')
+
+    log("sync", mesh, obj)
+
 e.g. `logging.debug(*argv, tag)` where argv is what is printed(same as with print) and tag is string suffix for logger name, for filtering
 so that `logging.limit_log(name, level_show_always)` will allow to filter out what doesn't start with `name`(expect levels equal or above `level_show_always`)
 
  configdev.py(loaded very early) can be used to include code like `limit_log` to configure your session
 
-    from . import logging
-    logging.limit_log('render.camera', level_show_always=logging.INFO)
+    from .utils import logging
+    logging.limit_log('default', logging.DEBUG)
     
     from . import config
     config.pyrpr_log_calls = True #  log all Core function calls to console, can be VERY useful
@@ -119,7 +113,7 @@ Create new project from existing python code: Menu -> File -> New -> Project -> 
 
 Add following Search Paths to project:
   - rprblender\support
-  - C:\Program Files\Blender Foundation\Blender\2.79\scripts\modules   # path where to Blender's modules
+  - <path to Blender 2.80>\2.80\scripts\modules   # path where to Blender's modules
   - <path to "PyCharm->Blender api intellisense support">
 
 ### Configure VS remote debugger to Blender
@@ -141,53 +135,6 @@ In Blender: press <Space> -> in appeared dialog type "debug" -> select "Connect 
 In VS: Menu -> Debug -> Attach To Process -> select Transport "Python remote (ptvsd)" -> type in Qualifier "my_secret@localhost:3000" -> click Refresh: process Blender.exe "tcp://localhost:3000" should be appeared -> select process -> click Attach
 
 Remote debugging connection established.
-
-### Making material nodes
-
-Material nodes consist of two parts: 
-
-- Blender UI/Data component(essentially class inherited from `bpy.types.Node`). Definitions located in `src/rprblender/editor_nodes.py`. And added to Blender Node Editor menu in `src/rprblender/nodes.py`
-- Part that converts those Blender nodes to Core - these are in `src/rprblender/core/nodes.py`, see class Material there and `parse_...` methods
-
-Conventions _evolving, far from all the code is complying with these, but we'd love to have it eventually_ 
-
-- Nodes are divided into two kinds 'shader' and 'value'. `RPRShaderNode_<node_type>`, `RPRValueNode_<node_type>`. Shaders are nodes which output can go to Output node or input to Blend shader(the only thing that can combine other shaders)
-- `bl_idname` formed like this `'rpr_<category>_node_<node_type>'` - `<category>` is where we want to see our node in the ui, mainly, `<node_type>` is lowercase (meaningful)part of the Core node name. E.g. `rpr_texture_node_noise2d`, `rpr_input_node_lookup` - for `FR_MATERIAL_NODE_NOISE2D_TEXTURE` and `FR_MATERIAL_NODE_INPUT_LOOKUP`, located in `Texture` and `Input` submenus of Node Editor's Add menu. Corresponding `parse_..` methods should be called in similar fashion - e.g. `parse_input_node_lookup`. Same with test methods. **THEREFORE, searching for, say, `input_node_lookup` should discover ALL the places where this node is used and all that is needed to implement a similar node**
-- `bl_label` - `'RPR <Node_type>'`, e.g. `'RPR Lookup'`
-- Output sockets for nodes - every 'value'(i.e. non-shader) node has `value_out = 'Out'`, and 'shaders' `shader_out = 'Shader'`.
-- Input sockets are also has an alias in the Node class, like `color_in = 'Diffuse Color'` on Diffuse material. This can be referenced as `self.color_in` withing the `RPRShaderNode_Diffuse` class methods or `RPRSahderNode_Diffuse.color_in` outside(e.g. tests)  
-
-Tests 
- 
-- At least one test per *Node*. Right now we are aiming to have at least one test that executes node configuring and parsing code and verifies rendered image. All those material tests are located now in `src/rprblender/render_test.py`. E.g. see `test_material_lookup` there.  
-- Test code for a node is essentially setting up material shader graph and checking for render output comparing it with specified *expected* image.
- - all render(and some more) tests are run with `tests\blender_tests\run_all_tests.py` script, when a image-comparison fails it creates two output files - `actual.png` and `expected.png` in a subfolder of `failures_last` named after failed test. When an `expected` image is not found(as on the first run of a new test) - only `actual.png` is written to disk, converting it to .png might be used as 'expected' image, if it looks fine) If it's copied to `src/rprblender/testdata/render/...` providing a name used in test - it will be used as a baseline on the next test run. Also `actual_hdr.list` is saved  -  it's actual hdr(unlike clamped/converted in `.png`) pixels of the rendered image. Use `tests\blender_tests\analyze_failure.py` to check them for low/upper bounds.   
- - single test can be run(running all the test takes some time) with the folliwing command, as example:
-   `tests\blender_tests\run_all_tests.py src/rprblender/render_test.py::test_material_diffuse_image_map` (that is `'<test_runner> <test file>::<test_name>'`) 
-   or `tests\blender_tests\run_all_tests.py src/rprblender -- -k test_material` - runs all tests under `src/rprblender` that contain `test_material` 
- 
- - might be **very** useful - adding `--keep-blender-running` to test command will not close Blender(as it does by default) - so it will be possible to inspect created Node graph and experiment with rendering it etc.
-     
-Example(full test code)
-
-    def test_material_lookup(render_image_check_fixture, material_setup):
-    
-        with render_image_check_fixture.set_expected('material_lookup_expected.png'):
-            # generate simple uvs
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.uv.unwrap()
-            bpy.ops.object.mode_set(mode='OBJECT')
-    
-            tree = material_setup.create_default_node_tree()
-            output = material_setup.get_node_tree_output(tree)
-    
-            # this should be diffuse
-            surface_material = output.inputs[output.shader_in].links[0].from_node
-    
-            # create node and connect it to material input
-            lookup = tree.nodes.new(type='rpr_input_node_lookup')
-            tree.links.new(lookup.outputs[lookup.value_out], surface_material.inputs[surface_material.color_in])
-            lookup.type = 'UV'
  
 
 ### Versioning
