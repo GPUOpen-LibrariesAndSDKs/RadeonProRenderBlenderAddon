@@ -80,6 +80,13 @@ class ShaderNodeAmbientOcclusion(NodeParser):
         return rpr_node
 
 
+class NodeReroute(NodeParser):
+    # Just pass through the input
+
+    def export(self):
+        return self.get_input_link(0)
+
+
 class ShaderNodeBrightContrast(RuleNodeParser):
     # inputs: Bright, Contrast, Color
 
@@ -988,6 +995,19 @@ class ShaderNodeNormalMap(NodeParser):
         return rpr_node
 
 
+class ShaderNodeNormal(NodeParser):
+    """ Has two ouputs "normal" which is just to use the normal output, and dot 
+        which dot products normal output and input """
+    
+    def export(self):
+        normalized_n = self.arithmetic_node_value(self.get_output_default(), None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3)
+        if self.socket_out.name == 'Normal':
+            return normalized_n
+        else:
+            normalized_in = self.arithmetic_node_value(self.get_input_value('Normal'), None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3)
+            return self.dot3_node_value(normalized_n, normalized_in)
+
+
 class ShaderNodeBump(NodeParser):
     def export(self):
         strength = self.get_input_value('Strength')
@@ -1087,6 +1107,49 @@ class ShaderNodeValToRGB(NodeParser):
                 return val[3]
             else:
                 return val
+
+
+class ShaderNodeTexGradient(NodeParser):
+    """ Makes a gradiant on vector input or P
+    """
+    def export(self):
+        ''' create a buffer from ramp data and sample that in nodes if connected '''
+        vec = self.get_input_link('Vector')
+        if vec is None:
+            vec = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            vec.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_P)
+        
+        gradiant_type = self.node.gradient_type
+        x = self.get_x_node_value(vec)
+        if gradiant_type == 'LINEAR':
+            val = x
+        elif gradiant_type == 'QUADRATIC':
+            r = self.max_node_value(x, 0.0)
+            val = self.mul_node_value(r, r)
+        elif gradiant_type == 'EASING':
+            r = self.min_node_value(self.max_node_value(x, 0.0), 1.0)
+            t = self.mul_node_value(r, r)
+            # 3.0 * t - 2.0 * t * r
+            val = self.sub_node_value(self.mul_node_value(t, 3.0),
+                                    self.mul_node_value(2.0, self.mul_node_value(t, r)))
+        elif gradiant_type == 'DIAGONAL':
+            y = self.get_y_node_value(vec)
+            val = self.mul_node_value(self.add_node_value(x, y), 0.5)
+        elif gradiant_type == 'RADIAL':
+            y = self.get_y_node_value(vec)
+            atan2 = self.arithmetic_node_value(y, x, pyrpr.MATERIAL_NODE_OP_ATAN)
+            val = self.add_node_value(self.div_node_value(atan2, 2.0 * math.pi), 0.5)
+        else:
+            # r = max(1.0 - length, 0.0);
+            length = self.arithmetic_node_value(vec, None, pyrpr.MATERIAL_NODE_OP_LENGTH3)
+            r = self.max_node_value(self.sub_node_value(1.0, length), 0.0)
+            if gradiant_type  == 'QUADRATIC_SPHERE':
+                val = self.mul_node_value(r, r)
+            else: # 'SPHERICAL'
+                val = r
+
+        return val
+
 
 
 class ShaderNodeRGBCurve(NodeParser):

@@ -50,6 +50,7 @@ node_categories = [
     ]),
     RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
         NodeItem('ShaderNodeTexChecker'),
+        NodeItem('ShaderNodeTexGradient'),
         NodeItem('ShaderNodeTexImage'),
         NodeItem('ShaderNodeTexNoise'),
     ],),
@@ -63,6 +64,7 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
         NodeItem('ShaderNodeBump'),
         NodeItem('ShaderNodeMapping'),
+        NodeItem('ShaderNodeNormal'),
         NodeItem('ShaderNodeNormalMap'),
     ]),
     RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
@@ -81,6 +83,9 @@ node_categories = [
         NodeItem('RPRShaderNodeUber'),
         # temporary disable this diffuse node
         # NodeItem('RPRShaderNodeDiffuse'),
+    ]),
+    RPR_ShaderNodeCategory('Layout', "Layout", items=[
+        NodeItem('NodeReroute'),
     ])
 ]
 
