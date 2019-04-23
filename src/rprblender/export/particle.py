@@ -11,7 +11,9 @@ log = logging.Log(tag='export.object')
 def get_material_for_particles(rpr_context, particle_system, emitter):
     ''' Returns the material set for this particle system or None if none set or some other issue '''
     if len(emitter.material_slots):
-        slot = emitter.material_slots[particle_system.settings.material-1] # don't know why these are indexed wrong?
+        slot = emitter.material_slots[particle_system.settings.material-1] \
+            if (particle_system.settings.material-1) < len(emitter.material_slots) else \
+                emitter.material_slots[-1]
         if slot.material:
             return material.sync(rpr_context, slot.material)
     return None
