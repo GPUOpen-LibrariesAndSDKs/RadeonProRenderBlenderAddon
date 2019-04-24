@@ -177,7 +177,7 @@ class RPRContext:
                     self._update_image_filter(settings)
                     return
 
-                #recreating filter
+                # recreating filter
                 self._disable_image_filter()
                 self._enable_image_filter(settings)
 
@@ -199,7 +199,10 @@ class RPRContext:
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('0_res')
 
-        color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'] if self.sc_composite else self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
+        if self.sc_composite:
+            color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
+        else:
+            color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
         world_fb = self.frame_buffers_aovs[pyrpr.AOV_WORLD_COORDINATE]['res']
         object_fb = self.frame_buffers_aovs[pyrpr.AOV_OBJECT_ID]['res']
         shading_fb = self.frame_buffers_aovs[pyrpr.AOV_SHADING_NORMAL]['res']
@@ -283,14 +286,14 @@ class RPRContext:
             self.image_filter.update_sigma('object_id', settings['trans_sigma'])
             self.image_filter.update_param('radius', settings['radius'])
         elif settings['filter_type'] == 'eaw':
-            self.image_filter.update_sigma('color', settings['color_sigma']);
+            self.image_filter.update_sigma('color', settings['color_sigma'])
             self.image_filter.update_sigma('normal', settings['normal_sigma'])
             self.image_filter.update_sigma('depth', settings['depth_sigma'])
             self.image_filter.update_sigma('trans', settings['trans_sigma'])
         elif settings['filter_type'] == 'lwr':
-            self.image_filter.update_param('samples', settings['samples']);
-            self.image_filter.update_param('halfWindow', settings['half_window']);
-            self.image_filter.update_param('bandwidth', settings['bandwidth']);
+            self.image_filter.update_param('samples', settings['samples'])
+            self.image_filter.update_param('halfWindow', settings['half_window'])
+            self.image_filter.update_param('bandwidth', settings['bandwidth'])
 
     def sync_shadow_catcher(self):
         use_shadow_catcher = False
@@ -334,36 +337,39 @@ class RPRContext:
             # splitting resolved and gl framebuffers
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
-        
+
         zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        zero.set_name('sc_composite_zero')
         zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
 
         color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        color.set_name('sc_composite_aov_color_color')
         color.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'])
-        
+
         background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        background.set_name('sc_composite_aov_background')
         background.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_BACKGROUND]['res'])
-        
+
         opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        opacity.set_name('sc_composite_aov_opacity')
         opacity.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res'])
 
         sc = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        sc.set_name('sc_composite_aov_shadowcatcher')
         sc.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_SHADOW_CATCHER]['res'])
-
-        sc_norm = pyrpr.Composite(self.context, pyrpr.COMPOSITE_NORMALIZE)
-        sc_norm.set_input('normalize.color', sc)
-        sc_norm.set_input('normalize.aovtype', pyrpr.AOV_SHADOW_CATCHER)
 
         # Combine color and background buffers using COMPOSITE_LERP_VALUE
         lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        lerp1.set_name('sc_composite_lerp1')
         lerp1.set_input('lerp.color0', background)
         lerp1.set_input('lerp.color1', color)
         lerp1.set_input('lerp.weight', opacity)
 
         lerp2 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
+        lerp2.set_name('sc_composite_result')
         lerp2.set_input('lerp.color0', lerp1)
         lerp2.set_input('lerp.color1', zero)
-        lerp2.set_input('lerp.weight', sc_norm)
+        lerp2.set_input('lerp.weight', sc)
 
         self.sc_composite = lerp2
 
@@ -504,7 +510,7 @@ class RPRContext:
 
     def create_buffer(self, data, dtype):
         return pyrpr.Buffer(self.context, data, dtype)
-    
+
     def set_parameter(self, name, param):
         if param == self.context.parameters.get(name, None):
             return False
