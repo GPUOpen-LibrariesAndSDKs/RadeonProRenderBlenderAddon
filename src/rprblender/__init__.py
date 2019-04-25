@@ -113,7 +113,6 @@ def register():
     properties.register()
     operators.register()
     nodes.register()
-    ui.set_rpr_panels_filter()
     ui.register()
     bpy.app.handlers.save_pre.append(on_scene_save_pre)
     bpy.app.handlers.version_update.append(on_version_update)
@@ -122,7 +121,6 @@ def register():
 def unregister():
     bpy.app.handlers.version_update.remove(on_version_update)
     bpy.app.handlers.save_pre.remove(on_scene_save_pre)
-    ui.remove_rpr_panels_filter()
     ui.unregister()
     nodes.unregister()
     operators.unregister()

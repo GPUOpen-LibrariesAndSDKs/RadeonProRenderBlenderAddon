@@ -257,12 +257,12 @@ class RPR_RenderProperties(RPR_Properties):
             obj.data.rpr.motion_blur = True
             obj.data.rpr.motion_blur_exposure = self.motion_blur_exposure
 
-    motion_blur: bpy.props.BoolProperty(
+    motion_blur: BoolProperty(
         name="Motion Blur", description="Enable Motion Blur",
         default=False,
     )
 
-    motion_blur_exposure_apply: bpy.props.EnumProperty(
+    motion_blur_exposure_apply: EnumProperty(
         name="Apply exposure",
         items=(('ACTIVE', "Active Camera", "Active Camera on scene"),
                ('SELECTED', "Selected Camera(s)", "Selected Camera(s) (self explanatory)"),
@@ -271,11 +271,30 @@ class RPR_RenderProperties(RPR_Properties):
         default='ACTIVE',
     )
 
-    motion_blur_exposure: bpy.props.FloatProperty(
+    motion_blur_exposure: FloatProperty(
         name="Exposure", description="Motion Blur Exposure for camera(s)",
         min=0.0,
         default=1.0,
         update=update_motion_blur_exposure
+    )
+
+    # Render mode
+    render_mode: EnumProperty(
+        name="Render Mode",
+        description="Override render mode",
+        items=(
+            ('GLOBAL_ILLUMINATION', "Global Illumination", "Global illumination render mode"),
+            ('DIRECT_ILLUMINATION', "Direct Illumination", "Direct illumination render mode"),
+            ('DIRECT_ILLUMINATION_NO_SHADOW', "Direct Illumination no Shadows", "Direct illumination without shadows render mode"),
+            ('WIREFRAME', "Wireframe", "Wireframe render mode"),
+            ('MATERIAL_INDEX', "Material Index", "Material index render mode"),
+            ('POSITION', "World Position", "World position render mode"),
+            ('NORMAL', "Shading Normal", "Shading normal render mode"),
+            ('TEXCOORD', "Texture Coordinate", "Texture coordinate render mode"),
+            ('AMBIENT_OCCLUSION', "Ambient Occlusion", "Ambient occlusion render mode"),
+            ('DIFFUSE', "Diffuse", "Diffuse render mode"),
+        ),
+        default='GLOBAL_ILLUMINATION',
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
@@ -332,6 +351,10 @@ class RPR_RenderProperties(RPR_Properties):
         res |= rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
+
+    def export_render_mode(self, rpr_context):
+        return rpr_context.set_parameter('rendermode', getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
+
     @classmethod
     def register(cls):
         log("Register")

@@ -3,6 +3,7 @@ import time
 
 import bpy
 import bgl
+from gpu_extras.presets import draw_texture_2d
 
 import pyrpr
 from .engine import Engine
@@ -208,6 +209,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
+        scene.rpr.export_render_mode(self.rpr_context)
         scene.rpr.export_ray_depth(self.rpr_context)
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0) 
@@ -358,16 +360,22 @@ class ViewportEngine(Engine):
             self.gl_texture.set_image(im)
             texture_id = self.gl_texture.texture_id
 
-        # Bind shader that converts from scene linear to display space,
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-        self.rpr_engine.bind_display_space_shader(scene)
+        if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
+                                     'POSITION', 'NORMAL', 'TEXCOORD'):
+            # Draw without color management
+            draw_texture_2d(texture_id, (0, 0), context.region.width, context.region.height)
 
-        # note this has to draw to region size, not scaled down size
-        self._draw_texture(texture_id, 0, 0, context.region.width, context.region.height)
+        else:
+            # Bind shader that converts from scene linear to display space,
+            bgl.glEnable(bgl.GL_BLEND)
+            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+            self.rpr_engine.bind_display_space_shader(scene)
 
-        self.rpr_engine.unbind_display_space_shader()
-        bgl.glDisable(bgl.GL_BLEND)
+            # note this has to draw to region size, not scaled down size
+            self._draw_texture(texture_id, 0, 0, context.region.width, context.region.height)
+
+            self.rpr_engine.unbind_display_space_shader()
+            bgl.glDisable(bgl.GL_BLEND)
 
     def sync_objects_collection(self, depsgraph):
         """
@@ -421,7 +429,8 @@ class ViewportEngine(Engine):
 
     def update_render(self, scene: bpy.types.Scene):
         ''' update settings if changed while live returns True if restart needed'''
-        restart = scene.rpr.export_ray_depth(self.rpr_context)
+        restart = scene.rpr.export_render_mode(self.rpr_context)
+        restart |= scene.rpr.export_ray_depth(self.rpr_context)
 
         render_iterations, render_time = (scene.rpr.viewport_limits.max_samples, 0)
 

@@ -128,12 +128,13 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
 
 class RPR_RENDER_PT_quality(RPR_Panel):
+    """ This is a parent Panel for (RPR_RENDER_PT_max_ray_depth, RPR_RENDER_PT_light_clamping)"""
+
     bl_label = "Quality"
     bl_context = 'render'
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        # This is a parent Panel for (RPR_RENDER_PT_max_ray_depth, RPR_RENDER_PT_light_clamping)
         pass
 
 
