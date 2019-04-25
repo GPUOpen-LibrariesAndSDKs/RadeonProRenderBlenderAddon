@@ -105,10 +105,11 @@ from . import (
     world,
     view_layer,
     material_browser,
+    view3d,
 )
 
 
-register, unregister = bpy.utils.register_classes_factory([
+register_classes, unregister_classes = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_devices,
     render.RPR_RENDER_PT_viewport_devices,
     render.RPR_RENDER_PT_limits,
@@ -142,15 +143,29 @@ register, unregister = bpy.utils.register_classes_factory([
 
     view_layer.RPR_VIEWLAYER_PT_aovs,
     view_layer.RPR_RENDER_PT_denoiser,
+
+    view3d.RPR_VIEW3D_MT_menu,
 ])
 
 
-def set_rpr_panels_filter():
+def register():
+    # set rpr panels filter
     for panel in get_panels():
         panel.COMPAT_ENGINES.add('RPR')
 
+    register_classes()
 
-def remove_rpr_panels_filter():
+    # adding draw_menu function to viewport menu class
+    bpy.types.VIEW3D_MT_editor_menus.append(view3d.draw_menu)
+
+
+def unregister():
+    # remove rpr panels filter
     for panel in get_panels():
         if 'RPR' in panel.COMPAT_ENGINES:
             panel.COMPAT_ENGINES.remove('RPR')
+
+    unregister_classes()
+
+    # removing draw_menu function from viewport menu class
+    bpy.types.VIEW3D_MT_editor_menus.remove(view3d.draw_menu)

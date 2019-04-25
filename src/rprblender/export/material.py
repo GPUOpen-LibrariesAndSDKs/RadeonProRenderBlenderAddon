@@ -13,6 +13,9 @@ def key(material: bpy.types.Material):
 
 def get_material_output_node(material):
     """ Finds output node in material tree and exports it """
+    if not material.node_tree:
+        # there could be a situation when node_tree is None
+        return None
 
     return next((node for node in material.node_tree.nodes
                       if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output), None)
