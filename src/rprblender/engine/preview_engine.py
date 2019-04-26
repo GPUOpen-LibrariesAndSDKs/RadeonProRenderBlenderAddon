@@ -2,7 +2,7 @@ import bpy
 
 import pyrpr
 from .engine import Engine
-from rprblender.export import object
+from rprblender.export import object, camera, particle
 
 from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
@@ -44,12 +44,20 @@ class PreviewEngine(Engine):
         settings_scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False)
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
 
-        # getting visible objects
+        self.rpr_context.scene.set_name(scene.name)
+
+        # export visible objects
         for obj in self.depsgraph_objects(depsgraph):
             object.sync(self.rpr_context, obj, depsgraph)
 
-        self.rpr_context.scene.set_name(scene.name)
-        self.rpr_context.scene.set_camera(self.rpr_context.objects[object.key(depsgraph.scene.camera)])
+            if len(obj.particle_systems):
+                # export particles
+                for particle_system in obj.particle_systems:
+                    particle.sync(self.rpr_context, particle_system, obj)
+
+        # export camera
+        camera.sync(self.rpr_context, depsgraph.objects[depsgraph.scene.camera.name])
+
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 

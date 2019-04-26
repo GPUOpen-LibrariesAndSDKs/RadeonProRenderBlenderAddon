@@ -7,7 +7,7 @@ from gpu_extras.presets import draw_texture_2d
 
 import pyrpr
 from .engine import Engine
-from rprblender.export import camera, material, world, object, instance
+from rprblender.export import camera, material, world, object, instance, particle
 from rprblender.utils import gl
 from rprblender import config
 
@@ -197,6 +197,11 @@ class ViewportEngine(Engine):
         # exporting objects
         for obj in self.depsgraph_objects(depsgraph):
             object.sync(self.rpr_context, obj, depsgraph)
+
+            if len(obj.particle_systems):
+                # export particles
+                for particle_system in obj.particle_systems:
+                    particle.sync(self.rpr_context, particle_system, obj)
 
         # exporting instances
         for inst in self.depsgraph_instances(depsgraph):
@@ -447,17 +452,3 @@ class ViewportEngine(Engine):
             restart = True
 
         return restart
-
-    def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph):
-        """ Iterates over super().depsgraph_objects() and excludes cameras """
-
-        for obj in super().depsgraph_objects(depsgraph):
-            if obj.type != 'CAMERA':
-                yield obj
-
-    def depsgraph_instances(self, depsgraph: bpy.types.Depsgraph):
-        """ Iterates over super().depsgraph_instances() and excludes cameras """
-
-        for instance in super().depsgraph_instances(depsgraph):
-            if instance.object.type != 'CAMERA':
-                yield instance
