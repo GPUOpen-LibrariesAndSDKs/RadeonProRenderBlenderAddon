@@ -63,7 +63,7 @@ class RPR_LIGHT_PT_light(RPR_Panel):
             row.prop(rpr_light, 'cast_shadows')
 
             row = col.row()
-            row.active = context.scene.rpr.motion_blur
+            row.active = context.scene.render.use_motion_blur
             row.prop(context.object.rpr, "motion_blur")
 
         main_col.separator()

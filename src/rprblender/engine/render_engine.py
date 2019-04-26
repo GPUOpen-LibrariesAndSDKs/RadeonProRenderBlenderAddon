@@ -1,13 +1,15 @@
-import bpy
 import threading
 import time
+import math
+
+import bpy
+import pyrpr
 
 from rprblender import config
 from rprblender import utils
 from .engine import Engine
-from rprblender.export import world, camera, object, instance
+from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
-import pyrpr
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -207,69 +209,6 @@ class RenderEngine(Engine):
                                               self.current_iteration, self.current_render_time)
         return image
 
-    @staticmethod
-    def is_object_allowed_for_motion_blur(obj: bpy.types.Object) -> bool:
-        """Check if object could have motion blur effect: meshes, area lights and cameras can"""
-        
-        return obj.rpr.motion_blur and (obj.type == 'MESH' or (obj.type == 'LIGHT' and obj.data.type == 'AREA'))
-
-    def collect_motion_blur_info(self, depsgraph):
-        """
-        Calculate motion blur velocities objects present in both current and previous frames(by frame_step)
-        :param depsgraph: scene dependencies graph
-        :return: dict of collected info for objects
-        :rtype: dict of utils.MotionBlurInfo
-        """
-        if not depsgraph.scene.rpr.motion_blur:
-            return {}
-
-        motion_blur_info = {}
-
-        prev_frame_matrices = {}
-        next_frame_matrices = {}
-
-        current_frame = depsgraph.scene.frame_current
-        previous_frame = current_frame - depsgraph.scene.frame_step
-
-        # collect previous frame matrices at start of the frame
-        self.rpr_engine.frame_set(previous_frame, 0.0)
-
-        # getting previous frame matrices
-        for obj in self.depsgraph_objects(depsgraph):
-            if self.is_object_allowed_for_motion_blur(obj):
-                prev_frame_matrices[object.key(obj)] = obj.matrix_world.copy()
-
-        for inst in self.depsgraph_instances(depsgraph):
-            if self.is_object_allowed_for_motion_blur(inst.parent):
-                prev_frame_matrices[instance.key(inst)] = inst.matrix_world.copy()
-
-        # restore current frame and collect matrices at start of the frame
-        self.rpr_engine.frame_set(current_frame, 0.0)
-
-        # getting current frame matrices
-        for obj in self.depsgraph_objects(depsgraph):
-            if self.is_object_allowed_for_motion_blur(obj):
-                next_frame_matrices[object.key(obj)] = obj.matrix_world.copy()
-
-        for inst in self.depsgraph_instances(depsgraph):
-            if self.is_object_allowed_for_motion_blur(inst.parent):
-                next_frame_matrices[instance.key(inst)] = inst.matrix_world.copy()
-
-        # calculating motion blur info
-        for obj_key, prev in prev_frame_matrices.items():
-            # User can animate the object's "motion_blur" flag.
-            # Ignore such objects at ON-OFF/OFF-ON frames. Calculate difference for anything else
-            this = next_frame_matrices.get(obj_key, None)
-            if not this:
-                continue
-
-            # calculate velocities
-            info = utils.MotionBlurInfo(prev, this)
-
-            motion_blur_info[obj_key] = info
-
-        return motion_blur_info
-
     def sync(self, depsgraph):
         log('Start syncing')
 
@@ -278,9 +217,6 @@ class RenderEngine(Engine):
 
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
-
-        # set the do_motion_blur flag on the rpr_context
-        self.rpr_context.do_motion_blur = scene.rpr.motion_blur
 
         self.render_layer_name = view_layer.name
         self.status_title = "%s: %s" % (scene.name, self.render_layer_name)
@@ -303,54 +239,38 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        frame_motion_blur_info = self.collect_motion_blur_info(depsgraph)
-
         world.sync(self.rpr_context, scene.world)
 
-        # exporting objects
+        # EXPORT OBJECTS
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
-            if obj.type == 'CAMERA':
-                continue
-
             self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
-            obj_motion_blur_info = frame_motion_blur_info.get(object.key(obj), None)
-            object.sync(self.rpr_context, obj, depsgraph, motion_blur_info=obj_motion_blur_info)
+            object.sync(self.rpr_context, obj, depsgraph)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
 
-        # exporting instances
+        # EXPORT INSTANCES
         instances_len = len(depsgraph.object_instances)
         for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
             obj = inst.object
             self.notify_status(0, "Syncing instance (%d/%d): %s" % (i, instances_len - objects_len, obj.name))
 
-            obj_motion_blur_info = frame_motion_blur_info.get(instance.key(inst), None)
-            instance.sync(self.rpr_context, inst, depsgraph, motion_blur_info=obj_motion_blur_info)
+            instance.sync(self.rpr_context, inst, depsgraph)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
 
-        # export camera
+        # EXPORT CAMERA
         camera_key = object.key(scene.camera)
-        camera.sync(self.rpr_context, scene.camera)
-        rpr_camera = self.rpr_context.objects[camera_key]
-
-        if scene.camera.rpr.motion_blur:
-            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-
-            if camera_key in frame_motion_blur_info:
-                camera_motion_blur = frame_motion_blur_info[camera_key]
-                rpr_camera.set_angular_motion(*camera_motion_blur.angular_momentum)
-                rpr_camera.set_linear_motion(*camera_motion_blur.linear_velocity)
-
+        rpr_camera = self.rpr_context.create_camera(camera_key)
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        self.camera_data = camera.CameraData.init_from_camera(scene.camera.data, scene.camera.matrix_world,
+        camera_obj = depsgraph.objects[scene.camera.name]
+        self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
                                                               screen_width / screen_height, border)
 
         if scene.rpr.use_tile_render:
@@ -366,6 +286,31 @@ class RenderEngine(Engine):
         else:
             self.camera_data.export(rpr_camera)
 
+        # SYNC MOTION BLUR
+        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
+                                          not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
+
+        if self.rpr_context.do_motion_blur:
+            self.sync_motion_blur(depsgraph)
+            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+
+        # EXPORT PARTICLES
+        # Note: particles should be exported after motion blur,
+        #       otherwise prev_location of particle will be (0, 0, 0)
+        for obj in self.depsgraph_objects(depsgraph):
+            if len(obj.particle_systems) == 0:
+                continue
+
+            for particle_system in obj.particle_systems:
+                self.notify_status(0, "Syncing particles: %s" % obj.name)
+
+                particle.sync(self.rpr_context, particle_system, obj)
+
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
+
+        # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine)
 
         if scene.rpr.limits.noise_threshold > 0.0:
@@ -376,6 +321,7 @@ class RenderEngine(Engine):
         self.rpr_context.sync_shadow_catcher()
         view_layer.rpr.denoiser.export_denoiser(self.rpr_context)
 
+        # SET rpr_context parameters
         self.rpr_context.set_parameter('preview', False)
         scene.rpr.export_ray_depth(self.rpr_context)
 

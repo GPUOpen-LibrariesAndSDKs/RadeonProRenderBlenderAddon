@@ -212,7 +212,7 @@ class CameraData:
 
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):
-    """ Creates pyrpr.Camera from obj.data: bpy.types.Camera """
+    """ Creates pyrpr.Camera from obj.data: bpy.types.Camera. Created camera sets to scene as default """
 
     camera = obj.data
     log("sync", camera)
@@ -222,3 +222,6 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
 
     settings = CameraData.init_from_camera(camera, obj.matrix_world, rpr_context.width / rpr_context.height)
     settings.export(rpr_camera)
+
+    # set scene's camera
+    rpr_context.scene.set_camera(rpr_camera)

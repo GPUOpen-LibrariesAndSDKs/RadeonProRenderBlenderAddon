@@ -10,16 +10,13 @@ class RPR_CAMERA_PT_motion_blur(RPR_Panel):
         return context.camera and RPR_Panel.poll(context)
 
     def draw_header(self, context):
-        row = self.layout.row()
-#        row.active = context.scene.rpr.render.motion_blur
-        row.prop(context.camera.rpr, 'motion_blur', text='')
+        self.layout.prop(context.scene.render, 'use_motion_blur', text="")
 
     def draw(self, context):
         self.layout.use_property_split = True
-        row = self.layout.row()
-#        row.active = context.scene.rpr.render.motion_blur
-        row.enabled = context.camera.rpr.motion_blur
-        row.prop(context.camera.rpr, 'motion_blur_exposure')
+        col = self.layout.column()
+        col.enabled = context.scene.render.use_motion_blur
+        col.prop(context.camera.rpr, 'motion_blur_exposure', slider=True)
 
 
 class DATA_PT_RPR_camera_dof_aperture(RPR_Panel):
@@ -42,4 +39,3 @@ class DATA_PT_RPR_camera_dof_aperture(RPR_Panel):
         col = flow.column()
         col.prop(dof_options, "fstop")
         col.prop(dof_options, "blades")
-

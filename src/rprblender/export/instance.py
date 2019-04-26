@@ -14,7 +14,7 @@ def get_transform(instance: bpy.types.DepsgraphObjectInstance):
     return np.array(instance.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
-def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, depsgraph, motion_blur_info=None):
+def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, depsgraph):
     """ sync the blender instance """
 
     assert instance.is_instance  # expecting: instance.is_instance == True
@@ -30,7 +30,7 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, depsgraph, mo
         if not rpr_mesh:
             # Instance of this object exists, but object itself isn't visible on the scene.
             # In this case we do additional object export and set visibility to False
-            object.sync(rpr_context, obj, depsgraph, motion_blur_info)
+            object.sync(rpr_context, obj, depsgraph)
             rpr_mesh = rpr_context.objects[obj_key]
             rpr_mesh.set_visibility(False)
 

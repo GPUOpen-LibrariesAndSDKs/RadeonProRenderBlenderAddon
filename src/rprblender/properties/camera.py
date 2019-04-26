@@ -14,16 +14,10 @@ log = logging.Log(tag='properties.camera')
 class RPR_CameraProperties(RPR_Properties):
     """ Camera properties """
 
-    motion_blur: BoolProperty(
-        name="Motion Blur",
-        description="Enable Motion Blur",
-        default=True
-    )
-
     motion_blur_exposure: FloatProperty(
         name="Exposure",
-        description="Motion Blur Exposure",
-        min=0,
+        description="Camera motion blur exposure",
+        min=0.0, soft_max = 1.0,
         default=1.0,
     )
 

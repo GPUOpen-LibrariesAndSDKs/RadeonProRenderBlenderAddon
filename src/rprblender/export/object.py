@@ -1,7 +1,8 @@
 import numpy as np
 import bpy
 
-from . import mesh, light, camera, particle, to_mesh
+from . import mesh, light, to_mesh
+
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -14,46 +15,22 @@ def get_transform(obj: bpy.types.Object):
     return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
-def sync_motion_blur(rpr_context, obj: bpy.types.Object, motion_blur_info):
-    if motion_blur_info is None:
-        return
-
-    obj_key = key(obj)
-    rpr_obj = rpr_context.objects[obj_key]
-
-    rpr_obj.set_linear_motion(*motion_blur_info.linear_velocity)
-    rpr_obj.set_angular_motion(*motion_blur_info.angular_momentum)
-    rpr_obj.set_scale_motion(*motion_blur_info.momentum_scale)
-
-
-def sync(rpr_context, obj: bpy.types.Object, depsgraph, motion_blur_info=None):
+def sync(rpr_context, obj: bpy.types.Object, depsgraph):
     """ sync the object and any data attached """
 
     log("sync", obj)
 
     if obj.type == 'MESH':
         mesh.sync(rpr_context, obj)
-        sync_motion_blur(rpr_context, obj, motion_blur_info)
 
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
-        sync_motion_blur(rpr_context, obj, motion_blur_info)
-
-    elif obj.type == 'CAMERA':
-        camera.sync(rpr_context, obj)
-        sync_motion_blur(rpr_context, obj, motion_blur_info)
 
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        if to_mesh.sync(rpr_context, obj, depsgraph):
-            sync_motion_blur(rpr_context, obj, motion_blur_info)
+        to_mesh.sync(rpr_context, obj, depsgraph)
 
     else:
         log.warn("Object to sync not supported", obj, obj.type)
-
-    # sync particles on object
-    if len(obj.particle_systems):
-        for particle_system in obj.particle_systems:
-            particle.sync(rpr_context, particle_system, obj)
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geometry, is_updated_transform):

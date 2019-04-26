@@ -205,7 +205,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, 'motion_blur', text="")
+        self.layout.prop(context.scene.render, 'use_motion_blur', text="")
 
     def draw(self, context):
         layout = self.layout
@@ -213,12 +213,13 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        rpr_scene = context.scene.rpr
+        if not context.scene.camera:
+            layout.label(text="No active camera")
+            return
 
         col = layout.column()
-        col.enabled = rpr_scene.motion_blur
-        col.prop(context.scene.rpr, 'motion_blur_exposure_apply')
-        col.prop(context.scene.rpr, 'motion_blur_exposure')
+        col.enabled = context.scene.render.use_motion_blur
+        col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Camera Exposure", slider=True)
 
 
 class RPR_RENDER_PT_help_about(RPR_Panel):
