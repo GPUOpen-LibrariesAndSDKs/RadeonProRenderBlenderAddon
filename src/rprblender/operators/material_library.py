@@ -23,12 +23,12 @@ class RPR_MATERIAL_LIBRARY_OP_import_material(RPR_Operator):
 
         properties = context.window_manager.rpr_material_library_properties
 
-        material_name = properties.materials
+        material_id = properties.materials
 
         # check if library have anything to import
-        if material_name:
-            xml_path = library.get_material_xml(material_name)
-            material_library.import_xml_material(context.material, xml_path, properties.copy_textures)
+        if material_id:
+            xml_path, material_name = library.get_material_xml(material_id)
+            material_library.import_xml_material(context.material, material_name, xml_path, properties.copy_textures)
 
             # arrange nodes assuming RPR Uber and RPR Math nodes sizes
             bpy.ops.rpr.arrange_material_nodes(margin_vertical=250, margin_horizontal=350)

@@ -131,11 +131,11 @@ class RPRMaterialLibrary:
         """ Return active materials for search results """
         return tuple((key, entry[0], entry[0], entry[1], entry[2]) for key, entry in self.active_materials.items())
 
-    def get_material_xml(self, enum_id: str) -> str:
-        """ Return direct path to material xml file by material enum id """
+    def get_material_xml(self, enum_id: str) -> (str, str):
+        """ Return direct path to material xml file and material name by material enum id """
         material_name = self.active_materials[enum_id][0]
         info = self.materials[material_name]
-        return str(Path(self.path).joinpath(info.file_name, info.file_name + ".xml"))
+        return str(Path(self.path).joinpath(info.file_name, info.file_name + ".xml")), material_name
 
     def get_material_preview(self, material: MaterialEntry):
         """ Load preview image for material, return preview object """
