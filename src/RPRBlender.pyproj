@@ -63,6 +63,11 @@
     <Compile Include="rprblender\export\to_mesh.py" />
     <Compile Include="rprblender\export\world.py" />
     <Compile Include="rprblender\export\__init__.py" />
+    <Compile Include="rprblender\material_library\image_loader.py" />
+    <Compile Include="rprblender\material_library\library.py" />
+    <Compile Include="rprblender\material_library\loader.py" />
+    <Compile Include="rprblender\material_library\path.py" />
+    <Compile Include="rprblender\material_library\__init__.py" />
     <Compile Include="rprblender\nodes\blender_nodes.py" />
     <Compile Include="rprblender\nodes\node_parser.py" />
     <Compile Include="rprblender\nodes\output_node.py" />
@@ -175,6 +180,7 @@
     <Folder Include="rprblender" />
     <Folder Include="rprblender\engine" />
     <Folder Include="rprblender\export\" />
+    <Folder Include="rprblender\material_library\" />
     <Folder Include="rprblender\nodes" />
     <Folder Include="rprblender\nodes\rpr_nodes\" />
     <Folder Include="rprblender\operators\" />

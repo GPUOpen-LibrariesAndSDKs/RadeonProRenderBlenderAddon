@@ -305,6 +305,8 @@ class UberMaterialCompiler(MappedNodeCompiler):
     ui_values_for_import = ('reflection.mode', 'refraction.thinSurface', 'refraction.caustics',
                             'emission.mode', 'sss.multiscatter')
 
+    ignored_sockets = ('coating.mode', 'coating.metalness')
+
     def get_input_socket(self, name):
         # reflection in library stores metalness and IOR in the same input depending on reflection mode. Remap by mode
         if name == 'reflection.ior':
@@ -367,9 +369,11 @@ class UberMaterialCompiler(MappedNodeCompiler):
         return compiled_node
 
     def compile_input_special(self, name, value):
+        if name in self.ignored_sockets:
+            return
         if name in self.ui_values_for_import and self.get_ui_socket_value(name) is not None:
             return self.set_ui_socket_value(name, value)
-        return super().compile_input_special(name, value)
+        super().compile_input_special(name, value)
 
     def set_socket_value(self, input_socket, value):
         # Coating Transmission Color passed as inverted, convert it back

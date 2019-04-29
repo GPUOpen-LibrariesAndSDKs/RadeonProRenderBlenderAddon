@@ -16,10 +16,11 @@ log = Log(tag="material_library")
 rpr_material_library = None
 
 
-def import_xml_material(material: bpy.types.Material, xml_path: str, copy_textures: bool):
+def import_xml_material(material: bpy.types.Material, name: str, xml_path: str, copy_textures: bool):
     """ Create RPR material at current material slot using xml.
     Nodes tree is cleaned if present, new created otherwise.
     New output node added if no output found.
+    Change Blender material name to material library name.
     Copy textures locally if requested."""
 
     def clean_material_tree():
@@ -33,7 +34,7 @@ def import_xml_material(material: bpy.types.Material, xml_path: str, copy_textur
         if not bpy.context.object.material_slots.keys():
             bpy.ops.object.material_slot_add()
         # 2. create material for it
-        new_material = bpy.data.materials.new(name='Material')
+        new_material = bpy.data.materials.new(name=name)
         # 3. assign material to material slot
         bpy.context.object.material_slots[bpy.context.object.active_material_index].material = new_material
         new_material.use_nodes = True
@@ -50,6 +51,8 @@ def import_xml_material(material: bpy.types.Material, xml_path: str, copy_textur
     if not material:
         log("No material tree found, creating new material")
         material = create_material()
+    else:
+        material.name = name
 
     # overwrite existing nodes tree
     clean_material_tree()
