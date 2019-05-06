@@ -163,7 +163,6 @@ class ViewportEngine(Engine):
 
         return region_w, region_h
 
-
     def sync(self, context):
         log('Start sync')
     

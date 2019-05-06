@@ -517,7 +517,7 @@ class Shape(Object):
         if material:
             self.materials.append(material)
 
-    def set_material_faces(self, material, face_indices:np.array):
+    def set_material_faces(self, material, face_indices: np.array):
         if isinstance(material, MaterialNode):
             ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
             self.materials.append(material)
