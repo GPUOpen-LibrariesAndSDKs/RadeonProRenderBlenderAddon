@@ -302,7 +302,7 @@ class RenderEngine(Engine):
                 continue
 
             for particle_system in obj.particle_systems:
-                self.notify_status(0, "Syncing particles: %s" % obj.name)
+                self.notify_status(0, f"Syncing particles: {particle_system.name} on {obj.name}")
 
                 particle.sync(self.rpr_context, particle_system, obj)
 

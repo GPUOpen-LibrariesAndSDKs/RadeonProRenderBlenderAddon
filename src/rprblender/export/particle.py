@@ -1,22 +1,34 @@
+from dataclasses import dataclass
+import math
+import numpy as np
+
 import bpy
 import mathutils
 
 from . import mesh, material, object
+
 from rprblender.utils import logging
-import numpy as np
-
-log = logging.Log(tag='export.object')
+log = logging.Log(tag='export.particle')
 
 
-def get_material_for_particles(rpr_context, particle_system, emitter):
+def key(p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object):
+    return (object.key(emitter), p_sys.name)
+
+
+def get_material_for_particles(rpr_context, p_sys, emitter):
     ''' Returns the material set for this particle system or None if none set or some other issue '''
-    if len(emitter.material_slots):
-        slot = emitter.material_slots[particle_system.settings.material-1] \
-            if (particle_system.settings.material-1) < len(emitter.material_slots) else \
-                emitter.material_slots[-1]
-        if slot.material:
-            return material.sync(rpr_context, slot.material)
-    return None
+    if len(emitter.material_slots) == 0:
+        return None
+
+    if (p_sys.settings.material - 1) < len(emitter.material_slots):
+        slot = emitter.material_slots[p_sys.settings.material - 1]
+    else:
+        slot = emitter.material_slots[-1]
+
+    if not slot.material:
+        return None
+
+    return material.sync(rpr_context, slot.material)
 
             
 def create_sphere_master(rpr_context, master_key):
@@ -56,97 +68,101 @@ def sync_particles(rpr_context, particle_system, master_shape, master_key):
             #instance.set_angular_motion(*rotation)
 
 
-def extract_curve_data(p_sys, obj, is_preview=False):
-    ''' Walk through hairs and get data, we need to put curves in segments of 4'''
-    # render_steps is number of segments to render in power of 2
-    render_step = p_sys.settings.display_step if is_preview else p_sys.settings.render_step
-    length = 2 ** render_step + 1
-    uvs = None
+@dataclass(init=False)
+class CurveData:
+    points: np.array
+    uvs: np.array
+    radius: int
 
-    # we must make segments of 4 pts for rpr
-    # note that each segment must start with last point from before 
-    # so for example the step indices for segments should be 0 1 2 3  3 4 5 6
-    temp_steps = list(range(length))  
-    steps = []
-    while len(temp_steps):
-        if len(temp_steps) < 4:
-            # if < 4 left make a list of 4 repeating the last step
-            steps.extend(temp_steps + [temp_steps[-1]] * (4-len(temp_steps)))
-            break
-        
-        # add first 4 items to steps
-        steps.extend(temp_steps[:4])
-        # remove first 3 items, leave 4th to start next segment
-        temp_steps = temp_steps[3:]
+    def __init__(self, p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, is_preview: bool):
+        # render_steps is number of segments to render in power of 2
+        render_step = p_sys.settings.display_step if is_preview else p_sys.settings.render_step
+        length = 2 ** render_step + 1
 
-    length = len(steps)
-    
-    if p_sys.settings.child_type == 'NONE':
-        num_curves = len(p_sys.particles)
-        # make a iterator of 3D tuple, curve, step, elem
-        
-        points = np.fromiter((elem 
-                                for i in range(num_curves)
-                                for step in steps
-                                for elem in p_sys.co_hair(obj, particle_no=i, step=step)),
-                                dtype=np.float32).reshape((num_curves * length, 3))
+        num_parents = len(p_sys.particles)
+        start_index, curves_count = \
+            (0, num_parents) if p_sys.settings.child_type == 'NONE' else \
+            (num_parents, len(p_sys.child_particles))
 
-        #if obj.type == 'MESH' and len(obj.data.tessface_uv_textures) > 0:
-        #    uvs = np.fromiter((elem
-        #                       for particle in p_sys.particles
-        #                       for elem in p_sys.uv_on_emitter(p_modifier, particle, 0)),
-        #                       dtype=np.float32).reshape((num_curves, 2))
+        # getting all points of all curves
+        # Note: points which are not available are equal to (0, 0, 0).
+        #       We will weld such points by updating (0, 0, 0) point to previous point
+        all_points = np.fromiter(
+            (elem for i in range(start_index, start_index + curves_count)
+                  for step in range(length)
+                  for elem in p_sys.co_hair(obj, particle_no=i, step=step)),
+            dtype=np.float32
+        ).reshape(-1, length, 3)
 
-    else:
-        start_index = len(p_sys.particles)
-        num_curves = len(p_sys.child_particles)
-        points = np.fromiter((elem 
-                                for i in range(start_index, num_curves + start_index)
-                                for step in steps
-                                for elem in p_sys.co_hair(obj, particle_no=i, step=step)),
-                                dtype=np.float32).reshape((num_curves * length, 3))
+        # welding (0, 0, 0) point by previous point
+        for curve in all_points:
+            for i in range(1, length):
+                # if module of curve[i] == 0 then make it equal to curve[i-1]
+                if math.isclose(np.linalg.norm(curve[i]), 0.0):
+                    curve[i] = curve[i-1]
 
-        #if obj.type == 'MESH' and len(obj.data.tessface_uv_textures) > 0:
-        #    uvs = np.fromiter((elem
-        #                       for i in range(start_index, num_curves + start_index)
-        #                       for elem in p_sys.uv_on_emitter(p_modifier, None, i)),
-        #                       dtype=np.float32).reshape((num_curves, 2))
+        # getting indices of curves with length > 0
+        curve_indices = np.fromiter(
+            (i for i, curve in enumerate(all_points)
+               if not math.isclose(np.linalg.norm(curve), 0.0)),
+            dtype=np.int32
+        )
 
-    radius = p_sys.settings.root_radius * p_sys.settings.radius_scale * 0.5
+        # getting final curve points
+        self.points = np.ascontiguousarray(all_points[curve_indices], dtype=np.float32)
 
-    return {
-        'points' : points,
-        'uvs': uvs,
-        'radius': radius,
-        'num_curves': num_curves,
-        'curve_length': length
-    }
+        if obj.type == 'MESH' and len(obj.data.uv_layers) > 0:
+            # finding corresponded ParticleSystemModifier
+            p_modifier = next(modifier for modifier in obj.modifiers
+                                       if modifier.type == 'PARTICLE_SYSTEM' and
+                                          modifier.particle_system.name == p_sys.name)
+
+            # getting all UVs
+            # TODO: p_sys.uv_on_emitter() working now only with 'particle' parameter,
+            #       without it - crash on Blender's side
+            all_uvs = np.fromiter(
+                (elem for i in range(start_index, start_index + curves_count)
+                      for elem in p_sys.uv_on_emitter(p_modifier,
+                                  particle=p_sys.particles[(i - start_index) % num_parents])),
+                dtype=np.float32
+            ).reshape(-1, 2)
+
+            # getting final UVs
+            self.uvs = np.ascontiguousarray(all_uvs[curve_indices], dtype=np.float32)
+
+        else:
+            self.uvs = None
+
+        self.radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
 
 
-def sync(rpr_context, particle_system: bpy.types.ParticleSystem, emitter):
+def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object):
     """ sync the particle system """
 
-    log("Syncing particle system ", particle_system, " on emitter ", emitter)
+    log("sync", p_sys, emitter)
 
-    settings = particle_system.settings
-    rpr_material = get_material_for_particles(rpr_context, particle_system, emitter)
-    particle_key = (object.key(emitter), particle_system.name) # there can be the same particle system name on many objs
+    rpr_material = get_material_for_particles(rpr_context, p_sys, emitter)
+    particle_key = key(p_sys, emitter)
     
-    if settings.type == 'HAIR':
+    if p_sys.settings.type == 'HAIR':
         # hair does not have motion blur
-        curve_data = extract_curve_data(particle_system, emitter, is_preview=rpr_context.is_preview)
-        rpr_hair = rpr_context.create_curve(particle_key, curve_data['num_curves'], curve_data['curve_length'], 
-                                            curve_data['points'], curve_data['uvs'], curve_data['radius'])
+        curve_data = CurveData(p_sys, emitter, rpr_context.is_preview)
+        rpr_hair = rpr_context.create_curve(particle_key, curve_data.points,
+                                            curve_data.uvs, curve_data.radius)
+        rpr_hair.set_name(str(particle_key))
         rpr_context.scene.attach(rpr_hair)
+
         if rpr_material:
             rpr_hair.set_material(rpr_material)
+
         # hair uses world space
         rpr_hair.set_transform(np.identity(4, dtype=np.float32))
+
     else:
         # this is an emitter
         # make master object for render type
-        if particle_system.settings.render_type != 'HALO':
-            log("Skipping particle system type", particle_system.settings.render_type, particle_system)
+        if p_sys.settings.render_type != 'HALO':
+            log.warn("Skipping particle system type", p_sys.settings.render_type, p_sys, emitter)
             return
 
         master_shape = create_sphere_master(rpr_context, particle_key)
@@ -160,7 +176,7 @@ def sync(rpr_context, particle_system: bpy.types.ParticleSystem, emitter):
             master_shape.set_material(rpr_material)
             
         # export particles that are alive
-        sync_particles(rpr_context, particle_system, master_shape, particle_key)
+        sync_particles(rpr_context, p_sys, master_shape, particle_key)
         
 
 

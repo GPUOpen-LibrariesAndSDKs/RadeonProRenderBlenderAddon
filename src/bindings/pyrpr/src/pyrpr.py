@@ -498,8 +498,13 @@ class Shape(Object):
     def set_material(self, material):
         if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
             self.materials[0].detach(self)
-            ShapeSetMaterial(self, None)    # additional cleanup should be executed after detaching pyrprx.Material
-                                            # otherwise it could crash after resetting emissive shader
+
+            # additional cleanup should be executed after detaching pyrprx.Material
+            # otherwise it could crash after resetting emissive shader
+            ShapeSetMaterial(self, None)
+            if material is None:
+                self.material = None
+                return
 
         if material is None or isinstance(material, MaterialNode):
             ShapeSetMaterial(self, material)
@@ -614,28 +619,50 @@ class Shape(Object):
 class Curve(Object):
     core_type_name = 'rpr_curve'
 
-    def __init__(self, context, num_curves, curve_length, control_points, uvs, radius):
+    def __init__(self, context, control_points, uvs, radius):
+        def to_segments(n):
+            """Index iterator which splits curve with n points to segments by 4"""
+            m = n - 1
+            for s in range(0, m, 3):
+                yield s
+                yield s + 1
+                yield min(s + 2, m)
+                yield min(s + 3, m)
+
         super().__init__()
         self.context = context
         self.material = None
 
+        num_curves = control_points.shape[0]
+        segment_steps = np.fromiter(to_segments(control_points.shape[1]), dtype=np.int32)
+        curve_length = len(segment_steps)
+
+        # converting control_points to points splitted by segments
+        points = np.fromiter(
+            (elem for i in range(num_curves)
+                  for step in segment_steps
+                  for elem in control_points[i, step]),
+            dtype=np.float32
+        ).reshape(-1, 3)
+
         if uvs is None:
-            texcoords_ptr = ffi.NULL
+            uvs_ptr = ffi.NULL
         else:
-            texcoords_ptr = ffi.cast("float *", uvs.ctypes.data)
+            uvs_ptr = ffi.cast("float *", uvs.ctypes.data)
        
         # create list of indices 0-control_points length
-        indices = np.arange(len(control_points), dtype=np.uint32)
+        indices = np.arange(len(points), dtype=np.uint32)
         # create list of full radius values for each curve
         radii = np.full(num_curves, radius, dtype=np.float32)
         # create list of segments per curve num_segments = length / 4
         segments = np.full(num_curves, curve_length // 4, dtype=np.int32)
         
         ContextCreateCurve(self.context, self,
-                 len(control_points), ffi.cast("float *", control_points.ctypes.data), control_points[0].nbytes,
-                 len(indices), num_curves, 
-                 ffi.cast('rpr_uint*', indices.ctypes.data), ffi.cast("float *", radii.ctypes.data),
-                 texcoords_ptr, ffi.cast('rpr_int*', segments.ctypes.data))
+            len(points), ffi.cast("float *", points.ctypes.data), points[0].nbytes,
+            len(indices), num_curves,
+            ffi.cast('rpr_uint*', indices.ctypes.data), ffi.cast("float *", radii.ctypes.data),
+            uvs_ptr,
+            ffi.cast('rpr_int*', segments.ctypes.data))
         
     def delete(self):
         self.set_material(None)
@@ -644,8 +671,13 @@ class Curve(Object):
     def set_material(self, material):
         if isinstance(self.material, pyrprx.Material):
             self.material.detach(self)
-            CurveSetMaterial(self, None)    # additional cleanup should be executed after detaching pyrprx.Material
-                                            # otherwise it could crash after resetting emissive shader
+
+            # additional cleanup should be executed after detaching pyrprx.Material
+            # otherwise it could crash after resetting emissive shader
+            CurveSetMaterial(self, None)
+            if material is None:
+                self.material = None
+                return
 
         if material is None or isinstance(material, MaterialNode):
             CurveSetMaterial(self, material)
