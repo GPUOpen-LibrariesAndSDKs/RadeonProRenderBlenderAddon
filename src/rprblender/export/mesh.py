@@ -129,25 +129,27 @@ class MeshData:
         finally:
             bm.free()
 
+
 def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
                      material_slots: List[bpy.types.MaterialSlot], mesh: bpy.types.Mesh):
     """ Assigns materials from material_slots to rpr_shape. It also syncs new material """
-
     if len(material_slots) == 0:
         return False
 
-    material_indices = np.fromiter((tri.material_index for tri in mesh.loop_triangles), dtype=np.int32) \
-        if mesh else np.zeros(1, dtype=np.int32)
+    material_unique_indices = (0,)
+    if len(material_slots) > 1:
+        # Multiple materials found, going to collect indices of actually used materials
+        material_indices = np.fromiter((tri.material_index for tri in mesh.loop_triangles), dtype=np.int32)
+        material_unique_indices = np.unique(material_indices)
 
-    material_unique_indices = np.unique(material_indices)
-
+    # Apply used materials to mesh
     for i in material_unique_indices:
         slot = material_slots[i]
 
-        log("Syncing material '%s'" % slot.name, slot)
-
         if not slot.material:
             continue
+
+        log("Syncing material '%s'" % slot.name, slot)
 
         rpr_material = material.sync(rpr_context, slot.material)
 
@@ -163,6 +165,27 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
             rpr_shape.set_material(None)
 
     return True
+
+
+def update_material(rpr_shape: pyrpr.Shape, blender_mesh, slot_index, rpr_material) -> bool:
+    """ Update single material of all used, return True if material was actually updated on mesh """
+    material_unique_indices = (0,)
+    if len(blender_mesh.material_slots) > 1:
+        material_indices = np.fromiter(
+            (tri.material_index for tri in blender_mesh.data.loop_triangles), dtype=np.int32)
+        material_unique_indices = np.unique(material_indices)
+
+    if slot_index in material_unique_indices:
+        if len(material_unique_indices) == 1:
+            rpr_shape.set_material(rpr_material)
+            return True
+
+        # Assign material to faces that are using it
+        face_indices = np.array(np.where(material_indices == slot_index)[0], dtype=np.int32)
+        rpr_shape.set_material_faces(rpr_material, face_indices)
+        return True
+
+    return False
 
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh:bpy.types.Mesh=None):
