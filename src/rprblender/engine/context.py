@@ -20,6 +20,8 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
+        self.particles = {}
+
         self.do_motion_blur = False
         self.is_preview = False
 
@@ -473,9 +475,9 @@ class RPRContext:
         self.objects[key] = instance
         return instance
 
-    def create_curve(self, key, num_curves, curve_length, control_points, uvs, radius):
-        curve = pyrpr.Curve(self.context, num_curves, curve_length, control_points, uvs, radius)
-        self.objects[key] = curve
+    def create_curve(self, key, control_points, uvs, radius):
+        curve = pyrpr.Curve(self.context, control_points, uvs, radius)
+        self.particles[key] = curve
         return curve
 
     def create_camera(self, key=None):
@@ -523,10 +525,17 @@ class RPRContext:
 
         if isinstance(obj, pyrpr.Mesh):
             # removing and detaching related instances
-            instance_keys = tuple(k for k in self.objects.keys() if isinstance(k, tuple) and k[0] == key)
+            instance_keys = tuple(k for k in self.objects.keys()
+                                    if isinstance(k, tuple) and k[0] == key)
             for k in instance_keys:
                 instance = self.objects.pop(k)
                 self.scene.detach(instance)
+
+        # removing and detaching related particles
+        particle_keys = tuple(k for k in self.particles.keys() if k[0] == key)
+        for k in particle_keys:
+            particle = self.particles.pop(k)
+            self.scene.detach(particle)
 
         if obj:
             self.scene.detach(obj)
