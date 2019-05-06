@@ -7,7 +7,7 @@ from gpu_extras.presets import draw_texture_2d
 
 import pyrpr
 from .engine import Engine
-from rprblender.export import camera, material, world, object, instance, particle
+from rprblender.export import camera, material, world, object, instance, particle, mesh
 from rprblender.utils import gl
 from rprblender import config
 
@@ -246,14 +246,17 @@ class ViewportEngine(Engine):
                 if isinstance(obj, bpy.types.Scene):
                     is_updated |= self.update_render(obj)
 
-                    # Outliner object visibilty change will provide us only bpy.types.Scene update
+                    # Outliner object visibility change will provide us only bpy.types.Scene update
                     # That's why we need to sync objects collection in the end
                     sync_collection = True
 
                     continue
 
                 if isinstance(obj, bpy.types.Material):
-                    is_updated |= material.sync_update(self.rpr_context, obj)
+                    material.sync_update(self.rpr_context, obj)
+                    rpr_material = self.rpr_context.materials.get(object.key(obj), None)
+                    if rpr_material:
+                        is_updated |= self.update_material_on_scene_objects(obj, depsgraph, rpr_material)
                     continue
 
                 if isinstance(obj, bpy.types.Object):
@@ -397,10 +400,10 @@ class ViewportEngine(Engine):
         # set of rpr object keys except environment lights
         rpr_object_keys = self.rpr_context.objects.keys() - world.ENVIRONMENT_LIGHTS_NAMES
 
-        # sets of objetcs keys to remove from rpr
+        # sets of objects keys to remove from rpr
         object_keys_to_remove = rpr_object_keys - depsgraph_keys
 
-        # sets of objetcs keys to export into rpr
+        # sets of objects keys to export into rpr
         object_keys_to_export = depsgraph_keys - rpr_object_keys
 
         res = False
@@ -431,6 +434,25 @@ class ViewportEngine(Engine):
                 res = True
 
         return res
+
+    def update_material_on_scene_objects(self, mat, depsgraph, rpr_material):
+        """ Find all mesh material users and reapply material """
+        updated = False
+        # TODO cache material users on sync/sync update to speed up material update
+        for entry in (obj for obj in self.depsgraph_objects(depsgraph)
+                      if mat.name in obj.material_slots.keys()):
+
+            rpr_shape = self.rpr_context.objects.get(object.key(entry), None)
+            if not rpr_shape:
+                object.sync(self.rpr_context, entry, depsgraph)
+                updated = True
+                continue
+
+            slot_index = entry.material_slots.keys().index(mat.name)
+
+            updated |= mesh.update_material(rpr_shape, entry, slot_index, rpr_material)
+
+        return updated
 
     def update_render(self, scene: bpy.types.Scene):
         ''' update settings if changed while live returns True if restart needed'''
