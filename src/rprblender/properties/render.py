@@ -227,7 +227,7 @@ class RPR_RenderProperties(RPR_Properties):
         description="\
         Render stamp: \n\
         %pt - performance time \n\
-        %pp - performance passes \n\
+        %pp - performance samples \n\
         %sl - scene lights \n\
         %so - scene objects \n\
         %c - CPU \n\
@@ -237,7 +237,7 @@ class RPR_RenderProperties(RPR_Properties):
         %i - computer name  \n\
         %d - current date \n\
         %b - build number",
-        default="Radeon ProRender for Blender %b | %h | Time: %pt | Passes: %pp | Objects: %so | Lights: %sl",
+        default="Radeon ProRender for Blender %b | %h | Time: %pt | Samples: %pp | Objects: %so | Lights: %sl",
     )
 
     render_mode: EnumProperty(
