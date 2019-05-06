@@ -10,9 +10,10 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.node')
 
 
-def key(material, node, socket_out, group_node) -> tuple:
-    if group_node:
-        return (material.name, node.name, socket_out.name if socket_out else None, group_node.name)
+def key(material, node, socket_out, group_nodes: list) -> tuple:
+    if group_nodes:
+        return (material.name, node.name, socket_out.name if socket_out else None,
+                tuple((e.name for e in group_nodes)))
     return (material.name, node.name, socket_out.name if socket_out else None)
 
 
@@ -28,12 +29,15 @@ class NodeParser(metaclass=ABCMeta):
     """
 
     def __init__(self, rpr_context: RPRContext, material: bpy.types.Material,
-                 node: bpy.types.Node, socket_out: bpy.types.NodeSocket, group_node=None):
+                 node: bpy.types.Node, socket_out: bpy.types.NodeSocket,
+                 group_nodes=()):
         self.rpr_context = rpr_context
         self.material = material
         self.node = node
         self.socket_out = socket_out
-        self.group_node = group_node  # node is contained inside this group node
+        # group nodes containing this node in depth, starting from upper level down to current
+        # will need it to get out of each group
+        self.group_nodes = group_nodes
 
     # INTERNAL FUNCTIONS
 
@@ -44,18 +48,27 @@ class NodeParser(metaclass=ABCMeta):
         2. Searches corresponded NodeParser class and do export through it
         3. Store group node reference if new one passed
         """
-        # Use existing group node if present or new reference
-        group = self.group_node if self.group_node else group_node
+        # Keep reference for group node if present
+        if group_node:
+            if self.group_nodes:
+                group_nodes = self.group_nodes + tuple([group_node])
+            else:
+                group_nodes = tuple([group_node])
+        else:
+            group_nodes = self.group_nodes
 
-        # check if such node is already was parsed
-        rpr_node = self.rpr_context.material_nodes.get(key(self.material, node, socket_out, group), None)
+        # check if this node was already parsed
+        rpr_node = self.rpr_context.material_nodes.get(
+            key(self.material, node, socket_out, group_nodes),
+            None)
         if rpr_node:
             return rpr_node
 
         # getting corresponded NodeParser class
         node_parser_class = get_node_parser_class(node.bl_idname)
         if node_parser_class:
-            node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out, group)
+            node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out,
+                                            group_nodes)
             return node_parser.final_export()
 
         log.warn("Ignoring unsupported node", node, self.material)
@@ -172,11 +185,11 @@ class NodeParser(metaclass=ABCMeta):
         This function does some useful preparation before and after calling export() function.
         """
 
-        log("export", self.material, self.node, self.socket_out, self.group_node)
+        log("export", self.material, self.node, self.socket_out, self.group_nodes)
         rpr_node = self.export()
 
         if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
-            node_key = key(self.material, self.node, self.socket_out, self.group_node)
+            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
 
@@ -186,9 +199,9 @@ class NodeParser(metaclass=ABCMeta):
 
     def arithmetic_node_value(self, val1, val2, op_type):
         def to_vec4(val):
-            ''' val is of of type tuple, float, Node, None 
+            ''' val is of of type tuple, float, Node, None
                 if float or tuple make into a 4 tuple
-            ''' 
+            '''
             if isinstance(val, float):
                 return (val, val, val, val)
             if isinstance(val, tuple) and len(val) == 3:
@@ -310,8 +323,8 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
-    def __init__(self, rpr_context, material, node, socket_out, group_node=None):
-        super().__init__(rpr_context, material, node, socket_out, group_node)
+    def __init__(self, rpr_context, material, node, socket_out, group_nodes=()):
+        super().__init__(rpr_context, material, node, socket_out, group_nodes)
 
         # internal cache of parsed node rules
         self._parsed_node_rules = {}

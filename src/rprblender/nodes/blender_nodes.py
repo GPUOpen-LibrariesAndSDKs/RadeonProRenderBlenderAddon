@@ -717,7 +717,7 @@ class ShaderNodeAddShader(NodeParser):
 
 
 class ShaderNodeTexCoord(RuleNodeParser):
-    # outputs: Generated, Normal, UV, Objectm Camera, Window, Reflection
+    # outputs: Generated, Normal, UV, Object, Camera, Window, Reflection
     # Supported outputs by RPR: Normal, UV
 
     nodes = {
@@ -1338,23 +1338,29 @@ class ShaderNodeGroup(NodeParser):
         # that mirrors internal inputs to external outputs. Sockets have exactly the same position, name and identifier
         # 1. find inside output node
         output_node = next(
-            (node for node in self.node.node_tree.nodes if node.type == 'GROUP_OUTPUT' and node.is_active_output),
+            (
+                node for node in self.node.node_tree.nodes
+                if node.type == 'GROUP_OUTPUT' and node.is_active_output
+            ),
             None
         )
 
         # raise error if user has removed active group output node
         if not output_node:
-            raise MaterialError("Group has no output", self.node, self.material, self.group_node)
+            raise MaterialError("Group has no output", self.node, self.material, self.group_nodes)
 
         # 2. find mirrored socket by socket identifier
-        socket_in = next(entry for entry in output_node.inputs if entry.identifier == self.socket_out.identifier)
+        socket_in = next(
+            entry for entry in output_node.inputs if entry.identifier == self.socket_out.identifier
+        )
 
         # 3. Create parser, store group node reference in parser to walk out of group
         if socket_in.is_linked:
             link = socket_in.links[0]
 
             if not self.is_link_allowed(link):
-                raise MaterialError("Invalid link found", link, socket_in, self.node, self.material, self.group_node)
+                raise MaterialError("Invalid link found",
+                                    link, socket_in, self.node, self.material, self.group_nodes)
 
             # store group node for linked node parser to walk out
             return self._export_node(link.from_node, link.from_socket, group_node=self.node)
@@ -1371,20 +1377,44 @@ class NodeGroupInput(NodeParser):
     def export(self):
         # The GroupNode input sockets are mirrored by GroupInput outputs with the same identifier, name and position
         # find mirrored socket by identifier
-        socket_in = next(entry for entry in self.group_node.inputs if entry.identifier == self.socket_out.identifier)
+        socket_in = next(
+            entry for entry in self.group_nodes[-1].inputs
+            if entry.identifier == self.socket_out.identifier
+        )
 
         if socket_in.is_linked:
             link = socket_in.links[0]
 
             if not self.is_link_allowed(link):
-                raise MaterialError("Invalid link found", link, socket_in, self.node, self.material, self.group_node)
+                raise MaterialError("Invalid link found",
+                                    link, socket_in, self.node, self.material, self.group_nodes)
 
             # going out of the group, drop the containing group node info
-            self.group_node = None
+            self.group_nodes = self.group_nodes[:-1]
             return self._export_node(link.from_node, link.from_socket)
 
         # Some sockets can have no default value. Check if we got one
         if hasattr(socket_in, 'default_value'):
             return self._parse_val(socket_in.default_value)
 
+        return None
+
+
+class ShaderNodeUVMap(NodeParser):
+    """
+    Placeholder to support new material preview mode 'cloth'
+
+    Allow usage of UV maps other than primary. UV name passed in uv_map.
+    For RPR usage this node need to know the name of base UV map of Object it assigned to.
+    This way it will be able to return LOOKUP.UV or LOOKUP.UV1 for each user Object.
+    """
+    def export(self):
+        """ Check if uv_map is set to primary, use LOOKUP node to set it """
+        # The material preview uv_map value is surprisingly empty
+        if not self.node.uv_map:
+            uv = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
+            uv.set_input('value', pyrpr.MATERIAL_NODE_LOOKUP_UV)
+            return uv
+
+        log.warn("Only primary mesh UV map supported", self.node.uv_map, self.node, self.material)
         return None

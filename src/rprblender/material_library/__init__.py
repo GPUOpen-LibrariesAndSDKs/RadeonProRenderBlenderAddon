@@ -30,7 +30,6 @@ def import_xml_material(material: bpy.types.Material, name: str, xml_path: str, 
 
     def create_material() -> bpy.types.Material:
         """ Create new material and assign to current empty material slot, create slot if none found """
-        # TODO Check how import works in this case if object is clone with parent without materials.
         if not bpy.context.object.material_slots.keys():
             bpy.ops.object.material_slot_add()
         # 2. create material for it
