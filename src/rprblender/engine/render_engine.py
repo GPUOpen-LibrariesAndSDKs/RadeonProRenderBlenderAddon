@@ -25,15 +25,13 @@ class RenderEngine(Engine):
         self.height = 0
 
         self.is_synced = False
-        self.render_event = threading.Event()
-        self.finish_render = False
         self.render_layer_name = None
 
-        self.render_iterations = 0
-        self.current_iteration = 0
+        self.render_samples = 0
+        self.current_sample = 0
+        self.render_update_samples = 1
         self.render_time = 0
         self.current_render_time = 0
-        self.render_update_samples = 1
 
         self.status_title = ""
 
@@ -48,128 +46,91 @@ class RenderEngine(Engine):
         if config.notifier_log_calls:
             log("%d - %s" % (int(progress*100), info))
 
-    def _do_update_result(self, result):
-        while not self.finish_render:
-            self.render_event.wait()
-            self.render_event.clear()
-
-            self.rpr_context.resolve()
-
-            log("Updating render result")
-            self.rpr_context.resolve_extras()
-            self.set_render_result(result.layers[0].passes)
-            self.rpr_engine.update_result(result)
-
-            time.sleep(config.render_update_result_interval)
-
-    def _do_render(self):
-        ''' This is the main render loop.  
-            Renders can be limited by max samples AND time.  Stop at whatever comes first
-            A render will be N number of calls to rpr_context.render() 
-            Where max_samples = N * samples_per_update 
-            up to max time.  Note max samples is always > 0 '''
-
-        self.finish_render = False
-        try:
-            self.current_iteration = 0
-            time_begin = time.perf_counter()
-
-            while True:
-                if self.rpr_engine.test_break():
-                    break
-
-                self.current_render_time = time.perf_counter() - time_begin
-                
-                # if less that update_samples left, use the remainder
-                update_samples = min(self.render_update_samples, self.render_iterations - self.current_iteration)
-                
-                # we report time/iterations left as fractions if limit enabled
-                render_time_string = "%.1f/%d" % (self.current_render_time, self.render_time) if self.render_time \
-                                        else "%.1f" % self.current_render_time
-                render_iterations_string = "%d/%d" % (self.current_iteration, self.render_iterations)
-
-                # percent done is one of percent iterations or percent time so pick whichever is greater
-                percent_iterations = self.current_iteration / self.render_iterations
-                percent_time = self.current_render_time / self.render_time if self.render_time else 0
-                percent_done = max(percent_iterations, percent_time)
-
-                self.notify_status(percent_done,
-                                       "Render Time: %s sec | Iteration: %s" %
-                                       (render_time_string, render_iterations_string))
-                self.rpr_context.set_parameter('iterations', update_samples)
-
-                self.rpr_context.render(restart=(self.current_iteration == 0))
-                self.render_event.set()
-
-                self.current_iteration += update_samples
-                
-                # stop at whichever comes first, max samples or max time if enabled
-                if self.current_iteration >= self.render_iterations:
-                    break
-                
-                if self.render_time:
-                    if self.current_render_time >= self.render_time:
-                        break
-
-        finally:
-            self.finish_render = True
-
     def _render(self):
-        result = self.rpr_engine.begin_result(0, 0, self.width, self.height, layer=self.render_layer_name)
-
-        self.render_event.clear()
-
-        update_result_thread = threading.Thread(target=RenderEngine._do_update_result, args=(self, result))
-        update_result_thread.start()
-
-        self._do_render()
-
-        update_result_thread.join()
-
-        if self.render_event.is_set():
-            log('Getting final render result')
-            self.rpr_context.resolve()
-            self.rpr_context.resolve_extras()
-            self.set_render_result(result.layers[0].passes)
-
-        self.rpr_engine.end_result(result)
-
-    def _render_tile(self):
-        tile_iterator = utils.tile_iterator(self.tile_order, self.width, self.height, *self.tile_size)
-
-        rpr_camera = self.rpr_context.scene.camera
-        self.rpr_context.set_parameter('iterations', self.render_iterations)
-
-        tiles_number = tile_iterator.len
         time_begin = time.perf_counter()
 
-        for i, (tile_pos, tile_size) in enumerate(tile_iterator()):
+        self.current_sample = 0
+        while True:
             if self.rpr_engine.test_break():
                 break
 
-            log('Render tile', i, tile_pos, tile_size)
-
             self.current_render_time = time.perf_counter() - time_begin
 
-            self.notify_status(
-                i / tiles_number,
-                "Render Time: %.1f sec | Tile: %d/%d" % (self.current_render_time, i, tiles_number)
+            # if less that update_samples left, use the remainder
+            update_samples = min(self.render_update_samples,
+                                 self.render_samples - self.current_sample)
+
+            # we report time/iterations left as fractions if limit enabled
+            time_str = f"{self.current_render_time:.1f}/{self.render_time}" if self.render_time \
+                       else f"{self.current_render_time:.1f}"
+
+            # percent done is one of percent iterations or percent time so pick whichever is greater
+            progress = max(
+                self.current_sample / self.render_samples,
+                self.current_render_time / self.render_time if self.render_time else 0
             )
+            self.notify_status(progress,
+                               f"Render Time: {time_str} sec | "
+                               f"Samples: {self.current_sample}/{self.render_samples}")
 
-            self.camera_data.export(rpr_camera, tile=((tile_pos[0]/self.width, tile_pos[1]/self.height),
-                                                      (tile_size[0]/self.width, tile_size[1]/self.height)))
+            log(f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}, "
+                f"progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}")
 
-            result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=self.render_layer_name)
+            self.rpr_context.set_parameter('iterations', update_samples)
+            self.rpr_context.render(restart=(self.current_sample == 0))
+            self.resolve_update_render_result((0, 0), (self.width, self.height),
+                                              self.render_layer_name)
+
+            self.current_sample += update_samples
+
+            # stop at whichever comes first, max samples or max time if enabled
+            if self.current_sample >= self.render_samples:
+                break
+
+            if self.render_time:
+                if self.current_render_time >= self.render_time:
+                    break
+
+    def _render_tiles(self):
+        tile_iterator = utils.tile_iterator(self.tile_order, self.width, self.height, *self.tile_size)
+        tiles_number = tile_iterator.len
+
+        rpr_camera = self.rpr_context.scene.camera
+
+        time_begin = time.perf_counter()
+
+        for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
+            if self.rpr_engine.test_break():
+                break
+
+            log(f"Render tile {tile_index} / {tiles_number}: [{tile_pos}, {tile_size}]")
+
+            self.camera_data.export(rpr_camera,
+                                    tile=((tile_pos[0]/self.width, tile_pos[1]/self.height),
+                                          (tile_size[0]/self.width, tile_size[1]/self.height)))
             self.rpr_context.resize(*tile_size)
 
-            self.rpr_context.render(restart=True)
+            sample = 0
+            while sample < self.render_samples:
+                if self.rpr_engine.test_break():
+                    break
 
-            log('Getting tile render result')
-            self.rpr_context.resolve()
-            self.rpr_context.resolve_extras()
-            self.set_render_result(result.layers[0].passes)
+                update_samples = min(self.render_update_samples, self.render_samples - sample)
+                self.current_render_time = time.perf_counter() - time_begin
+                progress = (tile_index + sample/self.render_samples) / tiles_number
 
-            self.rpr_engine.end_result(result)
+                self.notify_status(progress,
+                                   f"Render Time: {self.current_render_time:.1f} sec | "
+                                   f"Tile: {tile_index}/{tiles_number} | "
+                                   f"Samples: {sample}/{self.render_samples}")
+
+                log(f"  samples: {sample} +{update_samples} / {self.render_samples}, "
+                    f"progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}")
+                self.rpr_context.set_parameter('iterations', update_samples)
+                self.rpr_context.render(restart=(sample == 0))
+                self.resolve_update_render_result(tile_pos, tile_size, self.render_layer_name)
+
+                sample += update_samples
 
     def render(self):
         if not self.is_synced:
@@ -178,11 +139,11 @@ class RenderEngine(Engine):
         self.rpr_context.sync_auto_adapt_subdivision(self.width, self.height)
         self.rpr_context.sync_portal_lights()
 
-        log("Start render")
+        log(f"Start render [{self.width}, {self.height}]")
         self.notify_status(0, "Start render")
 
         if self.tile_size:
-            self._render_tile()
+            self._render_tiles()
         else:
             self._render()
 
@@ -206,7 +167,7 @@ class RenderEngine(Engine):
             # TODO: Apply render stamp after tile rendering
             image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
                                               self.rpr_context.width, self.rpr_context.height, channels,
-                                              self.current_iteration, self.current_render_time)
+                                              self.current_sample, self.current_render_time)
         return image
 
     def sync(self, depsgraph):
@@ -219,7 +180,7 @@ class RenderEngine(Engine):
         view_layer = depsgraph.view_layer
 
         self.render_layer_name = view_layer.name
-        self.status_title = "%s: %s" % (scene.name, self.render_layer_name)
+        self.status_title = f"{scene.name}: {self.render_layer_name}"
 
         self.notify_status(0, "Start syncing")
 
@@ -269,7 +230,7 @@ class RenderEngine(Engine):
         rpr_camera = self.rpr_context.create_camera(camera_key)
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        camera_obj = depsgraph.objects[scene.camera.name]
+        camera_obj = scene.camera
         self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
                                                               screen_width / screen_height, border)
 
@@ -325,7 +286,7 @@ class RenderEngine(Engine):
         self.rpr_context.set_parameter('preview', False)
         scene.rpr.export_ray_depth(self.rpr_context)
 
-        self.render_iterations, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
+        self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.render_update_samples = scene.rpr.limits.update_samples
         
         self.is_synced = True

@@ -28,7 +28,8 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     min_samples: IntProperty(
         name="Min Samples",
-        description="Minimum number of samples to render for each pixel.  After this, adaptive sampling will stop sampling pixels where noise is less than threshold.",
+        description="Minimum number of samples to render for each pixel. After this, adaptive "
+                    "sampling will stop sampling pixels where noise is less than threshold.",
         min=1, default=16,
     )
 
@@ -40,7 +41,8 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     noise_threshold: FloatProperty(
         name="Noise Threshold",
-        description="Cutoff for adaptive sampling.  Once pixels are below this amount of noise, no more samples are added.  Set to 0 for no cutoff.",
+        description="Cutoff for adaptive sampling. Once pixels are below this amount of noise, "
+                    "no more samples are added.  Set to 0 for no cutoff.",
         min=0.0, default=.05, max=1.0,
     )
 
@@ -51,20 +53,28 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     update_samples: IntProperty(
         name="Samples per View Update",
-        description="The more samples, the less viewport updates for shorter render times",
-        min=1, default=1,
+        description="The more samples, the less intermediate render result updates for shorter "
+                    "render times",
+        min=1, default=4,
     )
 
     seconds: IntProperty(
         name="Time Limit",
-        description="Limit rendering process in seconds.  0 means limit by num samples",
+        description="Limit rendering process in seconds. 0 - means limit by number of samples",
         min=0, default=0
     )
 
-    thumbnail_iterations: IntProperty(
-        name="Thumbnail Samples",
+    preview_samples: IntProperty(
+        name="Preview Samples",
         description="Material and light previews number of samples to render for each pixel",
-        min=1, default=50,
+        min=1, default=64,
+    )
+
+    preview_update_samples: IntProperty(
+        name="Samples per Preview Update",
+        description="The more samples, the less intermediate preview render result updates for "
+                    "shorter render times",
+        min=1, default=4,
     )
 
     limit_viewport_resolution: BoolProperty(

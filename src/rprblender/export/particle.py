@@ -72,9 +72,10 @@ def sync_particles(rpr_context, particle_system, master_shape, master_key):
 class CurveData:
     points: np.array
     uvs: np.array
-    radius: int
+    radius: float
 
-    def __init__(self, p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, is_preview: bool):
+    @staticmethod
+    def init(p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, is_preview: bool):
         # render_steps is number of segments to render in power of 2
         render_step = p_sys.settings.display_step if is_preview else p_sys.settings.render_step
         length = 2 ** render_step + 1
@@ -108,8 +109,12 @@ class CurveData:
             dtype=np.int32
         )
 
+        if len(curve_indices) == 0:
+            return None
+
+        data = CurveData()
         # getting final curve points
-        self.points = np.ascontiguousarray(all_points[curve_indices], dtype=np.float32)
+        data.points = np.ascontiguousarray(all_points[curve_indices], dtype=np.float32)
 
         if obj.type == 'MESH' and len(obj.data.uv_layers) > 0:
             # finding corresponded ParticleSystemModifier
@@ -128,12 +133,14 @@ class CurveData:
             ).reshape(-1, 2)
 
             # getting final UVs
-            self.uvs = np.ascontiguousarray(all_uvs[curve_indices], dtype=np.float32)
+            data.uvs = np.ascontiguousarray(all_uvs[curve_indices], dtype=np.float32)
 
         else:
-            self.uvs = None
+            data.uvs = None
 
-        self.radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
+        data.radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
+
+        return data
 
 
 def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object):
@@ -146,7 +153,10 @@ def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object
     
     if p_sys.settings.type == 'HAIR':
         # hair does not have motion blur
-        curve_data = CurveData(p_sys, emitter, rpr_context.is_preview)
+        curve_data = CurveData.init(p_sys, emitter, rpr_context.is_preview)
+        if not curve_data:
+            return
+        
         rpr_hair = rpr_context.create_curve(particle_key, curve_data.points,
                                             curve_data.uvs, curve_data.radius)
         rpr_hair.set_name(str(particle_key))

@@ -14,23 +14,29 @@ class PreviewEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
         self.is_synced = False
-        self.render_iterations = 0
+        self.render_samples = 0
+        self.render_update_samples = 1
         self.rpr_context.is_preview = True
 
     def render(self):
         if not self.is_synced:
             return
 
-        log("Start render")
+        log(f"Start render [{self.rpr_context.width}, {self.rpr_context.height}]")
+        sample = 0
+        while sample < self.render_samples:
+            if self.rpr_engine.test_break():
+                break
 
-        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
+            update_samples = min(self.render_update_samples, self.render_samples - sample)
 
-        self.rpr_context.set_parameter('iterations', self.render_iterations)
-        self.rpr_context.render(restart=True)
+            log(f"  samples: {sample} +{update_samples} / {self.render_samples}")
+            self.rpr_context.set_parameter('iterations', update_samples)
+            self.rpr_context.render(restart=(sample == 0))
+            self.resolve_update_render_result((0, 0), (self.rpr_context.width,
+                                                       self.rpr_context.height))
 
-        self.rpr_context.resolve()
-        self.set_render_result(result.layers[0].passes)
-        self.rpr_engine.end_result(result)
+            sample += update_samples
 
         log('Finish render')
 
@@ -61,10 +67,11 @@ class PreviewEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        self.rpr_context.set_parameter('preview', False)
+        self.rpr_context.set_parameter('preview', True)
         settings_scene.rpr.export_ray_depth(self.rpr_context)
 
-        self.render_iterations = settings_scene.rpr.viewport_limits.thumbnail_iterations
+        self.render_samples = settings_scene.rpr.viewport_limits.preview_samples
+        self.render_update_samples = settings_scene.rpr.viewport_limits.preview_update_samples
 
         self.is_synced = True
         log('Finish sync')

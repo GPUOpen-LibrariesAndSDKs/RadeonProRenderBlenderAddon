@@ -53,7 +53,7 @@ class Engine(metaclass=ABCMeta):
         """
         return image
 
-    def set_render_result(self, render_passes: bpy.types.RenderPasses):
+    def _set_render_result(self, render_passes: bpy.types.RenderPasses):
         """
         Sets render result to render passes
         :param render_passes: render passes to collect
@@ -88,6 +88,14 @@ class Engine(metaclass=ABCMeta):
 
         # efficient way to copy all AOV images
         render_passes.foreach_set('rect', np.concatenate(images))
+
+    def resolve_update_render_result(self, tile_pos, tile_size, layer_name=""):
+        self.rpr_context.resolve()
+        self.rpr_context.resolve_extras()
+
+        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
+        self._set_render_result(result.layers[0].passes)
+        self.rpr_engine.end_result(result)
 
     def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph, with_camera=False):
         """ Iterates evaluated objects in depsgraph with ITERATED_OBJECT_TYPES """
