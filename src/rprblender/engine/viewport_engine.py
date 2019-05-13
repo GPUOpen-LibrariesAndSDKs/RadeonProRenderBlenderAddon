@@ -1,9 +1,11 @@
 import threading
 import time
+from dataclasses import dataclass
 
 import bpy
 import bgl
 from gpu_extras.presets import draw_texture_2d
+from bpy_extras import view3d_utils
 
 import pyrpr
 from .engine import Engine
@@ -13,6 +15,108 @@ from rprblender import config
 
 from rprblender.utils import logging
 log = logging.Log(tag='ViewportEngine')
+
+
+@dataclass(init=False, eq=True)
+class ViewportSettings:
+    """
+    Comparable dataclass which holds render settings for ViewportEngine:
+    - camera viewport settings
+    - render resolution
+    - screen resolution
+    - render border
+    """
+
+    camera_data: camera.CameraData
+    width: int
+    height: int
+    screen_width: int
+    screen_height: int
+    border: tuple
+
+    def __init__(self, context: bpy.types.Context):
+        """Initializes settings from Blender's context"""
+        self.camera_data = camera.CameraData.init_from_context(context)
+        self.screen_width, self.screen_height = context.region.width, context.region.height
+
+        scene = context.depsgraph.scene
+
+        # getting render border
+        x1, y1 = 0, 0
+        x2, y2 = self.screen_width, self.screen_height
+        if context.region_data.view_perspective == 'CAMERA':
+            if scene.render.use_border:
+                # getting border corners from camera view
+
+                # getting screen camera points
+                camera_obj = scene.camera
+                camera_points = camera_obj.data.view_frame(scene=scene)
+                screen_points = tuple(
+                    view3d_utils.location_3d_to_region_2d(context.region,
+                                                          context.space_data.region_3d,
+                                                          camera_obj.matrix_world @ p)
+                    for p in camera_points
+                )
+
+                # getting camera view region
+                x1 = min(p[0] for p in screen_points)
+                x2 = max(p[0] for p in screen_points)
+                y1 = min(p[1] for p in screen_points)
+                y2 = max(p[1] for p in screen_points)
+
+                # adjusting region to border
+                x, y = x1, y1
+                dx, dy = x2 - x1, y2 - y1
+                x1 = int(x + scene.render.border_min_x * dx)
+                x2 = int(x + scene.render.border_max_x * dx)
+                y1 = int(y + scene.render.border_min_y * dy)
+                y2 = int(y + scene.render.border_max_y * dy)
+
+                # adjusting to region screen resolution
+                x1 = max(min(x1, self.screen_width), 0)
+                x2 = max(min(x2, self.screen_width), 0)
+                y1 = max(min(y1, self.screen_height), 0)
+                y2 = max(min(y2, self.screen_height), 0)
+
+        else:
+            if context.space_data.use_render_border:
+                # getting border corners from viewport camera
+
+                x, y = x1, y1
+                dx, dy = x2 - x1, y2 - y1
+                x1 = int(x + context.space_data.render_border_min_x * dx)
+                x2 = int(x + context.space_data.render_border_max_x * dx)
+                y1 = int(y + context.space_data.render_border_min_y * dy)
+                y2 = int(y + context.space_data.render_border_max_y * dy)
+
+        # getting render resolution and render border
+        self.width, self.height = x2 - x1, y2 - y1
+        self.border = (x1, y1), (self.width, self.height)
+
+        if scene.rpr.viewport_limits.limit_viewport_resolution and self.width * self.height > 0:
+            # changing render resolution in case of enabled limit_viewport_resolution property
+
+            render_w = int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
+            render_h = int(scene.render.resolution_y * scene.render.resolution_percentage / 100.0)
+
+            region_aspect = self.width / self.height
+            render_aspect = render_w / render_h
+
+            if render_aspect > region_aspect:
+                # if render resolution is wider, use the max height
+                # from render and scale to aspect ratio
+                self.height = min(render_h, self.height)
+                self.width = int(region_aspect * self.height)
+            else:
+                # scale to render width and maintain aspect ratio
+                self.width = min(render_w, self.width)
+                self.height = int(self.width / region_aspect)
+
+    def export_camera(self, rpr_camera):
+        """Exports camera settings with render border"""
+        self.camera_data.export(rpr_camera,
+            ((self.border[0][0] / self.screen_width, self.border[0][1] / self.screen_height),
+             (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
 
 
 class ViewportEngine(Engine):
@@ -26,8 +130,9 @@ class ViewportEngine(Engine):
         self.noise_threshold = 0.0
         self.gl_texture: gl.GLTexture = None
 
-        self.camera_settings = {}
-        self.world_settings = None
+        self.viewport_settings: ViewportSettings = None
+
+        self.world_settings: world.WorldData = None
 
         self.render_thread: threading.Thread = None
         self.resolve_thread: threading.Thread = None
@@ -89,7 +194,7 @@ class ViewportEngine(Engine):
                     self.rpr_context.sync_auto_adapt_subdivision()
                     self.rpr_context.sync_portal_lights()
                     time_begin = time.perf_counter()
-                    log("Restart render")
+                    log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
 
                 log("Render iteration: %d / %d" % (iteration, self.render_iterations))
 
@@ -134,35 +239,6 @@ class ViewportEngine(Engine):
 
         log("Finish resolve thread")
 
-    def get_viewport_resolution(self, context):
-        ''' Gets the viewport resolution.  If limit is turned on,
-            scales the region resolution down to max of a given resolution with the same 
-            aspect ratio as the region, returns scaled resolution'''
-        scene = context.depsgraph.scene
-
-        region_w,region_h = (context.region.width, context.region.height)
-        if not scene.rpr.viewport_limits.limit_viewport_resolution:
-            # simply return region width/height
-            return region_w,region_h
-
-        # else we have to scale
-        render_w = int(scene.render.resolution_x * scene.render.resolution_percentage / 100.0)
-        render_h = int(scene.render.resolution_y * scene.render.resolution_percentage / 100.0)
-            
-        region_aspect = region_w/region_h
-        render_aspect = render_w/render_h
-
-        if render_aspect > region_aspect:
-            # if render resolution is wider, use the max height from render and scale to aspect ratio
-            region_h = min(render_h, region_h)
-            region_w = int(region_aspect * region_h)
-        else:
-            # scale to render width and maintain aspect ratio
-            region_w = min(render_w, region_w)
-            region_h = int(region_w / region_aspect)
-
-        return region_w, region_h
-
     def sync(self, context):
         log('Start sync')
     
@@ -170,10 +246,19 @@ class ViewportEngine(Engine):
         scene = depsgraph.scene
         viewport_limits = scene.rpr.viewport_limits
 
-        scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False, use_gl_interop=config.use_gl_interop)
-        
-        w,h = self.get_viewport_resolution(context)
-        self.rpr_context.resize(w, h)
+        scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
+                                   use_gl_interop=config.use_gl_interop)
+
+        # getting initial render resolution
+        viewport_settings = ViewportSettings(context)
+        width, height = viewport_settings.width, viewport_settings.height
+        if width * height == 0:
+            # if width, height == 0, 0, then we set it to 1, 1 to be able to set AOVs
+            width, height = 1, 1
+
+        self.rpr_context.resize(width, height)
+        if not self.rpr_context.gl_interop:
+            self.gl_texture = gl.GLTexture(width, height)
         
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
@@ -205,9 +290,6 @@ class ViewportEngine(Engine):
         # exporting instances
         for inst in self.depsgraph_instances(depsgraph):
             instance.sync(self.rpr_context, inst, depsgraph)
-
-        if not self.rpr_context.gl_interop:
-            self.gl_texture = gl.GLTexture(w, h)
 
         self.rpr_context.sync_shadow_catcher()
 
@@ -340,24 +422,23 @@ class ViewportEngine(Engine):
     def draw(self, context):
         log("Draw")
 
-        camera_settings = camera.CameraData.init_from_context(context)
-        width, height = self.get_viewport_resolution(context)
+        viewport_settings = ViewportSettings(context)
         scene = context.depsgraph.scene
 
-        is_camera_update = self.camera_settings != camera_settings
-        is_resize_update = self.rpr_context.width != width or self.rpr_context.height != height
+        if viewport_settings.width * viewport_settings.height == 0:
+            return
 
-        if is_camera_update or is_resize_update:
+        if self.viewport_settings != viewport_settings:
             with self.rpr_context.lock:
-                if is_camera_update:
-                    self.camera_settings = camera_settings
-                    self.camera_settings.export(self.rpr_context.scene.camera)
+                viewport_settings.export_camera(self.rpr_context.scene.camera)
 
-                if is_resize_update:
-                    self.rpr_context.resize(width, height)
+                if self.rpr_context.width != viewport_settings.width \
+                        or self.rpr_context.height != viewport_settings.height:
+                    self.rpr_context.resize(viewport_settings.width, viewport_settings.height)
                     if not self.rpr_context.gl_interop:
-                        self.gl_texture = gl.GLTexture(width, height)
+                        self.gl_texture = gl.GLTexture(viewport_settings.width, viewport_settings.height)
 
+            self.viewport_settings = viewport_settings
             self.restart_render_event.set()
 
         if self.rpr_context.gl_interop:
@@ -370,7 +451,8 @@ class ViewportEngine(Engine):
         if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
                                      'POSITION', 'NORMAL', 'TEXCOORD'):
             # Draw without color management
-            draw_texture_2d(texture_id, (0, 0), context.region.width, context.region.height)
+            draw_texture_2d(texture_id, self.viewport_settings.border[0],
+                            *self.viewport_settings.border[1])
 
         else:
             # Bind shader that converts from scene linear to display space,
@@ -379,7 +461,8 @@ class ViewportEngine(Engine):
             self.rpr_engine.bind_display_space_shader(scene)
 
             # note this has to draw to region size, not scaled down size
-            self._draw_texture(texture_id, 0, 0, context.region.width, context.region.height)
+            self._draw_texture(texture_id, *self.viewport_settings.border[0],
+                               *self.viewport_settings.border[1])
 
             self.rpr_engine.unbind_display_space_shader()
             bgl.glDisable(bgl.GL_BLEND)
