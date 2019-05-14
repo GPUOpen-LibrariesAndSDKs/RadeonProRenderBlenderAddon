@@ -225,33 +225,3 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
 
     # set scene's camera
     rpr_context.scene.set_camera(rpr_camera)
-
-
-def get_border_tile(context):
-    scene = context.depsgraph.scene
-    if context.region_data.view_perspective != 'CAMERA' or not scene.render.use_border:
-        return (0.0, 0.0), (1.0, 1.0)
-
-    camera_obj = scene.camera
-    from bpy_extras import view3d_utils
-
-    camera_points = camera_obj.data.view_frame(scene=scene)
-    screen_points = tuple(view3d_utils.location_3d_to_region_2d(context.region,
-                          context.space_data.region_3d, camera_obj.matrix_world @ p)
-                          for p in camera_points)
-
-    pos = (scene.render.border_min_x, scene.render.border_min_y)
-    size = (scene.render.border_max_x - scene.render.border_min_x,
-            scene.render.border_max_y -scene.render.border_min_y)
-
-    zoom = 4.0 / (2.0 ** 0.5 + context.region_data.view_camera_zoom / 50.0) ** 2
-    print(zoom)
-
-    camera_ratio = scene.render.resolution_x / scene.render.resolution_y
-    view_ratio = context.region.width / context.region.height
-    w = 1 / zoom
-    h = w * view_ratio / camera_ratio
-    x1 = 0.5 - 0.5 * w
-    y1 = 0.5 - 0.5 * h
-
-    return (x1, y1), (w, h)

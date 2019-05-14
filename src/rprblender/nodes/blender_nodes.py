@@ -498,9 +498,6 @@ class ShaderNodeTexImage(NodeParser):
         if self.socket_out.name == 'Alpha':
             rpr_node = self.get_w_node_value(rpr_node)
 
-        if self.node.color_space == 'COLOR':
-            rpr_node = self.arithmetic_node_value(rpr_node, COLOR_GAMMA, pyrpr.MATERIAL_NODE_OP_POW)
-
         return rpr_node
 
 
