@@ -65,6 +65,28 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
             }
         }
 
+class RPRShaderNodePassthrough(RPRShaderNode):
+
+    bl_label = 'RPR Passthrough'
+
+    def init(self, context):
+        # Adding input sockets with default_value or hide_value properties.
+        # Here we use Blender's native node sockets
+        self.inputs.new('NodeSocketColor', "Color").default_value = (0.8, 0.8, 0.8, 1.0)    # Corresponds to Cycles diffuse
+        
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    class Exporter(RuleNodeParser):
+        nodes = {
+            "Shader": {
+                "type": pyrpr.MATERIAL_NODE_PASSTHROUGH,
+                "params": {
+                    "color": "inputs.Color"
+                }
+            }
+        }
+
 
 class RPRShaderNodeUber(RPRShaderNode):
     bl_label = 'RPR Uber'
