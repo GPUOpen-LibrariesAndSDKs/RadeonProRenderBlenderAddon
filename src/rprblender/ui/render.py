@@ -4,13 +4,16 @@ import pyrpr
 
 from . import RPR_Panel
 from rprblender import bl_info
+from rprblender.utils.user_settings import get_user_settings
+
 
 class RPR_RENDER_PT_devices(RPR_Panel):
     bl_label = "Render Devices"
     bl_context = 'render'
 
     def draw(self, context):
-        devices = context.scene.rpr.devices
+        settings = get_user_settings()
+        devices = settings.final_devices
 
         layout = self.layout
         layout.use_property_split = True
@@ -46,16 +49,18 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
         return super().poll(context) and len(pyrpr.Context.gpu_devices) > 0
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, "separate_viewport_devices", text="")
-        self.layout.active = context.scene.rpr.separate_viewport_devices
+        settings = get_user_settings()
+        self.layout.prop(settings, "separate_viewport_devices", text="")
+        self.layout.active = settings.separate_viewport_devices
 
     def draw(self, context):
-        devices = context.scene.rpr.viewport_devices
+        settings = get_user_settings()
+        devices = settings.viewport_devices
 
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-        self.layout.enabled = context.scene.rpr.separate_viewport_devices
+        self.layout.enabled = settings.separate_viewport_devices
 
         if len(pyrpr.Context.gpu_devices) == 0:
             col = layout.column(align=True)

@@ -9,7 +9,6 @@ class RPR_MATERIL_PT_material_browser(RPR_Panel):
     """ Panel for Material Library materials browse, search and import """
     bl_label = "Material Library Browser"
     bl_context = "material"
-    # bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
@@ -23,7 +22,6 @@ class RPR_MATERIL_PT_material_browser(RPR_Panel):
 
         properties = context.window_manager.rpr_material_library_properties
 
-        # TODO: implement material search
         # Mode buttons.
         row = layout.row()
         row.prop(properties, "mode", expand=True)

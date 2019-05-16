@@ -4,7 +4,6 @@ from pathlib import Path
 import math
 
 import bpy
-import mathutils
 import rprblender
 
 
