@@ -127,4 +127,3 @@ def unregister():
     properties.unregister()
     material_library.unregister()
     bpy.utils.unregister_class(RPREngine)
-

@@ -14,6 +14,7 @@ from bpy.props import (
 import platform
 
 from rprblender import utils
+from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
 
 from rprblender.utils import logging
@@ -84,8 +85,10 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     )
 
     def set_adaptive_params(self, rpr_context):
-        ''' Set the adaptive sampling parameters for this context. 
-            adaptive_threshold, adaptive_min_samples, and adaptive_tile_size '''
+        """
+        Set the adaptive sampling parameters for this context.
+        adaptive_threshold, adaptive_min_samples, and adaptive_tile_size
+        """
         rpr_context.set_parameter('as.tilesize', self.adaptive_tile_size)
         rpr_context.set_parameter('as.minspp', self.min_samples)
         rpr_context.set_parameter('as.threshold', self.noise_threshold)
@@ -109,6 +112,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         else:
             # if no GPU then cpu always should be enabled
             self.cpu_state = True
+        on_settings_changed(self, context)
 
     if len(pyrpr.Context.gpu_devices) > 0:
         gpu_states: BoolVectorProperty(
@@ -129,7 +133,24 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         name="CPU Threads",
         description="Number of CPU threads for render, optimal value is about the number of physical CPU cores",
         min=1, max=utils.get_cpu_threads_number(),
-        default=utils.get_cpu_threads_number()
+        default=utils.get_cpu_threads_number(),
+        update=on_settings_changed,
+    )
+
+
+class RPR_UserSettings(bpy.types.PropertyGroup):
+    """
+    Specific user settings stored in Blender User Settings in standalone mode.
+    Saved in Scene in debug mode.
+    """
+    final_devices: PointerProperty(type=RPR_RenderDevices)
+    viewport_devices: PointerProperty(type=RPR_RenderDevices)
+
+    separate_viewport_devices: BoolProperty(
+        name="Separate Viewport Devices",
+        description="Use separate viewport and preview render devices configuration",
+        default=False,
+        update=on_settings_changed,
     )
 
 
@@ -140,14 +161,8 @@ class RPR_RenderProperties(RPR_Properties):
         name="Version"
     )
 
-    # RENDER DEVICES
-    devices: PointerProperty(type=RPR_RenderDevices)
-    viewport_devices: PointerProperty(type=RPR_RenderDevices)
-    separate_viewport_devices: BoolProperty(
-        name="Separate Viewport Devices",
-        description="Use separate viewport and preview render devices configuration",
-        default=False,
-    )
+    # RENDER DEVICES for development debug mode; standalone settings are saved as addon properties
+    debug_user_settings: PointerProperty(type=RPR_UserSettings)
 
     # RENDER LIMITS
     limits: PointerProperty(type=RPR_RenderLimits)
@@ -274,8 +289,7 @@ class RPR_RenderProperties(RPR_Properties):
         scene = self.id_data
         log("Syncing scene: %s" % scene.name)
 
-        devices = self.devices if is_final_engine or not self.separate_viewport_devices else \
-                  self.viewport_devices
+        devices = self.get_devices(is_final_engine)
 
         context_flags = 0
         # enable CMJ sampler for adaptive sampling
@@ -305,6 +319,13 @@ class RPR_RenderProperties(RPR_Properties):
             # if this is mojave turn on MPS
             if float(mac_vers_major) >= 14:
                 rpr_context.set_parameter("metalperformanceshader", 1)
+
+    def get_devices(self, is_final_engine=True):
+        """ Get render devices settings for current mode """
+        devices_settings = get_user_settings()
+        if is_final_engine or not devices_settings.separate_viewport_devices:
+            return devices_settings.final_devices
+        return devices_settings.viewport_devices
 
     def export_ray_depth(self, rpr_context):
         """ Exports ray depth settings """

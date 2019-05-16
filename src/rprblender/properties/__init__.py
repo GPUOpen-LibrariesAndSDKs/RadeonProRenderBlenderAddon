@@ -33,12 +33,17 @@ from . import (
     world,
     view_layer,
     material_browser,
+    addon,
 )
+
 
 register, unregister = bpy.utils.register_classes_factory([
     render.RPR_RenderLimits,
     render.RPR_RenderDevices,
+    render.RPR_UserSettings,
     render.RPR_RenderProperties,
+
+    addon.RPR_AddonPreferences,
 
     object.RPR_ObjectProperites,
 

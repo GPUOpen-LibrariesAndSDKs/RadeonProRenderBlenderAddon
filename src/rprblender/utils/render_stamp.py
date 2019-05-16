@@ -28,7 +28,6 @@ else:
     import socket
     import ctypes
     from ctypes import windll
-    # from ctypes import Structure, byref, sizeof
     from ctypes.wintypes import RECT, SIZE
 
     from rprblender import bl_info
