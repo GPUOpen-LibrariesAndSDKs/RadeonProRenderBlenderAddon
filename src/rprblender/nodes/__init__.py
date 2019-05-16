@@ -35,18 +35,10 @@ node_categories = [
     RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
         NodeItem('ShaderNodeAddShader'),
-        # one could make the argument we don't want people "creating" these
-        NodeItem('ShaderNodeBsdfAnisotropic'),
-        NodeItem('ShaderNodeBsdfDiffuse'),
-        NodeItem('ShaderNodeBsdfGlass'),
-        NodeItem('ShaderNodeBsdfGlossy'),
-        NodeItem('ShaderNodeBsdfRefraction'),
-        NodeItem('ShaderNodeBsdfTranslucent'),
-        NodeItem('ShaderNodeBsdfTransparent'),
-        NodeItem('ShaderNodeBsdfVelvet'),
         NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
-        NodeItem('ShaderNodeSubsurfaceScattering'),
+        NodeItem('RPRShaderNodeUber'),
+        NodeItem('RPRShaderNodePassthrough'),
     ]),
     RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
         NodeItem('ShaderNodeTexChecker'),
@@ -79,11 +71,6 @@ node_categories = [
         NodeItem('ShaderNodeVectorMath'),
         NodeItem('RPRValueNode_Math'),
     ]),
-    RPR_ShaderNodeCategory('RPR_SHADER', "RPR Shader", items=[
-        NodeItem('RPRShaderNodeUber'),
-        # temporary disable this diffuse node
-        # NodeItem('RPRShaderNodeDiffuse'),
-    ]),
     RPR_ShaderNodeCategory('Layout', "Layout", items=[
         NodeItem('NodeReroute'),
     ])
@@ -114,6 +101,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
 
     rpr_nodes.RPRShaderNodeUber,
     rpr_nodes.RPRShaderNodeDiffuse,
+    rpr_nodes.RPRShaderNodePassthrough,
     rpr_nodes.RPRShaderNodeBlend,
     rpr_nodes.RPRShaderNodeEmissive,
     rpr_nodes.RPRShaderNodeNormalMap,
