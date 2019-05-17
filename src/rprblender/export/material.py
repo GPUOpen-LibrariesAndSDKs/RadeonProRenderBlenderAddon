@@ -7,8 +7,11 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.Material')
 
 
-def key(material: bpy.types.Material):
-    return material.name
+def key(material: bpy.types.Material, input_socket_key='Surface'):
+    if input_socket_key == 'Surface':
+        return material.name
+
+    return (material.name, input_socket_key)
 
 
 def get_material_output_node(material):
@@ -21,7 +24,7 @@ def get_material_output_node(material):
                       if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output), None)
 
 
-def sync(rpr_context: RPRContext, material: bpy.types.Material):
+def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface'):
     """
     If material exists: returns existing material
     In other cases: returns None
@@ -29,7 +32,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material):
 
     log("sync", material)
 
-    mat_key = key(material)
+    mat_key = key(material, input_socket_key)
 
     rpr_material = rpr_context.materials.get(mat_key, None)
     if rpr_material:
@@ -41,7 +44,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material):
         return None
 
     node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None)
-    rpr_material = node_parser.final_export()
+    rpr_material = node_parser.final_export(input_socket_key)
 
     if rpr_material:
         rpr_context.set_material_node_as_material(mat_key, rpr_material)

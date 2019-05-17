@@ -40,11 +40,18 @@ BLUE_GRAYSCALE_COEF = 0.0722
 class ShaderNodeOutputMaterial(NodeParser):
     # inputs: Surface, Volume, Displacement
 
-    def export(self, input_socket_key):
+    def export(self, input_socket_key='Surface'):
+
         rpr_node = self.get_input_link(input_socket_key)
         if not rpr_node:
             if input_socket_key == 'Surface':
-                raise MaterialError("Empty Surface input socket", self.node, self.material)
+                # checking if we have connected node to Volume socket
+                volume_rpr_node = self.get_input_link('Volume')
+                if volume_rpr_node:
+                    rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
+                    rpr_node.set_input('color', (1.0, 1.0, 1.0))
+                else:
+                    raise MaterialError("Empty Surface input socket", self.node, self.material)
 
         return rpr_node
 
@@ -1415,3 +1422,35 @@ class ShaderNodeUVMap(NodeParser):
 
         log.warn("Only primary mesh UV map supported", self.node.uv_map, self.node, self.material)
         return None
+
+
+class ShaderNodeVolumePrincipled(NodeParser):
+    def export(self):
+        # TODO: implement more correct ShaderNodeVolumePrincipled
+
+        color = self.get_input_value('Color')
+        if not isinstance(color, tuple):
+            color = self.get_input_default('Color')
+
+        density = self.get_input_value('Density')
+        if not isinstance(density, (float, tuple)):
+            density = self.get_input_default('Density')
+        if isinstance(density, tuple):
+            density = density[0]
+
+        emission = self.get_input_value('Emission Strength')
+        if not isinstance(emission, (float, tuple)):
+            emission = self.get_input_default('Emission Strength')
+        if isinstance(emission, tuple):
+            emission = emission[0]
+
+        emission_color = self.get_input_value('Emission Color')
+        if not isinstance(emission_color, tuple):
+            emission_color = self.get_input_default('Emission Color')
+
+        return {
+            'color': color,
+            'density': density,
+            'emission': emission,
+            'emission_color': emission_color,
+        }

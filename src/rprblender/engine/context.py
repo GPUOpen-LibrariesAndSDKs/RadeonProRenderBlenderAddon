@@ -480,6 +480,11 @@ class RPRContext:
         self.particles[key] = curve
         return curve
 
+    def create_hetero_volume(self, key):
+        volume = pyrpr.HeteroVolume(self.context)
+        self.particles[key] = volume
+        return volume
+
     def create_camera(self, key=None):
         camera = pyrpr.Camera(self.context)
         if key:
