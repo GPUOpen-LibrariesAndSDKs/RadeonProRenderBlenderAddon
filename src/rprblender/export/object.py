@@ -1,8 +1,7 @@
-import numpy as np
 import bpy
+import numpy as np
 
-from . import mesh, light, to_mesh
-
+from . import mesh, light, camera, particle, to_mesh, volume
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -32,6 +31,7 @@ def sync(rpr_context, obj: bpy.types.Object, depsgraph):
     else:
         log.warn("Object to sync not supported", obj, obj.type)
 
+    volume.sync(rpr_context, obj)
 
 def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geometry, is_updated_transform):
     """ Updates existing rpr object. Checks obj.type and calls corresponded sync_update() """

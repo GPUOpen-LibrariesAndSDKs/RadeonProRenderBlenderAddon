@@ -130,7 +130,8 @@ class NodeParser(metaclass=ABCMeta):
         """ Parse link, accept only RPR core material nodes """
         return self.get_input_link(socket_key, accepted_type=pyrpr.MaterialNode)
 
-    def is_link_allowed(self, link):
+    @staticmethod
+    def is_link_allowed(link):
         """
         Check if linked socket could be linked to destination socket
         Some links are not allowed for RPR, like any shader to non-shader

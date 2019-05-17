@@ -60,6 +60,7 @@
     <Compile Include="rprblender\export\mesh.py" />
     <Compile Include="rprblender\export\object.py" />
     <Compile Include="rprblender\export\particle.py" />
+    <Compile Include="rprblender\export\volume.py" />
     <Compile Include="rprblender\export\to_mesh.py" />
     <Compile Include="rprblender\export\world.py" />
     <Compile Include="rprblender\export\__init__.py" />
@@ -94,6 +95,7 @@
     <Compile Include="rprblender\ui\material_browser.py" />
     <Compile Include="rprblender\ui\object.py" />
     <Compile Include="rprblender\ui\render.py" />
+    <Compile Include="rprblender\ui\view3d.py" />
     <Compile Include="rprblender\ui\view_layer.py" />
     <Compile Include="rprblender\ui\world.py" />
     <Compile Include="rprblender\ui\__init__.py" />
