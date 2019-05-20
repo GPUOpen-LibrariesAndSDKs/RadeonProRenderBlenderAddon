@@ -7,6 +7,7 @@ This version uses Windows API so it's compatible only with Windows operation sys
 import platform
 
 import pyrpr
+from .user_settings import get_user_settings
 
 from . import logging
 log = logging.Log(tag="render_stamp")
@@ -100,7 +101,8 @@ else:
         ver = bl_info['version']
 
         cpu_name = pyrpr.Context.cpu_device['name']
-        devices = bpy.context.scene.rpr.devices
+        settings = get_user_settings()
+        devices = settings.final_devices
         hardware = ''
         render_mode = ''
         selected_gpu_names = ''
