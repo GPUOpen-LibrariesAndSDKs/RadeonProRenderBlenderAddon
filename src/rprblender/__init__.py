@@ -70,20 +70,20 @@ class RPREngine(bpy.types.RenderEngine):
         self.engine.render()
 
     # viewport render
-    def view_update(self, context):
+    def view_update(self, context, depsgraph):
         ''' called when data is updated for viewport '''
         log('view_update')
 
         # if there is no engine set, create it and do the initial sync
         if not self.engine:
             self.engine = ViewportEngine(self)
-            self.engine.sync(context)
+            self.engine.sync(context, depsgraph)
             self.engine.render()
         else:
-            self.engine.sync_update(context)
+            self.engine.sync_update(depsgraph)
 
 
-    def view_draw(self, context):
+    def view_draw(self, context, depsgraph):
         ''' called when viewport is to be drawn '''
         self.engine.draw(context)
 

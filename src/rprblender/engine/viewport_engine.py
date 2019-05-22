@@ -39,7 +39,7 @@ class ViewportSettings:
         self.camera_data = camera.CameraData.init_from_context(context)
         self.screen_width, self.screen_height = context.region.width, context.region.height
 
-        scene = context.depsgraph.scene
+        scene = context.scene
 
         # getting render border
         x1, y1 = 0, 0
@@ -239,10 +239,9 @@ class ViewportEngine(Engine):
 
         log("Finish resolve thread")
 
-    def sync(self, context):
+    def sync(self, context, depsgraph):
         log('Start sync')
     
-        depsgraph = context.depsgraph
         scene = depsgraph.scene
         viewport_limits = scene.rpr.viewport_limits
 
@@ -280,7 +279,7 @@ class ViewportEngine(Engine):
 
         # exporting objects
         for obj in self.depsgraph_objects(depsgraph):
-            object.sync(self.rpr_context, obj, depsgraph)
+            object.sync(self.rpr_context, obj)
 
             if len(obj.particle_systems):
                 # export particles
@@ -289,7 +288,7 @@ class ViewportEngine(Engine):
 
         # exporting instances
         for inst in self.depsgraph_instances(depsgraph):
-            instance.sync(self.rpr_context, inst, depsgraph)
+            instance.sync(self.rpr_context, inst)
 
         self.rpr_context.sync_shadow_catcher()
 
@@ -303,10 +302,8 @@ class ViewportEngine(Engine):
         self.is_synced = True
         log('Finish sync')
 
-    def sync_update(self, context):
+    def sync_update(self, depsgraph):
         """ sync just the updated things """
-
-        depsgraph = context.depsgraph
 
         # get supported updates and sort by priorities
         updates = []
@@ -344,7 +341,7 @@ class ViewportEngine(Engine):
                     if obj.type == 'CAMERA':
                         continue
 
-                    is_updated |= object.sync_update(self.rpr_context, obj, depsgraph,
+                    is_updated |= object.sync_update(self.rpr_context, obj,
                                                      update.is_updated_geometry, update.is_updated_transform)
                     continue
 
@@ -424,7 +421,7 @@ class ViewportEngine(Engine):
         log("Draw")
 
         viewport_settings = ViewportSettings(context)
-        scene = context.depsgraph.scene
+        scene = context.scene
 
         if viewport_settings.width * viewport_settings.height == 0:
             return
@@ -505,7 +502,7 @@ class ViewportEngine(Engine):
                 if object.key(obj) not in object_keys_to_export:
                     continue
 
-                object.sync(self.rpr_context, obj, depsgraph)
+                object.sync(self.rpr_context, obj)
                 res = True
 
             # exporting instances
@@ -513,7 +510,7 @@ class ViewportEngine(Engine):
                 if instance.key(inst) not in object_keys_to_export:
                     continue
 
-                instance.sync(self.rpr_context, inst, depsgraph)
+                instance.sync(self.rpr_context, inst)
                 res = True
 
         return res
@@ -527,7 +524,7 @@ class ViewportEngine(Engine):
 
             rpr_shape = self.rpr_context.objects.get(object.key(entry), None)
             if not rpr_shape:
-                object.sync(self.rpr_context, entry, depsgraph)
+                object.sync(self.rpr_context, entry)
                 updated = True
                 continue
 

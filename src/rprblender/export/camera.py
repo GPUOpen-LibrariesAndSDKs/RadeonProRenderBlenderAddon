@@ -35,28 +35,26 @@ class CameraData:
     def init_from_camera(camera: bpy.types.Camera, transform, ratio, border=((0, 0), (1, 1))):
         """ Returns CameraData from bpy.types.Camera """
 
-        def get_focus_distance(camera_data):
-            ''' get focus distance from obj if set else the actual distance '''
-            if not camera_data.dof_object:
-                return camera_data.dof_distance
-
-            obj_pos = camera_data.dof_object.matrix_world.to_translation()
-            camera_pos = transform.to_translation()
-            direction = obj_pos - camera_pos
-            return direction.length
-
         pos, size = border
 
         data = CameraData()
         data.clip_plane = (camera.clip_start, camera.clip_end)
         data.transform = tuple(transform)
         
-        focus_distance = get_focus_distance(camera)
-        # enable dof is distance is set
-        if math.isclose(focus_distance, 0.0):
-            data.dof_data = None
+        if camera.dof.use_dof:
+            # calculating focus_distance
+            if not camera.dof.focus_object:
+                focus_distance = camera.dof.focus_distance
+            else:
+                obj_pos = camera.dof.focus_object.matrix_world.to_translation()
+                camera_pos = transform.to_translation()
+                focus_distance = (obj_pos - camera_pos).length
+
+            data.dof_data = (max(focus_distance, 0.001),
+                             camera.dof.aperture_fstop,
+                             max(camera.dof.aperture_blades, 4))
         else:
-            data.dof_data = (max(focus_distance, 0.001), camera.gpu_dof.fstop, max(camera.gpu_dof.blades, 4))
+            data.dof_data = None
 
         if camera.sensor_fit == 'VERTICAL':
             data.lens_shift = (camera.shift_x / ratio, camera.shift_y)
