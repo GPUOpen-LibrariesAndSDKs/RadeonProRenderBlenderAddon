@@ -47,6 +47,9 @@ def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geomet
     if obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
         return to_mesh.sync_update(rpr_context, obj, depsgraph, is_updated_geometry, is_updated_transform)
 
-    log.warn("Not supported object to sync_update", obj)
+    if obj.type == 'EMPTY':
+        return False
+
+    log.warn("Not supported object to sync_update", obj, obj.type)
 
     return False

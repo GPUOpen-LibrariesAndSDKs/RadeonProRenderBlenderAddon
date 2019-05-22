@@ -431,13 +431,14 @@ class RPRContext:
             light = pyrpr.DirectionalLight(self.context)
         elif light_type == 'ies':
             light = pyrpr.IESLight(self.context)
-        elif light_type == 'environment':
-            light = pyrpr.EnvironmentLight(self.context)
         else:
             raise KeyError("No such light type", light_type)
 
         self.objects[key] = light
         return light
+
+    def create_environment_light(self):
+        return pyrpr.EnvironmentLight(self.context)
 
     def create_area_light(
             self, key,
@@ -505,14 +506,14 @@ class RPRContext:
 
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)
-        image.set_name(key)
-        self.images[key] = image
+        if key:
+            self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
         image = pyrpr.ImageData(self.context, data)
-        image.set_name(key)
-        self.images[key] = image
+        if key:
+            self.images[key] = image
         return image
 
     def create_buffer(self, data, dtype):

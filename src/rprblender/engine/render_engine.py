@@ -43,9 +43,6 @@ class RenderEngine(Engine):
         self.rpr_engine.update_progress(progress)
         self.rpr_engine.update_stats(self.status_title, info)
 
-        if config.notifier_log_calls:
-            log("%d - %s" % (int(progress*100), info))
-
     def _render(self):
         time_begin = time.perf_counter()
 

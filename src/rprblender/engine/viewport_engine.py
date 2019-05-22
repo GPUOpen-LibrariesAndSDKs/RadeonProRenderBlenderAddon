@@ -270,7 +270,7 @@ class ViewportEngine(Engine):
             viewport_limits.set_adaptive_params(self.rpr_context)
 
         self.world_settings = world.WorldData(scene.world)
-        world.sync(self.rpr_context, scene.world)
+        self.world_settings.export(self.rpr_context)
 
         self.rpr_context.scene.set_name(scene.name)
 
@@ -353,8 +353,9 @@ class ViewportEngine(Engine):
                     if world_settings == self.world_settings:
                         continue
 
-                    is_updated |= world.sync_update(self.rpr_context, obj, self.world_settings, world_settings)
                     self.world_settings = world_settings
+                    self.world_settings.export(self.rpr_context)
+                    is_updated = True
                     continue
 
                 if isinstance(obj, bpy.types.Collection):
@@ -480,7 +481,7 @@ class ViewportEngine(Engine):
         )
 
         # set of rpr object keys except environment lights
-        rpr_object_keys = self.rpr_context.objects.keys() - world.ENVIRONMENT_LIGHTS_NAMES
+        rpr_object_keys = self.rpr_context.objects.keys()
 
         # sets of objects keys to remove from rpr
         object_keys_to_remove = rpr_object_keys - depsgraph_keys

@@ -730,7 +730,7 @@ class ShaderNodeTexCoord(RuleNodeParser):
             "params": {
                 "value": pyrpr.MATERIAL_NODE_LOOKUP_UV,
             },
-            "warn": "TexCoord Generated output is not unsupported, UV will be used"
+            "warn": "TexCoord Generated output is not supported, UV will be used"
         },
         "Normal": {
             "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
@@ -749,7 +749,7 @@ class ShaderNodeTexCoord(RuleNodeParser):
             "params": {
                 "value": pyrpr.MATERIAL_NODE_LOOKUP_P,
             },
-            "warn": "TexCoord Object output is not unsupported, world coordinate will be used"
+            "warn": "TexCoord Object output is not supported, world coordinate will be used"
         }
 
     }

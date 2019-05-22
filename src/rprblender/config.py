@@ -7,10 +7,6 @@ pyrprx_log_calls = False
 pyrprimagefilters_log_calls = False
 pyrprgltf_log_calls = False
 
-notifier_log_calls = False
-
-render_update_result_interval = 0.5     # in seconds
-
 use_gl_interop = True
 
 material_library_path = None
