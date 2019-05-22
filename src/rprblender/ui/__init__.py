@@ -43,6 +43,7 @@ def get_panels():
         'DATA_PT_context_light',
         'DATA_PT_falloff_curve',
         'DATA_PT_light',
+        'NODE_DATA_PT_light',
         'DATA_PT_shadow',
         'DATA_PT_spot',
         'DATA_PT_sunsky',
@@ -137,8 +138,9 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     material_browser.RPR_MATERIL_PT_material_browser,
     material.RPR_MATERIAL_PT_node_arrange,
 
+    camera.RPR_CAMERA_PT_dof,
+    camera.RPR_CAMERA_PT_dof_aperture,
     camera.RPR_CAMERA_PT_motion_blur,
-    camera.DATA_PT_RPR_camera_dof_aperture,
 
     world.RPR_WORLD_PT_environment,
     world.RPR_WORLD_PT_sun_sky,

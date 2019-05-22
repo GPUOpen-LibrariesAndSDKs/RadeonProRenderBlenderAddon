@@ -54,7 +54,7 @@ class PreviewEngine(Engine):
 
         # export visible objects
         for obj in self.depsgraph_objects(depsgraph):
-            object.sync(self.rpr_context, obj, depsgraph)
+            object.sync(self.rpr_context, obj)
 
             if len(obj.particle_systems):
                 # export particles

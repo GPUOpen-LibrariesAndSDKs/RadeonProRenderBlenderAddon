@@ -10,26 +10,22 @@ from . import object, mesh
 from rprblender.utils import logging
 log = logging.Log(tag='export.to_mesh')
 
-def sync(rpr_context, obj: bpy.types.Object, depsgraph):
+def sync(rpr_context, obj: bpy.types.Object):
     """ Converts object into blender's mesh and exports it as mesh """
 
     # This operation adds new mesh into bpy.data.meshes, that's why it should be removed after usage.
     # obj.to_mesh() could also return None for META objects.
-    new_mesh = obj.to_mesh(depsgraph, apply_modifiers=True)
+    new_mesh = obj.to_mesh()
     log("sync", obj, new_mesh)
 
     if new_mesh:
-        try:
-            mesh.sync(rpr_context, obj, new_mesh)
-        finally:
-            bpy.data.meshes.remove(new_mesh)
-
+        mesh.sync(rpr_context, obj, new_mesh)
         return True
 
     return False
 
 
-def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Updates existing rpr mesh or creates a new mesh """
 
     log("sync_update", obj)
@@ -37,12 +33,12 @@ def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geomet
     obj_key = object.key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
     if not rpr_shape:
-        sync(rpr_context, obj, depsgraph)
+        sync(rpr_context, obj)
         return True
 
     if is_updated_geometry:
         rpr_context.remove_object(obj_key)
-        sync(rpr_context, obj, depsgraph)
+        sync(rpr_context, obj)
         return True
 
     if is_updated_transform:

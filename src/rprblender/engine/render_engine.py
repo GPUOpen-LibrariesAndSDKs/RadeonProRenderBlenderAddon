@@ -204,7 +204,7 @@ class RenderEngine(Engine):
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
             self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
-            object.sync(self.rpr_context, obj, depsgraph)
+            object.sync(self.rpr_context, obj)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -216,7 +216,7 @@ class RenderEngine(Engine):
             obj = inst.object
             self.notify_status(0, "Syncing instance (%d/%d): %s" % (i, instances_len - objects_len, obj.name))
 
-            instance.sync(self.rpr_context, inst, depsgraph)
+            instance.sync(self.rpr_context, inst)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")

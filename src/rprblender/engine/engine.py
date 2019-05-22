@@ -36,11 +36,6 @@ class Engine(metaclass=ABCMeta):
     def render(self):
         pass
 
-    @abstractmethod
-    def sync(self, depsgraph):
-        ''' sync all data '''
-        pass
-
     def apply_render_stamp(self, image, channels):
         """
         Don't change anything unless it's the final render. Redefined in render_engine to apply render stamp.

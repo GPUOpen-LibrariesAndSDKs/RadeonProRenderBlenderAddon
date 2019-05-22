@@ -7,7 +7,7 @@ class RPR_CAMERA_PT_motion_blur(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.camera and RPR_Panel.poll(context)
+        return context.camera and super().poll(context)
 
     def draw_header(self, context):
         self.layout.prop(context.scene.render, 'use_motion_blur', text="")
@@ -19,23 +19,45 @@ class RPR_CAMERA_PT_motion_blur(RPR_Panel):
         col.prop(context.camera.rpr, 'motion_blur_exposure', slider=True)
 
 
-class DATA_PT_RPR_camera_dof_aperture(RPR_Panel):
-    bl_label = "Aperture"
-    bl_parent_id = "DATA_PT_camera_dof"
-    
+class RPR_CAMERA_PT_dof(RPR_Panel):
+    bl_label = "Depth of Field"
+    bl_context = "data"
+
     @classmethod
     def poll(cls, context):
-        return context.camera and RPR_Panel.poll(context)
+        return context.camera and super().poll(context)
+
+    def draw_header(self, context):
+        self.layout.prop(context.camera.dof, "use_dof", text="")
 
     def draw(self, context):
+        dof = context.camera.dof
+
         layout = self.layout
         layout.use_property_split = True
+        layout.active = dof.use_dof
 
-        cam = context.camera
-        dof_options = cam.gpu_dof
+        split = layout.split()
 
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        col = split.column()
+        col.prop(dof, "focus_object", text="Focus Object")
 
-        col = flow.column()
-        col.prop(dof_options, "fstop")
-        col.prop(dof_options, "blades")
+        sub = col.row()
+        sub.active = dof.focus_object is None
+        sub.prop(dof, "focus_distance", text="Distance")
+
+
+class RPR_CAMERA_PT_dof_aperture(RPR_Panel):
+    bl_label = "Aperture"
+    bl_parent_id = "RPR_CAMERA_PT_dof"
+
+    def draw(self, context):
+        dof = context.camera.dof
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.active = dof.use_dof
+
+        col = layout.column()
+        col.prop(dof, "aperture_fstop")
+        col.prop(dof, "aperture_blades")

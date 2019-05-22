@@ -14,7 +14,7 @@ def get_transform(obj: bpy.types.Object):
     return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
-def sync(rpr_context, obj: bpy.types.Object, depsgraph):
+def sync(rpr_context, obj: bpy.types.Object):
     """ sync the object and any data attached """
 
     log("sync", obj)
@@ -26,14 +26,14 @@ def sync(rpr_context, obj: bpy.types.Object, depsgraph):
         light.sync(rpr_context, obj)
 
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        to_mesh.sync(rpr_context, obj, depsgraph)
+        to_mesh.sync(rpr_context, obj)
 
     else:
         log.warn("Object to sync not supported", obj, obj.type)
 
     volume.sync(rpr_context, obj)
 
-def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Updates existing rpr object. Checks obj.type and calls corresponded sync_update() """
 
     log("sync_update", obj, is_updated_geometry, is_updated_transform)
@@ -45,7 +45,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, depsgraph, is_updated_geomet
         return mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     if obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        return to_mesh.sync_update(rpr_context, obj, depsgraph, is_updated_geometry, is_updated_transform)
+        return to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     if obj.type == 'EMPTY':
         return False
