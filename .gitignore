@@ -1,5 +1,8 @@
 __pycache__
 
+# vscode
+.vscode
+
 # idea
 .idea
 .idea/workspace.xml
