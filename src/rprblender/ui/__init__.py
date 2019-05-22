@@ -1,6 +1,8 @@
 import bpy
 
-__all__ = ('RPR_Panel', 'register', 'unregister', 'set_rpr_panels_filter', 'remove_rpr_panels_filter')
+
+__all__ = ('RPR_Panel', 'register', 'unregister')
+
 
 PANEL_WIDTH_FOR_COLUMN = 200
 
@@ -139,7 +141,12 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     camera.DATA_PT_RPR_camera_dof_aperture,
 
     world.RPR_WORLD_PT_environment,
-    world.RPR_WORLD_PT_overrides,
+    world.RPR_WORLD_PT_sun_sky,
+    world.RPR_WORLD_PT_gizmo,
+    world.RPR_WORLD_PT_background_override,
+    world.RPR_WORLD_PT_reflection_override,
+    world.RPR_WORLD_PT_refraction_override,
+    world.RPR_WORLD_PT_transparency_override,
 
     view_layer.RPR_VIEWLAYER_PT_aovs,
     view_layer.RPR_RENDER_PT_denoiser,

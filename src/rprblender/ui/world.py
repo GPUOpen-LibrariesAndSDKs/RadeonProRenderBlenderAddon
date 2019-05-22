@@ -1,5 +1,3 @@
-import bpy
-
 from . import RPR_Panel
 
 
@@ -8,100 +6,137 @@ class RPR_WORLD_PT_environment(RPR_Panel):
     bl_space_type = "PROPERTIES"
     bl_context = 'world'
 
-    @classmethod
-    def poll(cls, context):
-        return super().poll(context)  # and context.scene.world.rpr
-
-    def draw(self, context):
-        layout = self.layout
-
-        scene = context.scene
-        environment = scene.world.rpr
-
-        layout.enabled = environment.enabled
-
-        # Environment
-        layout.row().prop(environment, 'light_type', expand=True)
-        if environment.light_type == 'IBL':
-            self.draw_ibl(layout, environment)
-        else:
-            self.draw_sun_sky(layout, environment)
-
-        self.draw_environment_gizmo(layout.column(), context, environment)
-
-    def draw_ibl(self, layout, environment):
-        box = layout.box()
-        box.row().prop(environment, 'ibl_type', expand=True)
-
-        col = box.column()
-        col.use_property_split = True
-        col.use_property_decorate = False
-
-        if environment.ibl_type == 'COLOR':
-            col.prop(environment, 'ibl_color')
-            col.prop(environment, 'ibl_intensity')
-        else:
-            col.template_ID(environment, "ibl_image", open="image.open")
-            col.prop(environment, 'ibl_intensity')
-
-    def draw_sun_sky(self, layout, environment):
-        layout.label(text="Under construction")
-
     def draw_header(self, context):
         self.layout.prop(context.scene.world.rpr, 'enabled', text="")
 
-    def draw_environment_gizmo(self, column, context, environment):
-        box = column.box()
-        column1, column2, is_row = self.create_ui_autosize_column(context, box)
-        column1.label(text='Object:')
-        row = column1.row(align=True)
-        row.prop_search(environment, 'gizmo', bpy.data, 'objects', text='')
-        if not environment.gizmo:
-            gizmo = row.operator("rpr.op_create_environment_gizmo", icon='ZOOM_IN', text="")
-            if gizmo:
-                gizmo.rotation = environment.gizmo_rotation
-        column2.prop(environment, 'gizmo_rotation')
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        rpr = context.scene.world.rpr
+
+        layout.enabled = rpr.enabled
+
+        layout.prop(rpr, 'intensity')
+        layout.separator()
+
+        row = layout.row()
+        row.use_property_split = False
+        row.prop(rpr, 'mode', expand=True)
+
+        if rpr.mode == 'IBL':
+            ibl = rpr.ibl
+
+            layout.template_ID(ibl, "image", open="image.open")
+
+            row = layout.row()
+            row.enabled = ibl.image is None
+            row.prop(ibl, 'color')
+
+        else:
+            sun_sky = rpr.sun_sky
+
+            col = layout.column(align=True)
+            col.prop(sun_sky, 'azimuth')
+            col.prop(sun_sky, 'altitude')
+
+            layout.prop(sun_sky, 'resolution')
 
 
-class RPR_WORLD_PT_overrides(RPR_Panel):
-    bl_label = "Overrides"
+class RPR_EnvironmentOverride(RPR_Panel):
     bl_parent_id = 'RPR_WORLD_PT_environment'
     bl_options = {'DEFAULT_CLOSED'}
 
+    type = ''
+
+    def draw_header(self, context):
+        rpr = context.scene.world.rpr
+        row = self.layout.row()
+        row.enabled = rpr.enabled
+        row.prop(rpr, f'{self.type}_override', text="")
+
     def draw(self, context):
-        def draw_override_section(data_type_name, data_type, color_name, image_name):
-            # For each override show type selector and color/image input.
-            box = self.layout.box()
-            row = box.row()
-            row.alignment = 'EXPAND'
-            row.prop(environment, data_type_name, expand=True)
-            row = box.row()
-            row.alignment = 'EXPAND'
-            if data_type == 'IMAGE':
-                row.template_ID(environment, image_name, open="image.open")
-            else:
-                row.prop(environment, color_name)
+        rpr = context.scene.world.rpr
 
-        environment = context.scene.world.rpr
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.enabled = rpr.enabled and getattr(rpr, f'{self.type}_override')
 
-        self.layout.enabled = environment.enabled
+        layout.template_ID(rpr, f'{self.type}_image', open='image.open')
 
-        self.layout.prop(environment, 'override_background')
-        if environment.override_background:
-            draw_override_section('background_type', environment.background_type,
-                                  'background_color', 'background_image')
+        row = layout.row()
+        row.enabled = getattr(rpr, f'{self.type}_image') is None
+        row.prop(rpr, f'{self.type}_color')
 
-        self.layout.prop(environment, 'override_reflection')
-        if environment.override_reflection:
-            draw_override_section('reflection_type', environment.reflection_type,
-                                  'reflection_color', 'reflection_image')
 
-        self.layout.prop(environment, 'override_refraction')
-        if environment.override_refraction:
-            draw_override_section('refraction_type', environment.refraction_type,
-                                  'refraction_color', 'refraction_image')
+class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
+    bl_label = "Background Override"
+    type = 'background'
 
-        self.layout.prop(environment, 'override_transparency')
-        if environment.override_transparency:
-            draw_override_section('transparency_type', environment.transparency_type,
-                                  'transparency_color', 'transparency_image')
+
+class RPR_WORLD_PT_reflection_override(RPR_EnvironmentOverride):
+    bl_label = "Reflection Override"
+    type = 'reflection'
+
+
+class RPR_WORLD_PT_refraction_override(RPR_EnvironmentOverride):
+    bl_label = "Refraction Override"
+    type = 'refraction'
+
+
+class RPR_WORLD_PT_transparency_override(RPR_EnvironmentOverride):
+    bl_label = "Transparency Override"
+    type = 'transparency'
+
+
+class RPR_WORLD_PT_gizmo(RPR_Panel):
+    bl_label = "Gizmo"
+    bl_parent_id = 'RPR_WORLD_PT_environment'
+
+    def draw(self, context):
+        rpr = context.scene.world.rpr
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.enabled = rpr.enabled
+
+        layout.prop(rpr, 'gizmo_rotation')
+
+
+class RPR_WORLD_PT_sun_sky(RPR_Panel):
+    bl_label = "Sun & Sky Properties"
+    bl_parent_id = 'RPR_WORLD_PT_environment'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.scene.world.rpr.mode == 'SUN_SKY'
+
+    def draw(self, context):
+        rpr = context.scene.world.rpr
+        sun_sky = rpr.sun_sky
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.enabled = rpr.enabled
+
+        flow = layout.grid_flow(row_major=True, even_columns=True)
+
+        col = flow.column(align=True)
+        col.prop(sun_sky, 'turbidity')
+        col.prop(sun_sky, 'intensity')
+        col.prop(sun_sky, 'sun_glow')
+        col.prop(sun_sky, 'sun_disc')
+
+        col = flow.column(align=True)
+        col.prop(sun_sky, 'saturation')
+        col.prop(sun_sky, 'horizon_height')
+        col.prop(sun_sky, 'horizon_blur')
+
+        col = flow.column(align=True)
+        col.prop(sun_sky, 'filter_color')
+        col.prop(sun_sky, 'ground_color')

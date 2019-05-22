@@ -104,3 +104,7 @@ logging.info("Registering plugin with: tahoe_path={}, cache_path={}".format(taho
 pyrpr.Context.register_plugin(tahoe_path, cache_path)
 logging.info("Plugin is registered: plugins={}, cpu_device={}, gpu_devices={}".
              format(pyrpr.Context.plugins, pyrpr.Context.cpu_device, pyrpr.Context.gpu_devices))
+
+
+# we do import of helper_lib just to load RPRBlenderHelper.dll at this stage
+import rprblender.utils.helper_lib

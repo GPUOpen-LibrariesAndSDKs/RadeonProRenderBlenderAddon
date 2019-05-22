@@ -54,7 +54,7 @@ def sync(rpr_context, obj: bpy.types.Object):
 
     # getting smoke resolution and color_grid
     amplify = domain.amplify if domain.use_high_resolution else 0
-    x, y ,z = ((amplify + 1) * i for i in domain.domain_resolution)
+    x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
 
     color_grid = np.fromiter(domain.color_grid, dtype=np.float32).reshape(x, y, z, 4)
 

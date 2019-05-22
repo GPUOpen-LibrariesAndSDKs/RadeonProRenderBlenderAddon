@@ -40,6 +40,8 @@ def sync(rpr_context, image: bpy.types.Image):
 
         raise ValueError("Image has no data", image)
 
+    rpr_image.set_name(image_key)
+
     # TODO: implement more correct support of image color space types
     if image.colorspace_settings.name in ('sRGB', 'BD16', 'Filmic Log'):
         rpr_image.set_gamma(2.2)

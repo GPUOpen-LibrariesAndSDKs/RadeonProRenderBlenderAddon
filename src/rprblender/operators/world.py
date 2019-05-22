@@ -43,5 +43,5 @@ class RPR_WORLD_OP_create_environment_gizmo(bpy.types.Operator):
 
         obj.rotation_euler = self.rotation
 
-        context.scene.world.rpr.gizmo = obj.name
+        context.scene.world.rpr.gizmo = obj
         return {'FINISHED'}
