@@ -515,6 +515,14 @@ def export(header_file, includes, json_file_name, prefixes, castxml):
                 for prefix in prefixes['constant']:
                     if name.startswith(prefix):
                         value = ' '.join(tokens[2:])
+
+                        # if define points at other prefixed define correct value name by removing prefix
+                        value_prefix = next(
+                            (p for p in prefixes['constant'] if value.startswith(p)),
+                            None)
+                        if value_prefix:
+                            value = value[len(value_prefix):]
+
                         local_name = name[len(prefix):]
                         api.constants[name] = ConstantDesc(name, value)
 

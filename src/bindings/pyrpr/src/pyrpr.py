@@ -572,30 +572,24 @@ class Shape(Object):
         ShapeSetVisibility(self, visible)
 
     def set_visibility_ex(self, visibility_type, visible):
-        if API_VERSION >= 0x010032000:
-            flags = {
-                "visible.light": SHAPE_VISIBILITY_LIGHT,
-                "visible.refraction.glossy": SHAPE_VISIBILITY_GLOSSY_REFRACTION,
-                "visible.reflection.glossy": SHAPE_VISIBILITY_GLOSSY_REFLECTION,
-                "visible.diffuse": SHAPE_VISIBILITY_DIFFUSE,
-                "visible.transparent": SHAPE_VISIBILITY_TRANSPARENT,
-                "visible.refraction": SHAPE_VISIBILITY_REFRACTION,
-                "visible.reflection": SHAPE_VISIBILITY_REFLECTION,
-                "visible.shadow": SHAPE_VISIBILITY_SHADOW,
-                "visible.primary": SHAPE_VISIBILITY_PRIMARY_ONLY_FLAG,
-                }
-            ShapeSetVisibilityFlag(self, flags[visibility_type], visible)
-        else:
-            ShapeSetVisibilityEx(self, encode(visibility_type), visible)
+        flags = {
+            "visible.light": SHAPE_VISIBILITY_LIGHT,
+            "visible.refraction.glossy": SHAPE_VISIBILITY_GLOSSY_REFRACTION,
+            "visible.reflection.glossy": SHAPE_VISIBILITY_GLOSSY_REFLECTION,
+            "visible.diffuse": SHAPE_VISIBILITY_DIFFUSE,
+            "visible.transparent": SHAPE_VISIBILITY_TRANSPARENT,
+            "visible.refraction": SHAPE_VISIBILITY_REFRACTION,
+            "visible.reflection": SHAPE_VISIBILITY_REFLECTION,
+            "visible.shadow": SHAPE_VISIBILITY_SHADOW,
+            "visible.primary": SHAPE_VISIBILITY_PRIMARY_ONLY_FLAG,
+            }
+        ShapeSetVisibilityFlag(self, flags[visibility_type], visible)
 
     def set_visibility_in_specular(self, visible):
         ShapeSetVisibilityInSpecular(self, visible)
 
     def set_visibility_primary_only(self, visible):
-        if API_VERSION >= 0x010032000:
-            ShapeSetVisibilityFlag(self, SHAPE_VISIBILITY_PRIMARY_ONLY_FLAG, visible)
-        else:
-            ShapeSetVisibilityPrimaryOnly(self, visible)
+        ShapeSetVisibilityFlag(self, SHAPE_VISIBILITY_PRIMARY_ONLY_FLAG, visible)
 
     def set_subdivision_factor(self, factor):
         ShapeSetSubdivisionFactor(self, factor)

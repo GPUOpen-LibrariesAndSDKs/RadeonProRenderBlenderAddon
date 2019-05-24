@@ -237,9 +237,14 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
 
     def draw(self, context):
         def core_ver_str():
-            mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
-            mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
-            return "%x.%x" % (mj, mn)
+            if hasattr(pyrpr, 'VERSION_MAJOR_MINOR_REVISION'):  # core 1.33.5+
+                return "{}.{}.{}".format(
+                    pyrpr.VERSION_MAJOR, pyrpr.VERSION_MINOR, pyrpr.VERSION_REVISION)
+            else:  # core 1.334 or earlier
+                # TODO: remove when core 1.33.5 became master
+                mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
+                mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
+                return "%x.%x" % (mj, mn)
 
         def label_center(lay, text):
             row = lay.row()
