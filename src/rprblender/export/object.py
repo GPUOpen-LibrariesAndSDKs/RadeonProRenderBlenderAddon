@@ -25,13 +25,20 @@ def sync(rpr_context, obj: bpy.types.Object):
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
 
+    elif obj.type == 'CAMERA':
+        camera.sync(rpr_context, obj)
+
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
         to_mesh.sync(rpr_context, obj)
+
+    elif obj.type == 'EMPTY':
+        return False
 
     else:
         log.warn("Object to sync not supported", obj, obj.type)
 
     volume.sync(rpr_context, obj)
+
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     """ Updates existing rpr object. Checks obj.type and calls corresponded sync_update() """

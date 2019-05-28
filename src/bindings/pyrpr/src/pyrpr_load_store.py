@@ -16,8 +16,15 @@ def init(rpr_sdk_bin_path):
 def export(name, context, scene):
 
     file_name = bytes(name, encoding="latin1")
+
+    # last param defines export bit flags.
+    # image handling type flags:
+    # RPRLOADSTORE_EXPORTFLAG_EXTERNALFILES (1 << 0) - image data will be stored to rprsb external file
+    # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_1 (1 << 1) - image data will be lossless compressed during export
+    # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - image data will be lossy compressed during export
+    #  note: without any of above flags images will not be exported.
     return lib.rprsExport(file_name, context._get_handle(), scene._get_handle(),
-                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, 1) # last param is RPRLOADSTORE_EXPORTFLAG_EXTERNALFILES (1 << 0) 
+                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, 2)
 
 
 def get_library_path(rpr_sdk_bin_path):

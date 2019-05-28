@@ -75,6 +75,7 @@
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
+    <Compile Include="rprblender\operators\export_scene.py" />
     <Compile Include="rprblender\operators\light.py" />
     <Compile Include="rprblender\operators\material_library.py" />
     <Compile Include="rprblender\operators\nodes.py" />
