@@ -80,27 +80,34 @@ class RPR_MATERIAL_PT_preview(RPR_Panel):
         self.layout.template_preview(context.material)
 
 
-class RPR_MATERIAL_PT_surface(RPR_Panel):
-    bl_label = "Surface"
+class RPR_MaterialOutputSocket(RPR_Panel):
+    bl_label = ""
     bl_context = "material"
 
     @classmethod
     def poll(cls, context):
-        return context.material and RPR_Panel.poll(context)
+        return context.material and super().poll(context)
 
     def draw(self, context):
         layout = self.layout
 
         node_tree = context.material.node_tree
 
-    #    node = node_tree.get_output_node('OUTPUT')
         output_node = get_material_output_node(context.material)
         if not output_node:
             layout.label(text="No output node")
             return
 
-        input = output_node.inputs['Surface']
+        input = output_node.inputs[self.bl_label]
         layout.template_node_view(node_tree, output_node, input)
+
+
+class RPR_MATERIAL_PT_surface(RPR_MaterialOutputSocket):
+    bl_label = "Surface"
+
+
+class RPR_MATERIAL_PT_volume(RPR_MaterialOutputSocket):
+    bl_label = "Volume"
 
 
 class RPR_MATERIAL_PT_node_arrange(RPR_Panel):

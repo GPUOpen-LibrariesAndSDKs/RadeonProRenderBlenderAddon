@@ -43,27 +43,45 @@ class ShaderNodeOutputMaterial(NodeParser):
     def export(self, input_socket_key='Surface'):
 
         rpr_node = self.get_input_link(input_socket_key)
-        if not rpr_node:
-            if input_socket_key == 'Surface':
-                # checking if we have connected node to Volume socket
-                volume_rpr_node = self.get_input_link('Volume')
-                if volume_rpr_node:
-                    rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
-                    rpr_node.set_input('color', (1.0, 1.0, 1.0))
-                else:
-                    raise MaterialError("Empty Surface input socket", self.node, self.material)
+        if input_socket_key == 'Surface':
+            if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+                return rpr_node
 
-        return rpr_node
+            if not rpr_node:
+                # checking if we have connected node to Volume socket
+                volume_rpr_node = self.export('Volume')
+                if volume_rpr_node :
+                    rpr_node = self.rpr_context.create_material_node(
+                        pyrpr.MATERIAL_NODE_TRANSPARENT)
+                    rpr_node.set_input('color', (1.0, 1.0, 1.0))
+                    return rpr_node
+
+            raise MaterialError("Incorrect Surface input socket",
+                                type(rpr_node), self.node, self.material)
+
+        if input_socket_key == 'Volume':
+            if isinstance(rpr_node, dict):
+                return rpr_node
+
+            raise MaterialError("Incorrect Volume input socket",
+                                type(rpr_node), self.node, self.material)
+
+        return None
 
     def final_export(self, input_socket_key='Surface'):
         try:
             return self.export(input_socket_key)
+
         except MaterialError as e:  # material nodes setup error, stop parsing and inform user
             log.error(e)
-            # creating error shader
-            rpr_material = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_PASSTHROUGH)
-            rpr_material.set_input('color', ERROR_OUTPUT_COLOR)
-            return rpr_material
+
+            if input_socket_key == 'Surface':
+                # creating error shader
+                rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_PASSTHROUGH)
+                rpr_node.set_input('color', ERROR_OUTPUT_COLOR)
+                return rpr_node
+
+            return None
 
 
 class ShaderNodeAmbientOcclusion(NodeParser):
