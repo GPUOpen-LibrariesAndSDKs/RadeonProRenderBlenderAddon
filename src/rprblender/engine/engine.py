@@ -92,7 +92,8 @@ class Engine(metaclass=ABCMeta):
         self._set_render_result(result.layers[0].passes)
         self.rpr_engine.end_result(result)
 
-    def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph, with_camera=False):
+    @staticmethod
+    def depsgraph_objects(depsgraph: bpy.types.Depsgraph, with_camera=False):
         """ Iterates evaluated objects in depsgraph with ITERATED_OBJECT_TYPES """
 
         object_types = ITERATED_OBJECT_TYPES if not with_camera else (ITERATED_OBJECT_TYPES + ('CAMERA',))
@@ -101,7 +102,8 @@ class Engine(metaclass=ABCMeta):
             if obj.type in object_types:
                 yield obj
 
-    def depsgraph_instances(self, depsgraph: bpy.types.Depsgraph):
+    @staticmethod
+    def depsgraph_instances(depsgraph: bpy.types.Depsgraph):
         """ Iterates evaluated instances in depsgraph with ITERATED_OBJECT_TYPES """
 
         # Comment from Depsgrapgh.object_instances description:
