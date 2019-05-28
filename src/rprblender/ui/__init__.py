@@ -135,6 +135,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     material.RPR_MATERIAL_PT_context,
     material.RPR_MATERIAL_PT_preview,
     material.RPR_MATERIAL_PT_surface,
+    material.RPR_MATERIAL_PT_volume,
     material_browser.RPR_MATERIL_PT_material_browser,
     material.RPR_MATERIAL_PT_node_arrange,
 
