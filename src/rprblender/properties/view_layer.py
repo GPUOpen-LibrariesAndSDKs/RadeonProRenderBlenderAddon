@@ -274,11 +274,16 @@ class RPR_ViewLayerProperites(RPR_Properties):
         },
     ]
 
+    def aov_enabled_changed(self, context):
+        """ Request update of active render passes for Render Layers compositor input node """
+        context.view_layer.update_render_passes()
+
     enable_aovs: BoolVectorProperty(
         name="Render Passes (AOVs)",
         description="Render passes (Arbitrary output variables)",
         size=len(aovs_info),
-        default=(aov['name'] in ["Combined", "Depth"] for aov in aovs_info)
+        default=(aov['name'] in ["Combined", "Depth"] for aov in aovs_info),
+        update=aov_enabled_changed,
     )
     # TODO: Probably better to create each aov separately like: aov_depth: BoolProperty(...)
 
@@ -290,10 +295,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
         Note: view_layer here is parent of self, but it is not available from self.id_data
         """
 
-        log("Syncing view layer: %s" % view_layer.name)
+        log(f"Syncing view layer: {view_layer.name}")
 
         # should always be enabled
         rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
         for i, enable_aov in enumerate(self.enable_aovs):
             if not enable_aov:
