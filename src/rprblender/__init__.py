@@ -1,5 +1,6 @@
 import bpy
 
+
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
@@ -35,8 +36,9 @@ log = logging.Log(tag='RPREngine')
 
 
 class RPREngine(bpy.types.RenderEngine):
-    ''' These members are used by blender to set up the
-        RenderEngine; define its internal name, visible name and capabilities. '''
+    """
+    Main class of Radeon ProRender render engine for Blender v2.80+
+    """
     bl_idname = "RPR"
     bl_label = "Radeon ProRender"
     bl_use_preview = True
@@ -52,7 +54,7 @@ class RPREngine(bpy.types.RenderEngine):
 
     # final render
     def update(self, data, depsgraph):
-        ''' Called for final render '''
+        """ Called for final render """
         log('update')
 
         # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
@@ -64,14 +66,14 @@ class RPREngine(bpy.types.RenderEngine):
         self.engine.sync(depsgraph)
 
     def render(self, depsgraph):
-        ''' Called with both final render and viewport '''
+        """ Called with both final render and viewport """
         log("render")
 
         self.engine.render()
 
     # viewport render
     def view_update(self, context, depsgraph):
-        ''' called when data is updated for viewport '''
+        """ called when data is updated for viewport """
         log('view_update')
 
         # if there is no engine set, create it and do the initial sync
@@ -82,11 +84,36 @@ class RPREngine(bpy.types.RenderEngine):
         else:
             self.engine.sync_update(depsgraph)
 
-
     def view_draw(self, context, depsgraph):
-        ''' called when viewport is to be drawn '''
+        """ called when viewport is to be drawn """
         self.engine.draw(context)
 
+    # view layer AOVs
+    def update_render_passes(self, render_scene=None, render_layer=None):
+        """
+        Update 'Render Layers' compositor node with active render passes info.
+        Called by Blender.
+        """
+        aovs = properties.view_layer.RPR_ViewLayerProperites.aovs_info
+
+        scene = render_scene if render_scene else bpy.context.scene
+        layer = render_layer if render_scene else bpy.context.view_layer
+
+        for index, enabled in enumerate(layer.rpr.enable_aovs):
+            if enabled:
+                pass_channel = aovs[index]['channel']
+                pass_name = aovs[index]['name']
+                pass_channels_size = len(pass_channel)
+
+                # convert from channel to blender type
+                blender_type = 'VALUE'
+                if pass_channel in ('RGB', 'RGBA'):
+                    blender_type = 'COLOR'
+                elif pass_channel in {'XYZ', 'UVA'}:
+                    blender_type = 'VECTOR'
+
+                self.register_pass(scene, layer,
+                                   pass_name, pass_channels_size, pass_channel, blender_type)
 
 @bpy.app.handlers.persistent
 def on_version_update(*args, **kwargs):
