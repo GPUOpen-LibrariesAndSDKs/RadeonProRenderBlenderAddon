@@ -12,6 +12,10 @@ from rprblender.export import (
     object,
     particle,
     world,
+    mesh,
+    light,
+    to_mesh,
+    volume,
 )
 from bpy_extras.io_utils import ExportHelper
 from rprblender.engine.engine import Engine
@@ -88,6 +92,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
 
 
 def export_rpr_scene(context, filepath):
+    volumes_data = []  # to keep volumes data references until export is finished
     depsgraph = context.evaluated_depsgraph_get()
     scene = depsgraph.scene
 
@@ -102,19 +107,24 @@ def export_rpr_scene(context, filepath):
     world.sync(rpr_context, scene.world)
 
     # camera, objects, particles
-    for i, obj in enumerate(Engine.depsgraph_objects(depsgraph, with_camera=True)):
+    for obj in Engine.depsgraph_objects(depsgraph, with_camera=True):
         object.sync(rpr_context, obj)
 
         for particle_system in obj.particle_systems:
             particle.sync(rpr_context, particle_system, obj)
 
     # instances
-    for i, inst in enumerate(Engine.depsgraph_instances(depsgraph)):
+    for inst in Engine.depsgraph_instances(depsgraph):
         instance.sync(rpr_context, inst)
 
     # rpr_context parameters
     rpr_context.set_parameter('preview', False)
     scene.rpr.export_ray_depth(rpr_context)
+
+    rpr_context.sync_portal_lights()
+
+    # Exported scene will be rendered vertically flipped, flip it back
+    rpr_context.set_parameter('yflip', True)
 
     pyrpr_load_store.export(filepath, rpr_context.context, rpr_context.scene)
 
