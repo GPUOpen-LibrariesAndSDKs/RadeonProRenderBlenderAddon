@@ -7,12 +7,13 @@ All parser classes should:
 import math
 import numpy as np
 
-from .node_parser import NodeParser, RuleNodeParser, MaterialError, get_node_parser_class
 import pyrpr
 import pyrprx
 
 from rprblender.export import image
 from rprblender.utils.conversion import convert_kelvins_to_rgb
+from .node_parser import NodeParser, RuleNodeParser, MathNodeParser, MaterialError
+from .node_item import NodeItem
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -1446,25 +1447,16 @@ class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
         # TODO: implement more correct ShaderNodeVolumePrincipled
 
-        color = self.get_input_value('Color')
-        if not isinstance(color, tuple):
-            color = self.get_input_default('Color')
-
-        density = self.get_input_value('Density')
-        if not isinstance(density, (float, tuple)):
-            density = self.get_input_default('Density')
+        color = self.get_input_scalar('Color')
+        density = self.get_input_scalar('Density')
         if isinstance(density, tuple):
             density = density[0]
 
-        emission = self.get_input_value('Emission Strength')
-        if not isinstance(emission, (float, tuple)):
-            emission = self.get_input_default('Emission Strength')
+        emission = self.get_input_scalar('Emission Strength')
         if isinstance(emission, tuple):
             emission = emission[0]
 
-        emission_color = self.get_input_value('Emission Color')
-        if not isinstance(emission_color, tuple):
-            emission_color = self.get_input_default('Emission Color')
+        emission_color = self.get_input_scalar('Emission Color')
 
         return {
             'color': color,
@@ -1472,3 +1464,50 @@ class ShaderNodeVolumePrincipled(NodeParser):
             'emission': emission,
             'emission_color': emission_color,
         }
+
+
+class ShaderNodeCombineHSV(MathNodeParser):
+    """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
+    def export(self):
+        h = self.get_input_value('H')
+        s = self.get_input_value('S')
+        v = self.get_input_value('V')
+
+        hsv = h.combine(s, v)
+        return hsv.hsv_to_rgb()
+
+
+class ShaderNodeSeparateHSV(MathNodeParser):
+    """ Split input value(color) to 3 separate values by HSV channels """
+    def export(self):
+        value = self.get_input_value(0)
+        socket = {'H': 0, 'S': 1, 'V': 2}[self.socket_out.name]
+
+        hsv = value.rgb_to_hsv()
+        return hsv.get_channel(socket)
+
+
+class ShaderNodeHueSaturation(MathNodeParser):
+
+    def export(self):
+        # TODO: With rpr nodes such rpr node calculations slows down render very much (about 100
+        #  times slower), because here we have a very complex calculations. That's why here we
+        #  work only with scalar values.
+        #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
+        #  conversion.
+        color = self.get_input_value('Color')
+        if not isinstance(color.data, tuple):
+            return color
+
+        fac = self.get_input_scalar('Fac')
+        hue = self.get_input_scalar('Hue')
+        saturation = self.get_input_scalar('Saturation')
+        value = self.get_input_scalar('Value')
+
+        hsv = color.rgb_to_hsv()
+        h = (hsv.get_channel(0) + hue) % 1.0
+        s = (hsv.get_channel(1) + saturation).clamp()
+        v = hsv.get_channel(2) * value
+
+        rgb = h.combine(s, v).hsv_to_rgb()
+        return fac.blend(color, rgb)

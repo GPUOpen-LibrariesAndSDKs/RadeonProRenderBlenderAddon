@@ -5,6 +5,7 @@ import pyrpr
 import pyrprx
 
 from rprblender.engine.context import RPRContext
+from .node_item import NodeItem
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.node')
@@ -99,7 +100,7 @@ class NodeParser(metaclass=ABCMeta):
         socket_in = self.node.inputs[socket_key]
         return self._parse_val(socket_in.default_value)
 
-    def get_input_link(self, socket_key: str, accepted_type=None):
+    def get_input_link(self, socket_key: [str, int], accepted_type=None):
         """
         Returns linked parsed node or None if nothing is linked or not link is not valid
         :arg socket_key: socket name to parse in current node
@@ -157,6 +158,14 @@ class NodeParser(metaclass=ABCMeta):
         """ Returns linked node or default socket value """
 
         val = self.get_input_link(socket_key)
+        if val is not None:
+            return val
+
+        return self.get_input_default(socket_key)
+
+    def get_input_scalar(self, socket_key):
+        """ Parse link, accept only RPR core material nodes """
+        val = self.get_input_link(socket_key, accepted_type=(float, tuple))
         if val is not None:
             return val
 
@@ -422,6 +431,48 @@ class RuleNodeParser(NodeParser):
             return None
 
         return self._export_node_rule_by_key(self.socket_out.name)
+
+
+class MathNodeParser(NodeParser):
+    """
+    This class provides socket data through NodeItem class for easily do mathematical operations.
+    Overridable export() function in child classes should return value through NodeItem or None.
+    """
+    def final_export(self):
+        """
+        This is the entry point of NodeParser classes.
+        This function does some useful preparation before and after calling export() function.
+        """
+
+        log("export", self.material, self.node, self.socket_out, self.group_nodes)
+        node_item = self.export()
+        rpr_node = node_item.data if node_item else None
+
+        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
+            self.rpr_context.set_material_node_key(node_key, rpr_node)
+            rpr_node.set_name(str(node_key))
+
+        return rpr_node
+
+    @abstractmethod
+    def export(self) -> NodeItem:
+        pass
+
+    def get_output_default(self) -> NodeItem:
+        val = super().get_output_default()
+        return NodeItem(self.rpr_context, val)
+
+    def get_input_default(self, socket_key) -> NodeItem:
+        val = super().get_input_default(socket_key)
+        return NodeItem(self.rpr_context, val)
+
+    def get_input_link(self, socket_key, accepted_type=None) -> [NodeItem, None]:
+        val = super().get_input_link(socket_key, accepted_type)
+        if val is None:
+            return None
+
+        return NodeItem(self.rpr_context, val)
 
 
 def get_node_parser_class(node_idname: str):
