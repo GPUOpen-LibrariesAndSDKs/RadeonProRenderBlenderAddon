@@ -176,7 +176,7 @@ def load(fpath):
     return api
 
 
-def export(header_file, includes, json_file_name, prefixes, castxml):
+def export(header_file, includes, json_file_name, prefixes, castxml, exclude=None, replace=None):
     import xml.etree.ElementTree
     import subprocess
 
@@ -495,14 +495,18 @@ def export(header_file, includes, json_file_name, prefixes, castxml):
         for t in sorted(typedefs_sorted[i], key=lambda t: t.name):
             name = t.name
             for prefix in prefixes['type']:
-                if name.startswith(prefix):
+                # ignore name containing any entry from 'exclude' list
+                is_excluded = next((True for e in exclude if e in name), False) if exclude else False
+                if name.startswith(prefix) and not is_excluded:
                     local_name = name[len(prefix):]
                     api.types[name] = t.generate_desc()
 
     for t in sorted(functions, key=lambda t: t.name):
         name = t.name
         for prefix in prefixes['function']:
-            if name.startswith(prefix):
+            # ignore name containing any entry from 'exclude' list
+            is_excluded = next((True for e in exclude if e in name), False) if exclude else False
+            if name.startswith(prefix) and not is_excluded:
                 local_name = name[len(prefix):]
                 api.functions[name] = t.generate_desc()
 
@@ -511,19 +515,26 @@ def export(header_file, includes, json_file_name, prefixes, castxml):
         if line.startswith('#define'):
             tokens = line.split()
             name = tokens[1]
-            if 'API_ENTRY' not in name:
+            # ignore name containing any entry from 'exclude' list
+            is_excluded = next((True for e in exclude if e in name), False) if exclude else False
+            if 'API_ENTRY' not in name and not is_excluded:
                 for prefix in prefixes['constant']:
                     if name.startswith(prefix):
-                        value = ' '.join(tokens[2:])
+                        # replace some bug-producing defines by predefined value
+                        if replace and name in replace:
+                            value = replace[name]
+                        else:
+                            value = ' '.join(tokens[2:])
 
-                        # if define points at other prefixed define correct value name by removing prefix
-                        value_prefix = next(
-                            (p for p in prefixes['constant'] if value.startswith(p)),
-                            None)
-                        if value_prefix:
-                            value = value[len(value_prefix):]
+                            # if define points at other prefixed define correct value name by removing prefix
+                            value_prefix = next(
+                                (p for p in prefixes['constant'] if value.startswith(p)),
+                                None)
+                            if value_prefix:
+                                value = value[len(value_prefix):]
 
-                        local_name = name[len(prefix):]
+                            local_name = name[len(prefix):]
+
                         api.constants[name] = ConstantDesc(name, value)
 
     def parse_multiline_comment(line, lines):
@@ -649,9 +660,11 @@ if __name__=='__main__':
            {
                'type': ['rif_', '_rif'],
                'function': ['rif'],
-               'constant': ['RIF_']
+               'constant': ['RIF_'],
            },
-           castxml)
+           castxml,
+           exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', ],
+           replace={'RIF_API_VERSION': '0x404000000000000', })
 
     export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
            {

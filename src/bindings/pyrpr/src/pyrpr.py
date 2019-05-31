@@ -97,11 +97,13 @@ def init(log_fun, rprsdk_bin_path=None):
             "../../../RadeonProRender-GLTF/Win/lib"
         ]
         lib_names = [
+            'tbbmalloc-4233fe.dll',
+            'tbb-4233fe.dll',
+            'OpenImageDenoise.dll',
             'OpenImageIO_RPR.dll',
             'RadeonProRender64.dll',
             'RprSupport64.dll',
 
-            'libcrypto-1_1-x64.dll',
             'MIOpen.dll',
             'RadeonProML.dll',
             'RadeonImageFilters64.dll',
