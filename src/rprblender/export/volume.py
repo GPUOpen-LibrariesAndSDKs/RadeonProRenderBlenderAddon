@@ -44,7 +44,7 @@ def sync(rpr_context, obj: bpy.types.Object):
         volume_material = material.sync(rpr_context, obj.material_slots[0].material, 'Volume')
 
     if not isinstance(volume_material, dict):
-        log.warn("not correct volume material", obj)
+        log.warn("Incorrect volume material", obj)
         return
 
     # creating rpr_volume
