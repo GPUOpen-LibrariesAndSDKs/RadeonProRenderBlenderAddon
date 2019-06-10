@@ -113,12 +113,6 @@ class RPR_EnvironmentSunSky(bpy.types.PropertyGroup):
         description="Turbidity",
         default=0.2,
     )
-    intensity: FloatProperty(
-        name="Intensity",
-        description="Intensity",
-        min=0.0,
-        default=1.0,
-    )
     sun_glow: FloatProperty(
         name="Sun Glow",
         description="Sun Glow",

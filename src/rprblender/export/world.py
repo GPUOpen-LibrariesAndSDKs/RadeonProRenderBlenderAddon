@@ -99,7 +99,6 @@ class WorldData:
         altitude: float
 
         turbidity: float
-        intensity: float
         sun_glow: float
         sun_disc: float
         saturation: float
@@ -115,7 +114,6 @@ class WorldData:
             self.altitude = sun_sky.altitude
 
             self.turbidity = sun_sky.turbidity
-            self.intensity = sun_sky.intensity
             self.sun_glow = sun_sky.sun_glow
             self.sun_disc = sun_sky.sun_disc
             self.saturation = sun_sky.saturation

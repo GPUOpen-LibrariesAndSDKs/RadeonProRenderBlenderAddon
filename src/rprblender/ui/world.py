@@ -128,7 +128,6 @@ class RPR_WORLD_PT_sun_sky(RPR_Panel):
 
         col = flow.column(align=True)
         col.prop(sun_sky, 'turbidity')
-        col.prop(sun_sky, 'intensity')
         col.prop(sun_sky, 'sun_glow')
         col.prop(sun_sky, 'sun_disc')
 
