@@ -1,7 +1,9 @@
-from dataclasses import dataclass
 import multiprocessing
 from pathlib import Path
 import math
+import platform
+import os
+import shutil
 
 import bpy
 import rprblender
@@ -116,3 +118,54 @@ def tile_iterator(tile_order, width, height, tile_width, tile_height):
     tile_func.len = get_tiles_number()
 
     return tile_func
+
+
+# saving current process id
+PID = os.getpid()
+
+
+from . import logging
+log = logging.Log(tag='utils')
+
+
+def get_temp_dir():
+    """ Returns $TEMP/rprblender temp dir. Creates it if needed """
+
+    temp_dir = Path(os.environ.get('TEMP', "C:\\Temp")) if platform.system() == 'Windows' else \
+               Path("/tmp")
+
+    temp_dir /= "rprblender"
+
+    if not os.path.isdir(temp_dir):
+        log("Creating temp dir", temp_dir)
+        os.mkdir(temp_dir)
+
+    return temp_dir
+
+
+def get_temp_pid_dir():
+    """ Returns $TEMP/rprblender/PID temp dir for current process. Creates it if needed """
+
+    pid_dir = get_temp_dir() / str(PID)
+    if not os.path.isdir(pid_dir):
+        log(f"Creating image temp pid dir {pid_dir}")
+        os.mkdir(pid_dir)
+
+    return pid_dir
+
+
+def clear_temp_dir():
+    """ Clears whole $TEMP/rprblender temp dir """
+
+    temp_dir = get_temp_dir()
+    names = os.listdir(temp_dir)
+    if not names:
+        return
+
+    log("Clearing temp dir", temp_dir)
+    for name in names:
+        path = temp_dir / name
+        if os.path.isdir(path):
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            os.remove(path)

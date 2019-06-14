@@ -30,9 +30,8 @@ from .engine.preview_engine import PreviewEngine
 from .engine.viewport_engine import ViewportEngine
 
 
-plugin_log = logging.Log(tag="Plugin")
-plugin_log("Loading RPR addon {}".format(bl_info['version']))
-log = logging.Log(tag='RPREngine')
+log = logging.Log(tag='init')
+log("Loading RPR addon {}".format(bl_info['version']))
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -118,36 +117,52 @@ class RPREngine(bpy.types.RenderEngine):
 @bpy.app.handlers.persistent
 def on_version_update(*args, **kwargs):
     """ On scene loading update old RPR data to current version """
-    addon_version = bl_info['version']
+    log("on_version_update")
 
+    addon_version = bl_info['version']
     if version_updater.is_scene_saved_by_older_addon_version(addon_version):
         version_updater.update_old_scene()
 
 
 @bpy.app.handlers.persistent
-def on_scene_save_pre(*args, **kwargs):
-    """ Save current plugin version in scene """
-    bpy.context.scene.rpr.saved_addon_version = get_addon_version()
+def on_save_pre(*args, **kwargs):
+    """ Handler on saving a blend file (before) """
+    log("on_save_pre")
+
+    # Save current plugin version in scene
+    bpy.context.scene.rpr.saved_addon_version = bl_info['version']
 
 
-def get_addon_version():
-    return bl_info['version']
+@bpy.app.handlers.persistent
+def on_load_pre(*args, **kwargs):
+    """ Handler on loading a blend file (before) """
+    log("on_load_pre")
+
+    utils.clear_temp_dir()
 
 
 def register():
+    log("register")
+
     bpy.utils.register_class(RPREngine)
     material_library.register()
     properties.register()
     operators.register()
     nodes.register()
     ui.register()
-    bpy.app.handlers.save_pre.append(on_scene_save_pre)
+
+    bpy.app.handlers.save_pre.append(on_save_pre)
+    bpy.app.handlers.load_pre.append(on_load_pre)
     bpy.app.handlers.version_update.append(on_version_update)
 
 
 def unregister():
+    log("unregister")
+
     bpy.app.handlers.version_update.remove(on_version_update)
-    bpy.app.handlers.save_pre.remove(on_scene_save_pre)
+    bpy.app.handlers.load_pre.remove(on_load_pre)
+    bpy.app.handlers.save_pre.remove(on_save_pre)
+
     ui.unregister()
     nodes.unregister()
     operators.unregister()

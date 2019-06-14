@@ -1,6 +1,7 @@
 import bpy
 import numpy as np
 import os
+from rprblender import utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.image')
@@ -13,6 +14,10 @@ def key(image: bpy.types.Image):
 def sync(rpr_context, image: bpy.types.Image):
     """ Creates pyrpr.Image from bpy.types.Image """
 
+    if image.size[0] * image.size[1] * image.channels == 0:
+        log.warn("Image has no data", image)
+        return None
+
     image_key = key(image)
 
     if image_key in rpr_context.images:
@@ -20,25 +25,31 @@ def sync(rpr_context, image: bpy.types.Image):
 
     log("sync", image)
 
-    # Load texture file if provided, it's about 3-5 times faster than loading Blender pixels
-    filepath = image.filepath_from_user()
-    if filepath and os.path.isfile(filepath):
-        rpr_image = rpr_context.create_image_file(image_key, filepath)
+    if image.source == 'FILE':
+        file_path = image.filepath_from_user()
+        if image.is_dirty or not os.path.isfile(file_path):
+            # getting file path from image cache and if such file not exist saving image to cache
+            file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
+            if image.is_dirty or not os.path.isfile(file_path):
+                image.save_render(file_path)
 
-    elif image.pixels:
-        if image.channels != 4:
-            raise ValueError("Image has {} channels; 4 required".format(image.channels), image)
+        rpr_image = rpr_context.create_image_file(image_key, file_path)
 
-        data = np.fromiter(image.pixels, dtype=np.float32, count=image.size[0] * image.size[1] * image.channels)
-        pixels = data.reshape(image.size[1], image.size[0], 4)
-        pixels = np.flipud(pixels)
-        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(pixels))
+    elif image.source == 'GENERATED':
+        file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
+        if image.is_dirty or not os.path.isfile(file_path):
+            image.save_render(file_path)
+
+        rpr_image = rpr_context.create_image_file(image_key, file_path)
 
     else:
-        if filepath:
-            raise ValueError("Unable to load image from file or Blender", image)
+        # loading image by pixels
+        data = np.fromiter(image.pixels, dtype=np.float32,
+                           count=image.size[0] * image.size[1] * image.channels)
+        pixels = data.reshape(image.size[1], image.size[0], image.channels)
+        pixels = np.flipud(pixels)
 
-        raise ValueError("Image has no data", image)
+        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(pixels))
 
     rpr_image.set_name(image_key)
 
