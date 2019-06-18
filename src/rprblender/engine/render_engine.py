@@ -223,11 +223,12 @@ class RenderEngine(Engine):
                 return
 
         # EXPORT CAMERA
-        camera_key = object.key(scene.camera)
+        camera_key = object.key(scene.camera)   # current camera key
         rpr_camera = self.rpr_context.create_camera(camera_key)
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        camera_obj = scene.camera
+        # camera object should be taken from depsgrapgh objects
+        camera_obj = depsgraph.objects[camera_key]
         self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
                                                               screen_width / screen_height, border)
 
