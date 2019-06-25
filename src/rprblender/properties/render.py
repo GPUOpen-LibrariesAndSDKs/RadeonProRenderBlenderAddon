@@ -1,4 +1,5 @@
 import sys
+import os
 
 import bpy
 import pyrpr
@@ -153,6 +154,15 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
+    collect_stat: BoolProperty(
+        name="Collect anonymous render statistics",
+        description="Statistics of render time, and scene details will be collated and "
+                    "anonymously sent to AMD for plugin improvement. "
+                    "No personal information is collected.",
+        default=True,
+        update=on_settings_changed,
+    )
+
 
 class RPR_RenderProperties(RPR_Properties):
     """ Main render properties. Available from scene.rpr """
@@ -163,6 +173,34 @@ class RPR_RenderProperties(RPR_Properties):
 
     # RENDER DEVICES for development debug mode; standalone settings are saved as addon properties
     debug_user_settings: PointerProperty(type=RPR_UserSettings)
+
+    # DEBUG OPTIONS
+    def update_log_min_level(self, context):
+        logging.limit_log('default', getattr(logging, self.log_min_level))
+
+    log_min_level: EnumProperty(
+        name="Log Min Level",
+        description="Log minimum level",
+        items=(
+            ('DEBUG', "Debug", "Show all log: Debug, Info, Warning, Error"),
+            ('INFO', "Info", "Show log: Info, Warning, Error"),
+            ('WARN', "Warning", "Show log: Warning, Error"),
+            ('ERROR', "Error", "Show log: Error"),
+        ),
+        default='INFO',
+        update=update_log_min_level
+    )
+    trace_dump: BoolProperty(
+        name="Trace Dump",
+        description="Enable Trace Dump",
+        default=False
+    )
+    trace_dump_folder: StringProperty(
+        name='Trace Dump Folder',
+        description='Trace Dump Folder',
+        subtype='DIR_PATH',
+        default=str(utils.get_temp_dir() / "tracedump")
+    )
 
     # RENDER LIMITS
     limits: PointerProperty(type=RPR_RenderLimits)
@@ -319,6 +357,14 @@ class RPR_RenderProperties(RPR_Properties):
             # if this is mojave turn on MPS
             if float(mac_vers_major) >= 14:
                 rpr_context.set_parameter("metalperformanceshader", 1)
+
+        if self.trace_dump:
+            if not os.path.isdir(self.trace_dump_folder):
+                os.mkdir(self.trace_dump_folder)
+            rpr_context.set_parameter('tracingfolder', self.trace_dump_folder)
+            rpr_context.set_parameter('tracing', True)
+        else:
+            rpr_context.set_parameter('tracing', False)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
