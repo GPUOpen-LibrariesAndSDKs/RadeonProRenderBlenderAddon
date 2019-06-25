@@ -1192,7 +1192,13 @@ class ShaderNodeRGBCurve(NodeParser):
         if in_col:
             buff = []
             for i in range(buffer_size):
-                buff.append([self.node.mapping.curves[n].evaluate(float(i/(buffer_size - 1))) for n in range(4)])
+                # blender applies the "C" curve to the input value of RGB curves
+                c = self.node.mapping.curves[3].evaluate(float(i/(buffer_size - 1)))
+                buff.append([self.node.mapping.curves[0].evaluate(c),
+                             self.node.mapping.curves[1].evaluate(c),
+                             self.node.mapping.curves[2].evaluate(c),
+                             1.0
+                            ])
             
             arr = np.array(buff, dtype=np.float32)
             # export the temperature buffer once to conserve memory
@@ -1211,7 +1217,7 @@ class ShaderNodeRGBCurve(NodeParser):
             map_g.set_input('data', rpr_buffer)
             map_g.set_input('uv', mul_g)
 
-            select_b = self.get_y_node_value(in_col)
+            select_b = self.get_z_node_value(in_col)
             mul_b = self.mul_node_value(select_b, float(buffer_size))
             map_b = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER)
             map_b.set_input('data', rpr_buffer)
