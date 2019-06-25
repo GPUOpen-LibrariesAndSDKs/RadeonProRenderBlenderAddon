@@ -1,9 +1,10 @@
 import multiprocessing
 from pathlib import Path
 import math
-import platform
+import tempfile
 import os
 import shutil
+import platform
 
 import bpy
 import rprblender
@@ -19,6 +20,18 @@ def package_root_dir():
 
 def get_cpu_threads_number():
     return multiprocessing.cpu_count()
+
+
+def core_ver_str():
+    import pyrpr
+    if hasattr(pyrpr, 'VERSION_MAJOR_MINOR_REVISION'):  # core 1.33.5+
+        return "{}.{}.{}".format(
+            pyrpr.VERSION_MAJOR, pyrpr.VERSION_MINOR, pyrpr.VERSION_REVISION)
+    else:  # core 1.334 or earlier
+        # TODO: remove when core 1.33.5 became master
+        mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
+        mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
+        return "%x.%x" % (mj, mn)
 
 
 def tile_iterator(tile_order, width, height, tile_width, tile_height):
@@ -124,6 +137,11 @@ def tile_iterator(tile_order, width, height, tile_width, tile_height):
 PID = os.getpid()
 
 
+IS_WIN = platform.system() == 'Windows'
+IS_MAC = platform.system() == 'Darwin'
+IS_LINUX = platform.system() == 'Linux'
+
+
 from . import logging
 log = logging.Log(tag='utils')
 
@@ -131,14 +149,10 @@ log = logging.Log(tag='utils')
 def get_temp_dir():
     """ Returns $TEMP/rprblender temp dir. Creates it if needed """
 
-    temp_dir = Path(os.environ.get('TEMP', "C:\\Temp")) if platform.system() == 'Windows' else \
-               Path("/tmp")
-
-    temp_dir /= "rprblender"
-
-    if not os.path.isdir(temp_dir):
+    temp_dir = Path(tempfile.gettempdir()) / "rprblender"
+    if not temp_dir.is_dir():
         log("Creating temp dir", temp_dir)
-        os.mkdir(temp_dir)
+        temp_dir.mkdir()
 
     return temp_dir
 
@@ -147,9 +161,9 @@ def get_temp_pid_dir():
     """ Returns $TEMP/rprblender/PID temp dir for current process. Creates it if needed """
 
     pid_dir = get_temp_dir() / str(PID)
-    if not os.path.isdir(pid_dir):
+    if not pid_dir.is_dir():
         log(f"Creating image temp pid dir {pid_dir}")
-        os.mkdir(pid_dir)
+        pid_dir.mkdir()
 
     return pid_dir
 
@@ -158,14 +172,13 @@ def clear_temp_dir():
     """ Clears whole $TEMP/rprblender temp dir """
 
     temp_dir = get_temp_dir()
-    names = os.listdir(temp_dir)
-    if not names:
+    paths = tuple(temp_dir.iterdir())
+    if not paths:
         return
 
     log("Clearing temp dir", temp_dir)
-    for name in names:
-        path = temp_dir / name
-        if os.path.isdir(path):
+    for path in paths:
+        if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
         else:
             os.remove(path)

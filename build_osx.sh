@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON_VERSION=`python3 --version`
+PYTHON_VERSION=`python3.7 --version`
 
 if [[ $PYTHON_VERSION =~ 'Python 3.7.' ]]; then
     echo Found correct python version
@@ -18,7 +18,7 @@ cxml="/usr/local/bin/castxml"
 if [ -f "$cxml" ]; then
 	python3 src/bindings/pyrpr/src/pyrprapi.py $cxml
 	if [ -f "./bindings-ok" ]; then
-		python3 build.py
+		python3.7 build.py
 		sh osx/postbuild.sh
 	else
 		echo Compiling bindings failed

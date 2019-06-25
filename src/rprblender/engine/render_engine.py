@@ -1,15 +1,15 @@
-import threading
 import time
+import datetime
 import math
 
 import bpy
 import pyrpr
 
-from rprblender import config
 from rprblender import utils
 from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
+from rprblender.utils.user_settings import get_user_settings
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -44,11 +44,16 @@ class RenderEngine(Engine):
         self.rpr_engine.update_stats(self.status_title, info)
 
     def _render(self):
+        athena_data = {}
+
         time_begin = time.perf_counter()
+        athena_data['start_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['end_status'] = "successfully completed"
 
         self.current_sample = 0
         while True:
             if self.rpr_engine.test_break():
+                athena_data['end_status'] = "killed by user"
                 break
 
             self.current_render_time = time.perf_counter() - time_begin
@@ -88,16 +93,29 @@ class RenderEngine(Engine):
                 if self.current_render_time >= self.render_time:
                     break
 
+        athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+        # additional parameters (not in parameters list)
+        athena_data['render_samples'] = self.current_sample
+        athena_data['render_update_samples'] = self.render_update_samples
+
+        self.athena_send(athena_data)
+
     def _render_tiles(self):
+        athena_data = {}
+
         tile_iterator = utils.tile_iterator(self.tile_order, self.width, self.height, *self.tile_size)
         tiles_number = tile_iterator.len
 
         rpr_camera = self.rpr_context.scene.camera
 
         time_begin = time.perf_counter()
+        athena_data['start_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['end_status'] = "successfully completed"
 
         for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
+                athena_data['end_status'] = "killed by user"
                 break
 
             log(f"Render tile {tile_index} / {tiles_number}: [{tile_pos}, {tile_size}]")
@@ -128,6 +146,18 @@ class RenderEngine(Engine):
                 self.resolve_update_render_result(tile_pos, tile_size, self.render_layer_name)
 
                 sample += update_samples
+
+        athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+        # additional parameters (not in parameters list)
+        athena_data['render_samples'] = self.render_samples
+        athena_data['render_update_samples'] = self.render_update_samples
+        athena_data['tile_resolution'] = self.tile_size
+        athena_data['tiles_number'] = tiles_number
+        athena_data['tile_order'] = self.tile_order
+        athena_data['rendered_tiles_number'] = tile_index + 1
+
+        self.athena_send(athena_data)
 
     def render(self):
         if not self.is_synced:
@@ -290,3 +320,48 @@ class RenderEngine(Engine):
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
         log('Finish sync')
+
+    def athena_send(self, data: dict):
+        if not (utils.IS_WIN or utils.IS_MAC):
+            return
+
+        settings = get_user_settings()
+        if not settings.collect_stat:
+            return
+
+        devices = settings.final_devices
+
+        # data['CPU_util_avg'] = ""
+        # data['CPU_util_max'] = ""
+        # data['GPU_util_avg'] = ""
+        # data['GPU_util_max'] = ""
+
+        data['CPU_enabled'] = devices.cpu_state
+        for i, gpu_state in enumerate(devices.gpu_states):
+            data[f'GPU{i}_enabled'] = gpu_state
+
+        # data['max_memory_util'] = ""
+        data['render_resolution'] = (self.width, self.height)
+        # data['num_polygons'] = ""
+        data['num_lights'] = sum(1 for o in self.rpr_context.scene.objects
+                                 if isinstance(o, pyrpr.Light))
+        # data['textures_used_MB'] = ""
+        # data['geometry_size_MB'] = ""
+        # data['geometry_size_after_subdivision_MB'] = ""
+        data['AOVs_enabled'] = tuple(self.rpr_context.frame_buffers_aovs.keys())
+        data['num_rays_cast'] = self.rpr_context.get_parameter('maxRecursion')
+        data['num_shadow_rays'] = self.rpr_context.get_parameter('maxdepth.shadow')
+        data['num_diffuse_spec_reflec_refrac_rays'] = \
+            self.rpr_context.get_parameter('maxdepth.diffuse') + \
+            self.rpr_context.get_parameter('maxdepth.glossy') + \
+            self.rpr_context.get_parameter('maxdepth.refraction') + \
+            self.rpr_context.get_parameter('maxdepth.refraction.glossy')
+
+        # data['time_building_bvh'] = ""
+        # data['time_exec_shaders'] = ""
+        # data['time_compiling_shaders'] = ""
+        # data['time_tracing_rays'] = ""
+
+        # sending data
+        from rprblender.utils import athena
+        athena.send_data(data)
