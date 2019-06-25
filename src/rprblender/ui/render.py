@@ -1,9 +1,8 @@
-import platform
-
 import pyrpr
 
 from . import RPR_Panel
 from rprblender import bl_info
+from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
 
@@ -192,7 +191,7 @@ class RPR_RENDER_PT_render_stamp(RPR_Panel):
     @classmethod
     def poll(cls, context):
         # Hide panel for non-Windows OS
-        return super().poll(context) and 'Windows' == platform.system()
+        return super().poll(context) and utils.IS_WIN
 
     def draw_header(self, context):
         self.layout.prop(context.scene.rpr, 'use_render_stamp', text="")
@@ -236,16 +235,6 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        def core_ver_str():
-            if hasattr(pyrpr, 'VERSION_MAJOR_MINOR_REVISION'):  # core 1.33.5+
-                return "{}.{}.{}".format(
-                    pyrpr.VERSION_MAJOR, pyrpr.VERSION_MINOR, pyrpr.VERSION_REVISION)
-            else:  # core 1.334 or earlier
-                # TODO: remove when core 1.33.5 became master
-                mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
-                mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
-                return "%x.%x" % (mj, mn)
-
         def label_center(lay, text):
             row = lay.row()
             row.alignment = 'CENTER'
@@ -257,7 +246,7 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
         col = layout.column(align=True)
         version = bl_info['version']
         label_center(col, "%s for Blender %d.%d.%d (core %s)" % (
-            bl_info['name'], version[0], version[1], version[2], core_ver_str()
+            bl_info['name'], version[0], version[1], version[2], utils.core_ver_str()
         ))
         label_center(col, "© 2016 Advanced Micro Devices, Inc. (AMD)")
         label_center(col, "Portions of this software are created")
@@ -281,15 +270,26 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
 class RPR_RENDER_PT_debug(RPR_Panel):
     ''' Sub panel under Help/About panel with debug options '''
 
-    bl_label = "Debug Options"
-    bl_parent_id = 'RPR_RENDER_PT_help_about'
+    bl_label = "Debug"
+    bl_context = 'render'
     bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        # Temporary disabling this panel till it'll be implemented
-        return False
-
     def draw(self, context):
+        settings = get_user_settings()
+        rpr = context.scene.rpr
+
         layout = self.layout
-        # TODO: implement debug panel
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(rpr, 'log_min_level')
+
+        if utils.IS_WIN or utils.IS_MAC:
+            layout.prop(settings, 'collect_stat')
+
+        col = layout.column(align=True)
+        col.prop(rpr, 'trace_dump')
+        row = col.row()
+        row.enabled = rpr.trace_dump
+        row.use_property_split = False
+        row.prop(rpr, 'trace_dump_folder', text="")

@@ -526,6 +526,9 @@ class RPRContext:
         self.context.set_parameter(name, param)
         return True
 
+    def get_parameter(self, name):
+        return self.context.parameters[name]
+
     def remove_object(self, key):
         obj = self.objects.pop(key)
 
