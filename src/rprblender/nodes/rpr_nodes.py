@@ -287,7 +287,7 @@ class RPRShaderNodeUber(RPRShaderNode):
                 if normal is not None:
                     rpr_node.set_input(rprx_input, normal)
 
-            rpr_node = self.rpr_context.create_x_material_node(pyrprx.MATERIAL_UBER)
+            rpr_node = self.create_uber()
 
             # Diffuse
             if self.node.enable_diffuse:
@@ -396,7 +396,7 @@ class RPRShaderNodeUber(RPRShaderNode):
 
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, emission_weight)
 
-                emission_color = self.mul_node_value(emission_color, self.node.emission_intensity)
+                emission_color *= self.node.emission_intensity
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emission_color)
 
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_MODE,
@@ -415,7 +415,7 @@ class RPRShaderNodeUber(RPRShaderNode):
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_WEIGHT, sss_weight)
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_SCATTER_COLOR, sss_color)
 
-                sss_radius = self.max_node_value(sss_radius, SSS_MIN_RADIUS)
+                sss_radius = sss_radius.max(SSS_MIN_RADIUS)
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_SCATTER_DISTANCE, sss_radius)
                 rpr_node.set_input(pyrprx.UBER_MATERIAL_SSS_SCATTER_DIRECTION, sss_direction)
 
@@ -476,22 +476,21 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
 
             rpr_image = image_export.sync(self.rpr_context, self.node.image)
 
-            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE)
-
             # get image wrap type and set
             image_wrap_val = getattr(pyrpr, 'IMAGE_WRAP_TYPE_' + self.node.wrap)
             rpr_image.set_wrap(image_wrap_val)
 
-            # set image data for node:
-            rpr_node.set_input('data', rpr_image)
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                'data': rpr_image
+            })
 
             uv = self.get_input_link('UV')
-            if uv is not None:
+            if uv:
                 rpr_node.set_input('uv', uv)
 
             # apply gamma correction if needed
             if self.node.color_space == 'SRGB':
-                rpr_node = self.arithmetic_node_value(rpr_node, COLOR_GAMMA, pyrpr.MATERIAL_NODE_OP_POW)
+                rpr_node **= COLOR_GAMMA
 
             return rpr_node
 
@@ -529,12 +528,9 @@ class RPRShaderNodeLookup(RPRShaderNode):
         }
 
         def export(self):
-            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP)
-
-            # RPR LookUp node types are not continuous sequence, thus the translation
-            rpr_node.set_input('value', self.lookup_type_to_id[self.node.lookup_type])
-
-            return rpr_node
+            return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                'value': self.lookup_type_to_id[self.node.lookup_type]
+            })
 
 
 class RPRShaderProceduralUVNode(RPRShaderNode):
@@ -703,6 +699,8 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
             if not normal_map:
                 return None
 
+            scale = self.get_input_value('Scale')
+
             if self.node.flip_x or self.node.flip_y:
                 # For flip_x the calculation is following: final_x = 1-x
                 # therefore for vector map_value it would be: map_value = (1,0,0,0) + (-1,1,1,1)*map_value
@@ -713,15 +711,12 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
                 add_vector = (1 if self.node.flip_x else 0,
                               1 if self.node.flip_y else 0,
                               0, 0)
-                normal_map = self.add_node_value(self.mul_node_value(normal_map, mul_vector),
-                                                add_vector)
+                normal_map = normal_map * mul_vector + add_vector
 
-            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_NORMAL_MAP)
-
-            rpr_node.set_input('color', normal_map)
-            rpr_node.set_input('bumpscale', self.get_input_value('Scale'))
-
-            return rpr_node
+            return self.create_node(pyrpr.MATERIAL_NODE_NORMAL_MAP, {
+                'color': normal_map,
+                'bumpscale': scale
+            })
 
 
 class RPRShaderNodeEmissive(RPRShaderNode):
@@ -745,16 +740,19 @@ class RPRShaderNodeEmissive(RPRShaderNode):
 
     class Exporter(NodeParser):
         def export(self):
-            value = self.mul_node_value(self.get_input_value('Color'), self.get_input_value('Intensity'))
+            color = self.get_input_value('Color')
+            intensity = self.get_input_value('Intensity')
 
-            rpr_node_emissive = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_EMISSIVE)
-            rpr_node_emissive.set_input("color", value)
+            rpr_node_emissive = self.create_node(pyrpr.MATERIAL_NODE_EMISSIVE, {
+                'color': color * intensity
+            })
 
             if self.node.emission_doublesided:
-                rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TWOSIDED)
-                rpr_node.set_input("frontface", rpr_node_emissive)
-                rpr_node.set_input("backface", rpr_node_emissive)
-                return rpr_node
+                return self.create_node(pyrpr.MATERIAL_NODE_TWOSIDED, {
+                    'frontface': rpr_node_emissive,
+                    'backface': rpr_node_emissive
+                })
+
             return rpr_node_emissive
 
 
@@ -773,27 +771,28 @@ class RPRShaderNodeBlend(RPRShaderNode):
     class Exporter(NodeParser):
         def export(self):
             # Just like ShaderNodeMixShader
-            factor = self.get_input_value('Weight')
+            weight = self.get_input_value('Weight')
 
-            if isinstance(factor, float):
-                socket_key = 1 if math.isclose(factor, 0.0) else \
-                    2 if math.isclose(factor, 1.0) else \
-                        None
+            if isinstance(weight, float):
+                socket_key = 1 if math.isclose(weight, 0.0) else \
+                             2 if math.isclose(weight, 1.0) else None
                 if socket_key:
                     shader = self.get_input_link(socket_key)
                     if shader:
                         return shader
-                    return self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+
+                    return self.create_node(pyrpr.MATERIAL_NODE_DIFFUSE)
 
             shader1 = self.get_input_link(1)
             shader2 = self.get_input_link(2)
 
             # like the Blender Mix Shader return default gray diffuse if no shaders connected
             if not shader1 and not shader2:
-                return self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+                return self.create_node(pyrpr.MATERIAL_NODE_DIFFUSE)
 
-            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND)
-            rpr_node.set_input('weight', self.get_input_value('Weight'))
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_BLEND, {
+                'weight': weight
+            })
             if shader1:
                 rpr_node.set_input('color0', shader1)
             if shader2:
@@ -1106,79 +1105,75 @@ class RPRValueNode_Math(RPRShaderNode):
             if self.node.inputs[2].enabled:
                 value3 = self.get_input_value(2)
 
-            val = None
-
             if op == 'ADD':
-                val = self.add_node_value(value1, value2)
+                val = value1 + value2
             elif op == 'SUB':
-                val = self.sub_node_value(value1, value2)
+                val = value1 - value2
             elif op == 'MUL':
-                val = self.mul_node_value(value1, value2)
+                val = value1 * value2
             elif op == 'SIN':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SIN)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_SIN, value1)
             elif op == 'COS':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_COS)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_COS, value1)
             elif op == 'TAN':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_TAN)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_TAN, value1)
             elif op == 'ASIN':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ASIN)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_ASIN, value1)
             elif op == 'ACOS':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ACOS)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_ACOS, value1)
             elif op == 'ATAN':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ATAN)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_ATAN, value1)
             elif op == 'DOT3':
-                val = self.dot3_node_value(value1, value2)
+                val = value1.dot3(value2)
             elif op == 'DOT4':
-                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_DOT4)
+                val = value1.dot4(value2)
             elif op == 'CROSS3':
-                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_CROSS3)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_CROSS3, value1, value2)
             elif op == 'LENGTH3':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_LENGTH3)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_LENGTH3, value1)
             elif op == 'NORMALIZE3':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3)
+                val = value1.normalize()
             elif op == 'POW':
-                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_POW)
+                val = value1 ** value2
             elif op == 'MIN':
-                val = self.min_node_value(value1, value2)
+                val = value1.min(value2)
             elif op == 'MAX':
-                val = self.max_node_value(value1, value2)
+                val = value1.max(value2)
             elif op == 'FLOOR':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_FLOOR)
+                val = value1.floor()
             elif op == 'MOD':
-                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_MOD)
+                val = value1 % value2
             elif op == 'ABS':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_ABS)
+                val = abs(value1)
             elif op == 'SELECT_X':
-                val = self.get_x_node_value(value1)
+                val = value1.get_channel(0)
             elif op == 'SELECT_Y':
-                val = self.get_y_node_value(value1)
+                val = value1.get_channel(1)
             elif op == 'SELECT_Z':
-                val = self.get_z_node_value(value1)
+                val = value1.get_channel(2)
             elif op == 'SELECT_W':
-                val = self.get_w_node_value(value1)
+                val = value1.get_channel(3)
             elif op == 'COMBINE':
                 # TODO: check if this is correct. By docs this should be (v1.x, v2.x, v1.y, v2.y), 2 arguments operation
-                val = self.combine_node_value(value1, value2, value3)
+                val = value1.combine(value2, value3)
             elif op == 'AVERAGE_XYZ':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ, value1)
             elif op == 'AVERAGE':
-                val = self.arithmetic_node_value(value1, value2, pyrpr.MATERIAL_NODE_OP_AVERAGE)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_AVERAGE, value1, value2)
             elif op == 'DIV':
-                val = self.div_node_value(value1, value2)
+                val = value1 / value2
             elif op == 'LOG':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_LOG)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_LOG, value1)
             elif op == 'SHUFFLE_YZWX':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_YZWX)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_SHUFFLE_YZWX, value1)
             elif op == 'SHUFFLE_ZWXY':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_ZWXY)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_SHUFFLE_ZWXY, value1)
             elif op == 'SHUFFLE_WXYZ':
-                val = self.arithmetic_node_value(value1, None, pyrpr.MATERIAL_NODE_OP_SHUFFLE_WXYZ)
+                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_SHUFFLE_WXYZ, value1)
             else:
-                log.warn('RPR Math : unknown operator type ({})'.format(op))
-                return ERROR_IMAGE_COLOR
+                raise  ValueError("Incorrect operation", op)
 
             if self.node.use_clamp:
-                log.debug('   use_clamp: True')
-                val = self.max_node_value(self.min_node_value(val, 1.0), 0.0)
+                val = val.clamp()
 
             return val
