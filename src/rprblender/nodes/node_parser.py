@@ -23,7 +23,7 @@ class MaterialError(BaseException):
     pass
 
 
-class NodeParser(metaclass=ABCMeta):
+class BaseNodeParser(metaclass=ABCMeta):
     """
     This is the base class that parses a blender node.
     Subclasses should override only export() function.
@@ -89,10 +89,11 @@ class NodeParser(metaclass=ABCMeta):
     # HELPER FUNCTIONS
     # Child classes should use them to do their export
 
-    def get_output_default(self):
+    def get_output_default(self, socket_key=None):
         """ Returns default value of output socket """
 
-        return self._parse_val(self.socket_out.default_value)
+        socket_out = self.socket_out if socket_key is None else self.node.outputs[socket_key]
+        return self._parse_val(socket_out.default_value)
 
     def get_input_default(self, socket_key):
         """ Returns default value of input socket """
@@ -171,6 +172,32 @@ class NodeParser(metaclass=ABCMeta):
 
         return self.get_input_default(socket_key)
 
+    def create_node(self, material_type, inputs={}):
+        rpr_node = self.rpr_context.create_material_node(material_type)
+        for name, value in inputs.items():
+            rpr_node.set_input(name, value)
+
+        return rpr_node
+
+    def create_uber(self, inputs={}):
+        rpr_node = self.rpr_context.create_x_material_node(pyrprx.MATERIAL_UBER)
+        for name, value in inputs.items():
+            rpr_node.set_input(name, value)
+
+        return rpr_node
+
+    def create_arithmetic(self, op_type, color1, color2=None, color3=None):
+        rpr_node = self.create_node(op_type, {
+            'op': op_type,
+            'color0': color1
+        })
+        if color2:
+            rpr_node.set_input('color1', color2)
+        if color3:
+            rpr_node.set_input('color2', color3)
+
+        return rpr_node
+
     # EXPORT FUNCTION
     @abstractmethod
     def export(self):
@@ -180,12 +207,13 @@ class NodeParser(metaclass=ABCMeta):
             color = self.get_input_value('Color')
             normal = self.get_input_link('Normal')
 
-            rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_REFLECTION)
-            rpr_node.set_input('color', color)
-            if normal is not None:
-                rpr_node.set_input('normal', normal)
+            node = self.create_node(pyrpr.MATERIAL_NODE_REFLECTION, {
+                'color': color
+            })
+            if normal:
+                node.set_input('normal', normal)
 
-            return rpr_node
+            return node
         """
         pass
 
@@ -205,102 +233,64 @@ class NodeParser(metaclass=ABCMeta):
 
         return rpr_node
 
-    # ADDITIONAL ARITHMETIC NODES
 
-    def arithmetic_node_value(self, val1, val2, op_type):
-        def to_vec4(val):
-            ''' val is of of type tuple, float, Node, None
-                if float or tuple make into a 4 tuple
-            '''
-            if isinstance(val, float):
-                return (val, val, val, val)
-            if isinstance(val, tuple) and len(val) == 3:
-                return (*val, 1.0)
-            return val
+class NodeParser(BaseNodeParser):
+    """
+    This class provides socket data through NodeItem class for easily do mathematical operations.
+    Overridable export() function in child classes should return value through NodeItem or None.
+    """
+    def final_export(self):
+        """
+        This is the entry point of NodeParser classes.
+        This function does some useful preparation before and after calling export() function.
+        """
 
-        def create_arithmetic_node():
-            node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
-            node.set_input('op', op_type)
-            node.set_input('color0', val1)
-            if val2 is not None:
-                node.set_input('color1', val2)  # val2 could be None
+        log("export", self.material, self.node, self.socket_out, self.group_nodes)
+        node_item = self.export()
+        rpr_node = node_item.data if node_item else None
 
-            return node
+        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
+            self.rpr_context.set_material_node_key(node_key, rpr_node)
+            rpr_node.set_name(str(node_key))
 
-        # this has to be before create_arithmetic_node
-        val1 = to_vec4(val1)
-        if val2 is not None:
-            val2 = to_vec4(val2)
+        return rpr_node
 
-        if isinstance(val1, (pyrpr.MaterialNode, pyrprx.Material)) or isinstance(val2, (pyrpr.MaterialNode, pyrprx.Material)):
-            return create_arithmetic_node()
+    @abstractmethod
+    def export(self) -> [NodeItem, None]:
+        pass
 
-        if op_type == pyrpr.MATERIAL_NODE_OP_MUL:
-            return (val1[0] * val2[0], val1[1] * val2[1], val1[2] * val2[2], val1[3] * val2[3])
+    def get_output_default(self, socket_key=None) -> NodeItem:
+        val = super().get_output_default(socket_key)
+        return self.node_item(val)
 
-        if op_type == pyrpr.MATERIAL_NODE_OP_SUB:
-            return (val1[0] - val2[0], val1[1] - val2[1], val1[2] - val2[2], val1[3] - val2[3])
+    def get_input_default(self, socket_key) -> NodeItem:
+        val = super().get_input_default(socket_key)
+        return self.node_item(val)
 
-        if op_type == pyrpr.MATERIAL_NODE_OP_ADD:
-            return (val1[0] + val2[0], val1[1] + val2[1], val1[2] + val2[2], val1[3] + val2[3])
+    def get_input_link(self, socket_key, accepted_type=None) -> [NodeItem, None]:
+        val = super().get_input_link(socket_key, accepted_type)
+        if val is None:
+            return None
 
-        if op_type == pyrpr.MATERIAL_NODE_OP_MAX:
-            return (max(val1[0], val2[0]), max(val1[1], val2[1]), max(val1[2], val2[2]), max(val1[3], val2[3]))
+        return self.node_item(val)
 
-        if op_type == pyrpr.MATERIAL_NODE_OP_MIN:
-            return (min(val1[0], val2[0]), min(val1[1], val2[1]), min(val1[2], val2[2]), min(val1[3], val2[3]))
+    def create_node(self, material_type, inputs={}) -> NodeItem:
+        val = super().create_node(material_type)
+        for name, value in inputs.items():
+            val.set_input(name, value.data if isinstance(value, NodeItem) else value)
 
-        return create_arithmetic_node()
+        return self.node_item(val)
 
-    def mul_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MUL)
+    def create_uber(self, inputs={}) -> NodeItem:
+        val = super().create_uber(inputs)
+        for name, value in inputs.items():
+            val.set_input(name, value.data if isinstance(value, NodeItem) else value)
 
-    def add_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_ADD)
+        return self.node_item(val)
 
-    def sub_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_SUB)
-
-    def div_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DIV)
-
-    def max_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MAX)
-
-    def min_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_MIN)
-
-    def dot3_node_value(self, val1, val2):
-        return self.arithmetic_node_value(val1, val2, pyrpr.MATERIAL_NODE_OP_DOT3)
-
-    def get_x_node_value(self, val1):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_X)
-
-    def get_y_node_value(self, val1):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Y)
-
-    def get_z_node_value(self, val1):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_Z)
-
-    def get_w_node_value(self, val1):
-        return self.arithmetic_node_value(val1, None, pyrpr.MATERIAL_NODE_OP_SELECT_W)
-
-    def combine_node_value(self, a, b, c):
-        """Mix values to single"""
-        vX = self.mul_node_value(a, (1, 0, 0))
-        vY = self.mul_node_value(b, (0, 1, 0))
-        vZ = self.mul_node_value(c, (0, 0, 1))
-
-        res = self.add_node_value(self.add_node_value(vX, vY), vZ)
-        return res
-
-    def blend_node_value(self, val1, val2, weight):
-        node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND_VALUE)
-        node.set_input('color0', val1)
-        node.set_input('color1', val2)
-        node.set_input('weight', weight)
-
-        return node
+    def node_item(self, val):
+        return NodeItem(self.rpr_context, val)
 
 
 class RuleNodeParser(NodeParser):
@@ -325,10 +315,9 @@ class RuleNodeParser(NodeParser):
             }
         }
     }
-    Supported types: pyrpr.*, pyrprx.*, "*", "+", "-", "max", "min", "blend"
+    Supported types: pyrpr.*, "UBER", "*", "+", "-", "max", "min", "blend"
     Supported params: pyrpr.*, pyrprx.*, str
     Supported values: pyrpr.*, pyrprx.*, "nodes.*", "inputs.*", "link:inputs.*", "default:inputs.*"
-    Note: if pyrprx.* type is used then field "is_rprx": True should be added
     """
 
     nodes = {}
@@ -380,7 +369,7 @@ class RuleNodeParser(NodeParser):
 
             if val.startswith('default:inputs.'):
                 socket_key = val[15:]
-                inputs[key] = self.get_input_link(socket_key)
+                inputs[key] = self.get_input_default(socket_key)
                 continue
 
             raise ValueError("Invalid prefix for input value", key, val, node_rule)
@@ -388,29 +377,29 @@ class RuleNodeParser(NodeParser):
         # creating material node
         node_type = node_rule['type']
         if isinstance(node_type, int):
-            if node_rule.get('is_rprx', False):
-                rpr_node = self.rpr_context.create_x_material_node(node_type)
-            else:
-                rpr_node = self.rpr_context.create_material_node(node_type)
+            rpr_node = self.create_node(node_type)
+
+        elif node_type == 'UBER':
+            rpr_node = self.create_uber()
 
         else:
             if node_type == '*':
-                return self.mul_node_value(inputs['color0'], inputs['color1'])
+                return inputs['color0'] * inputs['color1']
 
             if node_type == '+':
-                return self.add_node_value(inputs['color0'], inputs['color1'])
+                return inputs['color0'] + inputs['color1']
 
             if node_type == '-':
-                return self.sub_node_value(inputs['color0'], inputs['color1'])
+                return inputs['color0'] - inputs['color1']
 
             if node_type == 'max':
-                return self.max_node_value(inputs['color0'], inputs['color1'])
+                return inputs['color0'].max(inputs['color1'])
 
             if node_type == 'min':
-                return self.min_node_value(inputs['color0'], inputs['color1'])
+                return inputs['color0'].min(inputs['color1'])
 
             if node_type == 'blend':
-                return self.blend_node_value(inputs['color0'], inputs['color1'], inputs['weight'])
+                return inputs['weight'].blend(inputs['color0'], inputs['color1'])
 
             raise TypeError("Incorrect type of node_type", node_type)
 
@@ -431,48 +420,6 @@ class RuleNodeParser(NodeParser):
             return None
 
         return self._export_node_rule_by_key(self.socket_out.name)
-
-
-class MathNodeParser(NodeParser):
-    """
-    This class provides socket data through NodeItem class for easily do mathematical operations.
-    Overridable export() function in child classes should return value through NodeItem or None.
-    """
-    def final_export(self):
-        """
-        This is the entry point of NodeParser classes.
-        This function does some useful preparation before and after calling export() function.
-        """
-
-        log("export", self.material, self.node, self.socket_out, self.group_nodes)
-        node_item = self.export()
-        rpr_node = node_item.data if node_item else None
-
-        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
-            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
-            self.rpr_context.set_material_node_key(node_key, rpr_node)
-            rpr_node.set_name(str(node_key))
-
-        return rpr_node
-
-    @abstractmethod
-    def export(self) -> NodeItem:
-        pass
-
-    def get_output_default(self) -> NodeItem:
-        val = super().get_output_default()
-        return NodeItem(self.rpr_context, val)
-
-    def get_input_default(self, socket_key) -> NodeItem:
-        val = super().get_input_default(socket_key)
-        return NodeItem(self.rpr_context, val)
-
-    def get_input_link(self, socket_key, accepted_type=None) -> [NodeItem, None]:
-        val = super().get_input_link(socket_key, accepted_type)
-        if val is None:
-            return None
-
-        return NodeItem(self.rpr_context, val)
 
 
 def get_node_parser_class(node_idname: str):
