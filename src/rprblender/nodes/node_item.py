@@ -23,6 +23,9 @@ class NodeItem:
         self.data = data
         self.rpr_context = rpr_context
 
+    def set_input(self, name, value):
+        self.data.set_input(name, value.data if isinstance(value, NodeItem) else value)
+
     ###### MATH OPS ######
     def _arithmetic_helper(self, other, rpr_operation, func):
         ''' helper function for overridden math functions.
@@ -95,6 +98,10 @@ class NodeItem:
     def floor(self):
         return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_FLOOR,
                                        lambda a: float(math.floor(a)))
+
+    def ceil(self):
+        f = self.floor()
+        return (self == f).if_else(self, f + 1.0)
 
     # right hand methods for doing something like 1.0 - Node
     def __radd__(self, other):
@@ -291,3 +298,16 @@ class NodeItem:
         v = mx
 
         return h.combine(s, v)
+
+    def normalize(self):
+        norm = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3, lambda a: a)
+        if isinstance(norm.data, float):
+            # converting to vector
+            norm.data = (norm.data, norm.data, norm.data)
+
+        if isinstance(norm.data, tuple):
+            length = math.sqrt(sum(norm.data[i]*norm.data[i] for i in range(3)))
+            norm.data = (0.0, 0.0, 1.0) if math.isclose(length, 0.0) else \
+                        (norm.data[0]/length, norm.data[1]/length, norm.data[2]/length)
+
+        return norm
