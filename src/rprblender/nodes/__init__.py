@@ -28,6 +28,7 @@ node_categories = [
         NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
         NodeItem('ShaderNodeNewGeometry'),
+        NodeItem('RPRShaderProceduralUVNode'),
     ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),
@@ -113,6 +114,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     rpr_nodes.RPRShaderNodeLookup,
     rpr_nodes.RPRShaderNodeImageTexture,
     rpr_nodes.RPRValueNode_Math,
+    rpr_nodes.RPRShaderProceduralUVNode,
 ])
 
 

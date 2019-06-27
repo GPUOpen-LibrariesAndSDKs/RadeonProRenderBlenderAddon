@@ -5,7 +5,10 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     FloatProperty,
+    FloatVectorProperty,
+    StringProperty
 )
+import mathutils
 import pyrpr
 import pyrprx
 
@@ -531,6 +534,116 @@ class RPRShaderNodeLookup(RPRShaderNode):
             # RPR LookUp node types are not continuous sequence, thus the translation
             rpr_node.set_input('value', self.lookup_type_to_id[self.node.lookup_type])
 
+            return rpr_node
+
+
+class RPRShaderProceduralUVNode(RPRShaderNode):
+    ''' Generates a procedural UV Node 
+        we use this for both shapes and triplanar
+    '''
+    bl_label = 'RPR Procedural UV'
+
+    procedural_type: EnumProperty(
+        name='Type',
+        items=(('MATERIAL_NODE_UVTYPE_PLANAR', 'Plane', 'Planar projection'),
+             ('MATERIAL_NODE_UVTYPE_CYLINDICAL', 'Cylinder', 'Cylidrical projection'),
+             ('MATERIAL_NODE_UVTYPE_SPHERICAL', 'Sphere', 'Spherical projection'),
+             ('MATERIAL_NODE_UVTYPE_PROJECT', 'Camera', 'Camera projection'),
+             ('TRIPLANAR', 'Triplanar', 'Triplanar projection'),
+            ),
+        default='TRIPLANAR'
+    )
+
+    rotation: FloatVectorProperty(
+        name="Rotation",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='EULER'
+    )
+
+    scale: FloatVectorProperty(
+        name="Scale",
+        default=(1.0, 1.0, 1.0),
+        size=3, subtype='XYZ'
+    )
+
+    origin: FloatVectorProperty(
+        name="Location",
+        default=(0.0, 0.0, 0.0),
+        size=3, subtype='XYZ'
+    )
+
+    # only used for triplanar
+    weight: FloatProperty(
+        name="Blend Weight",
+        default=0.0,
+        description='Amount to blend edges',
+    )
+
+    # only for camera projection
+    camera: StringProperty(name='camera',
+                            description="Camera to project from",
+                            default='')
+
+    threshold: FloatProperty(
+        name="Threshold",
+        default=999999,
+        description='Distance from camera to cutoff projection'
+    )
+
+    def init(self, context):
+        # adding output socket
+        self.outputs.new('NodeSocketVector', "Value")
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'procedural_type')
+        # camera projection only shows camera and threshold params
+        if self.procedural_type == 'MATERIAL_NODE_UVTYPE_PROJECT':
+            layout.prop_search(self, 'camera', bpy.data, 'cameras')
+            layout.prop(self, 'threshold')
+        else:
+            layout.prop(self, 'origin')
+            layout.prop(self, 'rotation')
+            layout.prop(self, 'scale')
+            if self.procedural_type == 'TRIPLANAR':
+                layout.prop(self, 'weight')
+
+    class Exporter(NodeParser):
+        def export(self):
+            # node type is uv_procedural unless this is triplanar
+            is_triplanar = self.node.procedural_type == 'TRIPLANAR'
+            node_type = pyrpr.MATERIAL_NODE_UV_TRIPLANAR if is_triplanar else pyrpr.MATERIAL_NODE_UV_PROCEDURAL
+            rpr_node = self.rpr_context.create_material_node(node_type)
+
+            if self.node.procedural_type == 'MATERIAL_NODE_UVTYPE_PROJECT':
+                # get camera set, if none set get from scene
+                if self.node.camera:
+                    camera_data =  bpy.data.cameras[self.node.camera]
+                    camera = next(obj for obj in bpy.data.objects if obj.data == camera_data)
+                else:
+                    camera = bpy.data.scenes[0].camera
+                rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
+                rpr_node.set_input('origin', (camera.location[0], camera.location[1], camera.location[2], 0.0))
+                rpr_node.set_input('zaxis', tuple(camera.matrix_world.col[2]))
+                rpr_node.set_input('xaxis', tuple(camera.matrix_world.col[0]))
+                rpr_node.set_input('uv_scale', (camera.scale[0], camera.scale[1], camera.scale[2], 1.0))
+                rpr_node.set_input('threshold', (self.node.threshold, self.node.threshold, self.node.threshold, 1.0))
+            elif is_triplanar:
+                # triplanar
+                rpr_node.set_input('offset', (self.node.origin[0], self.node.origin[1], self.node.origin[2], 1.0))
+                matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
+                rpr_node.set_input('zaxis', (matrix.col[2][0], matrix.col[2][1], matrix.col[2][2], 1.0))
+                rpr_node.set_input('xaxis', (matrix.col[0][0], matrix.col[0][1], matrix.col[0][2], 1.0))
+                rpr_node.set_input('weight', (self.node.weight, self.node.weight, self.node.weight, 1.0))
+                rpr_node.set_input('uv_scale', (self.node.scale[0], self.node.scale[1], self.node.scale[2], 1.0))
+            else:
+                # shape projection
+                rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
+                rpr_node.set_input('origin', (self.node.origin[0], self.node.origin[1], self.node.origin[2], 1.0))
+                matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
+                rpr_node.set_input('zaxis', (matrix.col[2][0], matrix.col[2][1], matrix.col[2][2], 1.0))
+                rpr_node.set_input('xaxis', (matrix.col[0][0], matrix.col[0][1], matrix.col[0][2], 1.0))
+                rpr_node.set_input('uv_scale', (self.node.scale[0], self.node.scale[1], self.node.scale[2], 1.0))
+            
             return rpr_node
 
 
