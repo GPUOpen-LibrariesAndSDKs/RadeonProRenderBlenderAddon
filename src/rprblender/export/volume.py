@@ -87,3 +87,23 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_context.scene.attach(rpr_volume)
     rpr_obj = rpr_context.objects[object.key(obj)]
     rpr_obj.set_hetero_volume(rpr_volume)
+
+
+def sync_update(rpr_context, obj: bpy.types.Object):
+    obj_key = object.key(obj)
+
+    def has_volumes():
+        return bool(next((k for k in rpr_context.particles.keys() if k[0] == obj_key), None))
+
+    updated = False
+
+    if has_volumes():
+        rpr_context.remove_volumes(obj_key)
+        updated = True
+
+    sync(rpr_context, obj)
+
+    if has_volumes():
+        updated = True
+
+    return updated

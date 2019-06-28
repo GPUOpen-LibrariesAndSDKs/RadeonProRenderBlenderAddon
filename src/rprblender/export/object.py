@@ -32,7 +32,7 @@ def sync(rpr_context, obj: bpy.types.Object):
         to_mesh.sync(rpr_context, obj)
 
     elif obj.type == 'EMPTY':
-        return False
+        pass
 
     else:
         log.warn("Object to sync not supported", obj, obj.type)
@@ -45,18 +45,23 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     log("sync_update", obj, is_updated_geometry, is_updated_transform)
 
+    updated = False
+
     if obj.type == 'LIGHT':
-        return light.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= light.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
-    if obj.type == 'MESH':
-        return mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+    elif obj.type == 'MESH':
+        updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
-    if obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        return to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+    elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
+        updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
-    if obj.type == 'EMPTY':
-        return False
+    elif obj.type == 'EMPTY':
+        pass
 
-    log.warn("Not supported object to sync_update", obj, obj.type)
+    else:
+        log.warn("Not supported object to sync_update", obj, obj.type)
 
-    return False
+    updated |= volume.sync_update(rpr_context, obj)
+
+    return updated
