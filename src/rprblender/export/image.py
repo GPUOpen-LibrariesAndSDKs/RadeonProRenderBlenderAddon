@@ -25,20 +25,8 @@ def sync(rpr_context, image: bpy.types.Image):
 
     log("sync", image)
 
-    if image.source == 'FILE':
-        file_path = image.filepath_from_user()
-        if image.is_dirty or not os.path.isfile(file_path):
-            # getting file path from image cache and if such file not exist saving image to cache
-            file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
-            if image.is_dirty or not os.path.isfile(file_path):
-                image.save_render(file_path)
-
-        rpr_image = rpr_context.create_image_file(image_key, file_path)
-
-    elif image.source == 'GENERATED':
-        file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
-        if image.is_dirty or not os.path.isfile(file_path):
-            image.save_render(file_path)
+    if image.source in ('FILE', 'GENERATED'):
+        file_path = cache_image_file(image)
 
         rpr_image = rpr_context.create_image_file(image_key, file_path)
 
@@ -62,3 +50,24 @@ def sync(rpr_context, image: bpy.types.Image):
                      image.colorspace_settings.name, image)
 
     return rpr_image
+
+
+def cache_image_file(image):
+    """
+    See if image is a file, cache image pixels to temporary folder if not.
+    Return image file path.
+    """
+    if image.source == 'FILE':
+        file_path = image.filepath_from_user()
+        if image.is_dirty or not os.path.isfile(file_path):
+            # getting file path from image cache and if such file not exist saving image to cache
+            file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
+            if image.is_dirty or not os.path.isfile(file_path):
+                image.save_render(file_path)
+
+    else:
+        file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
+        if image.is_dirty or not os.path.isfile(file_path):
+            image.save_render(file_path)
+
+    return file_path

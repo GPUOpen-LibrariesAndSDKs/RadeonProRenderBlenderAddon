@@ -76,10 +76,12 @@ class RPR_LightProperties(RPR_Properties):
     )
 
     # POINT LIGHT
-    ies_file_name: StringProperty(
-        name='IES File', description='IES data file name',
-        default='',
+    ies_file: PointerProperty(
+        type=bpy.types.Image,
+        description='IES data file',
+        name="IES data file"
     )
+
 
     # SUN LIGHT
     shadow_softness: FloatProperty(

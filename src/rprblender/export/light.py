@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import math
 
@@ -7,6 +9,7 @@ from rprblender.engine.context import RPRContext
 from rprblender.properties.light import MAX_LUMINOUS_EFFICACY
 from . import mesh, image, object
 from rprblender.utils.conversion import convert_kelvins_to_rgb
+from rprblender import utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.light')
@@ -87,9 +90,14 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     light_key = object.key(obj) if not instance_key else instance_key
 
     if light.type == 'POINT':
-        if light.rpr.ies_file_name:
-            rpr_light = rpr_context.create_light(light_key, 'ies')
-            rpr_light.set_image_from_file(light.rpr.ies_file_name, 256, 256)
+        if light.rpr.ies_file:
+            if light.rpr.ies_file.source in ('FILE', 'GENERATED'):
+                file_path = image.cache_image_file(light.rpr.ies_file)
+                rpr_light = rpr_context.create_light(light_key, 'ies')
+                rpr_light.set_image_from_file(file_path, 256, 256)
+            else:  # unsupported source type
+                log.warn(f"Unable to load IES file for light {light}")
+                rpr_light = rpr_context.create_light(light_key, 'point')
         else:
             rpr_light = rpr_context.create_light(light_key, 'point')
 
@@ -152,7 +160,6 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     light = obj.data
     log("sync_update", light, obj, is_updated_geometry, is_updated_transform)
 
-
     light_key = object.key(obj)
     rpr_light = rpr_context.objects.get(light_key, None)
 
@@ -162,7 +169,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
         return True
 
     if is_updated_geometry:
-        # light exists, but its settigns were changed => recreating light
+        # light exists, but its settings were changed => recreating light
         rpr_context.remove_object(light_key)
         sync(rpr_context, obj)
         # TODO: Better to set only changed parameters without recreating.

@@ -104,7 +104,7 @@ def update_light(light):
         'temperature',
         'visible',
         'cast_shadows',
-        'ies_file_name',
+        # 'ies_file_name',
         'luminous_efficacy',
         'intensity_normalization',
         'shadow_softness',
