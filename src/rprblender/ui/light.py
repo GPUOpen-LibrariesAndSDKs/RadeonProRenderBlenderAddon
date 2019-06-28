@@ -26,11 +26,7 @@ class RPR_LIGHT_PT_light(RPR_Panel):
         main_col = layout.column()
         if light.type == 'POINT':
             row = main_col.row(align=True)
-            row.prop(rpr_light, "ies_file_name")
-            if rpr_light.ies_file_name:
-                row.operator('rpr.light_op_remove_ies_file', text='', icon='X')
-            else:
-                row.operator('rpr.light_op_select_ies_file', text='', icon='FILE_IMAGE')
+            row.template_ID(rpr_light, "ies_file", open="image.open")
 
         elif light.type == 'SPOT':
             col = main_col.column(align=True)
