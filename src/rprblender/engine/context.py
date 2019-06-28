@@ -21,6 +21,7 @@ class RPRContext:
         self.scene = None
         self.objects = {}
         self.particles = {}
+        self.volumes = {}
 
         self.do_motion_blur = False
         self.is_preview = False
@@ -483,7 +484,7 @@ class RPRContext:
 
     def create_hetero_volume(self, key):
         volume = pyrpr.HeteroVolume(self.context)
-        self.particles[key] = volume
+        self.volumes[key] = volume
         return volume
 
     def create_camera(self, key=None):
@@ -540,19 +541,33 @@ class RPRContext:
                 instance = self.objects.pop(k)
                 self.scene.detach(instance)
 
-        # removing and detaching related particles
-        particle_keys = tuple(k for k in self.particles.keys() if k[0] == key)
-        for k in particle_keys:
-            particle = self.particles.pop(k)
-            self.scene.detach(particle)
+        self.remove_particles(key)
+        self.remove_volumes(key)
 
         if obj:
             self.scene.detach(obj)
+
+    def remove_particles(self, base_obj_key):
+        keys = tuple(k for k in self.particles.keys() if k[0] == base_obj_key)
+        for k in keys:
+            particle = self.particles.pop(k)
+            self.scene.detach(particle)
+
+    def remove_volumes(self, base_obj_key):
+        keys = tuple(k for k in self.volumes.keys() if k[0] == base_obj_key)
+        for k in keys:
+            volume = self.volumes.pop(k)
+            self.scene.detach(volume)
 
     def remove_image(self, key):
         del self.images[key]
 
     def remove_material(self, key):
+        # removing child materials
+        for mat_key in tuple(self.materials.keys()):
+            if isinstance(mat_key, tuple) and mat_key[0] == key:
+                self.remove_material(mat_key)
+
         # removing all corresponded nodes
         for node_key in tuple(self.material_nodes.keys()):
             if node_key[0] == key:
