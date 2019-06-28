@@ -607,8 +607,10 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
         def export(self):
             # node type is uv_procedural unless this is triplanar
             is_triplanar = self.node.procedural_type == 'TRIPLANAR'
-            node_type = pyrpr.MATERIAL_NODE_UV_TRIPLANAR if is_triplanar else pyrpr.MATERIAL_NODE_UV_PROCEDURAL
-            rpr_node = self.rpr_context.create_material_node(node_type)
+            node_type = pyrpr.MATERIAL_NODE_UV_TRIPLANAR if is_triplanar else \
+                        pyrpr.MATERIAL_NODE_UV_PROCEDURAL
+
+            rpr_node = self.create_node(node_type)
 
             if self.node.procedural_type == 'MATERIAL_NODE_UVTYPE_PROJECT':
                 # get camera set, if none set get from scene
@@ -617,28 +619,31 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
                     camera = next(obj for obj in bpy.data.objects if obj.data == camera_data)
                 else:
                     camera = bpy.data.scenes[0].camera
+
                 rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
-                rpr_node.set_input('origin', (camera.location[0], camera.location[1], camera.location[2], 0.0))
+                rpr_node.set_input('origin', tuple(camera.location))
                 rpr_node.set_input('zaxis', tuple(camera.matrix_world.col[2]))
                 rpr_node.set_input('xaxis', tuple(camera.matrix_world.col[0]))
-                rpr_node.set_input('uv_scale', (camera.scale[0], camera.scale[1], camera.scale[2], 1.0))
-                rpr_node.set_input('threshold', (self.node.threshold, self.node.threshold, self.node.threshold, 1.0))
+                rpr_node.set_input('uv_scale', tuple(camera.scale))
+                rpr_node.set_input('threshold', self.node.threshold)
+
             elif is_triplanar:
                 # triplanar
-                rpr_node.set_input('offset', (self.node.origin[0], self.node.origin[1], self.node.origin[2], 1.0))
+                rpr_node.set_input('offset', tuple(self.node.origin))
                 matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
-                rpr_node.set_input('zaxis', (matrix.col[2][0], matrix.col[2][1], matrix.col[2][2], 1.0))
-                rpr_node.set_input('xaxis', (matrix.col[0][0], matrix.col[0][1], matrix.col[0][2], 1.0))
-                rpr_node.set_input('weight', (self.node.weight, self.node.weight, self.node.weight, 1.0))
-                rpr_node.set_input('uv_scale', (self.node.scale[0], self.node.scale[1], self.node.scale[2], 1.0))
+                rpr_node.set_input('zaxis', tuple(matrix.col[2]))
+                rpr_node.set_input('xaxis', tuple(matrix.col[0]))
+                rpr_node.set_input('weight', self.node.weight)
+                rpr_node.set_input('uv_scale', tuple(self.node.scale))
+
             else:
                 # shape projection
                 rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
-                rpr_node.set_input('origin', (self.node.origin[0], self.node.origin[1], self.node.origin[2], 1.0))
+                rpr_node.set_input('origin', tuple(self.node.origin))
                 matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
-                rpr_node.set_input('zaxis', (matrix.col[2][0], matrix.col[2][1], matrix.col[2][2], 1.0))
-                rpr_node.set_input('xaxis', (matrix.col[0][0], matrix.col[0][1], matrix.col[0][2], 1.0))
-                rpr_node.set_input('uv_scale', (self.node.scale[0], self.node.scale[1], self.node.scale[2], 1.0))
+                rpr_node.set_input('zaxis', tuple(matrix.col[2]))
+                rpr_node.set_input('xaxis', tuple(matrix.col[0]))
+                rpr_node.set_input('uv_scale', tuple(self.node.scale))
             
             return rpr_node
 
@@ -1157,7 +1162,7 @@ class RPRValueNode_Math(RPRShaderNode):
                 # TODO: check if this is correct. By docs this should be (v1.x, v2.x, v1.y, v2.y), 2 arguments operation
                 val = value1.combine(value2, value3)
             elif op == 'AVERAGE_XYZ':
-                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ, value1)
+                val = value1.average_xyz()
             elif op == 'AVERAGE':
                 val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_AVERAGE, value1, value2)
             elif op == 'DIV':

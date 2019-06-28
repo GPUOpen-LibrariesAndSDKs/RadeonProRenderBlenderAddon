@@ -187,7 +187,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         return rpr_node
 
     def create_arithmetic(self, op_type, color1, color2=None, color3=None):
-        rpr_node = self.create_node(op_type, {
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_ARITHMETIC, {
             'op': op_type,
             'color0': color1
         })

@@ -908,10 +908,12 @@ class ShaderNodeNormalMap(NodeParser):
         })
 
         if self.node.space != 'TANGENT':
-            log.warn("Ignoring unsupported normal map space", self.node.space, self.node, self.material)
+            log.warn("Ignoring unsupported normal map space",
+                     self.node.space, self.node, self.material)
 
-        if self.node.uv_map:
-            log.warn("Ignoring unsupported normal map uv_map", self.node.uv_map, self.node, self.material)
+        if self.node.uv_map and self.node.uv_map != "UVMap":
+            log.warn("Ignoring unsupported normal map uv_map",
+                     self.node.uv_map, self.node, self.material)
 
         return rpr_node
 
@@ -1334,7 +1336,10 @@ class ShaderNodeUVMap(NodeParser):
                 'value': pyrpr.MATERIAL_NODE_LOOKUP_UV
             })
 
-        log.warn("Only primary mesh UV map supported", self.node.uv_map, self.node, self.material)
+        if self.node.uv_map != "UVMap":
+            log.warn("Only primary mesh UV map supported",
+                     self.node.uv_map, self.node, self.material)
+
         return None
 
 
@@ -1406,3 +1411,80 @@ class ShaderNodeHueSaturation(NodeParser):
 
         rgb = h.combine(s, v).hsv_to_rgb()
         return fac.blend(color, rgb)
+
+
+class ShaderNodeEeveeSpecular(NodeParser):
+    # inputs: Base Color, Specular, Roughness,
+    #    Emissive Color, Transparency, Normal,
+    #    Clear Coat, Clear Coat Roughness, Clear Coat Normal,
+    #    Ambient Occlusion
+
+    def export(self):
+        def enabled(val):
+            if val is None:
+                return False
+
+            if isinstance(val, float) and math.isclose(val, 0.0):
+                return False
+
+            return True
+
+        # Getting require inputs. Note: if some inputs are not needed they won't be taken
+        base_color = self.get_input_value('Base Color')
+        specular_color = self.get_input_value('Specular') # this is color value
+        roughness = self.get_input_value('Roughness')
+        emissive_color = self.get_input_value('Emissive Color')
+        transparency = self.get_input_value('Transparency')
+        normal = self.get_input_normal('Normal')
+
+        clearcoat = self.get_input_value('Clear Coat')
+        clearcoat_roughness = None
+        clearcoat_normal = None
+        if enabled(clearcoat):
+            clearcoat_roughness = self.get_input_value('Clear Coat Roughness')
+            clearcoat_normal = self.get_input_normal('Clear Coat Normal')
+
+        # TODO: Enable ambient occlusion
+        # ambient_occlusion = self.get_input_link('Ambient Occlusion')
+
+        # Creating uber material and set inputs to it
+        rpr_node = self.create_uber()
+
+        # Diffuse
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_COLOR, base_color)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_WEIGHT, 1.0)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, 0.0)
+        if enabled(normal):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_DIFFUSE_NORMAL, normal)
+
+        # Specular
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_COLOR, specular_color)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_ROUGHNESS, roughness)
+
+        if enabled(normal):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_REFLECTION_NORMAL, normal)
+
+        # Emissive
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emissive_color)
+        rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, emissive_color.average_xyz())
+
+        # Transparency
+        if enabled(transparency):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_TRANSPARENCY, transparency)
+
+        # Clear Coat
+        if enabled(clearcoat):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_WEIGHT, clearcoat)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_ROUGHNESS, clearcoat_roughness)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_THICKNESS, 0.0)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
+
+            if enabled(clearcoat_normal):
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_NORMAL, clearcoat_normal)
+            elif enabled(normal):
+                rpr_node.set_input(pyrprx.UBER_MATERIAL_COATING_NORMAL, normal)
+
+        return rpr_node
