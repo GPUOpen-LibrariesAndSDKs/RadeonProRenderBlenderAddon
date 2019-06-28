@@ -14,6 +14,8 @@ uname = platform.uname()
 
 assert '64bit' == arch[0] and (('Windows' in uname[0]) or ('Linux' in uname[0]) or ('Darwin' in uname[0])), arch
 
+subprocess.check_call([sys.executable, 'src/tools/encrypt_athena_bin.py'])
+
 pyrpr_path = Path('src/bindings/pyrpr')
 
 cwd = os.getcwd()
