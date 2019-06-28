@@ -180,7 +180,7 @@ class NodeItem:
         if isinstance(dot.data, float):
             dot.data *= 3
         elif isinstance(dot.data, tuple):
-            dot.data = sum(dot.data[i] for i in range(3))
+            dot.data = sum(dot.data[:3])
 
         return dot
 
@@ -189,7 +189,7 @@ class NodeItem:
         if isinstance(dot.data, float):
             dot.data *= 4
         elif isinstance(dot.data, tuple):
-            dot.data = sum(dot.data[i] for i in range(4))
+            dot.data = sum(dot.data)
 
         return dot
 
@@ -311,3 +311,10 @@ class NodeItem:
                         (norm.data[0]/length, norm.data[1]/length, norm.data[2]/length)
 
         return norm
+
+    def average_xyz(self):
+        avg = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_AVERAGE_XYZ, lambda a: a)
+        if isinstance(avg.data, tuple):
+            avg.data = sum(avg.data[:3]) / 3
+
+        return avg
