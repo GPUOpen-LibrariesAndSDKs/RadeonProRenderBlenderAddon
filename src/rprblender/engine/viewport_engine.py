@@ -9,7 +9,7 @@ from bpy_extras import view3d_utils
 
 import pyrpr
 from .engine import Engine
-from rprblender.export import camera, material, world, object, instance, particle, mesh
+from rprblender.export import camera, material, world, object, instance, particle
 from rprblender.utils import gl
 from rprblender import config
 
@@ -332,9 +332,7 @@ class ViewportEngine(Engine):
 
                 if isinstance(obj, bpy.types.Material):
                     material.sync_update(self.rpr_context, obj)
-                    rpr_material = self.rpr_context.materials.get(object.key(obj), None)
-                    if rpr_material:
-                        is_updated |= self.update_material_on_scene_objects(obj, depsgraph, rpr_material)
+                    is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
                     continue
 
                 if isinstance(obj, bpy.types.Object):
@@ -515,22 +513,22 @@ class ViewportEngine(Engine):
 
         return res
 
-    def update_material_on_scene_objects(self, mat, depsgraph, rpr_material):
+    def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
-        updated = False
-        # TODO cache material users on sync/sync update to speed up material update
-        for entry in (obj for obj in self.depsgraph_objects(depsgraph)
-                      if mat.name in obj.material_slots.keys()):
+        rpr_material = self.rpr_context.materials.get(material.key(mat), None)
+        if not rpr_material:
+            return False
 
-            rpr_shape = self.rpr_context.objects.get(object.key(entry), None)
-            if not rpr_shape:
-                object.sync(self.rpr_context, entry)
+        objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
+                            if mat.name in obj.material_slots.keys())
+        updated = False
+        for obj in objects:
+            if object.key(obj) not in self.rpr_context.objects:
+                object.sync(self.rpr_context, obj)
                 updated = True
                 continue
 
-            slot_index = entry.material_slots.keys().index(mat.name)
-
-            updated |= mesh.update_material(rpr_shape, entry, slot_index, rpr_material)
+            updated |= object.sync_update(self.rpr_context, obj, False, False)
 
         return updated
 
