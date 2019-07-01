@@ -992,26 +992,48 @@ class MaterialNode(Object):
         super().delete()
 
     def set_input(self, name, value):
-        if isinstance(value, MaterialNode):
-            MaterialNodeSetInputN(self, encode(name), value)
-        elif isinstance(value, pyrprx.Material):
-            value.attach_to_node(name, self)
-        elif isinstance(value, int):
-            MaterialNodeSetInputU(self, encode(name), value)
-        elif isinstance(value, bool):
-            MaterialNodeSetInputU(self, encode(name), TRUE if value else FALSE)
-        elif isinstance(value, float):
-            MaterialNodeSetInputF(self, encode(name), value, value, value, value)
-        elif isinstance(value, tuple) and len(value) == 3:
-            MaterialNodeSetInputF(self, encode(name), *value, 1.0)
-        elif isinstance(value, tuple) and len(value) == 4:
-            MaterialNodeSetInputF(self, encode(name), *value)
-        elif isinstance(value, Image):
-            MaterialNodeSetInputImageData(self, encode(name), value)
-        elif isinstance(value, Buffer):
-            MaterialNodeSetInputBufferData(self, encode(name), value)
+        if isinstance(name, str):
+            name_ = encode(name)
+            if isinstance(value, MaterialNode):
+                MaterialNodeSetInputN(self, name_, value)
+            elif isinstance(value, pyrprx.Material):
+                value.attach_to_node(name, self)
+            elif isinstance(value, int):
+                MaterialNodeSetInputU(self, name_, value)
+            elif isinstance(value, bool):
+                MaterialNodeSetInputU(self, name_, TRUE if value else FALSE)
+            elif isinstance(value, float):
+                MaterialNodeSetInputF(self, name_, value, value, value, value)
+            elif isinstance(value, tuple) and len(value) == 3:
+                MaterialNodeSetInputF(self, name_, *value, 1.0)
+            elif isinstance(value, tuple) and len(value) == 4:
+                MaterialNodeSetInputF(self, name_, *value)
+            elif isinstance(value, Image):
+                MaterialNodeSetInputImageData(self, name_, value)
+            elif isinstance(value, Buffer):
+                MaterialNodeSetInputBufferData(self, name_, value)
+            else:
+                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
+
         else:
-            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
+            if isinstance(value, MaterialNode):
+                MaterialNodeSetInputNByKey(self, name, value)
+            elif isinstance(value, int):
+                MaterialNodeSetInputUByKey(self, name, value)
+            elif isinstance(value, bool):
+                MaterialNodeSetInputUByKey(self, name, TRUE if value else FALSE)
+            elif isinstance(value, float):
+                MaterialNodeSetInputFByKey(self, name, value, value, value, value)
+            elif isinstance(value, tuple) and len(value) == 3:
+                MaterialNodeSetInputFByKey(self, name, *value, 1.0)
+            elif isinstance(value, tuple) and len(value) == 4:
+                MaterialNodeSetInputFByKey(self, name, *value)
+            elif isinstance(value, Image):
+                MaterialNodeSetInputImageDataByKey(self, name, value)
+            elif isinstance(value, Buffer):
+                MaterialNodeSetInputBufferDataByKey(self, name, value)
+            else:
+                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
         self.inputs[name] = value
 
