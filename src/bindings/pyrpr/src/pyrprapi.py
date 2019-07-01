@@ -589,6 +589,13 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
     bindingsOk.write_text("ok")
 
 
+def adjust_constant(s):
+    if s.endswith('U'):
+        s = s[:-1]
+
+    return s
+
+
 if __name__=='__main__':
     #change paths according to your developer environment:
     #castxml = r'C:\Development\tools\castxml\bin\castxml'
