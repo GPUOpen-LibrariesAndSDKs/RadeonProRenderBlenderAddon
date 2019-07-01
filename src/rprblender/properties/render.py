@@ -331,10 +331,10 @@ class RPR_RenderProperties(RPR_Properties):
 
         context_flags = 0
         # enable CMJ sampler for adaptive sampling
-        context_props = [pyrpr.CONTEXT_CREATEPROP_SAMPLER_TYPE, pyrpr.CONTEXT_SAMPLER_TYPE_CMJ]
+        context_props = [pyrpr.CONTEXT_SAMPLER_TYPE, pyrpr.CONTEXT_SAMPLER_TYPE_CMJ]
         if devices.cpu_state:
             context_flags |= pyrpr.Context.cpu_device['flag']
-            context_props.extend([pyrpr.CONTEXT_CREATEPROP_CPU_THREAD_LIMIT, devices.cpu_threads])
+            context_props.extend([pyrpr.CONTEXT_CPU_THREAD_LIMIT, devices.cpu_threads])
 
         metal_enabled = False
         if hasattr(devices, 'gpu_states'):
