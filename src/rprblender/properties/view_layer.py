@@ -131,7 +131,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
     Properties for view layer with AOVs
     """
 
-    aovs_info = [
+    aovs_info = (
         {
             'rpr': pyrpr.AOV_COLOR,
             'name': "Combined",
@@ -272,7 +272,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'name': "Color Variance",
             'channel': 'RGB'
         },
-    ]
+    )
 
     def aov_enabled_changed(self, context):
         """ Request update of active render passes for Render Layers compositor input node """
@@ -282,7 +282,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
         name="Render Passes (AOVs)",
         description="Render passes (Arbitrary output variables)",
         size=len(aovs_info),
-        default=(aov['name'] in ["Combined", "Depth"] for aov in aovs_info),
+        default=tuple(aov['name'] in ["Combined", "Depth"] for aov in aovs_info),
         update=aov_enabled_changed,
     )
     # TODO: Probably better to create each aov separately like: aov_depth: BoolProperty(...)
