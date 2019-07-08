@@ -484,6 +484,12 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             if isinstance(val.data, float) and math.isclose(val.data, 0.0):
                 return False
 
+            if isinstance(val.data, tuple) and \
+               math.isclose(val.data[0], 0.0) and \
+               math.isclose(val.data[1], 0.0) and \
+               math.isclose(val.data[2], 0.0):
+                return False
+
             return True
 
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
@@ -526,6 +532,11 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         transmission_roughness = None
         if enabled(transmission):
             transmission_roughness = self.get_input_value('Transmission Roughness')
+
+        emission = self.get_input_value('Emission')
+
+        alpha = self.get_input_value('Alpha')
+        transparency = 1.0 - alpha
 
         normal = self.get_input_normal('Normal')
 
@@ -606,6 +617,17 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             # these also need to be set for core SSS to work.
             rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_WEIGHT, subsurface)
             rpr_node.set_input(pyrprx.UBER_MATERIAL_BACKSCATTER_COLOR, (1.0, 1.0, 1.0, 1.0))
+
+        # Emission -> Emission
+        if enabled(emission):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, 1.0)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emission)
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_MODE,
+                               pyrprx.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED)
+
+        # Alpha -> Transparency
+        if enabled(transparency):
+            rpr_node.set_input(pyrprx.UBER_MATERIAL_TRANSPARENCY, transparency)
 
         # Transmission -> Refraction
         if enabled(transmission):
