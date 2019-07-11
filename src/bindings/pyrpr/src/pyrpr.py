@@ -11,7 +11,6 @@ import bgl
 
 import pyrprwrap
 from pyrprwrap import *
-import pyrprx
 
 
 lib_wrapped_log_calls = False
@@ -94,21 +93,19 @@ def init(log_fun, rprsdk_bin_path=None):
     if platform.system() == "Windows":
         alternate_relative_paths = [
             "../../../RadeonProImageProcessing/Windows/lib",
-            "../../../RadeonProRender-GLTF/Win/lib"
+            #"../../../RadeonProRender-GLTF/Win/lib"
         ]
         lib_names = [
             'tbbmalloc-4233fe.dll',
             'tbb-4233fe.dll',
             'OpenImageDenoise.dll',
-            'OpenImageIO_RPR.dll',
             'RadeonProRender64.dll',
-            'RprSupport64.dll',
 
             'MIOpen.dll',
             'RadeonProML.dll',
             'RadeonImageFilters64.dll',
 
-            'ProRenderGLTF.dll',
+            #'ProRenderGLTF.dll',
         ]
 
     elif platform.system() == "Linux":
@@ -145,6 +142,7 @@ def init(log_fun, rprsdk_bin_path=None):
             for relpath in alternate_relative_paths:
                 rpr_lib_path = rprsdk_bin_path / relpath / lib_name
                 if os.path.isfile(str(rpr_lib_path)):
+                    print(rpr_lib_path)
                     ctypes.CDLL(str(rpr_lib_path))
                     found = True
                     break
@@ -498,42 +496,17 @@ class Shape(Object):
         super().delete()
 
     def set_material(self, material):
-        if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
-            self.materials[0].detach(self)
-
-            # additional cleanup should be executed after detaching pyrprx.Material
-            # otherwise it could crash after resetting emissive shader
+        if self.materials:
             ShapeSetMaterial(self, None)
-            if material is None:
-                self.material = None
-                return
+            self.materials.clear()
 
-        if material is None or isinstance(material, MaterialNode):
-            ShapeSetMaterial(self, material)
-        elif isinstance(material, pyrprx.Material):
-            material.attach(self)
-        else:
-            raise TypeError("Incorrect type of material", self, material)
-
-        self.materials.clear()
         if material:
+            ShapeSetMaterial(self, material)
             self.materials.append(material)
 
     def set_material_faces(self, material, face_indices: np.array):
-        if isinstance(material, MaterialNode):
-            ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
-            self.materials.append(material)
-
-        elif isinstance(material, pyrprx.Material):
-            # attaching pyrprx.Material through blend node
-            blend_node = MaterialNode(material.context.material_system, MATERIAL_NODE_BLEND)
-            blend_node.set_input('color0', material)
-            blend_node.set_input('weight', 0.0)
-
-            self.set_material_faces(blend_node, face_indices)
-
-        else:
-            raise TypeError("Incorrect type of material", self, material)
+        ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
+        self.materials.append(material)
 
     def set_volume_material(self, node):
         self.volume_material = node
@@ -665,26 +638,8 @@ class Curve(Object):
         super().delete()
 
     def set_material(self, material):
-        if isinstance(self.material, pyrprx.Material):
-            self.material.detach(self)
-
-            # additional cleanup should be executed after detaching pyrprx.Material
-            # otherwise it could crash after resetting emissive shader
-            CurveSetMaterial(self, None)
-            if material is None:
-                self.material = None
-                return
-
-        if material is None or isinstance(material, MaterialNode):
-            CurveSetMaterial(self, material)
-        elif isinstance(material, pyrprx.Material):
-            material.attach(self)
-        else:
-            raise TypeError("Incorrect type of material", self, material)
-
-        self.material = None
-        if material:
-            self.material = material
+        CurveSetMaterial(self, material)
+        self.material = material
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         CurveSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -983,21 +938,11 @@ class MaterialNode(Object):
         self.inputs = {}
         MaterialSystemCreateNode(self.material_system, material_type, self)
 
-    def delete(self):
-        for in_input, in_value in self.inputs.items():
-            if isinstance(in_value, pyrprx.Material):
-                in_value.detach_from_node(in_input, self)
-        self.inputs.clear()
-
-        super().delete()
-
     def set_input(self, name, value):
         if isinstance(name, str):
             name_ = encode(name)
             if isinstance(value, MaterialNode):
                 MaterialNodeSetInputN(self, name_, value)
-            elif isinstance(value, pyrprx.Material):
-                value.attach_to_node(name, self)
             elif isinstance(value, int):
                 MaterialNodeSetInputU(self, name_, value)
             elif isinstance(value, bool):

@@ -1,17 +1,15 @@
 import pyrpr
-import pyrprx
 
 from . import image_filter
 import threading
 
 
 class RPRContext:
-    ''' Manager of pyrpr and pyrprx calls.  Also includes threading lock to make sure 
-        calls aren't made simultaneously '''
+    """ Manager of pyrpr calls.  Also includes threading lock to make sure
+        calls aren't made simultaneously """
     def __init__(self):
         self.context = None
         self.material_system = None
-        self.x_context = None
         self.width = None
         self.height = None
         self.gl_interop = None
@@ -46,7 +44,6 @@ class RPRContext:
     def init(self, context_flags, context_props):
         self.context = pyrpr.Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
-        self.x_context = pyrprx.Context(self.material_system)
         self.gl_interop = bool(context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
 
         # context settings
@@ -495,9 +492,6 @@ class RPRContext:
 
     def create_material_node(self, material_type):
         return pyrpr.MaterialNode(self.material_system, material_type)
-
-    def create_x_material_node(self, material_type):
-        return pyrprx.Material(self.x_context, material_type)
 
     def set_material_node_key(self, key, material_node):
         self.material_nodes[key] = material_node

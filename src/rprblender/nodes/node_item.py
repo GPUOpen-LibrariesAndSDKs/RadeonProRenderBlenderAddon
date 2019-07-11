@@ -1,5 +1,5 @@
 from __future__ import annotations # this is needed to use the same class type hints
-import pyrpr, pyrprx
+import pyrpr
 import math
 
 from rprblender.utils import logging
@@ -18,7 +18,7 @@ class NodeItem:
         NodeItems can retrieve their data with () operator, or index RGBA etc with []
         '''
     
-    def __init__(self, rpr_context, data: [tuple, float, pyrpr.MaterialNode, pyrprx.Material]):
+    def __init__(self, rpr_context, data: [tuple, float, pyrpr.MaterialNode]):
         # save the data as vec4 if num data
         self.data = data
         self.rpr_context = rpr_context
