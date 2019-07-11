@@ -505,8 +505,15 @@ class Shape(Object):
             self.materials.append(material)
 
     def set_material_faces(self, material, face_indices: np.array):
-        ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
-        self.materials.append(material)
+        if material.type != MATERIAL_NODE_UBERV2:
+            ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
+            self.materials.append(material)
+
+        else:
+            blend_node = MaterialNode(material.material_system, MATERIAL_NODE_BLEND)
+            blend_node.set_input('color0', material)
+            blend_node.set_input('weight', 0.0)
+            self.set_material_faces(blend_node, face_indices)
 
     def set_volume_material(self, node):
         self.volume_material = node
@@ -936,7 +943,8 @@ class MaterialNode(Object):
         super().__init__()
         self.material_system = material_system
         self.inputs = {}
-        MaterialSystemCreateNode(self.material_system, material_type, self)
+        self.type = material_type
+        MaterialSystemCreateNode(self.material_system, self.type, self)
 
     def set_input(self, name, value):
         if isinstance(name, str):
