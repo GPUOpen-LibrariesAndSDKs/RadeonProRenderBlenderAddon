@@ -622,14 +622,13 @@ class ShaderNodeBsdfPrincipled(NodeParser):
 
         # Emission -> Emission
         if enabled(emission):
-            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_WEIGHT, 1.0)
-            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_COLOR, emission)
-            rpr_node.set_input(pyrprx.UBER_MATERIAL_EMISSION_MODE,
-                               pyrprx.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_WEIGHT, 1.0)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_COLOR, emission)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE, 2)
 
         # Alpha -> Transparency
         if enabled(transparency):
-            rpr_node.set_input(pyrprx.UBER_MATERIAL_TRANSPARENCY, transparency)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY, transparency)
 
         # Transmission -> Refraction
         if enabled(transmission):
