@@ -108,10 +108,8 @@ class RPR_DenoiserProperties(RPR_Properties):
         min = 0.0, max = 1.0, default = .1
     )
 
-    def export_denoiser(self, rpr_context):
-        """ Exports denoiser settings """
-
-        rpr_context.setup_image_filter({
+    def get_settings(self):
+        return {
             'enable': self.enable,
             'filter_type': self.filter_type,
             'color_sigma': self.color_sigma,
@@ -123,7 +121,7 @@ class RPR_DenoiserProperties(RPR_Properties):
             'samples': self.samples,
             'half_window': self.half_window,
             'bandwidth': self.bandwidth,
-        })
+        }
 
 
 class RPR_ViewLayerProperites(RPR_Properties):
