@@ -142,7 +142,6 @@ def init(log_fun, rprsdk_bin_path=None):
             for relpath in alternate_relative_paths:
                 rpr_lib_path = rprsdk_bin_path / relpath / lib_name
                 if os.path.isfile(str(rpr_lib_path)):
-                    print(rpr_lib_path)
                     ctypes.CDLL(str(rpr_lib_path))
                     found = True
                     break
