@@ -33,8 +33,9 @@ class PreviewEngine(Engine):
             log(f"  samples: {sample} +{update_samples} / {self.render_samples}")
             self.rpr_context.set_parameter('iterations', update_samples)
             self.rpr_context.render(restart=(sample == 0))
-            self.resolve_update_render_result((0, 0), (self.rpr_context.width,
-                                                       self.rpr_context.height))
+            self.rpr_context.resolve()
+            self.update_render_result((0, 0), (self.rpr_context.width,
+                                               self.rpr_context.height))
 
             sample += update_samples
 
