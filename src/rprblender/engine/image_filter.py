@@ -6,7 +6,7 @@ from rprblender import utils
 
 
 class ImageFilter(metaclass=ABCMeta):
-    def __init__(self, rpr_context, inputs, sigmas, params, width, height, frame_buffer_gl):
+    def __init__(self, rpr_context, inputs, sigmas, params, width, height, frame_buffer_gl=None):
         # creating context
         creation_flags = rpr_context.get_creation_flags()
         if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
@@ -24,8 +24,17 @@ class ImageFilter(metaclass=ABCMeta):
         self.params = params
         self.sigmas = sigmas
         self.inputs = {}
-        for input_id, fb in inputs.items():
-            self.inputs[input_id] = self.context.create_frame_buffer_image(fb)
+
+        if isinstance(inputs, set):
+            for input_id in inputs:
+                self.inputs[input_id] = self.context.create_image(self.width, self.height)
+
+        else:
+            for input_id, fb in inputs.items():
+                if fb:
+                    self.inputs[input_id] = self.context.create_frame_buffer_image(fb)
+                else:
+                    self.inputs[input_id] = self.context.create_image(self.width, self.height)
 
         self.command_queue = self.context.create_command_queue()
         if frame_buffer_gl:
@@ -40,6 +49,9 @@ class ImageFilter(metaclass=ABCMeta):
 
     def update_param(self, name, value):
         self.params[name] = value
+
+    def update_input(self, input_id, data, pos=(0, 0)):
+        self.inputs[input_id].set_data(data, pos)
 
     @abstractmethod
     def _create_filter(self):
@@ -64,7 +76,8 @@ class ImageFilter(metaclass=ABCMeta):
         
         # updating input images
         for image in self.inputs.values():
-            image.update()
+            if isinstance(image, rif.FrameBufferImage):
+                image.update()
 
         self.command_queue.execute()
 

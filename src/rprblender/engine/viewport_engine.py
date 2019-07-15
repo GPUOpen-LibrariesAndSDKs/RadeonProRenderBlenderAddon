@@ -233,7 +233,6 @@ class ViewportEngine(Engine):
                 break
 
             self.rpr_context.resolve()
-            self.rpr_context.resolve_extras()
 
             self.rpr_engine.tag_redraw()
 
