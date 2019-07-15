@@ -211,10 +211,25 @@ class Image(Object):
         buffer_size = self.width * self.height * self.components * 4    # 4 floats per color components (every color component is float value)
         data = np.frombuffer(ffi.buffer(float_data, buffer_size), dtype=np.float32)\
             .reshape(self.height, self.width, self.components)
+        data = np.copy(data)
 
         ImageUnmap(self, mapped_data[0])
 
         return data
+
+    def set_data(self, data: np.array, pos=(0, 0)):
+        mapped_data = ffi.new('void **')
+        ImageMap(self, IMAGE_MAP_WRITE, mapped_data)
+
+        float_data = ffi.cast("float*", mapped_data[0])
+        buffer_size = self.width * self.height * self.components * 4
+        _data = np.frombuffer(ffi.buffer(float_data, buffer_size), dtype=np.float32)\
+            .reshape(self.height, self.width, self.components)
+        x1, y1 = pos
+        x2, y2 = x1 + data.shape[1], y1 + data.shape[0]
+        _data[y1:y2, x1:x2] = data[:, :]
+        
+        ImageUnmap(self, mapped_data[0])
 
 
 class FrameBufferImage(Image):

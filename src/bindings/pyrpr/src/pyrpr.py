@@ -853,12 +853,12 @@ class FrameBuffer(Object):
             FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', buf), ffi.NULL)
             return buf
 
-        data = np.empty((self.width, self.height, self.channels), dtype=np.float32)
+        data = np.empty((self.height, self.width, self.channels), dtype=np.float32)
         FrameBufferGetInfo(self, FRAMEBUFFER_DATA, self.size(), ffi.cast('float*', data.ctypes.data), ffi.NULL)
         return data
 
     def size(self):
-        return self.height * self.width * self.channels * 4    # 4 bytes = sizeof(float32)
+        return self.width * self.height * self.channels * 4    # 4 bytes = sizeof(float32)
 
     def save_to_file(self, file_path):
         FrameBufferSaveToFile(self, encode(file_path))

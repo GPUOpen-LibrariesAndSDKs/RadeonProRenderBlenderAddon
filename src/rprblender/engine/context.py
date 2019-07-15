@@ -38,7 +38,7 @@ class RPRContext:
         self.sc_composite = None
 
         # image filter
-        self.image_filter = None
+        self.image_filter: image_filter.ImageFilter = None
         self.image_filter_settings = None
 
     def init(self, context_flags, context_props):
@@ -100,19 +100,17 @@ class RPRContext:
 
         return self.frame_buffers_aovs[aov_type]['res']
 
-    def resolve(self):
+    def resolve(self, apply_image_filter=False):
         with self.lock:
             for fbs in self.frame_buffers_aovs.values():
                 fbs['aov'].resolve(fbs['res'])
 
-    def resolve_extras(self):
-        if self.sc_composite:
-            with self.lock:
+            if self.sc_composite:
                 self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
                 if self.gl_interop and not self.image_filter:
                     self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
 
-        if self.image_filter:
+        if apply_image_filter and self.image_filter:
             self.image_filter.run()
 
     def enable_aov(self, aov_type):

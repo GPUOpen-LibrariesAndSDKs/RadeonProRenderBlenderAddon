@@ -17,6 +17,7 @@ import pyrpr
 from .context import RPRContext
 from rprblender.export import object, instance
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
+from . import image_filter
 
 from rprblender.utils import logging
 log = logging.Log(tag='Engine')
@@ -31,6 +32,10 @@ class Engine(metaclass=ABCMeta):
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.proxy(rpr_engine)
         self.rpr_context = RPRContext()
+
+        # image filter
+        self.image_filter = None
+        self.image_filter_settings = None
 
     @abstractmethod
     def render(self):
@@ -48,7 +53,7 @@ class Engine(metaclass=ABCMeta):
         """
         return image
 
-    def _set_render_result(self, render_passes: bpy.types.RenderPasses):
+    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
         """
         Sets render result to render passes
         :param render_passes: render passes to collect
@@ -64,7 +69,11 @@ class Engine(metaclass=ABCMeta):
             aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info if aov['name'] == p.name), None)
             if aov:
                 try:
-                    image = self.rpr_context.get_image(aov['rpr'])
+                    aov_rpr = aov['rpr']
+                    if apply_image_filter and self.image_filter and aov_rpr == pyrpr.AOV_COLOR:
+                        image = self.image_filter.get_data()
+                    else:
+                        image = self.rpr_context.get_image(aov_rpr)
 
                 except KeyError:
                     # This could happen when Depth or Combined was not selected, but they still are in view_layer.use_pass_*
@@ -84,12 +93,10 @@ class Engine(metaclass=ABCMeta):
         # efficient way to copy all AOV images
         render_passes.foreach_set('rect', np.concatenate(images))
 
-    def resolve_update_render_result(self, tile_pos, tile_size, layer_name=""):
-        self.rpr_context.resolve()
-        self.rpr_context.resolve_extras()
-
+    def update_render_result(self, tile_pos, tile_size, layer_name="",
+                             apply_image_filter=False):
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
-        self._set_render_result(result.layers[0].passes)
+        self._set_render_result(result.layers[0].passes, apply_image_filter)
         self.rpr_engine.end_result(result)
 
     @staticmethod
@@ -184,3 +191,165 @@ class Engine(metaclass=ABCMeta):
         finally:
             # restore current frame
             self.rpr_engine.frame_set(cur_frame, 0.0)
+
+    def setup_image_filter(self, settings):
+        if self.image_filter_settings != settings:
+            if settings['enable']:
+                if not self.image_filter:
+                    self._enable_image_filter(settings)
+                    return
+
+                if self.image_filter_settings['filter_type'] == settings['filter_type']:
+                    self._update_image_filter(settings)
+                    return
+
+                # recreating filter
+                self._disable_image_filter()
+                self._enable_image_filter(settings)
+
+            elif self.image_filter:
+                self._disable_image_filter()
+
+    def _enable_image_filter(self, settings):
+        self.image_filter_settings = settings
+        width, height = settings['resolution']
+
+        # Enabling AOV's which are used in all filters
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+
+        if settings['filter_type'] == 'BILATERAL':
+            self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
+            self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+
+            inputs = {'color', 'normal', 'world_coordinate', 'object_id'}
+            sigmas = {
+                'color': settings['color_sigma'],
+                'normal': settings['normal_sigma'],
+                'world_coordinate': settings['p_sigma'],
+                'object_id': settings['trans_sigma'],
+            }
+            params = {'radius': settings['radius']}
+            self.image_filter = image_filter.ImageFilterBilateral(
+                self.rpr_context.context, inputs, sigmas, params, width, height)
+
+        elif settings['filter_type'] == 'EAW':
+            self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
+            self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+            self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+
+            inputs = {'color', 'normal', 'depth', 'trans', 'world_coordinate', 'object_id'}
+            sigmas = {
+                'color': settings['color_sigma'],
+                'normal': settings['normal_sigma'],
+                'depth': settings['depth_sigma'],
+                'trans': settings['trans_sigma'],
+            }
+            self.image_filter = image_filter.ImageFilterEaw(
+                self.rpr_context.context, inputs, sigmas, {}, width, height)
+
+        elif settings['filter_type'] == 'LWR':
+            self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
+            self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+            self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+
+            inputs = {'color', 'normal', 'depth', 'trans', 'world_coordinate', 'object_id'}
+            params = {
+                'samples': settings['samples'],
+                'halfWindow': settings['half_window'],
+                'bandwidth': settings['bandwidth'],
+            }
+            self.image_filter = image_filter.ImageFilterLwr(
+                self.rpr_context.context, inputs, {}, params, width, height)
+
+        elif settings['filter_type'] == 'ML':
+            self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+            self.rpr_context.enable_aov(pyrpr.AOV_DIFFUSE_ALBEDO)
+
+            inputs = {'color', 'normal', 'depth', 'albedo'}
+            self.image_filter = image_filter.ImageFilterML(
+                self.rpr_context.context, inputs, {}, {}, width, height)
+
+    def _disable_image_filter(self):
+        self.image_filter = None
+        self.image_filter_settings = None
+
+    def _update_image_filter(self, settings):
+        self.image_filter_settings = settings
+
+        if settings['filter_type'] == 'bilateral':
+            self.image_filter.update_sigma('color', settings['color_sigma'])
+            self.image_filter.update_sigma('normal', settings['normal_sigma'])
+            self.image_filter.update_sigma('world_coordinate', settings['p_sigma'])
+            self.image_filter.update_sigma('object_id', settings['trans_sigma'])
+            self.image_filter.update_param('radius', settings['radius'])
+        elif settings['filter_type'] == 'eaw':
+            self.image_filter.update_sigma('color', settings['color_sigma'])
+            self.image_filter.update_sigma('normal', settings['normal_sigma'])
+            self.image_filter.update_sigma('depth', settings['depth_sigma'])
+            self.image_filter.update_sigma('trans', settings['trans_sigma'])
+        elif settings['filter_type'] == 'lwr':
+            self.image_filter.update_param('samples', settings['samples'])
+            self.image_filter.update_param('halfWindow', settings['half_window'])
+            self.image_filter.update_param('bandwidth', settings['bandwidth'])
+
+    def update_image_filter_inputs(self, tile_pos=(0, 0)):
+        color = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        shading = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
+
+        filter_type = self.image_filter_settings['filter_type']
+        if filter_type == 'BILATERAL':
+            world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
+            object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
+
+            inputs = {
+                'color': color,
+                'normal': shading,
+                'world_coordinate': world,
+                'object_id': object_id,
+            }
+
+        elif filter_type == 'EAW':
+            world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
+            object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
+            depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+
+            inputs = {
+                'color': color,
+                'normal': shading,
+                'depth': depth,
+                'trans': object_id,
+                'world_coordinate': world,
+                'object_id': object_id,
+            }
+
+        elif filter_type == 'LWR':
+            world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
+            object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
+            depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+
+            inputs = {
+                'color': color,
+                'normal': shading,
+                'depth': depth,
+                'trans': object_id,
+                'world_coordinate': world,
+                'object_id': object_id,
+            }
+
+        elif filter_type == 'ML':
+            depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+            albedo = self.rpr_context.get_image(pyrpr.AOV_DIFFUSE_ALBEDO)
+
+            inputs = {
+                'color': color,
+                'normal': shading,
+                'depth': depth,
+                'albedo': albedo,
+            }
+
+        else:
+            raise ValueError("Incorrect filter type", filter_type)
+
+        for input_id, data in inputs.items():
+            self.image_filter.update_input(input_id, data, tile_pos)

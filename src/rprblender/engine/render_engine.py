@@ -1,6 +1,7 @@
 import time
 import datetime
 import math
+import numpy as np
 
 import bpy
 import pyrpr
@@ -80,18 +81,28 @@ class RenderEngine(Engine):
 
             self.rpr_context.set_parameter('iterations', update_samples)
             self.rpr_context.render(restart=(self.current_sample == 0))
-            self.resolve_update_render_result((0, 0), (self.width, self.height),
-                                              self.render_layer_name)
 
             self.current_sample += update_samples
 
+            self.rpr_context.resolve()
+            self.update_render_result((0, 0), (self.width, self.height),
+                                      layer_name=self.render_layer_name)
+
             # stop at whichever comes first, max samples or max time if enabled
-            if self.current_sample >= self.render_samples:
+            if self.current_sample == self.render_samples:
                 break
 
             if self.render_time:
                 if self.current_render_time >= self.render_time:
                     break
+
+        if self.image_filter:
+            self.notify_status(1.0, "Applying denoising final image")
+            self.update_image_filter_inputs()
+            self.image_filter.run()
+            self.update_render_result((0, 0), (self.width, self.height),
+                                      layer_name=self.render_layer_name,
+                                      apply_image_filter=True)
 
         athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
 
@@ -143,9 +154,48 @@ class RenderEngine(Engine):
                     f"progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}")
                 self.rpr_context.set_parameter('iterations', update_samples)
                 self.rpr_context.render(restart=(sample == 0))
-                self.resolve_update_render_result(tile_pos, tile_size, self.render_layer_name)
 
                 sample += update_samples
+
+                self.rpr_context.resolve()
+                self.update_render_result(tile_pos, tile_size,
+                                          layer_name=self.render_layer_name)
+
+            if self.image_filter and sample == self.render_samples:
+                self.update_image_filter_inputs(tile_pos)
+
+        if self.image_filter and not self.rpr_engine.test_break():
+            self.notify_status(1.0, "Applying denoising final image")
+
+            # getting already rendered images for every render pass
+            result = self.rpr_engine.get_result()
+            render_passes = result.layers[self.render_layer_name].passes
+            length = sum((len(p.rect) * p.channels for p in render_passes))
+            images = np.empty(length, dtype=np.float32)
+            render_passes.foreach_get('rect', images)
+
+            # updating points
+            result = self.rpr_engine.begin_result(
+                0, 0, self.width, self.height,
+                layer=self.render_layer_name)
+
+            render_passes = result.layers[0].passes
+            pos = 0
+            for p in render_passes:
+                length = len(p.rect) * p.channels
+
+                # we will update only Combined pass
+                if p.name == "Combined":
+                    self.image_filter.run()
+                    image = self.image_filter.get_data()
+                    images[pos: pos + length] = image.flatten()
+                    break
+
+                pos += length
+
+            render_passes.foreach_set('rect', images)
+
+            self.rpr_engine.end_result(result)
 
         athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
 
@@ -257,16 +307,18 @@ class RenderEngine(Engine):
         rpr_camera = self.rpr_context.create_camera(camera_key)
         self.rpr_context.scene.set_camera(rpr_camera)
 
-        # camera object should be taken from depsgrapgh objects
-        camera_obj = depsgraph.objects[camera_key]
+        # Camera object should be taken from depsgrapgh objects.
+        # If it is not available then taking it from scene.camera
+        camera_obj = depsgraph.objects.get(camera_key, None)
+        if not camera_obj:
+            camera_obj = scene.camera
+
         self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
                                                               screen_width / screen_height, border)
 
         if scene.rpr.use_tile_render:
             if scene.camera.data.type == 'PANO':
                 log.warn("Tiles rendering is not supported for Panoramic camera")
-            elif view_layer.rpr.denoiser.filter_type == 'ML':
-                log.warn("Tiles rendering is not supported with enabled ML (Machine Learning) denoiser")
             else:
                 self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
                 self.tile_order = scene.rpr.tile_order
@@ -307,8 +359,13 @@ class RenderEngine(Engine):
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
+        # Shadow catcher
         self.rpr_context.sync_shadow_catcher()
-        view_layer.rpr.denoiser.export_denoiser(self.rpr_context)
+
+        # Image filter
+        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings['resolution'] = (self.width, self.height)
+        self.setup_image_filter(image_filter_settings)
 
         # SET rpr_context parameters
         self.rpr_context.set_parameter('preview', False)
