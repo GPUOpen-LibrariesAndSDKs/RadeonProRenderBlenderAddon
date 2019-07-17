@@ -32,13 +32,13 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         name="Min Samples",
         description="Minimum number of samples to render for each pixel. After this, adaptive "
                     "sampling will stop sampling pixels where noise is less than threshold.",
-        min=1, default=16,
+        min=16, default=64,
     )
 
     max_samples: IntProperty(
         name="Max Samples",
         description="Number of iterations to render for each pixel.",
-        min=1, default=64,
+        min=16, default=64,
     )
 
     noise_threshold: FloatProperty(
@@ -69,7 +69,7 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     preview_samples: IntProperty(
         name="Preview Samples",
         description="Material and light previews number of samples to render for each pixel",
-        min=1, default=64,
+        min=16, default=64,
     )
 
     preview_update_samples: IntProperty(
