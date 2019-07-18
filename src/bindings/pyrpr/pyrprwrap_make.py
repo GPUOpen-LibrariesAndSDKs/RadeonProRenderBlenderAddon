@@ -45,7 +45,7 @@ for name, c in api.constants.items():
     prefix = 'RPR_'
     if name.startswith(prefix):
         short_name = name[len(prefix):]
-        print('{} = {}'.format(short_name, pyrprapi.adjust_constant(c.value)))
+        print('{} = {}'.format(short_name, pyrprapi.eval_constant(c.value)))
         constants_names.append(short_name)
 
 print('_constants_names =', repr(constants_names))

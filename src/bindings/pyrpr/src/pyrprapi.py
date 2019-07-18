@@ -589,11 +589,15 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
     bindingsOk.write_text("ok")
 
 
-def adjust_constant(s):
+def eval_constant(s):
     if s.endswith('U'):
         s = s[:-1]
 
-    return s
+    try:
+        return eval(s)
+    
+    except NameError:
+        return s
 
 
 if __name__=='__main__':

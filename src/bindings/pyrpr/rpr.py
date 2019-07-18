@@ -118,10 +118,10 @@ def write_api(api_desc_fpath, f, abi_mode):
         print(name)
         # if a constant is actually a variable to another constant reference that
         if "RPR_" + c.value in api.constants.keys():
-          print('#define', name, pyrprapi.adjust_constant(api.constants["RPR_" + c.value].value) if
+          print('#define', name, pyrprapi.eval_constant(api.constants["RPR_" + c.value].value) if
           abi_mode else '...' , file=f)
         else:
-          print('#define', name, pyrprapi.adjust_constant(c.value) if abi_mode else '...' , file=f)
+          print('#define', name, pyrprapi.eval_constant(c.value) if abi_mode else '...', file=f)
     for name, t in api.types.items():
         print(name, t.kind)
         if 'struct' == t.kind:
