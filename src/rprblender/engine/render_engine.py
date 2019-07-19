@@ -52,6 +52,10 @@ class RenderEngine(Engine):
         athena_data['end_status'] = "successfully completed"
 
         self.current_sample = 0
+        is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
+        if is_adaptive:
+            all_pixels = active_pixels = self.width * self.height
+
         while True:
             if self.rpr_engine.test_break():
                 athena_data['end_status'] = "killed by user"
@@ -72,12 +76,19 @@ class RenderEngine(Engine):
                 self.current_sample / self.render_samples,
                 self.current_render_time / self.render_time if self.render_time else 0
             )
-            self.notify_status(progress,
-                               f"Render Time: {time_str} sec | "
-                               f"Samples: {self.current_sample}/{self.render_samples}")
+            info_str = f"Render Time: {time_str} sec | "\
+                       f"Samples: {self.current_sample}/{self.render_samples}"
+            log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
+                      f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
+            if is_adaptive:
+                adaptive_progress = (all_pixels - active_pixels) / all_pixels
+                progress = max(progress, adaptive_progress)
+                info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
+                log_str += f", active_pixels: {active_pixels}"
 
-            log(f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}, "
-                f"progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}")
+            self.notify_status(progress, info_str)
+
+            log(log_str)
 
             self.rpr_context.set_parameter('iterations', update_samples)
             self.rpr_context.render(restart=(self.current_sample == 0))
@@ -88,7 +99,13 @@ class RenderEngine(Engine):
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name)
 
-            # stop at whichever comes first, max samples or max time if enabled
+            # stop at whichever comes first:
+            # max samples or max time if enabled or active_pixels == 0
+            if is_adaptive:
+                active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
+                if active_pixels == 0:
+                    break
+
             if self.current_sample == self.render_samples:
                 break
 
@@ -117,6 +134,7 @@ class RenderEngine(Engine):
 
         tile_iterator = utils.tile_iterator(self.tile_order, self.width, self.height, *self.tile_size)
         tiles_number = tile_iterator.len
+        is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
 
         rpr_camera = self.rpr_context.scene.camera
 
@@ -137,21 +155,31 @@ class RenderEngine(Engine):
             self.rpr_context.resize(*tile_size)
 
             sample = 0
-            while sample < self.render_samples:
+            if is_adaptive:
+                all_pixels = active_pixels = tile_size[0] * tile_size[1]
+
+            while True:
                 if self.rpr_engine.test_break():
                     break
 
                 update_samples = min(self.render_update_samples, self.render_samples - sample)
                 self.current_render_time = time.perf_counter() - time_begin
                 progress = (tile_index + sample/self.render_samples) / tiles_number
+                info_str = f"Render Time: {self.current_render_time:.1f} sec"\
+                           f" | Tile: {tile_index}/{tiles_number}"\
+                           f" | Samples: {sample}/{self.render_samples}"
+                log_str = f"  samples: {sample} +{update_samples} / {self.render_samples}"\
+                    f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
 
-                self.notify_status(progress,
-                                   f"Render Time: {self.current_render_time:.1f} sec | "
-                                   f"Tile: {tile_index}/{tiles_number} | "
-                                   f"Samples: {sample}/{self.render_samples}")
+                if is_adaptive:
+                    adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
+                    progress = max(progress, (tile_index + adaptive_progress) / tiles_number)
+                    info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
+                    log_str += f", active_pixels: {active_pixels}"
 
-                log(f"  samples: {sample} +{update_samples} / {self.render_samples}, "
-                    f"progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}")
+                self.notify_status(progress, info_str)
+                log(log_str)
+
                 self.rpr_context.set_parameter('iterations', update_samples)
                 self.rpr_context.render(restart=(sample == 0))
 
@@ -160,6 +188,14 @@ class RenderEngine(Engine):
                 self.rpr_context.resolve()
                 self.update_render_result(tile_pos, tile_size,
                                           layer_name=self.render_layer_name)
+
+                if is_adaptive:
+                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
+                    if active_pixels == 0:
+                        break
+
+                if sample == self.render_samples:
+                    break
 
             if self.image_filter and sample == self.render_samples:
                 self.update_image_filter_inputs(tile_pos)

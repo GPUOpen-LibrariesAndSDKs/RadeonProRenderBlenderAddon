@@ -361,13 +361,18 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
-    def get_info_int(self, context_info):
+    def get_info_size(self, context_info):
         size = ffi.new('size_t *', 0)
         ContextGetInfo(self, context_info, 0, ffi.NULL, size)
         return size[0]
 
+    def get_info_int(self, context_info):
+        ptr = ffi.new('int *', 0)
+        ContextGetInfo(self, context_info, 4, ptr, ffi.NULL)
+        return ptr[0]
+
     def get_info_str(self, context_info):
-        size = self.get_info_int(context_info)
+        size = self.get_info_size(context_info)
         ptr = ffi.new('char[]', size)
         ContextGetInfo(self, context_info, size, ptr, ffi.NULL)
         return decode(ffi.string(ptr))
