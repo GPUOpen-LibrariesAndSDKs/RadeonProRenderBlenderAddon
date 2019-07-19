@@ -54,7 +54,7 @@ class RenderEngine(Engine):
         self.current_sample = 0
         is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
         if is_adaptive:
-            all_pixels = active_pixels = self.width * self.height
+            all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
         while True:
             if self.rpr_engine.test_break():
@@ -156,7 +156,7 @@ class RenderEngine(Engine):
 
             sample = 0
             if is_adaptive:
-                all_pixels = active_pixels = tile_size[0] * tile_size[1]
+                all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
             while True:
                 if self.rpr_engine.test_break():
