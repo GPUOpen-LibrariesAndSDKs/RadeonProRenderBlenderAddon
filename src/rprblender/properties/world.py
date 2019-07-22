@@ -121,7 +121,7 @@ class RPR_EnvironmentSunSky(bpy.types.PropertyGroup):
     sun_disc: FloatProperty(
         name="Sun Disc",
         description="Sun Disc",
-        default=0.5,
+        default=2.0,
     )
     saturation: FloatProperty(
         name="Saturation",
