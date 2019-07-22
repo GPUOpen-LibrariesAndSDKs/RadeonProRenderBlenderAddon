@@ -13,6 +13,7 @@ from rprblender import utils
 from rprblender import bl_info
 
 from . import logging
+from . import IS_MAC
 log = logging.Log(tag='athena')
 
 
@@ -43,14 +44,33 @@ def _send_data_thread(data):
         log("send_data_thread finish")
 
 
+def get_system_language():
+    """ Get system language and locale """
+    try:
+        default_locale = locale.getdefaultlocale()
+    except ValueError:
+        if IS_MAC:
+            # Fix for "ValueError: unknown locale: UTF-8" on Mac.
+            # The default English locale on Mac is set as "UTF-8" instead of "en-US.UTF-8"
+            # see https://bugs.python.org/issue18378
+            return 'en_US', 'UTF-8'
+
+        # re-throw any other issue
+        raise
+
+    system_lang = default_locale[0]
+    system_locale = default_locale[1]
+
+    return system_lang, system_locale
+
+
 def send_data(data: dict):
     # System/Platform Information (excluding GPU information)
     data['OS_name'] = platform.system()
     data['OS_version'] = platform.version()
     data['OS_arch'] = platform.architecture()[0]
     # data['OS_KERNEL_DLL_ver'] = ""
-    data['OS_lang'] = locale.getdefaultlocale()[0]
-    data['OS_locale'] = locale.getdefaultlocale()[1]
+    data['OS_lang'], data['OS_locale'] = get_system_language()
     data['OS_tz'] = time.strftime("%z", time.gmtime())
     # data['CPU_ID'] = ""
     data['CPU_name'] = pyrpr.Context.cpu_device['name']
