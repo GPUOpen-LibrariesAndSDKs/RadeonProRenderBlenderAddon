@@ -174,6 +174,11 @@ class ViewportEngine(Engine):
         """
 
         log("Start render thread")
+
+        is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
+        if is_adaptive:
+            all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
+
         while True:
             self.restart_render_event.wait()
 
@@ -183,6 +188,8 @@ class ViewportEngine(Engine):
             iteration = 0
             time_begin = 0.0
             time_render = 0.0
+            if is_adaptive:
+                active_pixels = all_pixels
 
             while True:
                 if self.finish_render:
@@ -196,7 +203,10 @@ class ViewportEngine(Engine):
                     time_begin = time.perf_counter()
                     log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
 
-                log("Render iteration: %d / %d" % (iteration, self.render_iterations))
+                log_str = f"Render iteration: {iteration} / {self.render_iterations}"
+                if is_adaptive:
+                    log_str += f", active_pixels: {active_pixels}"
+                log(log_str)
 
                 self.rpr_context.render(restart=(iteration == 0))
 
@@ -205,14 +215,32 @@ class ViewportEngine(Engine):
                 iteration += 1
                 time_render = time.perf_counter() - time_begin
 
+                if is_adaptive:
+                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
+                    if active_pixels == 0:
+                        break
+
                 if self.render_iterations > 0:
-                    self.notify_status("Time: %.1f sec | Iteration: %d/%d" % (time_render, iteration, self.render_iterations))
+                    info_str = f"Time: {time_render:.1f} sec"\
+                               f" | Iteration: {iteration}/{self.render_iterations}"
+                else:
+                    info_str = f"Time: {time_render:.1f}/{self.render_time} sec"\
+                               f" | Iteration: {iteration}"
+                if is_adaptive:
+                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
+                    adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
+                    info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
+
+                self.notify_status(info_str)
+
+                if self.render_iterations > 0:
                     if iteration >= self.render_iterations:
                         break
                 else:
-                    self.notify_status("Time: %.1f/%d sec | Iteration: %d" % (time_render, self.render_time, iteration))
                     if time_render >= self.render_time:
                         break
+                if is_adaptive and active_pixels == 0:
+                    break
 
             self.notify_status("Rendering Done | Time: %.1f sec | Iteration: %d" % (time_render, iteration))
 

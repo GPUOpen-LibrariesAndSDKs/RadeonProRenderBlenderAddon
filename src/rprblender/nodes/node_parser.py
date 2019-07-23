@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 
 import bpy
 import pyrpr
-import pyrprx
 
 from rprblender.engine.context import RPRContext
 from .node_item import NodeItem
@@ -179,13 +178,6 @@ class BaseNodeParser(metaclass=ABCMeta):
 
         return rpr_node
 
-    def create_uber(self, inputs={}):
-        rpr_node = self.rpr_context.create_x_material_node(pyrprx.MATERIAL_UBER)
-        for name, value in inputs.items():
-            rpr_node.set_input(name, value)
-
-        return rpr_node
-
     def create_arithmetic(self, op_type, color1, color2=None, color3=None):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_ARITHMETIC, {
             'op': op_type,
@@ -226,7 +218,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         log("export", self.material, self.node, self.socket_out, self.group_nodes)
         rpr_node = self.export()
 
-        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+        if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
@@ -249,7 +241,7 @@ class NodeParser(BaseNodeParser):
         node_item = self.export()
         rpr_node = node_item.data if node_item else None
 
-        if isinstance(rpr_node, (pyrpr.MaterialNode, pyrprx.Material)):
+        if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
@@ -282,13 +274,6 @@ class NodeParser(BaseNodeParser):
 
         return self.node_item(val)
 
-    def create_uber(self, inputs={}) -> NodeItem:
-        val = super().create_uber(inputs)
-        for name, value in inputs.items():
-            val.set_input(name, value.data if isinstance(value, NodeItem) else value)
-
-        return self.node_item(val)
-
     def node_item(self, val):
         return NodeItem(self.rpr_context, val)
 
@@ -315,9 +300,9 @@ class RuleNodeParser(NodeParser):
             }
         }
     }
-    Supported types: pyrpr.*, "UBER", "*", "+", "-", "max", "min", "blend"
-    Supported params: pyrpr.*, pyrprx.*, str
-    Supported values: pyrpr.*, pyrprx.*, "nodes.*", "inputs.*", "link:inputs.*", "default:inputs.*"
+    Supported types: pyrpr.*, "*", "+", "-", "max", "min", "blend"
+    Supported params: pyrpr.*, str
+    Supported values: pyrpr.*, "nodes.*", "inputs.*", "link:inputs.*", "default:inputs.*"
     """
 
     nodes = {}
@@ -378,9 +363,6 @@ class RuleNodeParser(NodeParser):
         node_type = node_rule['type']
         if isinstance(node_type, int):
             rpr_node = self.create_node(node_type)
-
-        elif node_type == 'UBER':
-            rpr_node = self.create_uber()
 
         else:
             if node_type == '*':

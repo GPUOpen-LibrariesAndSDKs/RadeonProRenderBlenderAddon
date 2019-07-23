@@ -589,6 +589,17 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
     bindingsOk.write_text("ok")
 
 
+def eval_constant(s):
+    if s.endswith('U'):
+        s = s[:-1]
+
+    try:
+        return eval(s)
+    
+    except NameError:
+        return s
+
+
 if __name__=='__main__':
     #change paths according to your developer environment:
     #castxml = r'C:\Development\tools\castxml\bin\castxml'
@@ -597,13 +608,9 @@ if __name__=='__main__':
 
     # RPR
     rpr_header_rpr_wrap = 'src/bindings/pyrpr/rprwrap.h'
-    rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RadeonProRender.h'
     includes_rpr = ['ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc']
     json_file_name_rpr_wrap = 'src/bindings/pyrpr/src/pyrprwrapapi.json'
     json_file_name_rpr = 'src/bindings/pyrpr/src/pyrprapi.json'
-
-    rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc/RprSupport.h'
-    json_file_name_rpr_support = 'src/bindings/pyrpr/src/pyrprsupportapi.json'
 
     # ImageProcessing
     rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap.h'
@@ -617,28 +624,16 @@ if __name__=='__main__':
 
     if "Darwin" == platform.system():
         rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap_metal.h'
-        rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Mac/inc/RadeonProRender.h'
         includes_rpr = ['ThirdParty/RadeonProRender SDK/Mac/inc']
-        rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Mac/inc/RprSupport.h'
         includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Mac/inc']
         rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Mac/inc/ProRenderGLTF.h'
         includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Mac/inc']
 
     if "Windows" == platform.system():
-        rpr_header_rpr = 'ThirdParty/RadeonProRender SDK/Win/inc/RadeonProRender.h'
         includes_rpr = ['ThirdParty/RadeonProRender SDK/Win/inc']
-        rpr_header_rpr_support = 'ThirdParty/RadeonProRender SDK/Win/inc/RprSupport.h'
         includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Windows/inc']
         rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
         includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Win/inc']
-
-    export(rpr_header_rpr, includes_rpr, json_file_name_rpr,
-           {
-               'type':['rpr_', '_rpr'],
-               'function':['rpr',],
-               'constant':['RPR_',]
-           },
-        castxml)
 
     export(rpr_header_rpr_wrap, includes_rpr, json_file_name_rpr_wrap,
            {
@@ -647,14 +642,6 @@ if __name__=='__main__':
                'constant':['RPR_',]
            },
         castxml)
-
-    export(rpr_header_rpr_support, includes_rpr, json_file_name_rpr_support,
-           {
-               'type': ['rprx_', '_rprx'],
-               'function': ['rprx'],
-               'constant': ['RPRX_']
-           },
-           castxml)
 
     export(rpr_header_image_filters, includes_image_filters, json_file_name_image_filters,
            {
@@ -666,10 +653,10 @@ if __name__=='__main__':
            exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', ],
            replace={'RIF_API_VERSION': '0x404000000000000', })
 
-    export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
-           {
-               'type': ['rprgltf_'],
-               'function': ['rprExport', 'rprImport', 'rprGLTF'],
-               'constant': []
-           },
-           castxml)
+    # export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
+    #        {
+    #            'type': ['rprgltf_'],
+    #            'function': ['rprExport', 'rprImport', 'rprGLTF'],
+    #            'constant': []
+    #        },
+    #        castxml)
