@@ -426,7 +426,7 @@ class RPRShaderNodeUber(RPRShaderNode):
                 sss_direction = self.get_input_value('Subsurface Direction')
 
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, sss_weight)
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR, (1.0, 1.0, 1.0))
+                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR, sss_color)
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_WEIGHT, sss_weight)
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_COLOR, sss_color)
 
