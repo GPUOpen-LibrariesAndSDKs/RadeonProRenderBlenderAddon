@@ -31,19 +31,14 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         import pyrpr_load_store
         pyrpr_load_store.init(rprsdk_bin_path)
 
-        import pyrprx
-        log_pyrpr.info("RPRX Support version", hex(pyrprx.SUPPORT_API_VERSION))
-        pyrprx.lib_wrapped_log_calls = config.pyrprx_log_calls
-        pyrprx.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
-
         import pyrprimagefilters
         log_pyrpr.info("Image Filters version", hex(pyrprimagefilters.API_VERSION))
         pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
         pyrprimagefilters.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
-        import pyrprgltf
-        pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
-        pyrprgltf.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
+        # import pyrprgltf
+        # pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
+        # pyrprgltf.init(log_pyrpr, rprsdk_bin_path=rprsdk_bin_path)
 
     except:
         logging.critical(traceback.format_exc(), tag='')

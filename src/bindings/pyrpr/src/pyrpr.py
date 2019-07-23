@@ -11,7 +11,6 @@ import bgl
 
 import pyrprwrap
 from pyrprwrap import *
-import pyrprx
 
 
 lib_wrapped_log_calls = False
@@ -94,21 +93,19 @@ def init(log_fun, rprsdk_bin_path=None):
     if platform.system() == "Windows":
         alternate_relative_paths = [
             "../../../RadeonProImageProcessing/Windows/lib",
-            "../../../RadeonProRender-GLTF/Win/lib"
+            #"../../../RadeonProRender-GLTF/Win/lib"
         ]
         lib_names = [
             'tbbmalloc-4233fe.dll',
             'tbb-4233fe.dll',
             'OpenImageDenoise.dll',
-            'OpenImageIO_RPR.dll',
             'RadeonProRender64.dll',
-            'RprSupport64.dll',
 
             'MIOpen.dll',
             'RadeonProML.dll',
             'RadeonImageFilters64.dll',
 
-            'ProRenderGLTF.dll',
+            #'ProRenderGLTF.dll',
         ]
 
     elif platform.system() == "Linux":
@@ -364,13 +361,18 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
-    def get_info_int(self, context_info):
+    def get_info_size(self, context_info):
         size = ffi.new('size_t *', 0)
         ContextGetInfo(self, context_info, 0, ffi.NULL, size)
         return size[0]
 
+    def get_info_int(self, context_info):
+        ptr = ffi.new('int *', 0)
+        ContextGetInfo(self, context_info, 4, ptr, ffi.NULL)
+        return ptr[0]
+
     def get_info_str(self, context_info):
-        size = self.get_info_int(context_info)
+        size = self.get_info_size(context_info)
         ptr = ffi.new('char[]', size)
         ContextGetInfo(self, context_info, size, ptr, ffi.NULL)
         return decode(ffi.string(ptr))
@@ -498,42 +500,17 @@ class Shape(Object):
         super().delete()
 
     def set_material(self, material):
-        if len(self.materials) == 1 and  isinstance(self.materials[0], pyrprx.Material):
-            self.materials[0].detach(self)
-
-            # additional cleanup should be executed after detaching pyrprx.Material
-            # otherwise it could crash after resetting emissive shader
+        if self.materials:
             ShapeSetMaterial(self, None)
-            if material is None:
-                self.material = None
-                return
+            self.materials.clear()
 
-        if material is None or isinstance(material, MaterialNode):
-            ShapeSetMaterial(self, material)
-        elif isinstance(material, pyrprx.Material):
-            material.attach(self)
-        else:
-            raise TypeError("Incorrect type of material", self, material)
-
-        self.materials.clear()
         if material:
+            ShapeSetMaterial(self, material)
             self.materials.append(material)
 
     def set_material_faces(self, material, face_indices: np.array):
-        if isinstance(material, MaterialNode):
-            ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
-            self.materials.append(material)
-
-        elif isinstance(material, pyrprx.Material):
-            # attaching pyrprx.Material through blend node
-            blend_node = MaterialNode(material.context.material_system, MATERIAL_NODE_BLEND)
-            blend_node.set_input('color0', material)
-            blend_node.set_input('weight', 0.0)
-
-            self.set_material_faces(blend_node, face_indices)
-
-        else:
-            raise TypeError("Incorrect type of material", self, material)
+        ShapeSetMaterialFaces(self, material, ffi.cast('rpr_int*', face_indices.ctypes.data), len(face_indices))
+        self.materials.append(material)
 
     def set_volume_material(self, node):
         self.volume_material = node
@@ -665,26 +642,8 @@ class Curve(Object):
         super().delete()
 
     def set_material(self, material):
-        if isinstance(self.material, pyrprx.Material):
-            self.material.detach(self)
-
-            # additional cleanup should be executed after detaching pyrprx.Material
-            # otherwise it could crash after resetting emissive shader
-            CurveSetMaterial(self, None)
-            if material is None:
-                self.material = None
-                return
-
-        if material is None or isinstance(material, MaterialNode):
-            CurveSetMaterial(self, material)
-        elif isinstance(material, pyrprx.Material):
-            material.attach(self)
-        else:
-            raise TypeError("Incorrect type of material", self, material)
-
-        self.material = None
-        if material:
-            self.material = material
+        CurveSetMaterial(self, material)
+        self.material = material
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         CurveSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
@@ -981,37 +940,50 @@ class MaterialNode(Object):
         super().__init__()
         self.material_system = material_system
         self.inputs = {}
-        MaterialSystemCreateNode(self.material_system, material_type, self)
-
-    def delete(self):
-        for in_input, in_value in self.inputs.items():
-            if isinstance(in_value, pyrprx.Material):
-                in_value.detach_from_node(in_input, self)
-        self.inputs.clear()
-
-        super().delete()
+        self.type = material_type
+        MaterialSystemCreateNode(self.material_system, self.type, self)
 
     def set_input(self, name, value):
-        if isinstance(value, MaterialNode):
-            MaterialNodeSetInputN(self, encode(name), value)
-        elif isinstance(value, pyrprx.Material):
-            value.attach_to_node(name, self)
-        elif isinstance(value, int):
-            MaterialNodeSetInputU(self, encode(name), value)
-        elif isinstance(value, bool):
-            MaterialNodeSetInputU(self, encode(name), TRUE if value else FALSE)
-        elif isinstance(value, float):
-            MaterialNodeSetInputF(self, encode(name), value, value, value, value)
-        elif isinstance(value, tuple) and len(value) == 3:
-            MaterialNodeSetInputF(self, encode(name), *value, 1.0)
-        elif isinstance(value, tuple) and len(value) == 4:
-            MaterialNodeSetInputF(self, encode(name), *value)
-        elif isinstance(value, Image):
-            MaterialNodeSetInputImageData(self, encode(name), value)
-        elif isinstance(value, Buffer):
-            MaterialNodeSetInputBufferData(self, encode(name), value)
+        if isinstance(name, str):
+            name_ = encode(name)
+            if isinstance(value, MaterialNode):
+                MaterialNodeSetInputN(self, name_, value)
+            elif isinstance(value, int):
+                MaterialNodeSetInputU(self, name_, value)
+            elif isinstance(value, bool):
+                MaterialNodeSetInputU(self, name_, TRUE if value else FALSE)
+            elif isinstance(value, float):
+                MaterialNodeSetInputF(self, name_, value, value, value, value)
+            elif isinstance(value, tuple) and len(value) == 3:
+                MaterialNodeSetInputF(self, name_, *value, 1.0)
+            elif isinstance(value, tuple) and len(value) == 4:
+                MaterialNodeSetInputF(self, name_, *value)
+            elif isinstance(value, Image):
+                MaterialNodeSetInputImageData(self, name_, value)
+            elif isinstance(value, Buffer):
+                MaterialNodeSetInputBufferData(self, name_, value)
+            else:
+                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
+
         else:
-            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
+            if isinstance(value, MaterialNode):
+                MaterialNodeSetInputNByKey(self, name, value)
+            elif isinstance(value, int):
+                MaterialNodeSetInputUByKey(self, name, value)
+            elif isinstance(value, bool):
+                MaterialNodeSetInputUByKey(self, name, TRUE if value else FALSE)
+            elif isinstance(value, float):
+                MaterialNodeSetInputFByKey(self, name, value, value, value, value)
+            elif isinstance(value, tuple) and len(value) == 3:
+                MaterialNodeSetInputFByKey(self, name, *value, 1.0)
+            elif isinstance(value, tuple) and len(value) == 4:
+                MaterialNodeSetInputFByKey(self, name, *value)
+            elif isinstance(value, Image):
+                MaterialNodeSetInputImageDataByKey(self, name, value)
+            elif isinstance(value, Buffer):
+                MaterialNodeSetInputBufferDataByKey(self, name, value)
+            else:
+                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
         self.inputs[name] = value
 
