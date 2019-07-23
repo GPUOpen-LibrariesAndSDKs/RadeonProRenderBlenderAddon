@@ -618,7 +618,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_MULTISCATTER, False)
             # these also need to be set for core SSS to work.
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, subsurface)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR, subsurface_color)
 
         # Emission -> Emission
         if enabled(emission):
