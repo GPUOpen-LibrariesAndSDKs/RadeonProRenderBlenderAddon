@@ -216,7 +216,7 @@ class ViewportEngine(Engine):
                 time_render = time.perf_counter() - time_begin
 
                 if is_adaptive:
-                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int, with_lock=True)
+                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     if active_pixels == 0:
                         break
 
@@ -227,7 +227,7 @@ class ViewportEngine(Engine):
                     info_str = f"Time: {time_render:.1f}/{self.render_time} sec"\
                                f" | Iteration: {iteration}"
                 if is_adaptive:
-                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int, with_lock=True)
+                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
                     info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
 
