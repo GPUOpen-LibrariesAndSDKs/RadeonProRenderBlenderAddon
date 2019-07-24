@@ -522,12 +522,13 @@ class RPRContext:
     def get_parameter(self, name):
         return self.context.parameters[name]
 
-    def get_info(self, context_info: int, value_type: type):
-        if value_type is int:
-            return self.context.get_info_int(context_info)
+    def get_info(self, context_info: int, value_type: type, with_lock=False):
+        with self.lock if with_lock else 1:
+            if value_type is int:
+                return self.context.get_info_int(context_info)
 
-        if value_type is str:
-            return self.context.get_info_str(context_info)
+            if value_type is str:
+                return self.context.get_info_str(context_info)
 
         raise ValueError("Incorrect value_type for RPRContext.get_info", value_type)
 
