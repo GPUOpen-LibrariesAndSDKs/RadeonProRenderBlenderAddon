@@ -21,7 +21,8 @@ def get_material_output_node(material):
         return None
 
     return next((node for node in material.node_tree.nodes
-                      if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output), None)
+                 if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output),
+                None)
 
 
 def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface'):
@@ -30,7 +31,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
     In other cases: returns None
     """
 
-    log("sync", material)
+    log("sync", material, input_socket_key)
 
     mat_key = key(material, input_socket_key)
 
@@ -62,4 +63,11 @@ def sync_update(rpr_context: RPRContext, material: bpy.types.Material):
         rpr_context.remove_material(mat_key)
 
     sync(rpr_context, material)
+
+    displacement_key = key(material, input_socket_key='Displacement')
+    if displacement_key in rpr_context.materials:
+        rpr_context.remove_material(displacement_key)
+
+    sync(rpr_context, material, input_socket_key='Displacement')
+
     return True

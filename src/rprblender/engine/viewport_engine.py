@@ -360,6 +360,7 @@ class ViewportEngine(Engine):
                 if isinstance(obj, bpy.types.Material):
                     material.sync_update(self.rpr_context, obj)
                     is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
+
                     continue
 
                 if isinstance(obj, bpy.types.Object):
@@ -543,7 +544,8 @@ class ViewportEngine(Engine):
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         rpr_material = self.rpr_context.materials.get(material.key(mat), None)
-        if not rpr_material:
+        rpr_displacement = self.rpr_context.materials.get(material.key(mat, 'Displacement'), None)
+        if not rpr_material and not rpr_displacement:
             return False
 
         objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
