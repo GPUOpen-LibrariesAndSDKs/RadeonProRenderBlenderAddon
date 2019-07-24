@@ -164,31 +164,15 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
         else:
             rpr_shape.set_material(None)
 
+    # sync displacement for single material shape only
+    if len(material_slots) == 1:
+        rpr_displacement = material.sync(rpr_context, material_slots[0].material, 'Displacement')
+        rpr_shape.set_displacement_material(rpr_displacement)
+
     return True
 
 
-def update_material(rpr_shape: pyrpr.Shape, blender_mesh, slot_index, rpr_material) -> bool:
-    """ Update single material of all used, return True if material was actually updated on mesh """
-    material_unique_indices = (0,)
-    if len(blender_mesh.material_slots) > 1:
-        material_indices = np.fromiter(
-            (tri.material_index for tri in blender_mesh.data.loop_triangles), dtype=np.int32)
-        material_unique_indices = np.unique(material_indices)
-
-    if slot_index in material_unique_indices:
-        if len(material_unique_indices) == 1:
-            rpr_shape.set_material(rpr_material)
-            return True
-
-        # Assign material to faces that are using it
-        face_indices = np.array(np.where(material_indices == slot_index)[0], dtype=np.int32)
-        rpr_shape.set_material_faces(rpr_material, face_indices)
-        return True
-
-    return False
-
-
-def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh:bpy.types.Mesh=None):
+def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = None):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
     if not mesh:
@@ -208,6 +192,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh:bpy.types.Mesh=Non
         data.vertex_indices, data.normal_indices, data.uv_indices,
         data.num_face_vertices
     )
+    rpr_shape.set_name(f"{obj.name}:{mesh.name}")
 
     assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
 
@@ -248,7 +233,8 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             rpr_shape.set_transform(object.get_transform(obj))
             return True
 
-        return assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
+        updated = assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
+        return updated
 
     sync(rpr_context, obj)
     return True

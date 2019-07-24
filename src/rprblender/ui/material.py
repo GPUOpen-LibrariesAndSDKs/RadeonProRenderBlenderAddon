@@ -106,6 +106,10 @@ class RPR_MATERIAL_PT_surface(RPR_MaterialOutputSocket):
     bl_label = "Surface"
 
 
+class RPR_MATERIAL_PT_displacement(RPR_MaterialOutputSocket):
+    bl_label = "Displacement"
+
+
 class RPR_MATERIAL_PT_volume(RPR_MaterialOutputSocket):
     bl_label = "Volume"
 
