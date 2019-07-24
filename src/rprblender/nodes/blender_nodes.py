@@ -50,6 +50,16 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             raise MaterialError("Incorrect Surface input socket",
                                 type(rpr_node), self.node, self.material)
 
+        if input_socket_key == 'Displacement':
+            if not rpr_node:
+                return None
+
+            if isinstance(rpr_node, pyrpr.MaterialNode):
+                return rpr_node
+
+            raise MaterialError("Incorrect Displacement input socket",
+                                type(rpr_node), self.node, self.material)
+
         if input_socket_key == 'Volume':
             if isinstance(rpr_node, dict):
                 return rpr_node
@@ -94,6 +104,35 @@ class ShaderNodeAmbientOcclusion(NodeParser):
 
         color = self.get_input_value('Color')
         return ao_map * color
+
+
+class ShaderNodeDisplacement(RuleNodeParser):
+    # inputs: Height, Midlevel, Scale, Normal
+
+    nodes = {
+        # displacement vec = Scale * (Height - Midlevel) * Normal
+        "Displacement": {
+            "type": "*",
+            "params": {
+                "color0": "nodes.mul",
+                "color1": "normal:inputs.Normal"
+            }
+        },
+        "mul": {
+            "type": "*",
+            "params": {
+                "color0": "inputs.Scale",
+                "color1": "nodes.sub",
+            }
+        },
+        "sub": {
+            "type": "-",
+            "params": {
+                "color0": "inputs.Height",
+                "color1": "inputs.Midlevel",
+            }
+        },
+    }
 
 
 class NodeReroute(NodeParser):

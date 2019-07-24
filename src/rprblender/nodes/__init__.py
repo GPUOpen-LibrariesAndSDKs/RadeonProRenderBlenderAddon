@@ -58,6 +58,7 @@ node_categories = [
     ]),
     RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
         NodeItem('ShaderNodeBump'),
+        NodeItem('ShaderNodeDisplacement'),
         NodeItem('ShaderNodeMapping'),
         NodeItem('ShaderNodeNormal'),
         NodeItem('ShaderNodeNormalMap'),
