@@ -522,8 +522,8 @@ class RPRContext:
     def get_parameter(self, name):
         return self.context.parameters[name]
 
-    def get_info(self, context_info: int, value_type: type, with_lock=False):
-        with self.lock if with_lock else 1:
+    def get_info(self, context_info: int, value_type: type):
+        with self.lock:
             if value_type is int:
                 return self.context.get_info_int(context_info)
 
