@@ -1,5 +1,6 @@
 import threading
 import time
+import math
 from dataclasses import dataclass
 
 import bpy
@@ -229,7 +230,7 @@ class ViewportEngine(Engine):
                 if is_adaptive:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
-                    info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
+                    info_str += f" | Adaptive Sampling: {math.floor(adaptive_progress * 100)}%"
 
                 self.notify_status(info_str)
 
@@ -360,7 +361,6 @@ class ViewportEngine(Engine):
                 if isinstance(obj, bpy.types.Material):
                     material.sync_update(self.rpr_context, obj)
                     is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
-
                     continue
 
                 if isinstance(obj, bpy.types.Object):
