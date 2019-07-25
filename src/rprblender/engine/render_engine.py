@@ -328,15 +328,22 @@ class RenderEngine(Engine):
 
         # EXPORT INSTANCES
         instances_len = len(depsgraph.object_instances)
+        last_instances_percent = 0
+        self.notify_status(0, "Syncing instances 0%%")
+
         for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
             obj = inst.object
-            self.notify_status(0, "Syncing instance (%d/%d): %s" % (i, instances_len - objects_len, obj.name))
+            instances_percent = (i * 100) // instances_len 
+            if instances_percent > last_instances_percent:
+                self.notify_status(0, "Syncing instances %d%%" % instances_percent)
+                last_instances_percent = instances_percent
 
             instance.sync(self.rpr_context, inst)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
+        self.notify_status(0, "Syncing instances 100%%")
 
         # EXPORT CAMERA
         camera_key = object.key(scene.camera)   # current camera key
