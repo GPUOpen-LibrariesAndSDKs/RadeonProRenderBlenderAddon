@@ -81,9 +81,10 @@ class RenderEngine(Engine):
             log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
                       f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
             if is_adaptive:
-                adaptive_progress = (all_pixels - active_pixels) / all_pixels
+                adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
+
                 progress = max(progress, adaptive_progress)
-                info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
+                info_str += f" | Adaptive Sampling: {math.floor(adaptive_progress * 100)}%"
                 log_str += f", active_pixels: {active_pixels}"
 
             self.notify_status(progress, info_str)
