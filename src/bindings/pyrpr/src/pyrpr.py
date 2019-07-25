@@ -1118,6 +1118,7 @@ class AreaLight(Light):
 
     def set_visibility(self, visible):
         self.mesh.set_visibility_ex('visible.light', visible)
+        self.mesh.set_visibility_ex('visible.primary', visible)
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         self.mesh.set_transform(transform, transpose)
