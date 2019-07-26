@@ -165,9 +165,11 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
             rpr_shape.set_material(None)
 
     # sync displacement for single material shape only
-    if len(material_slots) == 1:
+    if len(material_slots) == 1 and material_slots[0].material:
         rpr_displacement = material.sync(rpr_context, material_slots[0].material, 'Displacement')
         rpr_shape.set_displacement_material(rpr_displacement)
+    else:
+        rpr_shape.set_displacement_material(None)
 
     return True
 
