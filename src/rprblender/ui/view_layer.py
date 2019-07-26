@@ -58,6 +58,6 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
             col.prop(denoiser, 'half_window', slider=True)
             col.prop(denoiser, 'bandwidth', slider=True)
         elif denoiser.filter_type == 'ML':
-            pass
+            col.prop(denoiser, 'ml_color_only')
         else:
             raise TypeError("No such filter type: %s" % denoiser.filter_type)

@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import pyrpr
 import pyrprimagefilters as rif
 from rprblender import utils
+from rprblender.utils.user_settings import get_user_settings
 
 
 class ImageFilter(metaclass=ABCMeta):
@@ -135,7 +136,13 @@ class ImageFilterML(ImageFilter):
     ''' Machine Learning Denoiser.  takes a normalized (-1, 1) normals image and a normalized depth image (0,1) 
         as well as an albedo '''
     def _create_filter(self):
-        self.filter = self.context.create_filter(rif.IMAGE_FILTER_AI_DENOISE)
+        devices = self.get_devices()
+        use_oidn = (utils.IS_WIN and devices.cpu_state) or utils.IS_MAC
+        if use_oidn:
+            self.filter = self.context.create_filter(rif.IMAGE_FILTER_OPENIMAGE_DENOISE)
+        else:
+            self.filter = self.context.create_filter(rif.IMAGE_FILTER_AI_DENOISE)
+            self.filter.set_parameter('useHDR', True)
 
         models_path = utils.package_root_dir() / 'data/models'
         if not models_path.is_dir():
@@ -145,37 +152,50 @@ class ImageFilterML(ImageFilter):
 
         ml_output_image = self.context.create_image(self.width, self.height, 3)
 
-        normal_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
-        normal_remap_filter.set_parameter('dstLo', -1.0)
-        normal_remap_filter.set_parameter('dstHi', 1.0)
-        normal_remap_image = self.context.create_image(self.width, self.height)
+        use_color_only = 'normal' not in self.inputs
+        if use_color_only:
+            self.filter.set_parameter('colorImg', self.inputs['color'])
 
-        depth_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
-        depth_remap_filter.set_parameter('dstLo', 0.0)
-        depth_remap_filter.set_parameter('dstHi', 1.0)
-        depth_remap_image = self.context.create_image(self.width, self.height)
+        else:
+            # setup remap normals filter
+            normal_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
+            normal_remap_filter.set_parameter('dstLo', -1.0)
+            normal_remap_filter.set_parameter('dstHi', 1.0)
+            normal_remap_image = self.context.create_image(self.width, self.height)
+            self.command_queue.attach_image_filter(normal_remap_filter, self.inputs['normal'],
+                                                   normal_remap_image)
 
+            # setup remap depth filter
+            depth_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
+            depth_remap_filter.set_parameter('dstLo', 0.0)
+            depth_remap_filter.set_parameter('dstHi', 1.0)
+            depth_remap_image = self.context.create_image(self.width, self.height)
+            self.command_queue.attach_image_filter(depth_remap_filter, self.inputs['depth'],
+                                                   depth_remap_image)
+
+            # configure Filter
+            self.filter.set_parameter('colorImg', self.inputs['color'])
+            self.filter.set_parameter('normalsImg', normal_remap_image)
+            self.filter.set_parameter('depthImg', depth_remap_image)
+            self.filter.set_parameter('albedoImg', self.inputs['albedo'])
+
+        # setup resample filter
         output_resample_filter = self.context.create_filter(rif.IMAGE_FILTER_RESAMPLE)
         output_resample_filter.set_parameter('interpOperator', rif.IMAGE_INTERPOLATION_NEAREST)
         output_resample_filter.set_parameter('outSize', (self.width, self.height))
 
-        # configure Filter
-        self.filter.set_parameter('colorImg', self.inputs['color'])
-        self.filter.set_parameter('normalsImg', normal_remap_image)
-        self.filter.set_parameter('depthImg', depth_remap_image)
-        self.filter.set_parameter('albedoImg', self.inputs['albedo'])
-
-        # setup remap normals filter
-        self.command_queue.attach_image_filter(normal_remap_filter, self.inputs['normal'], normal_remap_image)
-        
-        # setup remap depth filter
-        self.command_queue.attach_image_filter(depth_remap_filter, self.inputs['depth'], depth_remap_image)
-
         # attach filters
-        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], ml_output_image)
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'],
+                                               ml_output_image)
 
         # attach output resample filter
-        self.command_queue.attach_image_filter(output_resample_filter, ml_output_image, self.output_image)
+        self.command_queue.attach_image_filter(output_resample_filter, ml_output_image,
+                                               self.output_image)
+
+    def get_devices(self, is_final_engine=True):
+        """ Get render devices settings for current mode """
+        devices_settings = get_user_settings()
+        return devices_settings.final_devices
 
 
 class ImageFilterEaw(ImageFilter):
