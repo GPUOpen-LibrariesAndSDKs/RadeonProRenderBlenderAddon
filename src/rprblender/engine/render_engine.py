@@ -411,6 +411,9 @@ class RenderEngine(Engine):
         image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
 
+        if self.image_filter and self.rpr_context.is_aov_enabled(pyrpr.AOV_COLOR):
+            self.rpr_engine.add_pass('Color', 4, 'RGBA', layer=view_layer.name)
+
         # SET rpr_context parameters
         self.rpr_context.set_parameter('preview', False)
         scene.rpr.export_ray_depth(self.rpr_context)

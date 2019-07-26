@@ -79,6 +79,10 @@ class Engine(metaclass=ABCMeta):
                     # This could happen when Depth or Combined was not selected, but they still are in view_layer.use_pass_*
                     log.warn("AOV '{}' is not enabled in rpr_context".format(aov['name']))
                     image = zeros_image(p.channels)
+
+            elif p.name == 'Color':
+                image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+
             else:
                 log.warn("AOV '{}' is not found in aovs_info".format(p.name))
                 image = zeros_image(p.channels)
@@ -216,11 +220,11 @@ class Engine(metaclass=ABCMeta):
 
         # Enabling AOV's which are used in all filters
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
-        self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
         if settings['filter_type'] == 'BILATERAL':
             self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
             self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+            self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {'color', 'normal', 'world_coordinate', 'object_id'}
             sigmas = {
@@ -237,6 +241,7 @@ class Engine(metaclass=ABCMeta):
             self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
             self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
             self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+            self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {'color', 'normal', 'depth', 'trans', 'world_coordinate', 'object_id'}
             sigmas = {
@@ -252,6 +257,7 @@ class Engine(metaclass=ABCMeta):
             self.rpr_context.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
             self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
             self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+            self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {'color', 'normal', 'depth', 'trans', 'world_coordinate', 'object_id'}
             params = {
@@ -263,10 +269,14 @@ class Engine(metaclass=ABCMeta):
                 self.rpr_context.context, inputs, {}, params, width, height)
 
         elif settings['filter_type'] == 'ML':
-            self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
-            self.rpr_context.enable_aov(pyrpr.AOV_DIFFUSE_ALBEDO)
+            inputs = {'color'}
 
-            inputs = {'color', 'normal', 'depth', 'albedo'}
+            if not settings['ml_color_only']:
+                self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
+                self.rpr_context.enable_aov(pyrpr.AOV_DIFFUSE_ALBEDO)
+                self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+                inputs |= {'normal', 'depth', 'albedo'}
+
             self.image_filter = image_filter.ImageFilterML(
                 self.rpr_context.context, inputs, {}, {}, width, height)
 
@@ -295,12 +305,12 @@ class Engine(metaclass=ABCMeta):
 
     def update_image_filter_inputs(self, tile_pos=(0, 0)):
         color = self.rpr_context.get_image(pyrpr.AOV_COLOR)
-        shading = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
 
         filter_type = self.image_filter_settings['filter_type']
         if filter_type == 'BILATERAL':
             world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
             object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
+            shading = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {
                 'color': color,
@@ -313,6 +323,7 @@ class Engine(metaclass=ABCMeta):
             world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
             object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
             depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+            shading = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {
                 'color': color,
@@ -327,6 +338,7 @@ class Engine(metaclass=ABCMeta):
             world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
             object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
             depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+            shading = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
 
             inputs = {
                 'color': color,
@@ -338,15 +350,12 @@ class Engine(metaclass=ABCMeta):
             }
 
         elif filter_type == 'ML':
-            depth = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
-            albedo = self.rpr_context.get_image(pyrpr.AOV_DIFFUSE_ALBEDO)
+            inputs = {'color': color}
 
-            inputs = {
-                'color': color,
-                'normal': shading,
-                'depth': depth,
-                'albedo': albedo,
-            }
+            if not self.image_filter_settings['ml_color_only']:
+                inputs['depth'] = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
+                inputs['albedo'] = self.rpr_context.get_image(pyrpr.AOV_DIFFUSE_ALBEDO)
+                inputs['normal'] = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)
 
         else:
             raise ValueError("Incorrect filter type", filter_type)

@@ -66,6 +66,9 @@ def init(log_fun, rprsdk_bin_path):
     del _module
 
 
+API_VERSION = (VERSION_MAJOR << 58) | (VERSION_MINOR << 50) | (VERSION_REVISION << 32) | COMMIT_INFO
+
+
 class Object:
     core_type_name = 'void*'
 
@@ -142,7 +145,7 @@ class Context(Object, metaclass=ABCMeta):
 class ContextCPU(Context):
     def _create(self, rpr_context):
         cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, pyrpr.CREATION_FLAGS_ENABLE_CPU, pyrpr.encode(cache_path), self)
+        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(cache_path), self)
 
     def _check_devices(self):
         return get_device_count(BACKEND_API_OPENCL) > 0
@@ -286,8 +289,8 @@ class ImageFilter(Object):
         if name in self.parameters and self.parameters[name] == value:
             return
 
-        if isinstance(value, int):
-            ImageFilterSetParameter1u(self, pyrpr.encode(name), value)
+        if isinstance(value, (int, bool)):
+            ImageFilterSetParameter1u(self, pyrpr.encode(name), int(value))
             self.parameters[name] = value
         elif isinstance(value, float):
             ImageFilterSetParameter1f(self, pyrpr.encode(name), value)

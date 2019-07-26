@@ -96,13 +96,12 @@ def init(log_fun, rprsdk_bin_path=None):
             #"../../../RadeonProRender-GLTF/Win/lib"
         ]
         lib_names = [
-            'tbbmalloc-4233fe.dll',
-            'tbb-4233fe.dll',
-            'OpenImageDenoise.dll',
             'RadeonProRender64.dll',
 
+            'tbb-4233fe.dll',
+            'OpenImageDenoise.dll',
             'MIOpen.dll',
-            'RadeonProML.dll',
+            'RadeonML-MIOpen.dll',
             'RadeonImageFilters64.dll',
 
             #'ProRenderGLTF.dll',
@@ -111,22 +110,24 @@ def init(log_fun, rprsdk_bin_path=None):
     elif platform.system() == "Linux":
         alternate_relative_paths = [
             "../../../RadeonProImageProcessing/Linux/Ubuntu/lib64",
-            "../../../RadeonProRender-GLTF/Linux-Ubuntu/lib"
+            # "../../../RadeonProRender-GLTF/Linux-Ubuntu/lib"
         ]
         lib_names = [
             'libRadeonProRender64.so',
-            'libRprSupport64.so',
-            'libRadeonImageFilters64.so'
+
+            'libMIOpen.so',
+            'libRadeonML-MIOpen.so',
+            'libRadeonImageFilters64.so',
         ]
 
     elif platform.system() == "Darwin":
         alternate_relative_paths = [
             "../../../RadeonProImageProcessing/Mac/lib",
-            "../../../RadeonProRender-GLTF/Mac/lib"
+            # "../../../RadeonProRender-GLTF/Mac/lib"
         ]
         lib_names = [
             'libRadeonProRender64.dylib',
-            'libRprSupport64.dylib',
+            'libOpenImageDenoise.0.dylib',
             'libRadeonImageFilters64.dylib'
         ]
 
@@ -142,7 +143,11 @@ def init(log_fun, rprsdk_bin_path=None):
             for relpath in alternate_relative_paths:
                 rpr_lib_path = rprsdk_bin_path / relpath / lib_name
                 if os.path.isfile(str(rpr_lib_path)):
-                    ctypes.CDLL(str(rpr_lib_path))
+                    try:
+                        ctypes.CDLL(str(rpr_lib_path))
+                    except OSError as e:
+                        print(f"Failed to load '{rpr_lib_path}': {str(e)}")
+                        raise
                     found = True
                     break
 

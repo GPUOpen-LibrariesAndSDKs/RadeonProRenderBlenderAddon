@@ -25,7 +25,7 @@ def init():
                  root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.dylib")
     else:
         paths = (root_dir / "libRPRBlenderHelper.so",
-                 root_dir / "'../../RPRBlenderHelper/.build/libRPRBlenderHelper.so")
+                 root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.so")
 
     for path in paths:
         if not os.path.isfile(path):

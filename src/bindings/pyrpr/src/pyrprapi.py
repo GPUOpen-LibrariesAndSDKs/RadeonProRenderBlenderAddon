@@ -180,21 +180,19 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
     import xml.etree.ElementTree
     import subprocess
 
-    import sys
-
     if bindingsOk.exists():
          bindingsOk.unlink()
 
     cmd = [castxml,]
     for inc in includes:
         cmd.extend(['-I', inc])
-    cmd.extend(['-E', '-dD', '-x' , 'c++', header_file, '-o', 'rprapi.pp'])
+    cmd.extend(['-std=c++11', '-E', '-dD', '-x' , 'c++', header_file, '-o', 'rprapi.pp'])
     subprocess.check_call(cmd)
 
     cmd = [castxml,]
     for inc in includes:
         cmd.extend(['-I', inc])
-    cmd.extend(['--castxml-gccxml', '-x', 'c++', header_file, '-o', 'rprapi.xml'])
+    cmd.extend(['-std=c++11', '--castxml-gccxml', '-x', 'c++', header_file, '-o', 'rprapi.xml'])
     subprocess.check_call(cmd)
 
     t = xml.etree.ElementTree.parse('rprapi.xml')
@@ -461,8 +459,10 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
 
     for c in root.findall('Field'):
         name = c.get('name')
-        type = c.get('type')
-        members[c.get('id')] = (name, types[type])
+        type_ = c.get('type')
+        if type_ not in types:
+            continue
+        members[c.get('id')] = (name, types[type_])
 
     # calculate depths of dependencies on other types
     typedefs_sorted = {}
@@ -647,11 +647,11 @@ if __name__=='__main__':
            {
                'type': ['rif_', '_rif'],
                'function': ['rif'],
-               'constant': ['RIF_'],
+               'constant': ['RIF_', 'VERSION_', 'COMMIT_'],
            },
            castxml,
-           exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', ],
-           replace={'RIF_API_VERSION': '0x404000000000000', })
+           exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD']
+           )
 
     # export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
     #        {
