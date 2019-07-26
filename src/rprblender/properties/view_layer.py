@@ -25,23 +25,11 @@ class RPR_DenoiserProperties(RPR_Properties):
     )
 
     # only enable ML denoiser on windows
-    if platform.system() == "Windows":
-        items = (
+    items = (
             ('BILATERAL', "Bilateral", "Bilateral", 0),
             ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
             ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
             ('ML', "Machine Learning", "Machine Learning", 3)
-        )
-    elif platform.system() == "Darwin":
-        items = (
-            ('BILATERAL', "Bilateral", "Bilateral", 0),
-            ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 1),
-        )
-    else:
-        items = (
-            ('BILATERAL', "Bilateral", "Bilateral", 0),
-            ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
-            ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
         )
 
     filter_type: EnumProperty(
@@ -105,7 +93,14 @@ class RPR_DenoiserProperties(RPR_Properties):
     bandwidth: FloatProperty(
         name="Bandwidth",
         description="Bandwidth of the filter, a samller value gives less noise, but may filter image detail",
-        min = 0.0, max = 1.0, default = .1
+        min = 0.1, max = 1.0, default = .2
+    )
+
+    # ML props
+    ml_color_only: BoolProperty(
+        name="Use Color AOV only",
+        description="Use Color AOV only instead of using additional required AOVs",
+        default=True
     )
 
     def get_settings(self):
@@ -121,6 +116,7 @@ class RPR_DenoiserProperties(RPR_Properties):
             'samples': self.samples,
             'half_window': self.half_window,
             'bandwidth': self.bandwidth,
+            'ml_color_only': self.ml_color_only,
         }
 
 

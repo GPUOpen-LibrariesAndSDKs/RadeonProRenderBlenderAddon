@@ -46,11 +46,11 @@ def get_constant_value(c):
 for name, c in api.constants.items():
     prefix = 'RIF_'
     if name.startswith(prefix):
-        short_name = name[len(prefix):]
+        name = name[len(prefix):]
 
-        for n in [short_name]:
-            print('{} = {}'.format(n, get_constant_value(c) ))
-            constants_names.append(n)
+    print('{} = {}'.format(name, get_constant_value(c) ))
+    constants_names.append(name)
+
 print('_constants_names =', repr(constants_names))
 
 types_names = []
