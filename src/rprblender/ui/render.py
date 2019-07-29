@@ -91,10 +91,16 @@ class RPR_RENDER_PT_limits(RPR_Panel):
 
         limits = context.scene.rpr.limits
 
+        enable_adaptive = context.scene.rpr.get_devices(True).count() == 1
+
         col = self.layout.column(align=True)
-        col.prop(limits, 'min_samples')
+        row = col.row()
+        row.enabled = enable_adaptive
+        row.prop(limits, 'min_samples')
         col.prop(limits, 'max_samples')
-        col.prop(limits, 'noise_threshold', slider = True)
+        row = col.row()
+        row.enabled = enable_adaptive
+        row.prop(limits, 'noise_threshold', slider = True)
         col.prop(limits, 'update_samples')
 
         col = self.layout.column(align=True)
@@ -122,10 +128,16 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
         limits = context.scene.rpr.viewport_limits
 
+        enable_adaptive = context.scene.rpr.get_devices(False).count() == 1
+
         col = self.layout.column(align=True)
-        col.prop(limits, 'min_samples')
+        row = col.row()
+        row.enabled = enable_adaptive
+        row.prop(limits, 'min_samples')
         col.prop(limits, 'max_samples')
-        col.prop(limits, 'noise_threshold', slider = True)
+        row = col.row()
+        row.enabled = enable_adaptive
+        row.prop(limits, 'noise_threshold', slider = True)
         col.prop(limits, 'limit_viewport_resolution')
 
         col.separator()

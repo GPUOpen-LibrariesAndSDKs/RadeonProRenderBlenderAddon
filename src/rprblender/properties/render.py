@@ -140,6 +140,12 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
+    def count(self):
+        res = int(self.cpu_state)
+        if hasattr(self, 'gpu_states'):
+            res += sum(bool(state) for state in self.gpu_states)
+        return res
+
 
 class RPR_UserSettings(bpy.types.PropertyGroup):
     """
