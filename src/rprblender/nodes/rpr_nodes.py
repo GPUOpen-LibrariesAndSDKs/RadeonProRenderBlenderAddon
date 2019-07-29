@@ -521,7 +521,9 @@ class RPRShaderNodeLookup(RPRShaderNode):
             ('NORMAL', "Normal", "Normal"),
             ('POS', "Position", "World position"),
             ('INVEC', "InVec", "Incident direction"),
-            ('UV1', "UV1", "Second set of texture coordinates")
+            ('UV1', "UV1", "Second set of texture coordinates"),
+            ('P_LOCAL', "Object Position", "Object position"),
+            ('VERTEX_COLOR', "Vertex Color", "Vertex Color"),
         ),
         default='UV'
     )
@@ -540,12 +542,29 @@ class RPRShaderNodeLookup(RPRShaderNode):
             'POS': pyrpr.MATERIAL_NODE_LOOKUP_P,
             'INVEC': pyrpr.MATERIAL_NODE_LOOKUP_INVEC,
             'UV1': pyrpr.MATERIAL_NODE_LOOKUP_UV1,
+            'P_LOCAL': pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
         }
 
         def export(self):
-            return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                'value': self.lookup_type_to_id[self.node.lookup_type]
-            })
+            if self.node.lookup_type == 'VERTEX_COLOR':
+                r = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE0
+                })
+                g = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE1
+                })
+                b = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE2
+                })
+                a = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE3
+                })
+                return r.combine4(g, b, a)
+
+            else:
+                return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': self.lookup_type_to_id[self.node.lookup_type]
+                })
 
 
 class RPRShaderProceduralUVNode(RPRShaderNode):

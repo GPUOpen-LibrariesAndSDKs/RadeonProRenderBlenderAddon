@@ -253,6 +253,15 @@ class NodeItem:
         
         return x + y + z
 
+    def combine4(self, b, c, d):
+        """ Mix values to single """
+        x = NodeItem(self.rpr_context, (1, 0, 0, 0)) * self
+        y = NodeItem(self.rpr_context, (0, 1, 0, 0)) * b
+        z = NodeItem(self.rpr_context, (0, 0, 1, 0)) * c
+        w = NodeItem(self.rpr_context, (0, 0, 0, 1)) * d
+        
+        return x + y + z + w
+
     def hsv_to_rgb(self):
         ''' convert hsv back to rgb. 
             see cycles osl code for reference '''
