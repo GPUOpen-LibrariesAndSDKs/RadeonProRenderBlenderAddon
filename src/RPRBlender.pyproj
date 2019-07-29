@@ -19,9 +19,7 @@
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="bindings\pyrpr\.build\gltfwrap.py" />
     <Compile Include="bindings\pyrpr\.build\pyrprimagefilterswrap.py" />
-    <Compile Include="bindings\pyrpr\.build\pyrprsupportwrap.py" />
     <Compile Include="bindings\pyrpr\.build\pyrprwrap.py" />
     <Compile Include="bindings\pyrpr\.build\_pyrpr_load_store.py" />
     <Compile Include="bindings\pyrpr\conftest.py" />
@@ -36,9 +34,7 @@
     <Compile Include="bindings\pyrpr\src\pyrprapi.py" />
     <Compile Include="bindings\pyrpr\src\pyrprgltf.py" />
     <Compile Include="bindings\pyrpr\src\pyrprimagefilters.py" />
-    <Compile Include="bindings\pyrpr\src\pyrprx.py" />
     <Compile Include="bindings\pyrpr\src\pyrpr_load_store.py" />
-    <Compile Include="bindings\pyrpr\test_.py" />
     <Compile Include="rprblender\config.py" />
     <Compile Include="rprblender\configdev.py">
       <SubType>Code</SubType>
@@ -77,7 +73,6 @@
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\operators\export_scene.py" />
-    <Compile Include="rprblender\operators\light.py" />
     <Compile Include="rprblender\operators\material_library.py" />
     <Compile Include="rprblender\operators\nodes.py" />
     <Compile Include="rprblender\operators\render.py" />
@@ -114,6 +109,8 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="rprblender\__init__.py" />
+    <Compile Include="tools\athena_bin.py" />
+    <Compile Include="tools\encrypt_athena_bin.py" />
     <Compile Include="tools\load_addon.py" />
   </ItemGroup>
   <ItemGroup>
@@ -172,7 +169,6 @@
     <Content Include="bindings\pyrpr\baseline\test_ward.png" />
     <Content Include="bindings\pyrpr\baseline\test_ward_degenerate_uv.png" />
     <Content Include="bindings\pyrpr\readme.txt" />
-    <Content Include="bindings\pyrpr\rprinfo.txt" />
     <Content Include="bindings\pyrpr\test_trace\CMakeLists.txt" />
     <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
     <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />

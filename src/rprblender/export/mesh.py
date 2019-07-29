@@ -26,6 +26,7 @@ class MeshData:
     normal_indices: np.array
     uv_indices: np.array
     num_face_vertices: np.array
+    vertex_colors: np.array = None
     area: float = None
 
     @staticmethod
@@ -66,6 +67,22 @@ class MeshData:
 
         if calc_area:
             data.area = sum(tri.area for tri in mesh.loop_triangles)
+
+        # set active vertex color map
+        if mesh.vertex_colors.active:
+            color_data = mesh.vertex_colors.active.data
+
+            # getting vertex colors and its indices (the same as uv_indices)
+            colors = np.fromiter(
+                (x for vert in color_data for x in vert.color),
+                dtype=np.float32).reshape(-1, 4)
+            color_indices = data.uv_indices if data.uv_indices is not None else \
+                np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops), dtype=np.int32)
+
+            # preparing vertex_color buffer with the same size as vertices and
+            # setting its data by indices from vertex colors
+            data.vertex_colors = np.zeros((len(data.vertices), 4), dtype=np.float32)
+            data.vertex_colors[data.vertex_indices] = colors[color_indices]
 
         return data
 
@@ -195,6 +212,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = 
         data.num_face_vertices
     )
     rpr_shape.set_name(f"{obj.name}:{mesh.name}")
+
+    if data.vertex_colors is not None:
+        rpr_shape.set_vertex_colors(data.vertex_colors)
 
     assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
 
