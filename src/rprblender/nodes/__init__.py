@@ -29,6 +29,7 @@ node_categories = [
         NodeItem('ShaderNodeValue'),
         NodeItem('ShaderNodeNewGeometry'),
         NodeItem('RPRShaderProceduralUVNode'),
+        NodeItem('RPRShaderNodeLookup'),
     ],),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
         NodeItem('ShaderNodeOutputMaterial'),

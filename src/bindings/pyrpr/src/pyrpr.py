@@ -683,6 +683,18 @@ class Mesh(Shape):
                  ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                  self)
 
+    def set_vertex_value(self, index: int, indices, values):
+        ShapeSetVertexValue(self, index, ffi.cast("rpr_int *", indices.ctypes.data),
+                            ffi.cast("float *", values.ctypes.data), len(indices))
+
+    def set_vertex_colors(self, colors):
+        indices = np.arange(len(colors), dtype=np.int32)
+
+        # index is 0-3 index (use for r,g,b,a)
+        for i in range(4):
+            values = np.ascontiguousarray(colors[:, i], dtype=np.float32)
+            self.set_vertex_value(i, indices, values)
+
 
 class Instance(Shape):
     def __init__(self, context, mesh):
