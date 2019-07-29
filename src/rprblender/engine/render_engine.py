@@ -62,6 +62,8 @@ class RenderEngine(Engine):
                 break
 
             self.current_render_time = time.perf_counter() - time_begin
+            is_adaptive_active = is_adaptive and \
+                                 self.current_sample >= self.rpr_context.get_parameter('as.minspp')
 
             # if less that update_samples left, use the remainder
             update_samples = min(self.render_update_samples,
@@ -80,7 +82,7 @@ class RenderEngine(Engine):
                        f"Samples: {self.current_sample}/{self.render_samples}"
             log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
                       f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
-            if is_adaptive:
+            if is_adaptive_active:
                 adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
 
                 progress = max(progress, adaptive_progress)
@@ -102,7 +104,7 @@ class RenderEngine(Engine):
 
             # stop at whichever comes first:
             # max samples or max time if enabled or active_pixels == 0
-            if is_adaptive:
+            if is_adaptive_active:
                 active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                 if active_pixels == 0:
                     break
@@ -172,7 +174,9 @@ class RenderEngine(Engine):
                 log_str = f"  samples: {sample} +{update_samples} / {self.render_samples}"\
                     f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
 
-                if is_adaptive:
+                is_adaptive_active = is_adaptive and \
+                                        sample >= self.rpr_context.get_parameter('as.minspp')
+                if is_adaptive_active:
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
                     progress = max(progress, (tile_index + adaptive_progress) / tiles_number)
                     info_str += f" | Adaptive Sampling: {adaptive_progress * 100:.0f}%"
@@ -190,7 +194,7 @@ class RenderEngine(Engine):
                 self.update_render_result(tile_pos, tile_size,
                                           layer_name=self.render_layer_name)
 
-                if is_adaptive:
+                if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     if active_pixels == 0:
                         break
