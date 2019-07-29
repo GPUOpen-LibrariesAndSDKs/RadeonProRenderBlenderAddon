@@ -90,9 +90,11 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         Set the adaptive sampling parameters for this context.
         adaptive_threshold, adaptive_min_samples, and adaptive_tile_size
         """
-        rpr_context.set_parameter('as.tilesize', self.adaptive_tile_size)
-        rpr_context.set_parameter('as.minspp', self.min_samples)
-        rpr_context.set_parameter('as.threshold', self.noise_threshold)
+        res = False
+        res |= rpr_context.set_parameter('as.tilesize', self.adaptive_tile_size)
+        res |= rpr_context.set_parameter('as.minspp', self.min_samples)
+        res |= rpr_context.set_parameter('as.threshold', self.noise_threshold)
+        return res
 
 
 # Getting list of available devices for RPR_RenderDevices
