@@ -128,7 +128,6 @@ class ViewportEngine(Engine):
         self.is_synced = False
         self.render_iterations = 0
         self.render_time = 0
-        self.noise_threshold = 0.0
         self.gl_texture: gl.GLTexture = None
 
         self.viewport_settings: ViewportSettings = None
@@ -177,8 +176,6 @@ class ViewportEngine(Engine):
         log("Start render thread")
 
         is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
-        if is_adaptive:
-            all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
         while True:
             self.restart_render_event.wait()
@@ -190,11 +187,14 @@ class ViewportEngine(Engine):
             time_begin = 0.0
             time_render = 0.0
             if is_adaptive:
-                active_pixels = all_pixels
+                all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
             while True:
                 if self.finish_render:
                     break
+
+                is_adaptive_active = is_adaptive and \
+                                     iteration >= self.rpr_context.get_parameter('as.minspp')
 
                 if self.restart_render_event.is_set():
                     self.restart_render_event.clear()
@@ -205,7 +205,7 @@ class ViewportEngine(Engine):
                     log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
 
                 log_str = f"Render iteration: {iteration} / {self.render_iterations}"
-                if is_adaptive:
+                if is_adaptive_active:
                     log_str += f", active_pixels: {active_pixels}"
                 log(log_str)
 
@@ -216,7 +216,7 @@ class ViewportEngine(Engine):
                 iteration += 1
                 time_render = time.perf_counter() - time_begin
 
-                if is_adaptive:
+                if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     if active_pixels == 0:
                         break
@@ -227,7 +227,7 @@ class ViewportEngine(Engine):
                 else:
                     info_str = f"Time: {time_render:.1f}/{self.render_time} sec"\
                                f" | Iteration: {iteration}"
-                if is_adaptive:
+                if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
                     info_str += f" | Adaptive Sampling: {math.floor(adaptive_progress * 100)}%"
@@ -290,8 +290,7 @@ class ViewportEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        self.noise_threshold = viewport_limits.noise_threshold
-        if self.noise_threshold > 0.0:
+        if viewport_limits.noise_threshold > 0.0:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             viewport_limits.set_adaptive_params(self.rpr_context)
@@ -573,11 +572,6 @@ class ViewportEngine(Engine):
             self.render_time = render_time
             restart = True
 
-        noise_threshold = scene.rpr.viewport_limits.noise_threshold
-        if noise_threshold != self.noise_threshold:
-            # only update settings if changed
-            scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
-            self.noise_threshold = noise_threshold
-            restart = True
+        restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         return restart
