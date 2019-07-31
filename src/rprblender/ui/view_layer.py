@@ -1,3 +1,5 @@
+import pyrpr
+
 from . import RPR_Panel
 
 
@@ -7,6 +9,7 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
 
     def draw(self, context):
         view_layer = context.view_layer.rpr
+        enable_adaptive = context.scene.rpr.get_devices(True).count() == 1
 
         row = self.layout.split(factor=0.5, align=True)
 
@@ -18,10 +21,10 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
                 # not displaying "Combined" pass as it is always enabled by Blender
                 continue
 
-            if i <= len(view_layer.enable_aovs) // 2:
-                col1.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
-            else:
-                col2.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
+            col = col1 if i <= len(view_layer.enable_aovs) // 2 else col2
+            r = col.row()
+            r.enabled = aov['rpr'] != pyrpr.AOV_VARIANCE or enable_adaptive
+            r.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
 
 
 class RPR_RENDER_PT_denoiser(RPR_Panel):

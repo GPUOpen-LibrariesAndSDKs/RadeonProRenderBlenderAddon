@@ -283,7 +283,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
     denoiser: PointerProperty(type=RPR_DenoiserProperties)
 
-    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine):
+    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive):
         """
         Exports AOVs settings. Also adds required passes to rpr_engine
         Note: view_layer here is parent of self, but it is not available from self.id_data
@@ -300,6 +300,10 @@ class RPR_ViewLayerProperites(RPR_Properties):
                 continue
 
             aov = self.aovs_info[i]
+
+            if aov['rpr'] == pyrpr.AOV_VARIANCE and not enable_adaptive:
+                continue
+
             if aov['name'] not in ["Combined", "Depth"]:
                 # TODO this seems to assume that combine and depth enabled already?
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
