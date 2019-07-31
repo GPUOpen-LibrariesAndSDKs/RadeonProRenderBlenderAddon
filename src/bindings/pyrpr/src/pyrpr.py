@@ -342,7 +342,9 @@ class Context(Object):
         else:
             raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
 
-        self.parameters[name] = param
+        if self:
+            # self could be None
+            self.parameters[name] = param
 
     def set_scene(self, scene):
         ContextSetScene(self, scene)
