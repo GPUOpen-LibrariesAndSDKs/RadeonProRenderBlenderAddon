@@ -358,6 +358,16 @@ class RPR_RenderProperties(RPR_Properties):
                         context_flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
                         
         context_props.append(0) # should be followed by 0
+
+        if self.trace_dump:
+            if not os.path.isdir(self.trace_dump_folder):
+                os.mkdir(self.trace_dump_folder)
+
+            pyrpr.Context.set_parameter(None, 'tracingfolder', self.trace_dump_folder)
+            pyrpr.Context.set_parameter(None, 'tracing', True)
+        else:
+            pyrpr.Context.set_parameter(None, 'tracing', False)
+
         rpr_context.init(context_flags, context_props)
 
         if metal_enabled:
@@ -366,13 +376,6 @@ class RPR_RenderProperties(RPR_Properties):
             if float(mac_vers_major) >= 14:
                 rpr_context.set_parameter("metalperformanceshader", 1)
 
-        if self.trace_dump:
-            if not os.path.isdir(self.trace_dump_folder):
-                os.mkdir(self.trace_dump_folder)
-            rpr_context.set_parameter('tracingfolder', self.trace_dump_folder)
-            rpr_context.set_parameter('tracing', True)
-        else:
-            rpr_context.set_parameter('tracing', False)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
