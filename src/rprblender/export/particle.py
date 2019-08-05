@@ -145,6 +145,7 @@ class CurveData:
 
 def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object):
     """ sync the particle system """
+    from rprblender.engine.preview_engine import PreviewEngine
 
     log("sync", p_sys, emitter)
 
@@ -153,7 +154,7 @@ def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object
     
     if p_sys.settings.type == 'HAIR':
         # hair does not have motion blur
-        curve_data = CurveData.init(p_sys, emitter, rpr_context.is_preview)
+        curve_data = CurveData.init(p_sys, emitter, rpr_context.engine_type == PreviewEngine.TYPE)
         if not curve_data:
             return
         

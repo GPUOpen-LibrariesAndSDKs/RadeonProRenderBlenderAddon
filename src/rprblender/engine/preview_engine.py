@@ -11,12 +11,13 @@ log = logging.Log(tag='PreviewEngine')
 class PreviewEngine(Engine):
     """ Render engine for preview material, lights, environment """
 
+    TYPE = 'PREVIEW'
+
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
         self.is_synced = False
         self.render_samples = 0
         self.render_update_samples = 1
-        self.rpr_context.is_preview = True
 
     def render(self):
         if not self.is_synced:

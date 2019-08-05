@@ -123,6 +123,8 @@ class ViewportSettings:
 class ViewportEngine(Engine):
     """ Viewport render engine """
 
+    TYPE = 'VIEWPORT'
+
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
         self.is_synced = False
@@ -139,7 +141,6 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_event = threading.Event()
         self.finish_render = False
-        self.rpr_context.is_preview = True
 
     def render(self):
         self.finish_render = False
@@ -501,8 +502,9 @@ class ViewportEngine(Engine):
             set(instance.key(obj) for obj in self.depsgraph_instances(depsgraph))
         )
 
-        # set of rpr object keys except environment lights
-        rpr_object_keys = self.rpr_context.objects.keys()
+        # set of visible rpr object keys
+        rpr_object_keys = set(key for key, obj in self.rpr_context.objects.items()
+                              if not isinstance(obj, pyrpr.Shape) or obj.is_visible)
 
         # sets of objects keys to remove from rpr
         object_keys_to_remove = rpr_object_keys - depsgraph_keys
@@ -523,10 +525,16 @@ class ViewportEngine(Engine):
 
             # exporting objects
             for obj in self.depsgraph_objects(depsgraph):
-                if object.key(obj) not in object_keys_to_export:
+                obj_key = object.key(obj)
+                if obj_key not in object_keys_to_export:
                     continue
 
-                object.sync(self.rpr_context, obj)
+                rpr_obj = self.rpr_context.objects.get(obj_key, None)
+                if rpr_obj:
+                    rpr_obj.set_visibility(True)
+                else:
+                    object.sync(self.rpr_context, obj)
+
                 res = True
 
             # exporting instances

@@ -489,6 +489,7 @@ class Shape(Object):
         super().__init__()
         self.context = context
         self.shadow_catcher = False
+        self.is_visible = True
 
         self.materials = []
         self.volume_material = None
@@ -555,6 +556,7 @@ class Shape(Object):
         self.set_visibility_ex("visible.shadow", casts_shadow)
 
     def set_visibility(self, visible):
+        self.is_visible = visible
         ShapeSetVisibility(self, visible)
 
     def set_visibility_ex(self, visibility_type, visible):
