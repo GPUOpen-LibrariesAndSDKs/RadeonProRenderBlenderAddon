@@ -29,9 +29,12 @@ ITERATED_OBJECT_TYPES = ('MESH', 'LIGHT', 'CURVE', 'FONT', 'SURFACE', 'META')
 class Engine(metaclass=ABCMeta):
     """ This is the basic Engine class """
 
+    TYPE = None
+
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.proxy(rpr_engine)
         self.rpr_context = RPRContext()
+        self.rpr_context.engine_type = self.TYPE
 
         # image filter
         self.image_filter = None

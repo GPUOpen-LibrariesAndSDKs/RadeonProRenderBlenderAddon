@@ -19,6 +19,8 @@ log = logging.Log(tag='RenderEngine')
 class RenderEngine(Engine):
     """ Final render engine """
 
+    TYPE = 'FINAL'
+
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
