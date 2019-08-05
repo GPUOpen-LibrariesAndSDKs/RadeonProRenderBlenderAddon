@@ -22,7 +22,7 @@ class RPRContext:
         self.volumes = {}
 
         self.do_motion_blur = False
-        self.is_preview = False
+        self.engine_type = None
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
@@ -533,7 +533,7 @@ class RPRContext:
         raise ValueError("Incorrect value_type for RPRContext.get_info", value_type)
 
     def remove_object(self, key):
-        obj = self.objects.pop(key)
+        obj = self.objects[key]
 
         if isinstance(obj, pyrpr.Mesh):
             # removing and detaching related instances
@@ -546,8 +546,19 @@ class RPRContext:
         self.remove_particles(key)
         self.remove_volumes(key)
 
+        if isinstance(obj, pyrpr.Mesh):
+            # checking if object has direct instances,
+            # in this case we don't remove/detach object, just hiding it
+            has_instances = next((True for o in self.objects.values()
+                                       if isinstance(o, pyrpr.Instance) and o.mesh is obj), False)
+            if has_instances:
+                obj.set_visibility(False)
+                return
+
         if obj:
             self.scene.detach(obj)
+
+        del self.objects[key]
 
     def remove_particles(self, base_obj_key):
         keys = tuple(k for k in self.particles.keys() if k[0] == base_obj_key)

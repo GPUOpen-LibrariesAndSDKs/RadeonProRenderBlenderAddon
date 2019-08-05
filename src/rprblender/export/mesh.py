@@ -151,6 +151,10 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
                      material_slots: List[bpy.types.MaterialSlot], mesh: bpy.types.Mesh):
     """ Assigns materials from material_slots to rpr_shape. It also syncs new material """
     if len(material_slots) == 0:
+        if rpr_shape.materials:
+            rpr_shape.set_material(None)
+            return True
+
         return False
 
     material_unique_indices = (0,)
@@ -191,6 +195,29 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
     return True
 
 
+def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape):
+    from rprblender.engine.viewport_engine import ViewportEngine
+
+    rpr_shape.set_visibility(
+        obj.show_instancer_for_viewport if rpr_context.engine_type == ViewportEngine.TYPE else
+        obj.show_instancer_for_render
+    )
+    if not rpr_shape.is_visible:
+        return
+
+    obj.rpr.export_visibility(rpr_shape)
+    obj.rpr.export_subdivision(rpr_shape)
+
+    if obj.rpr.portal_light:
+        # Register mesh as a portal light, set "Environment" light group
+        rpr_shape.set_light_group_id(0)
+        rpr_shape.set_portal_light(True)
+    else:
+        # all non-portal light meshes are set to light group 3 for emissive objects
+        rpr_shape.set_light_group_id(3)
+        rpr_shape.set_portal_light(False)
+
+
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = None):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
@@ -211,7 +238,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = 
         data.vertex_indices, data.normal_indices, data.uv_indices,
         data.num_face_vertices
     )
-    rpr_shape.set_name(f"{obj.name}:{mesh.name}")
+    rpr_shape.set_name(obj.name)
 
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)
@@ -220,21 +247,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = 
 
     rpr_context.scene.attach(rpr_shape)
     rpr_shape.set_transform(object.get_transform(obj))
-    obj.rpr.export_visibility(rpr_shape)
-    obj.rpr.export_subdivision(rpr_shape)
 
-    # if this is an hidden instances emitter
-    if not obj.show_instancer_for_render:
-        rpr_shape.set_visibility(False)
-
-    if obj.rpr.portal_light:
-        # Register mesh as a portal light, set "Environment" light group
-        rpr_shape.set_light_group_id(0)
-        rpr_shape.set_portal_light(True)
-    else:
-        # all non-portal light meshes are set to light group 3 for emissive objects
-        rpr_shape.set_light_group_id(3)
-        rpr_shape.set_portal_light(False)
+    sync_visibility(rpr_context, obj, rpr_shape)
 
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
@@ -253,10 +267,10 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
         if is_updated_transform:
             rpr_shape.set_transform(object.get_transform(obj))
-            return True
 
-        updated = assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
-        return updated
+        sync_visibility(rpr_context, obj, rpr_shape)
+        assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
+        return True
 
     sync(rpr_context, obj)
     return True
