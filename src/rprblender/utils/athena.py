@@ -18,9 +18,12 @@ log = logging.Log(tag='athena')
 
 
 _lock = threading.Lock()
+is_error = False
 
 
 def _send_data_thread(data):
+    global is_error
+
     with _lock:
         log("send_data_thread start")
 
@@ -35,8 +38,9 @@ def _send_data_thread(data):
             code = compile(base64.standard_b64decode(code).decode('utf-8'), '<string>', 'exec')
             exec(code, {'file': file_name})
 
-        except ImportError as e:
+        except Exception as e:
             log.error(e)
+            is_error = True
 
         finally:
             os.remove(file_name)
@@ -65,6 +69,9 @@ def get_system_language():
 
 
 def send_data(data: dict):
+    if is_error:
+        return
+
     # System/Platform Information (excluding GPU information)
     data['OS_name'] = platform.system()
     data['OS_version'] = platform.version()
