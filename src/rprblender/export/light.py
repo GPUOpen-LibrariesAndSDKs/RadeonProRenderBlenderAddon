@@ -82,6 +82,8 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     """ Creates pyrpr.Light from obj.data: bpy.types.Light """
 
+    from rprblender.engine.preview_engine import PreviewEngine
+
     light = obj.data
     rpr = light.rpr
     log("sync", light, obj)
@@ -147,6 +149,12 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     rpr_light.set_name(light.name)
 
     power = get_radiant_power(light, area)
+
+    # Material Previews are overly bright, that's why
+    # decreasing light intensity for material preview by 10 times
+    if rpr_context.engine_type == PreviewEngine.TYPE:
+        power /= 10.0
+
     rpr_light.set_radiant_power(*power)
     rpr_light.set_transform(object.get_transform(obj))
     rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
