@@ -190,21 +190,58 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
     }
 
 
-class ShaderNodeBsdfGlass(RuleNodeParser):
+class ShaderNodeBsdfGlass(NodeParser):
     # inputs: Color, Roughness, Normal, IOR
 
-    nodes = {
-        "BSDF": {
-            "type": pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION,
-            "params": {
-                "color": "inputs.Color",
-                "roughness": "inputs.Roughness",
-                "normal": "normal:inputs.Normal",
-                "ior": "inputs.IOR"
-            }
-        }
-    }
-    # TODO: Has to be fixed, it is working like ShaderNodeBsdfRefraction
+    def export(self):
+        def enabled(val: [NodeItem, None]):
+            if val is None:
+                return False
+
+            if isinstance(val.data, float) and math.isclose(val.data, 0.0):
+                return False
+
+            if isinstance(val.data, tuple) and \
+               math.isclose(val.data[0], 0.0) and \
+               math.isclose(val.data[1], 0.0) and \
+               math.isclose(val.data[2], 0.0):
+                return False
+
+            return True
+
+        # Getting require inputs. Note: if some inputs are not needed they won't be taken
+        base_color = self.get_input_value('Color')
+        roughness = self.get_input_value('Roughness')
+        ior = self.get_input_value('IOR')
+        normal = self.get_input_normal('Normal')
+
+        # Creating uber material and set inputs to it
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
+
+        # disable diffuse
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 0.0)
+        
+        # reflection
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
+                                   pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
+
+        # refraction 
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_IOR, ior)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_THIN_SURFACE, False)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_CAUSTICS, True)
+
+        if enabled(normal):
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL, normal)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
+
+        return rpr_node
 
 
 class ShaderNodeBsdfGlossy(RuleNodeParser):
