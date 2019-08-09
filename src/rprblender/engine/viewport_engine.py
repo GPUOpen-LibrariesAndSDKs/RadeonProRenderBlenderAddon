@@ -130,10 +130,15 @@ class ViewportEngine(Engine):
         self.is_synced = False
         self.render_iterations = 0
         self.render_time = 0
+        self.iteration = 0
+        self.time_begin = 0.0
+        self.time_render = 0.0
+
+        self.is_last_iteration = False
+        self.image_filter_ready = False
+
         self.gl_texture: gl.GLTexture = None
-
         self.viewport_settings: ViewportSettings = None
-
         self.world_settings: world.WorldData = None
 
         self.render_thread: threading.Thread = None
@@ -184,50 +189,49 @@ class ViewportEngine(Engine):
             if self.finish_render:
                 break
 
-            iteration = 0
-            time_begin = 0.0
-            time_render = 0.0
+            self.iteration = 0
+            self.time_begin = 0.0
+            self.time_render = 0.0
             if is_adaptive:
                 all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
-            while True:
+            self.is_last_iteration = False
+            while not self.is_last_iteration:
                 if self.finish_render:
                     break
 
                 is_adaptive_active = is_adaptive and \
-                                     iteration >= self.rpr_context.get_parameter('as.minspp')
+                                     self.iteration >= self.rpr_context.get_parameter('as.minspp')
 
                 if self.restart_render_event.is_set():
                     self.restart_render_event.clear()
-                    iteration = 0
+                    self.iteration = 0
                     self.rpr_context.sync_auto_adapt_subdivision()
                     self.rpr_context.sync_portal_lights()
-                    time_begin = time.perf_counter()
+                    self.time_begin = time.perf_counter()
                     log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
 
-                log_str = f"Render iteration: {iteration} / {self.render_iterations}"
+                log_str = f"Render iteration: {self.iteration} / {self.render_iterations}"
                 if is_adaptive_active:
                     log_str += f", active_pixels: {active_pixels}"
                 log(log_str)
 
-                self.rpr_context.render(restart=(iteration == 0))
+                self.rpr_context.render(restart=(self.iteration == 0))
 
-                self.render_event.set()
-
-                iteration += 1
-                time_render = time.perf_counter() - time_begin
+                self.iteration += 1
+                self.time_render = time.perf_counter() - self.time_begin
 
                 if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     if active_pixels == 0:
-                        break
+                        self.is_last_iteration = True
 
                 if self.render_iterations > 0:
-                    info_str = f"Time: {time_render:.1f} sec"\
-                               f" | Iteration: {iteration}/{self.render_iterations}"
+                    info_str = f"Time: {self.time_render:.1f} sec"\
+                               f" | Iteration: {self.iteration}/{self.render_iterations}"
                 else:
-                    info_str = f"Time: {time_render:.1f}/{self.render_time} sec"\
-                               f" | Iteration: {iteration}"
+                    info_str = f"Time: {self.time_render:.1f}/{self.render_time} sec"\
+                               f" | Iteration: {self.iteration}"
                 if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
@@ -236,15 +240,15 @@ class ViewportEngine(Engine):
                 self.notify_status(info_str)
 
                 if self.render_iterations > 0:
-                    if iteration >= self.render_iterations:
-                        break
+                    if self.iteration >= self.render_iterations:
+                        self.is_last_iteration = True
                 else:
-                    if time_render >= self.render_time:
-                        break
+                    if self.time_render >= self.render_time:
+                        self.is_last_iteration = True
                 if is_adaptive and active_pixels == 0:
-                    break
+                    self.is_last_iteration = True
 
-            self.notify_status("Rendering Done | Time: %.1f sec | Iteration: %d" % (time_render, iteration))
+                self.render_event.set()
 
         log("Finish render thread")
 
@@ -263,6 +267,27 @@ class ViewportEngine(Engine):
                 break
 
             self.rpr_context.resolve()
+            self.image_filter_ready = False
+
+            if self.is_last_iteration:
+                self.time_render = time.perf_counter() - self.time_begin
+
+                if self.image_filter:
+                    self.notify_status(f"Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration} | Denoising...")
+                    self.rpr_engine.tag_redraw()
+
+                    self.update_image_filter_inputs()
+                    self.image_filter.run()
+                    self.image_filter_ready = True
+
+                    self.time_render = time.perf_counter() - self.time_begin
+                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration} | Denoised")
+
+                else:
+                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration}")
 
             self.rpr_engine.tag_redraw()
 
@@ -273,6 +298,7 @@ class ViewportEngine(Engine):
     
         scene = depsgraph.scene
         viewport_limits = scene.rpr.viewport_limits
+        view_layer = depsgraph.view_layer
 
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
                                    use_gl_interop=config.use_gl_interop)
@@ -289,9 +315,9 @@ class ViewportEngine(Engine):
             self.gl_texture = gl.GLTexture(width, height)
         
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
-        self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        if viewport_limits.noise_threshold > 0.0 and scene.rpr.get_devices(False).count() == 1:            # if adaptive is enable turn on aov and settings
+        if viewport_limits.noise_threshold > 0.0 and scene.rpr.get_devices(False).count() == 1:
+            # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             viewport_limits.set_adaptive_params(self.rpr_context)
 
@@ -317,8 +343,15 @@ class ViewportEngine(Engine):
         for inst in self.depsgraph_instances(depsgraph):
             instance.sync(self.rpr_context, inst)
 
+        # shadow catcher
         self.rpr_context.sync_shadow_catcher()
 
+        # image filter
+        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
+        self.setup_image_filter(image_filter_settings)
+
+        # other context settings
         self.rpr_context.set_parameter('preview', True)
         self.rpr_context.set_parameter('iterations', 1)
         scene.rpr.export_render_mode(self.rpr_context)
@@ -349,7 +382,7 @@ class ViewportEngine(Engine):
                 obj = update.id
                 log("sync_update", obj)
                 if isinstance(obj, bpy.types.Scene):
-                    is_updated |= self.update_render(obj)
+                    is_updated |= self.update_render(obj, depsgraph.view_layer)
 
                     # Outliner object visibility change will provide us only bpy.types.Scene update
                     # That's why we need to sync objects collection in the end
@@ -442,6 +475,17 @@ class ViewportEngine(Engine):
         bgl.glDeleteBuffers(2, vertex_buffer)
         bgl.glDeleteVertexArrays(1, vertex_array)
 
+    def _resize(self, width, height):
+        self.rpr_context.resize(width, height)
+
+        if self.gl_texture:
+            self.gl_texture = gl.GLTexture(width, height)
+
+        if self.image_filter:
+            image_filter_settings = self.image_filter_settings.copy()
+            image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
+            self.setup_image_filter(image_filter_settings)
+
     def draw(self, context):
         log("Draw")
 
@@ -457,19 +501,23 @@ class ViewportEngine(Engine):
 
                 if self.rpr_context.width != viewport_settings.width \
                         or self.rpr_context.height != viewport_settings.height:
-                    self.rpr_context.resize(viewport_settings.width, viewport_settings.height)
-                    if not self.rpr_context.gl_interop:
-                        self.gl_texture = gl.GLTexture(viewport_settings.width, viewport_settings.height)
+                    self._resize(viewport_settings.width, viewport_settings.height)
 
             self.viewport_settings = viewport_settings
             self.restart_render_event.set()
 
-        if self.rpr_context.gl_interop:
-            texture_id = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).texture_id
-        else:
-            im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        if self.image_filter_ready:
+            im = self.image_filter.get_data()
             self.gl_texture.set_image(im)
             texture_id = self.gl_texture.texture_id
+
+        else:
+            if self.rpr_context.gl_interop:
+                texture_id = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).texture_id
+            else:
+                im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                self.gl_texture.set_image(im)
+                texture_id = self.gl_texture.texture_id
 
         if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
                                      'POSITION', 'NORMAL', 'TEXCOORD'):
@@ -567,7 +615,7 @@ class ViewportEngine(Engine):
 
         return updated
 
-    def update_render(self, scene: bpy.types.Scene):
+    def update_render(self, scene: bpy.types.Scene, view_layer: bpy.types.ViewLayer):
         ''' update settings if changed while live returns True if restart needed'''
         restart = scene.rpr.export_render_mode(self.rpr_context)
         restart |= scene.rpr.export_ray_depth(self.rpr_context)
@@ -581,4 +629,22 @@ class ViewportEngine(Engine):
 
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
+        # image filter
+        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
+        if self.image_filter_settings != image_filter_settings:
+            self.setup_image_filter(image_filter_settings)
+            restart = True
+
         return restart
+
+    def _enable_image_filter(self, settings):
+        super()._enable_image_filter(settings)
+        self.image_filter_ready = False
+
+        if not self.gl_texture:
+            self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
+
+    def _disable_image_filter(self):
+        super()._disable_image_filter()
+        self.image_filter_ready = False

@@ -206,7 +206,9 @@ class Engine(metaclass=ABCMeta):
                     self._enable_image_filter(settings)
                     return
 
-                if self.image_filter_settings['filter_type'] == settings['filter_type']:
+                if self.image_filter_settings['resolution'] == settings['resolution'] \
+                        and self.image_filter_settings['filter_type'] == settings['filter_type'] \
+                        and self.image_filter_settings['filter_type'] != 'ML':
                     self._update_image_filter(settings)
                     return
 
@@ -290,18 +292,20 @@ class Engine(metaclass=ABCMeta):
     def _update_image_filter(self, settings):
         self.image_filter_settings = settings
 
-        if settings['filter_type'] == 'bilateral':
+        if settings['filter_type'] == 'BILATERAL':
             self.image_filter.update_sigma('color', settings['color_sigma'])
             self.image_filter.update_sigma('normal', settings['normal_sigma'])
             self.image_filter.update_sigma('world_coordinate', settings['p_sigma'])
             self.image_filter.update_sigma('object_id', settings['trans_sigma'])
             self.image_filter.update_param('radius', settings['radius'])
-        elif settings['filter_type'] == 'eaw':
+
+        elif settings['filter_type'] == 'EAW':
             self.image_filter.update_sigma('color', settings['color_sigma'])
             self.image_filter.update_sigma('normal', settings['normal_sigma'])
             self.image_filter.update_sigma('depth', settings['depth_sigma'])
             self.image_filter.update_sigma('trans', settings['trans_sigma'])
-        elif settings['filter_type'] == 'lwr':
+
+        elif settings['filter_type'] == 'LWR':
             self.image_filter.update_param('samples', settings['samples'])
             self.image_filter.update_param('halfWindow', settings['half_window'])
             self.image_filter.update_param('bandwidth', settings['bandwidth'])
