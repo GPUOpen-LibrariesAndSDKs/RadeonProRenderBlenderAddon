@@ -1,7 +1,6 @@
-import pyrpr
-
-from . import image_filter
 import threading
+
+import pyrpr
 
 
 class RPRContext:
@@ -36,10 +35,6 @@ class RPRContext:
 
         # shadow catcher
         self.sc_composite = None
-
-        # image filter
-        self.image_filter: image_filter.ImageFilter = None
-        self.image_filter_settings = None
 
     def init(self, context_flags, context_props):
         self.context = pyrpr.Context(context_flags, context_props)
@@ -78,40 +73,27 @@ class RPRContext:
 
     def get_image(self, aov_type=pyrpr.AOV_COLOR):
         with self.lock:
-            if aov_type == pyrpr.AOV_COLOR and self.image_filter:
-                return self.image_filter.get_data()
-
             return self.get_frame_buffer(aov_type).get_data()
 
     def get_frame_buffer(self, aov_type):
         if aov_type == pyrpr.AOV_COLOR:
             if self.gl_interop:
-                if self.image_filter and self.image_filter_settings['filter_type'] == 'eaw':
-                    # temporary fix of EAW filter cause it doesn't work with gl_interop
-                    raise RuntimeError("Color frame_buffer is not available because EAW image filter is used with gl_interop")
-                    
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
 
-            if self.image_filter:
-                raise RuntimeError("Color frame_buffer is not available because image filter is used")
-            
             if self.sc_composite:
                 return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
 
         return self.frame_buffers_aovs[aov_type]['res']
 
-    def resolve(self, apply_image_filter=False):
+    def resolve(self):
         with self.lock:
             for fbs in self.frame_buffers_aovs.values():
                 fbs['aov'].resolve(fbs['res'])
 
             if self.sc_composite:
                 self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
-                if self.gl_interop and not self.image_filter:
+                if self.gl_interop:
                     self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
-
-        if apply_image_filter and self.image_filter:
-            self.image_filter.run()
 
     def enable_aov(self, aov_type):
         if self.is_aov_enabled(aov_type):
@@ -146,10 +128,6 @@ class RPRContext:
         self.width = width
         self.height = height
 
-        rif_settings = self.image_filter_settings
-        if rif_settings:
-            self._disable_image_filter()
-
         sc = self.sc_composite is not None
         if sc:
             self._disable_shadow_catcher()
@@ -161,138 +139,6 @@ class RPRContext:
         if sc:
             self._enable_shadow_catcher()
 
-        if rif_settings:
-            self._enable_image_filter(rif_settings)
-        
-    def setup_image_filter(self, settings):
-        if self.image_filter_settings != settings:
-            if settings['enable']:
-                if not self.image_filter:
-                    self._enable_image_filter(settings)
-                    return
-
-                if self.image_filter_settings['filter_type'] == settings['filter_type']:
-                    self._update_image_filter(settings)
-                    return
-
-                # recreating filter
-                self._disable_image_filter()
-                self._enable_image_filter(settings)
-
-            elif self.image_filter:
-                self._disable_image_filter()
-
-    def _enable_image_filter(self, settings):
-        self.image_filter_settings = settings
-
-        self.enable_aov(pyrpr.AOV_COLOR)
-        self.enable_aov(pyrpr.AOV_WORLD_COORDINATE)
-        self.enable_aov(pyrpr.AOV_OBJECT_ID)
-        self.enable_aov(pyrpr.AOV_SHADING_NORMAL)
-        self.enable_aov(pyrpr.AOV_DEPTH)
-        self.enable_aov(pyrpr.AOV_DIFFUSE_ALBEDO)
-
-        if self.gl_interop and not self.sc_composite:
-            # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('0_res')
-
-        if self.sc_composite:
-            color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
-        else:
-            color_fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
-        world_fb = self.frame_buffers_aovs[pyrpr.AOV_WORLD_COORDINATE]['res']
-        object_fb = self.frame_buffers_aovs[pyrpr.AOV_OBJECT_ID]['res']
-        shading_fb = self.frame_buffers_aovs[pyrpr.AOV_SHADING_NORMAL]['res']
-        depth_fb = self.frame_buffers_aovs[pyrpr.AOV_DEPTH]['res']
-        albedo_fb = self.frame_buffers_aovs[pyrpr.AOV_DIFFUSE_ALBEDO]['res']
-        frame_buffer_gl = self.frame_buffers_aovs[pyrpr.AOV_COLOR].get('gl', None)
-
-        if settings['filter_type'] == 'BILATERAL':
-            inputs = {
-                'color': color_fb,
-                'normal': shading_fb,
-                'world_coordinate': world_fb,
-                'object_id': object_fb,
-            }
-            sigmas = {
-                'color': settings['color_sigma'],
-                'normal': settings['normal_sigma'],
-                'world_coordinate': settings['p_sigma'],
-                'object_id': settings['trans_sigma'],
-            }
-            params = {'radius': settings['radius']}
-            self.image_filter = image_filter.ImageFilterBilateral(self.context, inputs, sigmas, params, self.width, self.height, frame_buffer_gl)
-
-        elif settings['filter_type'] == 'EAW':
-            inputs = {
-                'color': color_fb,
-                'normal': shading_fb,
-                'depth': depth_fb,
-                'trans': object_fb,
-                'world_coordinate': world_fb,
-                'object_id': object_fb,
-            }
-            sigmas = {
-                'color': settings['color_sigma'],
-                'normal': settings['normal_sigma'],
-                'depth': settings['depth_sigma'],
-                'trans': settings['trans_sigma'],
-            }
-            self.image_filter = image_filter.ImageFilterEaw(self.context, inputs, sigmas, {}, self.width, self.height, None)
-                                                         # temporary fix of EAW filter cause it doesn't work with gl_interop
-
-        elif settings['filter_type'] == 'LWR':
-            inputs = {
-                'color': color_fb,
-                'normal': shading_fb,
-                'depth': depth_fb,
-                'trans': object_fb,
-                'world_coordinate': world_fb,
-                'object_id': object_fb,
-            }
-            params = {
-                'samples': settings['samples'],
-                'halfWindow': settings['half_window'],
-                'bandwidth': settings['bandwidth'],
-            }
-            self.image_filter = image_filter.ImageFilterLwr(self.context, inputs, {}, params, self.width, self.height, frame_buffer_gl)
-
-        elif settings['filter_type'] == 'ML':
-            inputs = {
-                'color': color_fb,
-                'normal': shading_fb,
-                'depth': depth_fb,
-                'albedo': albedo_fb,
-            }
-            self.image_filter = image_filter.ImageFilterML(self.context, inputs, {}, {}, self.width, self.height, frame_buffer_gl)
-
-    def _disable_image_filter(self):
-        self.image_filter = None
-        self.image_filter_settings = None
-        if self.gl_interop and not self.sc_composite:
-            # set resolved framebuffer be the same as gl
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
-
-    def _update_image_filter(self, settings):
-        self.image_filter_settings = settings
-
-        if settings['filter_type'] == 'bilateral':
-            self.image_filter.update_sigma('color', settings['color_sigma'])
-            self.image_filter.update_sigma('normal', settings['normal_sigma'])
-            self.image_filter.update_sigma('world_coordinate', settings['p_sigma'])
-            self.image_filter.update_sigma('object_id', settings['trans_sigma'])
-            self.image_filter.update_param('radius', settings['radius'])
-        elif settings['filter_type'] == 'eaw':
-            self.image_filter.update_sigma('color', settings['color_sigma'])
-            self.image_filter.update_sigma('normal', settings['normal_sigma'])
-            self.image_filter.update_sigma('depth', settings['depth_sigma'])
-            self.image_filter.update_sigma('trans', settings['trans_sigma'])
-        elif settings['filter_type'] == 'lwr':
-            self.image_filter.update_param('samples', settings['samples'])
-            self.image_filter.update_param('halfWindow', settings['half_window'])
-            self.image_filter.update_param('bandwidth', settings['bandwidth'])
-
     def sync_shadow_catcher(self):
         use_shadow_catcher = False
         for obj in self.scene.objects:
@@ -302,26 +148,10 @@ class RPRContext:
 
         if use_shadow_catcher:
             if not self.sc_composite:
-                # enable shadow catcher with recreating image filter if needed
-                rif_settings = self.image_filter_settings
-                if rif_settings:
-                    self._disable_image_filter()
-
                 self._enable_shadow_catcher()
-
-                if rif_settings:
-                    self._enable_image_filter(rif_settings)
         else:
             if self.sc_composite:
-                # disable shadow catcher with recreating image filter if needed
-                rif_settings = self.image_filter_settings
-                if rif_settings:
-                    self._disable_image_filter()
-
                 self._disable_shadow_catcher()
-
-                if rif_settings:
-                    self._enable_image_filter(rif_settings)
 
     def _enable_shadow_catcher(self):
         self.enable_aov(pyrpr.AOV_COLOR)

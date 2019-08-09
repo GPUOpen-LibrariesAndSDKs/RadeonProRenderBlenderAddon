@@ -448,8 +448,9 @@ class RenderEngine(Engine):
         # data['GPU_util_max'] = ""
 
         data['CPU_enabled'] = devices.cpu_state
-        for i, gpu_state in enumerate(devices.gpu_states):
-            data[f'GPU{i}_enabled'] = gpu_state
+        if hasattr(devices, 'gpu_states'):
+            for i, gpu_state in enumerate(devices.gpu_states):
+                data[f'GPU{i}_enabled'] = gpu_state
 
         # data['max_memory_util'] = ""
         data['render_resolution'] = (self.width, self.height)
