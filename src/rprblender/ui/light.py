@@ -26,7 +26,7 @@ class RPR_LIGHT_PT_light(RPR_Panel):
         main_col = layout.column()
         if light.type == 'POINT':
             row = main_col.row(align=True)
-            row.template_ID(rpr_light, "ies_file", open="image.open")
+            row.template_ID(rpr_light, "ies_file", open="rpr.open_ies_file")
 
         elif light.type == 'SPOT':
             col = main_col.column(align=True)

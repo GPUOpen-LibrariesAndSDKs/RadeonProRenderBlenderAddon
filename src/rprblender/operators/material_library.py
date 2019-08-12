@@ -8,8 +8,8 @@ log = Log(tag='operator.material_library')
 
 class RPR_MATERIAL_LIBRARY_OP_import_material(RPR_Operator):
     bl_idname = "rpr.import_material_operator"
-    bl_label = "Import Selected Material"
-    bl_description = "Import material"
+    bl_label = "Import Material"
+    bl_description = "Import selected material"
 
     @classmethod
     def poll(cls, context):
