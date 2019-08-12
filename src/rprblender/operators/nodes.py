@@ -10,8 +10,8 @@ log = Log(tag='material.nodes.operator', level='info')
 
 class RPR_MATERIAL_LIBRARY_OP_arrage_nodes(RPR_Operator):
     bl_idname = "rpr.arrange_material_nodes"
-    bl_label = "RPR Arrange Material Shader Nodes"
-    bl_description = "Arrange shader nodes"
+    bl_label = "Arrange Material Nodes"
+    bl_description = "Arrange material shader nodes"
 
     margin_vertical: FloatProperty(default=250)
     margin_horizontal: FloatProperty(default=350)

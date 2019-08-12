@@ -18,6 +18,7 @@ from . import (
     nodes,
     material_library,
     export_scene,
+    light,
 )
 
 register_operators, unregister_operators = bpy.utils.register_classes_factory([
@@ -31,11 +32,14 @@ register_operators, unregister_operators = bpy.utils.register_classes_factory([
     material_library.RPR_MATERIAL_LIBRARY_OP_import_material,
 
     export_scene.RPR_EXPORT_OP_export_rpr_scene,
+
+    light.RPR_LIGHT_OP_open_IES_file,
 ])
 
 
 def add_rpr_export_menu_item(self, context):
-    self.layout.operator(export_scene.RPR_EXPORT_OP_export_rpr_scene.bl_idname, text="Radeon ProRender (.rpr)")
+    self.layout.operator(export_scene.RPR_EXPORT_OP_export_rpr_scene.bl_idname,
+                         text="Radeon ProRender (.rpr)")
 
 
 def register():

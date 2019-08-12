@@ -6,7 +6,8 @@ from rprblender.utils import logging
 
 class RPR_WORLD_OT_convert_cycles_environment(RPR_Operator):
     bl_idname = 'rpr.convert_cycles_environment'
-    bl_label = "Convert Cycles Environment lightning settings"
+    bl_label = "Convert Cycles Environment"
+    bl_description = "Convert Cycles environment light settings"
 
     @classmethod
     def poll(cls, context: bpy.types.Context):
@@ -21,6 +22,7 @@ class RPR_WORLD_OT_convert_cycles_environment(RPR_Operator):
 class RPR_WORLD_OP_create_environment_gizmo(bpy.types.Operator):
     bl_idname = "rpr.op_create_environment_gizmo"
     bl_label = "Create Environment Gizmo"
+    bl_description = "Create environment light gizmo"
 
     rotation: bpy.props.FloatVectorProperty(
         name='Rotation', description='Rotation',
