@@ -81,7 +81,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.engine.sync(context, depsgraph)
             self.engine.render()
         else:
-            self.engine.sync_update(depsgraph)
+            self.engine.sync_update(context, depsgraph)
 
     def view_draw(self, context, depsgraph):
         """ called when viewport is to be drawn """

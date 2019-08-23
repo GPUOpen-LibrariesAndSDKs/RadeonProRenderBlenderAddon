@@ -1,10 +1,16 @@
-import bpy
 import numpy as np
 import os
+
+import bpy
+import bpy_extras
+
 from rprblender import utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.image')
+
+
+UNSUPPORTED_IMAGES = ('.tiff', '.tif', '.exr')
 
 
 def key(image: bpy.types.Image):
@@ -27,7 +33,6 @@ def sync(rpr_context, image: bpy.types.Image):
 
     if image.source in ('FILE', 'GENERATED'):
         file_path = cache_image_file(image)
-
         rpr_image = rpr_context.create_image_file(image_key, file_path)
 
     else:
@@ -59,7 +64,8 @@ def cache_image_file(image):
     """
     if image.source == 'FILE':
         file_path = image.filepath_from_user()
-        if image.is_dirty or not os.path.isfile(file_path):
+        if image.is_dirty or not os.path.isfile(file_path) \
+                or file_path.lower().endswith(UNSUPPORTED_IMAGES):
             # getting file path from image cache and if such file not exist saving image to cache
             file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
             if image.is_dirty or not os.path.isfile(file_path):
@@ -71,3 +77,20 @@ def cache_image_file(image):
             image.save_render(file_path)
 
     return file_path
+
+
+def cache_image_file_path(file_path):
+    if not file_path.lower().endswith(UNSUPPORTED_IMAGES):
+        return file_path
+
+    cache_file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(file_path))}.png")
+    if os.path.isfile(cache_file_path):
+        return cache_file_path
+
+    image = bpy_extras.image_utils.load_image(file_path)
+    try:
+        image.save_render(cache_file_path)
+    finally:
+        bpy.data.images.remove(image)
+
+    return cache_file_path

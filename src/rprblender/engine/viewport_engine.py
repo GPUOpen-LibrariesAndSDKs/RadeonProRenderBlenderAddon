@@ -12,6 +12,7 @@ import pyrpr
 from .engine import Engine
 from rprblender.export import camera, material, world, object, instance, particle
 from rprblender.utils import gl
+from rprblender import utils
 from rprblender import config
 
 from rprblender.utils import logging
@@ -120,6 +121,33 @@ class ViewportSettings:
              (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
 
 
+@dataclass(init=False, eq=True)
+class ShadingData:
+    type: str
+    use_scene_lights: bool = True
+    use_scene_world: bool = True
+    studio_light: str = None
+    studio_light_rotate_z: float = 0.0
+    studio_light_background_alpha: float = 0.0
+
+    def __init__(self, context: bpy.types.Context):
+        shading = context.area.spaces.active.shading
+
+        self.type = shading.type
+        if self.type == 'RENDERED':
+            return
+
+        self.use_scene_lights = shading.use_scene_lights
+        self.use_scene_world = shading.use_scene_world
+        if not self.use_scene_world:
+            self.studio_light = shading.selected_studio_light.path
+            if not self.studio_light:
+                self.studio_light = str(utils.blender_data_dir() /
+                                        "studiolights/world" / shading.studio_light)
+            self.studio_light_rotate_z = shading.studiolight_rotate_z
+            self.studio_light_background_alpha = shading.studiolight_background_alpha
+
+
 class ViewportEngine(Engine):
     """ Viewport render engine """
 
@@ -140,6 +168,7 @@ class ViewportEngine(Engine):
         self.gl_texture: gl.GLTexture = None
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
+        self.shading_data: ShadingData = None
 
         self.render_thread: threading.Thread = None
         self.resolve_thread: threading.Thread = None
@@ -303,6 +332,8 @@ class ViewportEngine(Engine):
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
                                    use_gl_interop=config.use_gl_interop)
 
+        self.shading_data = ShadingData(context)
+
         # getting initial render resolution
         viewport_settings = ViewportSettings(context)
         width, height = viewport_settings.width, viewport_settings.height
@@ -321,7 +352,7 @@ class ViewportEngine(Engine):
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             viewport_limits.set_adaptive_params(self.rpr_context)
 
-        self.world_settings = world.WorldData(scene.world)
+        self.world_settings = self._get_world_settings(depsgraph)
         self.world_settings.export(self.rpr_context)
 
         self.rpr_context.scene.set_name(scene.name)
@@ -362,7 +393,7 @@ class ViewportEngine(Engine):
         self.is_synced = True
         log('Finish sync')
 
-    def sync_update(self, depsgraph):
+    def sync_update(self, context, depsgraph):
         """ sync just the updated things """
 
         # get supported updates and sort by priorities
@@ -370,14 +401,20 @@ class ViewportEngine(Engine):
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
             updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
 
-        if not updates:
-            return
-
+        sync_collection = False
+        sync_world = False
         is_updated = False
 
-        with self.rpr_context.lock:
-            sync_collection = False
+        shading_data = ShadingData(context)
+        if self.shading_data != shading_data:
+            sync_world = True
 
+            if self.shading_data.use_scene_lights != shading_data.use_scene_lights:
+                sync_collection = True
+
+            self.shading_data = shading_data
+
+        with self.rpr_context.lock:
             for update in updates:
                 obj = update.id
                 log("sync_update", obj)
@@ -404,18 +441,18 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.World):
-                    world_settings = world.WorldData(obj)
-                    if world_settings == self.world_settings:
-                        continue
-
-                    self.world_settings = world_settings
-                    self.world_settings.export(self.rpr_context)
-                    is_updated = True
-                    continue
+                    sync_world = True
 
                 if isinstance(obj, bpy.types.Collection):
                     sync_collection = True
                     continue
+
+            if sync_world:
+                world_settings = self._get_world_settings(depsgraph)
+                if self.world_settings != world_settings:
+                    self.world_settings = world_settings
+                    self.world_settings.export(self.rpr_context)
+                    is_updated = True
 
             if sync_collection:
                 is_updated |= self.sync_objects_collection(depsgraph)
@@ -648,3 +685,16 @@ class ViewportEngine(Engine):
     def _disable_image_filter(self):
         super()._disable_image_filter()
         self.image_filter_ready = False
+
+    def _get_world_settings(self, depsgraph):
+        if self.shading_data.use_scene_world:
+            return world.WorldData.init_from_world(depsgraph.scene.world)
+
+        return world.WorldData.init_from_shading_data(self.shading_data)
+
+    def depsgraph_objects(self, depsgraph, with_camera=False):
+        for obj in super().depsgraph_objects(depsgraph, with_camera):
+            if obj.type == 'LIGHT' and not self.shading_data.use_scene_lights:
+                continue
+
+            yield obj
