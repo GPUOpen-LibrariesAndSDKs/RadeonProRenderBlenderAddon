@@ -5,6 +5,8 @@ import tempfile
 import os
 import shutil
 import platform
+import sys
+import glob
 
 import bpy
 import rprblender
@@ -16,6 +18,17 @@ def is_rpr_active(context: bpy.types.Context):
 
 def package_root_dir():
     return Path(rprblender.__file__).parent
+
+
+def blender_root_dir():
+    if IS_MAC:
+        return Path(sys.executable).parent / '../Resources'
+    else:
+        return Path(sys.executable).parent
+
+
+def blender_data_dir():
+    return Path(glob.glob(str(blender_root_dir() / '2.8*/datafiles'))[0])
 
 
 def get_cpu_threads_number():

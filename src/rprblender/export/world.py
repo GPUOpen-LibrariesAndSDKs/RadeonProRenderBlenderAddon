@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+import math
 
 import bpy
 import mathutils
@@ -14,6 +15,7 @@ log = logging.Log(tag='export.world')
 
 
 WARNING_IMAGE_NOT_DEFINED_COLOR = (1.0, 0.0, 1.0)
+STUDIO_LIGHT_DEFAULT_COLOR = (0.051, 0.051, 0.051)  # Blender's default background color in viewport
 
 
 def set_light_image(rpr_context, rpr_light, image_name):
@@ -25,6 +27,12 @@ def set_light_image(rpr_context, rpr_light, image_name):
         rpr_light.set_color(*WARNING_IMAGE_NOT_DEFINED_COLOR)
     else:
         rpr_light.set_image(rpr_image)
+
+
+def set_light_studio_image(rpr_context, rpr_light, studio_light):
+    file_path = image.cache_image_file_path(studio_light)
+    rpr_image = rpr_context.create_image_file(None, file_path)
+    rpr_light.set_image(rpr_image)
 
 
 def remove_environment_overrides(rpr_context):
@@ -64,19 +72,30 @@ class WorldData:
         """ Store and compare single Environment Override category settings """
         color: tuple = None
         image: str = None
+        studio_light: str = None
+        intensity: float = 1.0
 
     @dataclass(eq=True)
     class IblData:
-
-
         image: str = None
+        studio_light: str = None
         color: tuple = None
 
-        def __init__(self, ibl):
+        @staticmethod
+        def init_from_ibl(ibl):
+            data = WorldData.IblData()
             if ibl.image:
-                self.image = ibl.image.name
+                data.image = ibl.image.name
             else:
-                self.color = tuple(ibl.color)
+                data.color = tuple(ibl.color)
+
+            return data
+
+        @staticmethod
+        def init_from_shading(shading):
+            data = WorldData.IblData()
+            data.studio_light = shading.studio_light
+            return data
 
         def export(self, rpr_context, rotation):
             rpr_light = rpr_context.scene.environment_light
@@ -86,6 +105,8 @@ class WorldData:
 
             if self.image:
                 set_light_image(rpr_context, rpr_light, self.image)
+            elif self.studio_light:
+                set_light_studio_image(rpr_context, rpr_light, self.studio_light)
             else:
                 rpr_light.set_color(*self.color)
 
@@ -149,41 +170,66 @@ class WorldData:
     overrides: {str: OverrideData} = None
     gizmo_rotation: tuple = None
 
-    def __init__(self, world: bpy.types.World):
+    @staticmethod
+    def init_from_world(world: bpy.types.World):
         """ Returns WorldData from bpy.types.World """
+
+        data = WorldData()
 
         rpr = world.rpr
         if not rpr.enabled:
-            return
+            return data
 
         def set_override(override_type):
             if not getattr(rpr, f'{override_type}_override'):
                 return
 
-            data = WorldData.OverrideData()
+            override_data = WorldData.OverrideData()
+            override_data.intensity = rpr.intensity
+
             image = getattr(rpr, f'{override_type}_image')
             color = getattr(rpr, f'{override_type}_color')
             if image:
-                data.image = image.name
+                override_data.image = image.name
             else:
-                data.color = tuple(color)
+                override_data.color = tuple(color)
 
-            self.overrides[override_type] = data
+            data.overrides[override_type] = override_data
 
-        self.intensity = rpr.intensity
+        data.intensity = rpr.intensity
 
         if rpr.mode == 'IBL':
-            self.ibl = WorldData.IblData(rpr.ibl)
+            data.ibl = WorldData.IblData.init_from_ibl(rpr.ibl)
         else:
-            self.sun_sky = WorldData.SunSkyData(rpr.sun_sky)
+            data.sun_sky = WorldData.SunSkyData(rpr.sun_sky)
 
-        self.gizmo_rotation = tuple(rpr.gizmo_rotation)
+        data.gizmo_rotation = tuple(rpr.gizmo_rotation)
 
-        self.overrides = {}
+        data.overrides = {}
         set_override('background')
         set_override('reflection')
         set_override('refraction')
         set_override('transparency')
+
+        return data
+
+    @staticmethod
+    def init_from_shading_data(shading):
+        data = WorldData()
+        data.intensity = 1.0
+        data.ibl = WorldData.IblData.init_from_shading(shading)
+        data.gizmo_rotation = (0.0, 0.0, shading.studio_light_rotate_z)
+
+        bg_data = WorldData.OverrideData()
+        if math.isclose(shading.studio_light_background_alpha, 0.0):
+            bg_data.intensity = 1.0
+            bg_data.color = STUDIO_LIGHT_DEFAULT_COLOR
+        else:
+            bg_data.intensity = shading.studio_light_background_alpha
+            bg_data.studio_light = shading.studio_light
+        data.overrides = {'background': bg_data}
+
+        return data
 
     def export(self, rpr_context):
         def export_override(override_type):
@@ -195,8 +241,13 @@ class WorldData:
                     rpr_light = rpr_context.create_environment_light()
                     rpr_context.scene.add_environment_override(pyrpr_key, rpr_light)
 
+                rpr_light.set_intensity_scale(override.intensity)
+                rpr_light.set_group_id(0)
+
                 if override.image:
                     set_light_image(rpr_context, rpr_light, override.image)
+                elif override.studio_light:
+                    set_light_studio_image(rpr_context, rpr_light, override.studio_light)
                 else:
                     rpr_light.set_color(*override.color)
 
@@ -223,11 +274,7 @@ class WorldData:
         rpr_context.scene.environment_light.set_intensity_scale(self.intensity)
         rpr_context.scene.environment_light.set_group_id(0)
 
-        for rpr_light in rpr_context.scene.environment_overrides.values():
-            rpr_light.set_intensity_scale(self.intensity)
-            rpr_light.set_group_id(0)
-
 
 def sync(rpr_context: RPRContext, world: bpy.types.World):
-    data = WorldData(world)
+    data = WorldData.init_from_world(world)
     data.export(rpr_context)
