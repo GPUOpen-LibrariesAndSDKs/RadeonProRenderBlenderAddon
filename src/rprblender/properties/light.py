@@ -93,7 +93,7 @@ class RPR_LightProperties(RPR_Properties):
     # AREA LIGHT
     def update_shape(self, context):
         light = context.object.data
-        light.shape = self.shape if self.shape != 'MESH' else 'SQUARE'
+        light.shape = self.shape
 
     shape: EnumProperty(
         name="Shape",
@@ -102,7 +102,6 @@ class RPR_LightProperties(RPR_Properties):
             ('RECTANGLE', "Rectangle", "Rectangle shape"),
             ('DISK', "Disk", "Disk shape"),
             ('ELLIPSE', "Ellipse", "Ellipse shape"),
-            ('MESH', "Mesh", "Custom mesh"),   # TODO: Implement drawing of custom mesh
         ),
         description="Shape of the area Light",
         default='RECTANGLE',
@@ -112,11 +111,6 @@ class RPR_LightProperties(RPR_Properties):
         type=bpy.types.Image,
         name="Color Map",
         description="Area light color map",
-    )
-    mesh: PointerProperty(
-        type=bpy.types.Mesh,
-        name="Mesh",
-        description="Select mesh object",
     )
     visible: BoolProperty(
         name="Visible",

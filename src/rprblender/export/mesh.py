@@ -33,6 +33,12 @@ class MeshData:
     def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False):
         """ Returns MeshData from bpy.types.Mesh """
 
+        # Looks more like Blender's bug that we have to check that mesh has calc_normals_split().
+        # It is possible after deleting corresponded object with such mesh from the scene.
+        if not hasattr(mesh, 'calc_normals_split'):
+            log.warn("No calc_normals_split() in mesh", mesh)
+            return None
+
         # preparing mesh to export
         mesh.calc_normals_split()
         mesh.calc_loop_triangles()
