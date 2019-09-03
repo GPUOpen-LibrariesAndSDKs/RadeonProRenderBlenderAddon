@@ -69,31 +69,30 @@ class Engine(metaclass=ABCMeta):
 
         for p in render_passes:
             # finding corresponded aov
-            aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info if aov['name'] == p.name), None)
-            if aov:
-                try:
-                    aov_rpr = aov['rpr']
-                    if apply_image_filter and self.image_filter and aov_rpr == pyrpr.AOV_COLOR:
-                        image = self.image_filter.get_data()
-                    else:
-                        image = self.rpr_context.get_image(aov_rpr)
 
-                except KeyError:
-                    # This could happen when Depth or Combined was not selected, but they still are in view_layer.use_pass_*
-                    log.warn("AOV '{}' is not enabled in rpr_context".format(aov['name']))
-                    image = zeros_image(p.channels)
+            if p.name == "Combined":
+                if apply_image_filter and self.image_filter:
+                    image = self.image_filter.get_data()
+                else:
+                    image = self.rpr_context.get_image()
 
-            elif p.name == 'Color':
+                image = self.apply_render_stamp(image, p.channels)
+
+            elif p.name == "Color":
                 image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
 
             else:
-                log.warn("AOV '{}' is not found in aovs_info".format(p.name))
-                image = zeros_image(p.channels)
+                aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info
+                            if aov['name'] == p.name), None)
+                if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
+                    image = self.rpr_context.get_image(aov['rpr'])
+                else:
+                    log.warn(f"AOV '{p.name}' is not enabled in rpr_context "
+                             f"or not found in aovs_info")
+                    image = zeros_image(p.channels)
 
             if p.channels != image.shape[2]:
                 image = image[:, :, 0:p.channels]
-
-            image = self.apply_render_stamp(image, p.channels)
 
             images.append(image.flatten())
 
@@ -309,7 +308,7 @@ class Engine(metaclass=ABCMeta):
             self.image_filter.update_param('bandwidth', settings['bandwidth'])
 
     def update_image_filter_inputs(self, tile_pos=(0, 0)):
-        color = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        color = self.rpr_context.get_image()
 
         filter_type = self.image_filter_settings['filter_type']
         if filter_type == 'BILATERAL':

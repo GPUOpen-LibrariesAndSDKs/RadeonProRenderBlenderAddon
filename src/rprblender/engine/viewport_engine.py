@@ -550,9 +550,9 @@ class ViewportEngine(Engine):
 
         else:
             if self.rpr_context.gl_interop:
-                texture_id = self.rpr_context.get_frame_buffer(pyrpr.AOV_COLOR).texture_id
+                texture_id = self.rpr_context.get_frame_buffer().texture_id
             else:
-                im = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                im = self.rpr_context.get_image()
                 self.gl_texture.set_image(im)
                 texture_id = self.gl_texture.texture_id
 

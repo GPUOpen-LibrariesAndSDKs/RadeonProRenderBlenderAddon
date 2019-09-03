@@ -71,19 +71,21 @@ class RPRContext:
             else:
                 self.context.render_tile(*tile)
 
-    def get_image(self, aov_type=pyrpr.AOV_COLOR):
+    def get_image(self, aov_type=None):
         with self.lock:
             return self.get_frame_buffer(aov_type).get_data()
 
-    def get_frame_buffer(self, aov_type):
-        if aov_type == pyrpr.AOV_COLOR:
-            if self.gl_interop:
-                return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
+    def get_frame_buffer(self, aov_type=None):
+        if aov_type is not None:
+            return self.frame_buffers_aovs[aov_type]['res']
 
-            if self.sc_composite:
-                return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
+        if self.gl_interop:
+            return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
 
-        return self.frame_buffers_aovs[aov_type]['res']
+        if self.sc_composite:
+            return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc']
+
+        return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
 
     def resolve(self):
         with self.lock:
@@ -166,40 +168,66 @@ class RPRContext:
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
 
-        zero = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
-        zero.set_name('sc_composite_zero')
-        zero.set_input('constant.input', (0.0, 0.0, 0.0, 1.0))
-
         color = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        color.set_name('sc_composite_aov_color_color')
+        color.set_name('sc_composite_aov_color')
         color.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'])
 
         background = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
         background.set_name('sc_composite_aov_background')
         background.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_BACKGROUND]['res'])
 
-        opacity = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
-        opacity.set_name('sc_composite_aov_opacity')
-        opacity.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res'])
+        alpha = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
+        alpha.set_name('sc_composite_aov_opacity')
+        alpha.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res'])
 
         sc = pyrpr.Composite(self.context, pyrpr.COMPOSITE_FRAMEBUFFER)
         sc.set_name('sc_composite_aov_shadowcatcher')
         sc.set_input('framebuffer.input', self.frame_buffers_aovs[pyrpr.AOV_SHADOW_CATCHER]['res'])
 
-        # Combine color and background buffers using COMPOSITE_LERP_VALUE
-        lerp1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
-        lerp1.set_name('sc_composite_lerp1')
-        lerp1.set_input('lerp.color0', background)
-        lerp1.set_input('lerp.color1', color)
-        lerp1.set_input('lerp.weight', opacity)
+        # Calculating shadow catcher composite by following formula:
+        # sc_composite = background*(1 - min(alpha+sc, 1)) + color*alpha
 
-        lerp2 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_LERP_VALUE)
-        lerp2.set_name('sc_composite_result')
-        lerp2.set_input('lerp.color0', lerp1)
-        lerp2.set_input('lerp.color1', zero)
-        lerp2.set_input('lerp.weight', sc)
+        one = pyrpr.Composite(self.context,  pyrpr.COMPOSITE_CONSTANT)
+        one.set_input('constant.input', (1.0, 1.0, 1.0, 1.0))
 
-        self.sc_composite = lerp2
+        # a = alpha + sc
+        a = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        a.set_input('arithmetic.color0', alpha)
+        a.set_input('arithmetic.color1', sc)
+        a.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_ADD)
+
+        # a1 = min(a, 1)
+        a1 = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        a1.set_input('arithmetic.color0', a)
+        a1.set_input('arithmetic.color1', one)
+        a1.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_MIN)
+
+        # b = 1 - a1
+        b = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        b.set_input('arithmetic.color0', one)
+        b.set_input('arithmetic.color1', a1)
+        b.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_SUB)
+
+        # c = background * b
+        c = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        c.set_input('arithmetic.color0', background)
+        c.set_input('arithmetic.color1', b)
+        c.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_MUL)
+
+        # d = color * alpha
+        d = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        d.set_input('arithmetic.color0', color)
+        d.set_input('arithmetic.color1', alpha)
+        d.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_MUL)
+
+        # e = c + d
+        e = pyrpr.Composite(self.context, pyrpr.COMPOSITE_ARITHMETIC)
+        e.set_input('arithmetic.color0', c)
+        e.set_input('arithmetic.color1', d)
+        e.set_input('arithmetic.op', pyrpr.MATERIAL_NODE_OP_ADD)
+
+        self.sc_composite = e
+        self.sc_composite.set_name('sc_composite')
 
     def _disable_shadow_catcher(self):
         self.sc_composite = None
