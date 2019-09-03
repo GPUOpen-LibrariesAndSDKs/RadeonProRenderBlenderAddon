@@ -114,20 +114,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
         rpr_light.set_cone_shape(iangle, oangle)
 
     elif light.type == 'AREA':
-        if rpr.shape == 'MESH':
-            if not rpr.mesh:
-                log.warn("Area light has no mesh", light)
-                rpr_context.create_empty_object(light_key)
-                return
-
-            data = mesh.MeshData.init_from_mesh(rpr.mesh, calc_area=True)
-            if not data:
-                rpr_context.create_empty_object(light_key)
-                return
-
-        else:
-            data = mesh.MeshData.init_from_shape_type(rpr.shape, light.size, light.size_y, segments=32)
-
+        data = mesh.MeshData.init_from_shape_type(rpr.shape, light.size, light.size_y, segments=32)
         area = data.area
 
         rpr_light = rpr_context.create_area_light(
