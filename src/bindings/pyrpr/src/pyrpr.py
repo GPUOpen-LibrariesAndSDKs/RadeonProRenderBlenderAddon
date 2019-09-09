@@ -1064,6 +1064,15 @@ class IESLight(Light):
     def set_image_from_file(self, image_path, nx, ny):
         IESLightSetImageFromFile(self, encode(image_path), nx, ny)
 
+    def set_transform(self, transform: np.array, transpose=True):
+        # transform matrix has to be rotated by 90 degrees around X axis
+        rot = np.array(((1, 0, 0, 0),
+                        (0, 0, -1, 0),
+                        (0, 1, 0, 0),
+                        (0, 0, 0, 1)), dtype=np.float32)
+        transform_rot = transform @ rot
+        LightSetTransform(self, transpose, ffi.cast('float*', transform_rot.ctypes.data))
+
 
 class PointLight(Light):
     def __init__(self, context):
