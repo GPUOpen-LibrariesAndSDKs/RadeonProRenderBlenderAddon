@@ -266,6 +266,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'name': "Color Variance",
             'channel': 'RGB'
         },
+        {
+            'rpr': pyrpr.AOV_DIFFUSE_ALBEDO,
+            'name': "Diffuse Albedo",
+            'channel': 'RGB'
+        },
     )
 
     def aov_enabled_changed(self, context):
