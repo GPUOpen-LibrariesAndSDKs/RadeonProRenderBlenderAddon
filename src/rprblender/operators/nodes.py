@@ -1,10 +1,10 @@
 from collections import defaultdict
-
 from bpy.props import FloatProperty
-
 from . import RPR_Operator
-
+from rprblender.export.material import get_material_output_node
 from rprblender.utils.logging import Log
+import math 
+
 log = Log(tag='material.nodes.operator', level='info')
 
 
@@ -30,6 +30,146 @@ class RPR_MATERIAL_LIBRARY_OP_arrage_nodes(RPR_Operator):
         nodes.arrange(self.margin_vertical, self.margin_horizontal)
 
         return {'FINISHED'}
+
+
+class RPR_MATERIAL_OP_principled_to_uber(RPR_Operator):
+    ''' Creates an Uber node with the settings of the Principled node.  
+        Hooks that up, but leaves the old principled Node. '''
+
+    bl_idname = "rpr.principled_to_uber"
+    bl_label = "Convert Principled To Uber"
+    bl_description = "Converts Principled BSDF to RPR Uber"
+
+    @classmethod
+    def poll(cls, context):
+        # We need active material tree to work with
+        return super().poll(context) and context.object \
+               and context.object.active_material and context.object.active_material.node_tree
+
+    def execute(self, context):
+        # get principled node
+        nt = context.object.active_material.node_tree
+        output_node = get_material_output_node(context.object.active_material)
+        surface_socket = output_node.inputs['Surface']
+
+        if surface_socket.is_linked and \
+                surface_socket.links[0].from_node.bl_idname == 'ShaderNodeBsdfPrincipled':
+            principled_node = surface_socket.links[0].from_node
+        else:
+            return {'FINISHED'}
+
+        # create uber node
+        uber_node = nt.nodes.new(type="RPRShaderNodeUber")
+
+        # move uber node, principled node 
+        uber_node.location = principled_node.location
+        principled_node.location[1] += 600
+
+        # connect uber node to output
+        nt.links.new(surface_socket, uber_node.outputs[0])
+        
+        def copy_input(original_socket, new_socket):
+            if original_socket.is_linked:
+                original_link = original_socket.links[0]
+                nt.links.new(original_link.from_socket, new_socket)
+
+            else:
+                new_socket.default_value = original_socket.default_value
+
+        def enabled(socket_name, array_type=False):
+            socket = principled_node.inputs[socket_name]
+            if socket.is_linked:
+                return True
+            
+            val = socket.default_value
+
+            if val is None:
+                return False
+
+            if isinstance(val, float) and math.isclose(val, 0.0):
+                return False
+
+            if array_type and \
+               math.isclose(val[0], 0.0) and \
+               math.isclose(val[1], 0.0) and \
+               math.isclose(val[2], 0.0):
+                return False
+
+            return True
+
+
+        # connect/set inputs
+        # diffuse enabled already   uber_node.enable_diffuse = True
+        copy_input(principled_node.inputs['Base Color'], uber_node.inputs['Diffuse Color'])
+        copy_input(principled_node.inputs['Roughness'], uber_node.inputs['Diffuse Roughness'])
+
+        # reflection is already enabled
+        uber_node.reflection_mode = 'METALNESS'
+        copy_input(principled_node.inputs['Base Color'], uber_node.inputs['Reflection Color'])
+        copy_input(principled_node.inputs['Roughness'], uber_node.inputs['Reflection Roughness'])
+        copy_input(principled_node.inputs['Anisotropic'], uber_node.inputs['Reflection Anisotropy'])
+        copy_input(principled_node.inputs['Anisotropic Rotation'], uber_node.inputs['Reflection Anisotropy Rotation'])
+
+        # clearcoat
+        if enabled('Clearcoat'):
+            uber_node.enable_coating = True
+            # weight and color are already 1
+            copy_input(principled_node.inputs['Clearcoat'], uber_node.inputs['Coating Weight'])
+            copy_input(principled_node.inputs['Clearcoat Roughness'], uber_node.inputs['Coating Roughness'])
+            copy_input(principled_node.inputs['IOR'], uber_node.inputs['Coating IOR'])
+
+        # sheen 
+        if enabled('Sheen'):
+            uber_node.enable_sheen = True
+            # weight and color are already 1
+            copy_input(principled_node.inputs['Sheen'], uber_node.inputs['Sheen Weight'])
+            copy_input(principled_node.inputs['Base Color'], uber_node.inputs['Sheen Color'])
+            copy_input(principled_node.inputs['Sheen Tint'], uber_node.inputs['Sheen Tint'])
+
+        # normal 
+        if enabled('Normal'):
+            uber_node.enable_normal = True
+            copy_input(principled_node.inputs['Normal'], uber_node.inputs['Normal'])
+     
+        # SSS
+        if enabled('Subsurface'):
+            # we don't handle max distance here
+            uber_node.enable_sss = True
+            copy_input(principled_node.inputs['Subsurface'], uber_node.inputs['Subsurface Weight'])
+            copy_input(principled_node.inputs['Subsurface Color'], uber_node.inputs['Subsurface Color'])
+            copy_input(principled_node.inputs['Subsurface Radius'], uber_node.inputs['Subsurface Radius'])
+
+        # emission
+        if enabled('Emission', array_type=True):
+            uber_node.enable_emission = True
+            uber_node.emission_doublesided = True
+            copy_input(principled_node.inputs['Emission'], uber_node.inputs['Emission Color'])
+            
+        if principled_node.inputs['Alpha'].default_value != 1.0:
+            uber_node.enable_transparency = True
+            invert_node = nt.nodes.new(type="ShaderNodeInvert")
+            invert_node.location = uber_node.location
+            invert_node.location[0] -= 300
+            copy_input(principled_node.inputs['Alpha'], invert_node.inputs['Color'])
+            nt.links.new(invert_node.outputs[0], uber_node.inputs['Transparency'])
+
+        if enabled('Transmission'):
+            uber_node.enable_refraction = True
+            invert_node = nt.nodes.new(type="ShaderNodeInvert")
+            invert_node.location = uber_node.location
+            invert_node.location[0] -= 300
+            copy_input(principled_node.inputs['Transmission'], invert_node.inputs['Color'])
+            nt.links.new(invert_node.outputs[0], uber_node.inputs['Diffuse Weight'])
+
+            uber_node.reflection_mode = 'PBR'
+            copy_input(principled_node.inputs['IOR'], uber_node.inputs['Reflection IOR'])
+
+            copy_input(principled_node.inputs['Transmission'], uber_node.inputs['Refraction Weight'])
+            copy_input(principled_node.inputs['Base Color'], uber_node.inputs['Refraction Color'])
+            copy_input(principled_node.inputs['Transmission Roughness'], uber_node.inputs['Refraction Roughness'])
+        
+        return {'FINISHED'}
+
 
 
 ##
