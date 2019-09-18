@@ -217,6 +217,13 @@ class RPR_EnvironmentProperties(RPR_Properties):
         type=bpy.types.Image,
         name="Image",
     )
+    background_image_type: EnumProperty(
+        name="Background Override Type",
+        items=(('SPHERE', "Sphere", "360 degrees spherical background image"),
+               ('BACKPLATE', "Backplate", "Flat backplate image")),
+        description="Background override type",
+        default='SPHERE',
+    )
 
     # reflection override
     reflection_override: bpy.props.BoolProperty(
