@@ -12,7 +12,6 @@ class RPRContext:
         self.width = None
         self.height = None
         self.gl_interop = None
-        self.lock = threading.Lock()
 
         # scene and objects
         self.scene = None
@@ -62,18 +61,16 @@ class RPRContext:
             fbs['aov'].clear()
 
     def render(self, restart=False, tile=None):
-        with self.lock:
-            if restart:
-                self.clear_frame_buffers()
+        if restart:
+            self.clear_frame_buffers()
 
-            if tile is None:
-                self.context.render()
-            else:
-                self.context.render_tile(*tile)
+        if tile is None:
+            self.context.render()
+        else:
+            self.context.render_tile(*tile)
 
     def get_image(self, aov_type=None):
-        with self.lock:
-            return self.get_frame_buffer(aov_type).get_data()
+        return self.get_frame_buffer(aov_type).get_data()
 
     def get_frame_buffer(self, aov_type=None):
         if aov_type is not None:
@@ -88,14 +85,13 @@ class RPRContext:
         return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
 
     def resolve(self):
-        with self.lock:
-            for fbs in self.frame_buffers_aovs.values():
-                fbs['aov'].resolve(fbs['res'])
+        for fbs in self.frame_buffers_aovs.values():
+            fbs['aov'].resolve(fbs['res'])
 
-            if self.sc_composite:
-                self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
-                if self.gl_interop:
-                    self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
+        if self.sc_composite:
+            self.sc_composite.compute(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'])
+            if self.gl_interop:
+                self.frame_buffers_aovs[pyrpr.AOV_COLOR]['sc'].resolve(self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl'])
 
     def enable_aov(self, aov_type):
         if self.is_aov_enabled(aov_type):
@@ -381,12 +377,11 @@ class RPRContext:
         return self.context.parameters[name]
 
     def get_info(self, context_info: int, value_type: type):
-        with self.lock:
-            if value_type is int:
-                return self.context.get_info_int(context_info)
+        if value_type is int:
+            return self.context.get_info_int(context_info)
 
-            if value_type is str:
-                return self.context.get_info_str(context_info)
+        if value_type is str:
+            return self.context.get_info_str(context_info)
 
         raise ValueError("Incorrect value_type for RPRContext.get_info", value_type)
 
