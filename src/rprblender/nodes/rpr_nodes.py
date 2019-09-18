@@ -89,6 +89,25 @@ class RPRShaderNodePassthrough(RPRShaderNode):
             }
         }
 
+class RPRUberMenu(bpy.types.Menu):
+    bl_idname = "SHADER_MT_RPR_UBER_MENU"
+    bl_label = "Layers"
+
+    def draw(self, context):
+        layout = self.layout
+
+        uber_node = bpy.app.driver_namespace['RPR_ACTIVE_NODE']
+
+        layout.prop(uber_node, 'enable_diffuse', toggle=True)
+        layout.prop(uber_node, 'enable_reflection', toggle=True)
+        layout.prop(uber_node, 'enable_refraction', toggle=True)
+        layout.prop(uber_node, 'enable_coating', toggle=True)
+        layout.prop(uber_node, 'enable_sheen', toggle=True)
+        layout.prop(uber_node, 'enable_emission', toggle=True)
+        layout.prop(uber_node, 'enable_sss', toggle=True)
+        layout.prop(uber_node, 'enable_normal', toggle=True)
+        layout.prop(uber_node, 'enable_transparency', toggle=True)
+
 
 class RPRShaderNodeUber(RPRShaderNode):
     bl_label = 'RPR Uber'
@@ -224,22 +243,23 @@ class RPRShaderNodeUber(RPRShaderNode):
         self.update_visibility(context)
 
     def draw_buttons(self, context, layout):
+        bpy.app.driver_namespace['RPR_ACTIVE_NODE'] = self
+
+        layout.menu('SHADER_MT_RPR_UBER_MENU')
+
         col = layout.column(align=True)
-        col.prop(self, 'enable_diffuse', toggle=True)
         if self.enable_diffuse:
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'diffuse_use_shader_normal')
             c.prop(self, 'separate_backscatter_color')
-        
-        col.prop(self, 'enable_reflection', toggle=True)
+
         if self.enable_reflection:
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'reflection_use_shader_normal')
             c.prop(self, 'reflection_mode', text="")
 
-        col.prop(self, 'enable_refraction', toggle=True)
         if self.enable_refraction:
             box = col.box()
             c = box.column(align=True)
@@ -247,31 +267,24 @@ class RPRShaderNodeUber(RPRShaderNode):
             c.prop(self, 'refraction_thin_surface')
             c.prop(self, 'refraction_caustics')
 
-        col.prop(self, 'enable_coating', toggle=True)
         if self.enable_coating:
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'coating_use_shader_normal')
-            
-        col.prop(self, 'enable_sheen', toggle=True)
 
-        col.prop(self, 'enable_emission', toggle=True)
         if self.enable_emission:
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'emission_doublesided')
             c.prop(self, 'emission_intensity')
 
-        col.prop(self, 'enable_sss', toggle=True)
         if self.enable_sss:
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'sss_use_diffuse_color')
             c.prop(self, 'sss_multiscatter')
 
-        col.prop(self, 'enable_normal', toggle=True)
-        col.prop(self, 'enable_transparency', toggle=True)
-
+        
     class Exporter(NodeParser):
         def export(self):
             ''' export sockets to the uber param specced in self.node_sockets '''

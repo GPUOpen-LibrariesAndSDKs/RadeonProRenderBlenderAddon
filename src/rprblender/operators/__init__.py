@@ -28,6 +28,7 @@ register_operators, unregister_operators = bpy.utils.register_classes_factory([
     world.RPR_WORLD_OT_convert_cycles_environment,
 
     nodes.RPR_MATERIAL_LIBRARY_OP_arrage_nodes,
+    nodes.RPR_MATERIAL_OP_principled_to_uber,
 
     material_library.RPR_MATERIAL_LIBRARY_OP_import_material,
 
