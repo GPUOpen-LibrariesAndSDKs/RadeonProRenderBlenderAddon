@@ -171,22 +171,16 @@ class ViewportEngine(Engine):
         self.shading_data: ShadingData = None
 
         self.render_thread: threading.Thread = None
-        self.resolve_thread: threading.Thread = None
         self.restart_render_event = threading.Event()
-        self.render_event = threading.Event()
+        self.lock = threading.Lock()
         self.finish_render = False
 
     def render(self):
         self.finish_render = False
-
         self.restart_render_event.clear()
-        self.render_event.clear()
 
         self.render_thread = threading.Thread(target=ViewportEngine._do_render, args=(self,))
         self.render_thread.start()
-
-        self.resolve_thread = threading.Thread(target=ViewportEngine._do_resolve, args=(self,))
-        self.resolve_thread.start()
 
     def stop_render(self):
         if not self.render_thread:
@@ -195,9 +189,6 @@ class ViewportEngine(Engine):
         self.finish_render = True
         self.restart_render_event.set()
         self.render_thread.join()
-
-        self.render_event.set()
-        self.resolve_thread.join()
 
     def notify_status(self, info):
         self.rpr_engine.update_stats("", info)
@@ -245,7 +236,8 @@ class ViewportEngine(Engine):
                     log_str += f", active_pixels: {active_pixels}"
                 log(log_str)
 
-                self.rpr_context.render(restart=(self.iteration == 0))
+                with self.lock:
+                    self.rpr_context.render(restart=(self.iteration == 0))
 
                 self.iteration += 1
                 self.time_render = time.perf_counter() - self.time_begin
@@ -277,50 +269,9 @@ class ViewportEngine(Engine):
                 if is_adaptive and active_pixels == 0:
                     self.is_last_iteration = True
 
-                self.render_event.set()
+                self.rpr_engine.tag_redraw()
 
         log("Finish render thread")
-
-    def _do_resolve(self):
-        """
-        Thread function for self.resolve_thread. It only resolves rendered frame buffers
-        It always run during viewport render. It waits for self.render_event
-        """
-
-        log("Start resolve thread")
-        while True:
-            self.render_event.wait()
-            self.render_event.clear()
-
-            if self.finish_render:
-                break
-
-            self.rpr_context.resolve()
-            self.image_filter_ready = False
-
-            if self.is_last_iteration:
-                self.time_render = time.perf_counter() - self.time_begin
-
-                if self.image_filter:
-                    self.notify_status(f"Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration} | Denoising...")
-                    self.rpr_engine.tag_redraw()
-
-                    self.update_image_filter_inputs()
-                    self.image_filter.run()
-                    self.image_filter_ready = True
-
-                    self.time_render = time.perf_counter() - self.time_begin
-                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration} | Denoised")
-
-                else:
-                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration}")
-
-            self.rpr_engine.tag_redraw()
-
-        log("Finish resolve thread")
 
     def sync(self, context, depsgraph):
         log('Start sync')
@@ -414,7 +365,7 @@ class ViewportEngine(Engine):
 
             self.shading_data = shading_data
 
-        with self.rpr_context.lock:
+        with self.lock:
             for update in updates:
                 obj = update.id
                 log("sync_update", obj)
@@ -526,54 +477,80 @@ class ViewportEngine(Engine):
     def draw(self, context):
         log("Draw")
 
-        viewport_settings = ViewportSettings(context)
-        scene = context.scene
+        with self.lock:
+            viewport_settings = ViewportSettings(context)
+            scene = context.scene
 
-        if viewport_settings.width * viewport_settings.height == 0:
-            return
+            if viewport_settings.width * viewport_settings.height == 0:
+                return
 
-        if self.viewport_settings != viewport_settings:
-            with self.rpr_context.lock:
+            if self.viewport_settings != viewport_settings:
                 viewport_settings.export_camera(self.rpr_context.scene.camera)
 
                 if self.rpr_context.width != viewport_settings.width \
                         or self.rpr_context.height != viewport_settings.height:
                     self._resize(viewport_settings.width, viewport_settings.height)
 
-            self.viewport_settings = viewport_settings
-            self.restart_render_event.set()
+                self.viewport_settings = viewport_settings
+                self.restart_render_event.set()
 
-        if self.image_filter_ready:
-            im = self.image_filter.get_data()
-            self.gl_texture.set_image(im)
-            texture_id = self.gl_texture.texture_id
+            self.rpr_context.resolve()
+            self.image_filter_ready = False
 
-        else:
-            if self.rpr_context.gl_interop:
-                texture_id = self.rpr_context.get_frame_buffer().texture_id
-            else:
-                im = self.rpr_context.get_image()
+            if self.is_last_iteration:
+                self.time_render = time.perf_counter() - self.time_begin
+
+                if self.image_filter:
+                    self.notify_status(f"Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration} | Denoising...")
+                    self.rpr_engine.tag_redraw()
+
+                    self.update_image_filter_inputs()
+                    self.image_filter.run()
+                    self.image_filter_ready = True
+
+                    self.time_render = time.perf_counter() - self.time_begin
+                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration} | Denoised")
+
+                else:
+                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
+                                       f" | Iteration: {self.iteration}")
+
+            if self.image_filter_ready:
+                im = self.image_filter.get_data()
                 self.gl_texture.set_image(im)
                 texture_id = self.gl_texture.texture_id
 
-        if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
-                                     'POSITION', 'NORMAL', 'TEXCOORD'):
-            # Draw without color management
-            draw_texture_2d(texture_id, self.viewport_settings.border[0],
-                            *self.viewport_settings.border[1])
+            else:
+                if self.rpr_context.gl_interop:
+                    texture_id = self.rpr_context.get_frame_buffer().texture_id
+                else:
+                    im = self.rpr_context.get_image()
 
-        else:
-            # Bind shader that converts from scene linear to display space,
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-            self.rpr_engine.bind_display_space_shader(scene)
+                    self.gl_texture.set_image(im)
+                    texture_id = self.gl_texture.texture_id
 
-            # note this has to draw to region size, not scaled down size
-            self._draw_texture(texture_id, *self.viewport_settings.border[0],
-                               *self.viewport_settings.border[1])
+            if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
+                                         'POSITION', 'NORMAL', 'TEXCOORD'):
+                # Draw without color management
+                draw_texture_2d(texture_id, self.viewport_settings.border[0],
+                                *self.viewport_settings.border[1])
 
-            self.rpr_engine.unbind_display_space_shader()
-            bgl.glDisable(bgl.GL_BLEND)
+            else:
+                # Bind shader that converts from scene linear to display space,
+                bgl.glEnable(bgl.GL_BLEND)
+                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+                self.rpr_engine.bind_display_space_shader(scene)
+
+                # note this has to draw to region size, not scaled down size
+                self._draw_texture(texture_id, *self.viewport_settings.border[0],
+                                   *self.viewport_settings.border[1])
+
+                self.rpr_engine.unbind_display_space_shader()
+                bgl.glDisable(bgl.GL_BLEND)
+
+        log("Finish Draw")
 
     def sync_objects_collection(self, depsgraph):
         """
