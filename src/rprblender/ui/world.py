@@ -75,6 +75,23 @@ class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
     bl_label = "Background Override"
     type = 'background'
 
+    def draw(self, context):
+        rpr = context.scene.world.rpr
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.enabled = rpr.background_override
+
+        row = layout.row()
+        row.use_property_split = False
+        row.prop(rpr, 'background_image_type', expand=True)
+
+        layout.template_ID(rpr, 'background_image', open='image.open', new='image.new')
+        
+        row = layout.row()
+        row.enabled = rpr.background_image is None
+        row.prop(rpr, 'background_color')
+
 
 class RPR_WORLD_PT_reflection_override(RPR_EnvironmentOverride):
     bl_label = "Reflection Override"

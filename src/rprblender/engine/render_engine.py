@@ -42,6 +42,8 @@ class RenderEngine(Engine):
         self.camera_data: camera.CameraData = None
         self.tile_order = None
 
+        self.world_backplate = None
+
     def notify_status(self, progress, info):
         self.rpr_engine.update_progress(progress)
         self.rpr_engine.update_stats(self.status_title, info)
@@ -154,10 +156,17 @@ class RenderEngine(Engine):
 
             log(f"Render tile {tile_index} / {tiles_number}: [{tile_pos}, {tile_size}]")
 
-            self.camera_data.export(rpr_camera,
-                                    tile=((tile_pos[0]/self.width, tile_pos[1]/self.height),
-                                          (tile_size[0]/self.width, tile_size[1]/self.height)))
+            tile = ((tile_pos[0] / self.width, tile_pos[1] / self.height),
+                    (tile_size[0] / self.width, tile_size[1] / self.height))
+            # set camera for tile
+            self.camera_data.export(rpr_camera, tile=tile)
             self.rpr_context.resize(*tile_size)
+
+            # export backplate section for tile if backplate present
+            if self.world_backplate:
+                self.world_backplate.export_tile(self.rpr_context,
+                                                 tile[0][0], tile[0][1],
+                                                 tile[0][0] + tile[1][0], tile[0][1] + tile[1][1])
 
             sample = 0
             if is_adaptive:
@@ -320,8 +329,6 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        world.sync(self.rpr_context, scene.world)
-
         # EXPORT OBJECTS
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
@@ -376,6 +383,13 @@ class RenderEngine(Engine):
 
         else:
             self.camera_data.export(rpr_camera)
+
+        # Environment is synced once per frame
+        world.sync(self.rpr_context, scene.world)
+        if scene.world.rpr.background_image_type == "BACKPLATE":
+            # Different Backplate regions should be exported for each render tile
+            self.world_backplate = world.Backplate(scene.world.rpr, (self.width, self.height))
+            self.world_backplate.export_full(self.rpr_context)
 
         # SYNC MOTION BLUR
         self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
