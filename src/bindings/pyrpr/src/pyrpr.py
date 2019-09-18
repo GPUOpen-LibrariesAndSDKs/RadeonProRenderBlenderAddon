@@ -413,6 +413,7 @@ class Scene(Object):
         self.objects = set()
         self.camera = None
         self.environment_light = None
+        self.background_image = None
         self.environment_overrides = {}
         ContextCreateScene(self.context, self)
 
@@ -453,6 +454,8 @@ class Scene(Object):
         self.objects.remove(obj)
 
     def clear(self):
+        self.set_background_image(None)
+
         for obj in tuple(self.objects):
             self.detach(obj)
         for override_type in tuple(self.environment_overrides.keys()):
@@ -472,6 +475,10 @@ class Scene(Object):
     def remove_environment_light(self):
         self.detach(self.environment_light)
         self.environment_light = None
+
+    def set_background_image(self, image):
+        self.background_image = image
+        SceneSetBackgroundImage(self, image)
 
     def add_environment_override(self, core_id, light):
         self.environment_overrides[core_id] = light
