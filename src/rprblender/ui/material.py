@@ -105,6 +105,26 @@ class RPR_MaterialOutputSocket(RPR_Panel):
 class RPR_MATERIAL_PT_surface(RPR_MaterialOutputSocket):
     bl_label = "Surface"
 
+    def draw(self, context):
+        layout = self.layout
+
+        node_tree = context.material.node_tree
+
+        output_node = get_material_output_node(context.material)
+        if not output_node:
+            layout.label(text="No output node")
+            return
+
+        # check for Principled BSDF
+        if output_node and "Surface" in output_node.inputs:
+            surface_socket = output_node.inputs['Surface']
+            if surface_socket.is_linked and \
+                surface_socket.links[0].from_node.bl_idname == 'ShaderNodeBsdfPrincipled':
+                layout.operator('rpr.principled_to_uber')
+
+        input = output_node.inputs[self.bl_label]
+        layout.template_node_view(node_tree, output_node, input)
+
 
 class RPR_MATERIAL_PT_displacement(RPR_MaterialOutputSocket):
     bl_label = "Displacement"
