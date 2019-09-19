@@ -496,6 +496,7 @@ class Shape(Object):
         super().__init__()
         self.context = context
         self.shadow_catcher = False
+        self.reflection_catcher = False
         self.is_visible = True
 
         self.materials = []
@@ -557,6 +558,10 @@ class Shape(Object):
     def set_shadow_catcher(self, shadow_catcher):
         ShapeSetShadowCatcher(self, shadow_catcher)
         self.shadow_catcher = shadow_catcher
+
+    def set_reflection_catcher(self, reflection_catcher):
+        ShapeSetReflectionCatcher(self, reflection_catcher)
+        self.reflection_catcher = reflection_catcher
 
     def set_shadow(self, casts_shadow):
         # 1.330 removes SetShadow(), use visibility Flag.

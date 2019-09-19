@@ -18,6 +18,7 @@ class RPR_OBJECT_PT_object(RPR_Panel):
         rpr = context.object.rpr
 
         self.layout.prop(rpr, 'shadowcatcher')
+        self.layout.prop(rpr, 'reflection_catcher')
         self.layout.prop(rpr, 'portal_light')
         col = self.layout.column()
         col.active = context.scene.render.use_motion_blur

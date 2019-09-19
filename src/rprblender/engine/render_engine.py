@@ -425,7 +425,7 @@ class RenderEngine(Engine):
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
         # Shadow catcher
-        self.rpr_context.sync_shadow_catcher()
+        self.rpr_context.sync_catchers()
 
         # Image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings()

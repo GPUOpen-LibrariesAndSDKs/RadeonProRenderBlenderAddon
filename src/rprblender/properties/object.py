@@ -49,6 +49,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="Use this object as a shadowcatcher",
         default=False,
     )
+    reflection_catcher: BoolProperty(
+        name="Reflection Catcher",
+        description="Use this object as a reflection catcher",
+        default=False,
+    )
     portal_light: BoolProperty(
         name="Portal Light",
         description="Use this object as a portal light",
@@ -100,6 +105,7 @@ class RPR_ObjectProperites(RPR_Properties):
         rpr_shape.set_visibility_ex("visible.refraction.glossy", self.refraction_visibility)
         rpr_shape.set_visibility_ex("visible.diffuse", self.diffuse_visibility)
         rpr_shape.set_shadow_catcher(self.shadowcatcher)
+        rpr_shape.set_reflection_catcher(self.reflection_catcher)
         rpr_shape.set_shadow(self.shadows)
         rpr_shape.set_visibility_ex("visible.shadow", self.shadows)
 

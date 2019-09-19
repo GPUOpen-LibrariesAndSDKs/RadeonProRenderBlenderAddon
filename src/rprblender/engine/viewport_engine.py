@@ -326,7 +326,7 @@ class ViewportEngine(Engine):
             instance.sync(self.rpr_context, inst)
 
         # shadow catcher
-        self.rpr_context.sync_shadow_catcher()
+        self.rpr_context.sync_catchers()
 
         # image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings()
