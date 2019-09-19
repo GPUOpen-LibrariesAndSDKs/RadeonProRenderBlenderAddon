@@ -138,7 +138,7 @@ class RPRShaderNodeUber(RPRShaderNode):
         'Reflection IOR': ('rpr_socket_ior', 1.5, "self.enable_reflection and self.reflection_mode == 'PBR'"),
         'Reflection Metalness': ('rpr_socket_weight', 0.0, "self.enable_reflection and self.reflection_mode == 'METALNESS'"),
         'Reflection Anisotropy': ('rpr_socket_float_min1_max1', 0.0, "self.enable_reflection"),
-        'Reflection Anisotropy Rotation': ('rpr_socket_angle360', 0.0, "self.enable_reflection"),
+        'Reflection Anisotropy Rotation': ('rpr_socket_weight', 0.0, "self.enable_reflection"),
         'Reflection Normal': ('NodeSocketVector', None, "self.enable_reflection and not self.reflection_use_shader_normal"),
         
         'Refraction Weight': ('rpr_socket_weight_soft', 1.0, "self.enable_refraction"),
@@ -329,6 +329,9 @@ class RPRShaderNodeUber(RPRShaderNode):
                 reflection_roughness = self.get_input_value('Reflection Roughness')
                 reflection_anisotrophy = self.get_input_value('Reflection Anisotropy')
                 reflection_anisotrophy_rotation = self.get_input_value('Reflection Anisotropy Rotation')
+
+                # make it work exactly like in BSDF Principled
+                reflection_anisotrophy_rotation = 0.5 - (reflection_anisotrophy_rotation % 1.0)
 
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, reflection_weight)
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, reflection_color)

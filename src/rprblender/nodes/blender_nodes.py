@@ -157,22 +157,29 @@ class ShaderNodeBrightContrast(NodeParser):
         return (bright + (color - 0.5) * (contrast + 1.0) + 0.5).max(0.0)
 
 
-class ShaderNodeBsdfAnisotropic(RuleNodeParser):
+class ShaderNodeBsdfAnisotropic(NodeParser):
     # inputs: Color, Roughness, Anisotropy, Rotation, Normal
 
-    nodes = {
-        "BSDF": {
-            "type": pyrpr.MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION,
-            "params": {
-                "color": "inputs.Color",
-                "roughness": "inputs.Roughness",
-                "anisotropic": "inputs.Anisotropy",
-                "rotation": "inputs.Rotation",
-                "normal": "normal:inputs.Normal"
-            }
-        }
-    }
-    # TODO: Use Tangent input and distribution property
+    def export(self):
+        color = self.get_input_value('Color')
+        roughness = self.get_input_value('Roughness')
+        anisotropy = self.get_input_value('Anisotropy')
+        rotation = self.get_input_value('Rotation')
+        normal = self.get_input_normal('Normal')
+        # TODO: Use Tangent input and distribution property
+
+        rotation = 0.5 - (rotation % 1)
+
+        result = self.create_node(pyrpr.MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION, {
+            'color': color,
+            'roughness': roughness,
+            'anisotropic': anisotropy,
+            'rotation': rotation,
+        })
+        if normal:
+            result.set_input('normal', normal)
+
+        return result
 
 
 class ShaderNodeBsdfDiffuse(RuleNodeParser):
@@ -588,6 +595,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             anisotropic = self.get_input_value('Anisotropic')
             if enabled(anisotropic):
                 anisotropic_rotation = self.get_input_value('Anisotropic Rotation')
+                anisotropic_rotation = 0.5 - (anisotropic_rotation % 1.0)
 
         sheen = self.get_input_value('Sheen')
         sheen_tint = None
