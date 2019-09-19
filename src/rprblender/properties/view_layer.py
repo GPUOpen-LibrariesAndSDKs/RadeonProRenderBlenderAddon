@@ -177,6 +177,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'channel': 'RGBA'
         },
         {
+            'rpr': pyrpr.AOV_REFLECTION_CATCHER,
+            'name': "Reflection Catcher",
+            'channel': 'RGBA'
+        },
+        {
             'rpr': pyrpr.AOV_BACKGROUND,
             'name': "Background",
             'channel': 'RGB'
