@@ -88,8 +88,7 @@ class RPRSocketAngle360(NodeSocket):
     bl_idname = 'rpr_socket_angle360'
     bl_label = 'Angle360 socket'
 
-    default_value: FloatProperty(name="Angle", soft_min=-math.radians(180), soft_max=math.radians(180),
-                                            default=0.0, subtype='ANGLE')
+    default_value: FloatProperty(name="Angle", soft_min=0.0, soft_max=1.0, default=0.0, subtype='ANGLE')
 
     def draw(self, context, layout, node, text):
         if self.is_linked:
