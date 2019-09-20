@@ -120,6 +120,7 @@ def export_rpr_scene(context, filepath):
     # rpr_context parameters
     rpr_context.set_parameter('preview', False)
     scene.rpr.export_ray_depth(rpr_context)
+    scene.rpr.export_pixel_filter(rpr_context)
 
     rpr_context.sync_portal_lights()
 

@@ -329,6 +329,26 @@ class RPR_RenderProperties(RPR_Properties):
         default='GLOBAL_ILLUMINATION',
     )
 
+    pixel_filter: EnumProperty(
+        name="Pixel Filter",
+        description="Filter used for anti aliasing",
+        items=(
+            ('BOX', "Box", "Box Filter"),
+            ('TRIANGLE', "Triangle", "Triangle Filter"),
+            ('GAUSSIAN', "Gaussian", "Gaussian Filter"),
+            ('MITCHELL', "Mitchell", "Mitchell Filter"),
+            ('LANCZOS', "Lanczos", "Lanczos Filter"),
+            ('BLACKMANHARRIS', "Blackman-Harris", "Blackman-Harris Filter"),
+        ),
+        default='BLACKMANHARRIS',
+    )
+
+    pixel_filter_width: FloatProperty(
+        name="Width", description="Pixel Filter Width",
+        min=0, soft_max=5,
+        default=1.5,
+    )
+
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         """ Initializes rpr_context by device settings """
 
@@ -403,6 +423,16 @@ class RPR_RenderProperties(RPR_Properties):
 
     def export_render_mode(self, rpr_context):
         return rpr_context.set_parameter('rendermode', getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
+
+
+    def export_pixel_filter(self, rpr_context):
+        """ Exports pixel filter settings """
+        filter_type = getattr(pyrpr, f"FILTER_{self.pixel_filter}")
+        
+        res = False
+        res |= rpr_context.set_parameter('imagefilter.type', filter_type)
+        res |= rpr_context.set_parameter(f"imagefilter.{self.pixel_filter.lower()}.radius", self.pixel_filter_width)
+        return res
 
     @classmethod
     def register(cls):

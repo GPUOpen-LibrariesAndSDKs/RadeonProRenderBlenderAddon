@@ -178,6 +178,21 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
 
 
+class RPR_RENDER_PT_pixel_filter(RPR_Panel):
+    bl_label = "Pixel Filter"
+    bl_parent_id = 'RPR_RENDER_PT_quality'
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        rpr_scene = context.scene.rpr
+
+        col = self.layout.column()
+        col.prop(rpr_scene, 'pixel_filter')
+        col.prop(rpr_scene, 'pixel_filter_width')
+
+
 class RPR_RENDER_PT_light_clamping(RPR_Panel):
     bl_label = "Clamping"
     bl_parent_id = 'RPR_RENDER_PT_quality'
