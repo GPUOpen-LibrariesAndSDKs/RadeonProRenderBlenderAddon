@@ -28,7 +28,7 @@ def get_material_for_particles(rpr_context, p_sys, emitter):
     if not slot.material:
         return None
 
-    return material.sync(rpr_context, slot.material)
+    return material.sync(rpr_context, slot.material, obj=emitter)
 
             
 def create_sphere_master(rpr_context, master_key):

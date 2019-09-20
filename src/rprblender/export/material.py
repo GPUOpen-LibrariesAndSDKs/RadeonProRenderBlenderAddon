@@ -25,7 +25,8 @@ def get_material_output_node(material):
                 None)
 
 
-def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface'):
+def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface', *,
+         obj: bpy.types.Object = None):
     """
     If material exists: returns existing material
     In other cases: returns None
@@ -44,7 +45,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
         log("No output node", material)
         return None
 
-    node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None)
+    node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None, obj=obj)
     rpr_material = node_parser.final_export(input_socket_key)
 
     if rpr_material:
@@ -53,7 +54,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
     return rpr_material
 
 
-def sync_update(rpr_context: RPRContext, material: bpy.types.Material):
+def sync_update(rpr_context: RPRContext, material: bpy.types.Material, obj: bpy.types.Object = None):
     """ Recreates existing material """
 
     log("sync_update", material)
@@ -62,7 +63,7 @@ def sync_update(rpr_context: RPRContext, material: bpy.types.Material):
     if mat_key in rpr_context.materials:
         rpr_context.remove_material(mat_key)
 
-    sync(rpr_context, material)
+    sync(rpr_context, material, obj=obj)
 
     displacement_key = key(material, input_socket_key='Displacement')
     if displacement_key in rpr_context.materials:

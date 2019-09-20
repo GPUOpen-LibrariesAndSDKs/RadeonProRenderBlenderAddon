@@ -109,6 +109,7 @@ from . import (
     view_layer,
     material_browser,
     view3d,
+    mesh,
 )
 
 
@@ -157,6 +158,8 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     view_layer.RPR_RENDER_PT_denoiser,
 
     view3d.RPR_VIEW3D_MT_menu,
+
+    mesh.RPR_DATA_PT_mesh,
 ])
 
 

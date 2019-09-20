@@ -19,6 +19,7 @@ from . import (
     material_library,
     export_scene,
     light,
+    mesh,
 )
 
 register_operators, unregister_operators = bpy.utils.register_classes_factory([
@@ -35,6 +36,8 @@ register_operators, unregister_operators = bpy.utils.register_classes_factory([
     export_scene.RPR_EXPORT_OP_export_rpr_scene,
 
     light.RPR_LIGHT_OP_open_IES_file,
+
+    mesh.RPR_MESH_OT_set_secondary_uv_map
 ])
 
 

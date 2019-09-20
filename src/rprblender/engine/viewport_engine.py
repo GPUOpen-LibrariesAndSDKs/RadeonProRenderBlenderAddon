@@ -380,7 +380,9 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Material):
-                    material.sync_update(self.rpr_context, obj)
+                    mesh_obj = context.object if context.object and \
+                                                 context.object.type == 'MESH' else None
+                    material.sync_update(self.rpr_context, obj, mesh_obj)
                     is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
                     continue
 
