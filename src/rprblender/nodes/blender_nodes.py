@@ -1426,16 +1426,26 @@ class ShaderNodeUVMap(NodeParser):
     def export(self):
         """ Check if uv_map is set to primary, use LOOKUP node to set it """
         # The material preview uv_map value is surprisingly empty
-        if not self.node.uv_map:
-            return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                'value': pyrpr.MATERIAL_NODE_LOOKUP_UV
-            })
 
-        if self.node.uv_map != "UVMap":
-            log.warn("Only primary mesh UV map supported",
-                     self.node.uv_map, self.node, self.material)
+        if self.node.uv_map and self.object:
+            mesh = self.object.data
+            primary_uv = mesh.rpr.primary_uv_layer
+            if primary_uv and self.node.uv_map == primary_uv.name:
+                return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_UV
+                })
 
-        return None
+            secondary_uv = mesh.rpr.secondary_uv_layer
+            if secondary_uv and self.node.uv_map == secondary_uv.name:
+                return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    'value': pyrpr.MATERIAL_NODE_LOOKUP_UV1
+                })
+
+            return None
+
+        return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+            'value': pyrpr.MATERIAL_NODE_LOOKUP_UV
+        })
 
 
 class ShaderNodeVolumePrincipled(BaseNodeParser):
