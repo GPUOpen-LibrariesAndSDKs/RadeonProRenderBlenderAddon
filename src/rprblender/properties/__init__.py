@@ -34,6 +34,7 @@ from . import (
     view_layer,
     material_browser,
     addon,
+    mesh,
 )
 
 
@@ -59,4 +60,6 @@ register, unregister = bpy.utils.register_classes_factory([
     view_layer.RPR_ViewLayerProperites,
 
     material_browser.RPR_MaterialBrowserProperties,
+
+    mesh.RPR_MeshProperites,
 ])

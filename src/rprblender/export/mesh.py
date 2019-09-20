@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
 import math
-from typing import List
 
 import bpy
 import bmesh
@@ -50,22 +49,36 @@ class MeshData:
 
         data = MeshData()
         data.vertices = np.fromiter(
-            (x for vert in mesh.vertices for x in vert.co), 
+            (x for vert in mesh.vertices for x in vert.co),
             dtype=np.float32).reshape(-1, 3)
         data.normals = np.fromiter(
             (x for tri in mesh.loop_triangles for norm in tri.split_normals for x in norm),
             dtype=np.float32).reshape(-1, 3)
 
-        data.uvs = None
-        data.uv_indices = None
-        if len(mesh.uv_layers) > 0:
-            uv_layer = mesh.uv_layers.active
+        data.uvs = []
+        data.uv_indices = []
+
+        primary_uv = mesh.rpr.primary_uv_layer
+        if primary_uv:
             uvs = np.fromiter(
-                (x for d in uv_layer.data for x in d.uv),
+                (x for uv_data in primary_uv.data for x in uv_data.uv),
                 dtype=np.float32).reshape(-1, 2)
             if len(uvs) > 0:
-                data.uvs = uvs
-                data.uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops), dtype=np.int32)
+                uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops),
+                                         dtype=np.int32)
+                data.uvs.append(uvs)
+                data.uv_indices.append(uv_indices)
+
+            secondary_uv = mesh.rpr.secondary_uv_layer
+            if secondary_uv:
+                uvs = np.fromiter(
+                    (x for uv_data in secondary_uv.data for x in uv_data.uv),
+                    dtype=np.float32).reshape(-1, 2)
+                if len(uvs) > 0:
+                    uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops),
+                                             dtype=np.int32)
+                    data.uvs.append(uvs)
+                    data.uv_indices.append(uv_indices)
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
         data.vertex_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.vertices), dtype=np.int32)
@@ -117,9 +130,10 @@ class MeshData:
 
             # getting uvs before modifying mesh
             bm.verts.ensure_lookup_table()
-            data.uvs = np.fromiter(
+            main_uv_set = np.fromiter(
                 (vert.co[i] + 0.5 for vert in bm.verts for i in (0, 1)),
                 dtype=np.float32).reshape(-1, 2)
+            data.uvs = main_uv_set
 
             # scale and rotate mesh around Y axis
             bmesh.ops.scale(bm, verts=bm.verts,
@@ -153,9 +167,9 @@ class MeshData:
             bm.free()
 
 
-def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
-                     material_slots: List[bpy.types.MaterialSlot], mesh: bpy.types.Mesh):
+def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object):
     """ Assigns materials from material_slots to rpr_shape. It also syncs new material """
+    material_slots = obj.material_slots
     if len(material_slots) == 0:
         if rpr_shape.materials:
             rpr_shape.set_material(None)
@@ -163,6 +177,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
 
         return False
 
+    mesh = obj.data
     material_unique_indices = (0,)
     if len(material_slots) > 1:
         # Multiple materials found, going to collect indices of actually used materials
@@ -178,7 +193,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape,
 
         log("Syncing material '%s'" % slot.name, slot)
 
-        rpr_material = material.sync(rpr_context, slot.material)
+        rpr_material = material.sync(rpr_context, slot.material, obj=obj)
 
         if rpr_material:
             if len(material_unique_indices) == 1:
@@ -249,7 +264,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = 
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)
 
-    assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
+    assign_materials(rpr_context, rpr_shape, obj)
 
     rpr_context.scene.attach(rpr_shape)
     rpr_shape.set_transform(object.get_transform(obj))
@@ -275,7 +290,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             rpr_shape.set_transform(object.get_transform(obj))
 
         sync_visibility(rpr_context, obj, rpr_shape)
-        assign_materials(rpr_context, rpr_shape, obj.material_slots, mesh)
+        assign_materials(rpr_context, rpr_shape, obj)
         return True
 
     sync(rpr_context, obj)

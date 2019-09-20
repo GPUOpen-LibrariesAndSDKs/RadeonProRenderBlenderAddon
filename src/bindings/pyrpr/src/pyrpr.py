@@ -8,6 +8,7 @@ import functools
 import sys
 import numpy as np
 import bgl
+from typing import List
 
 import pyrprwrap
 from pyrprwrap import *
@@ -671,33 +672,71 @@ class Curve(Object):
 
 
 class Mesh(Shape):
-    def __init__(self, context, vertices, normals, texcoords, 
-                 vertex_indices, normal_indices, texcoord_indices, 
+    def __init__(self, context, vertices, normals, uvs: List[np.array],
+                 vertex_indices, normal_indices, uv_indices: List[np.array],
                  num_face_vertices):
         super().__init__(context)
 
-        if texcoords is None:
-            texcoords_ptr = ffi.NULL
-            texcoords_count = 0
-            texcoords_nbytes = 0
-            texcoords_ind_ptr = ffi.NULL
-            texcoords_ind_nbytes = 0
-        else:
-            texcoords_ptr = ffi.cast("float *", texcoords.ctypes.data)
-            texcoords_count = len(texcoords)
-            texcoords_nbytes = texcoords[0].nbytes
-            texcoords_ind_ptr = ffi.cast('rpr_int*', texcoord_indices.ctypes.data)
-            texcoords_ind_nbytes = texcoord_indices[0].nbytes
+        if len(uvs) > 1:
+            # several UVs set present
+            texcoords_layers_num = len(uvs)
+            texcoords_uvs = ffi.new("float *[]", texcoords_layers_num)
+            texcoords_count = np.zeros(texcoords_layers_num, dtype=np.uint64)
+            texcoords_nbytes = np.zeros(texcoords_layers_num, dtype=np.int32)
+            texcoords_ind = ffi.new("rpr_int *[]", texcoords_layers_num)
+            texcoords_ind_nbytes = np.zeros(texcoords_layers_num, dtype=np.int32)
 
-        ContextCreateMesh(self.context,
-                 ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
-                 ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes, 
-                 texcoords_ptr, texcoords_count, texcoords_nbytes, 
-                 ffi.cast('rpr_int*', vertex_indices.ctypes.data), vertex_indices[0].nbytes, 
-                 ffi.cast('rpr_int*', normal_indices.ctypes.data), normal_indices[0].nbytes,
-                 texcoords_ind_ptr, texcoords_ind_nbytes, 
-                 ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
-                 self)
+            for i, uvs_set in enumerate(uvs):
+                texcoords_uvs[i] = ffi.cast('float *', uvs_set.ctypes.data)
+                texcoords_count[i] = len(uvs_set)
+                texcoords_nbytes[i] = uvs_set[0].nbytes
+                texcoords_ind[i] = ffi.cast('rpr_int *', uv_indices[i].ctypes.data)
+                texcoords_ind_nbytes[i] = uv_indices[i][0].nbytes
+
+            ContextCreateMeshEx(
+                self.context,
+                ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
+                ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes,
+                ffi.NULL, 0, 0,
+                texcoords_layers_num,
+                texcoords_uvs, ffi.cast('size_t *', texcoords_count.ctypes.data),
+                ffi.cast('rpr_int *', texcoords_nbytes.ctypes.data),
+                ffi.cast('rpr_int*', vertex_indices.ctypes.data), vertex_indices[0].nbytes,
+                ffi.cast('rpr_int*', normal_indices.ctypes.data), normal_indices[0].nbytes,
+                texcoords_ind, ffi.cast('rpr_int*', texcoords_ind_nbytes.ctypes.data),
+                ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
+                self
+            )
+
+        else:
+            if uvs:
+                # single UVs set
+                uv = uvs[0]
+                indices = uv_indices[0]
+                texcoords_ptr = ffi.cast("float *", uv.ctypes.data)
+                texcoords_count = len(uv)
+                texcoords_nbytes = uv[0].nbytes
+                texcoords_ind_ptr = ffi.cast('rpr_int*', indices.ctypes.data)
+                texcoords_ind_nbytes = indices[0].nbytes
+            else:
+                # No UVs data found
+                texcoords_ptr = ffi.NULL
+                texcoords_count = 0
+                texcoords_nbytes = 0
+                texcoords_ind_ptr = ffi.NULL
+                texcoords_ind_nbytes = 0
+
+            ContextCreateMesh(
+                self.context,
+                ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
+                ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes,
+                texcoords_ptr, texcoords_count, texcoords_nbytes,
+                ffi.cast('rpr_int*', vertex_indices.ctypes.data), vertex_indices[0].nbytes,
+                ffi.cast('rpr_int*', normal_indices.ctypes.data), normal_indices[0].nbytes,
+                texcoords_ind_ptr, texcoords_ind_nbytes,
+                ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
+                self
+            )
 
     def set_vertex_value(self, index: int, indices, values):
         ShapeSetVertexValue(self, index, ffi.cast("rpr_int *", indices.ctypes.data),
