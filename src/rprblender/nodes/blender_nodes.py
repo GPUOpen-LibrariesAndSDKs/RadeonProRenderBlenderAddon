@@ -106,33 +106,21 @@ class ShaderNodeAmbientOcclusion(NodeParser):
         return ao_map * color
 
 
-class ShaderNodeDisplacement(RuleNodeParser):
+class ShaderNodeDisplacement(NodeParser):
     # inputs: Height, Midlevel, Scale, Normal
+    
+    def export(self):
+        height = self.get_input_value('Height')
+        midlevel = self.get_input_value('Midlevel')
+        scale = self.get_input_value('Scale')
+        normal = self.get_input_normal('Normal')
 
-    nodes = {
         # displacement vec = Scale * (Height - Midlevel) * Normal
-        "Displacement": {
-            "type": "*",
-            "params": {
-                "color0": "nodes.mul",
-                "color1": "normal:inputs.Normal"
-            }
-        },
-        "mul": {
-            "type": "*",
-            "params": {
-                "color0": "inputs.Scale",
-                "color1": "nodes.sub",
-            }
-        },
-        "sub": {
-            "type": "-",
-            "params": {
-                "color0": "inputs.Height",
-                "color1": "inputs.Midlevel",
-            }
-        },
-    }
+        displacement = scale * (height - midlevel)
+        if normal:
+            displacement *= normal
+
+        return displacement
 
 
 class NodeReroute(NodeParser):
