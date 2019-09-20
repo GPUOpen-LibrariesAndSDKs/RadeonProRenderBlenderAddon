@@ -338,6 +338,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter('iterations', 1)
         scene.rpr.export_render_mode(self.rpr_context)
         scene.rpr.export_ray_depth(self.rpr_context)
+        scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0) 
 
@@ -633,6 +634,7 @@ class ViewportEngine(Engine):
         ''' update settings if changed while live returns True if restart needed'''
         restart = scene.rpr.export_render_mode(self.rpr_context)
         restart |= scene.rpr.export_ray_depth(self.rpr_context)
+        restart |= scene.rpr.export_pixel_filter(self.rpr_context)
 
         render_iterations, render_time = (scene.rpr.viewport_limits.max_samples, 0)
 

@@ -438,6 +438,7 @@ class RenderEngine(Engine):
         # SET rpr_context parameters
         self.rpr_context.set_parameter('preview', False)
         scene.rpr.export_ray_depth(self.rpr_context)
+        scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.render_update_samples = scene.rpr.limits.update_samples
