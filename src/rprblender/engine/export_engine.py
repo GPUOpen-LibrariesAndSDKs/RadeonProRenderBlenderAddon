@@ -2,7 +2,6 @@
 Scene export to file
 """
 
-
 import pyrpr_load_store
 
 from rprblender.export import (
@@ -10,18 +9,16 @@ from rprblender.export import (
     object,
     particle,
     world,
-    volume,
 )
 from .context import RPRContext
 from .engine import Engine
 
-
 from rprblender.utils.logging import Log
-log = Log(tag='engine.export_engine')
+log = Log(tag='ExportEngine')
 
 
 class ExportEngine(Engine):
-    TYPE = 'EXPORT_TO_FILE'
+    TYPE = 'EXPORT'
 
     def __init__(self):
         self.rpr_context = RPRContext()
@@ -32,6 +29,8 @@ class ExportEngine(Engine):
 
     def sync(self, context):
         """ Prepare scene for export """
+        log('Start sync')
+
         depsgraph = context.evaluated_depsgraph_get()
         scene = depsgraph.scene
 
@@ -63,11 +62,12 @@ class ExportEngine(Engine):
         # Exported scene will be rendered vertically flipped, flip it back
         self.rpr_context.set_parameter('yflip', True)
 
+        log('Finish sync')
+
     def export_to_rpr(self, filepath: str):
         """
         Export scene to RPR file
         :param filepath: full output file path, including filename extension
         """
+        log('export_to_rpr')
         pyrpr_load_store.export(filepath, self.rpr_context.context, self.rpr_context.scene)
-
-        return {'FINISHED'}
