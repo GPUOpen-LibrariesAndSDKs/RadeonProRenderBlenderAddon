@@ -366,4 +366,3 @@ class Engine(metaclass=ABCMeta):
 
         for input_id, data in inputs.items():
             self.image_filter.update_input(input_id, data, tile_pos)
-
