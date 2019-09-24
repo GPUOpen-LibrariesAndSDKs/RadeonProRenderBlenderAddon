@@ -25,12 +25,13 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     if rpr.use_temperature:
         color *= convert_kelvins_to_rgb(rpr.temperature)
     intensity = color * rpr.intensity
+    default_intensity = color * light.energy
 
     # calculating radian power for core
     if light.type in ('POINT', 'SPOT'):
         units = rpr.intensity_units_point
         if units == 'DEFAULT':
-            return intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
+            return default_intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
 
         # converting to lumen
         if units == 'LUMEN':
@@ -45,7 +46,7 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     elif light.type == 'SUN':
         units = rpr.intensity_units_dir
         if units == 'DEFAULT':
-            return intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
+            return default_intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
 
         # converting to luminance
         if units == 'LUMINANCE':
@@ -61,8 +62,8 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
         units = rpr.intensity_units_area
         if units == 'DEFAULT':
             if rpr.intensity_normalization:
-                return intensity / area
-            return intensity
+                return default_intensity / area
+            return default_intensity
 
         # converting to luminance
         if units == 'LUMEN':

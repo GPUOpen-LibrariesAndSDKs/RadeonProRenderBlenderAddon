@@ -95,7 +95,12 @@ class RPR_LIGHT_PT_intensity(RPR_Panel):
         main_col.prop(rpr_light, intensity_units)
 
         col = main_col.column(align=True)
-        col.prop(rpr_light, 'intensity')
+        
+        if getattr(rpr_light, intensity_units) == 'DEFAULT':
+            col.prop(light, 'energy')
+        else:
+            col.prop(rpr_light, 'intensity')
+
         if getattr(rpr_light, intensity_units) in ('WATTS', 'RADIANCE'):
             col.prop(rpr_light, 'luminous_efficacy', slider=True)
         elif light.type == 'AREA' and getattr(rpr_light, intensity_units) == 'DEFAULT':
