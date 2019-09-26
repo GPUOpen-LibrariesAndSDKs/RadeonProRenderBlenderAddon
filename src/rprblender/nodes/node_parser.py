@@ -278,7 +278,8 @@ class NodeParser(BaseNodeParser):
         return self.node_item(val)
 
     def node_item(self, val):
-        return NodeItem(self.rpr_context, val)
+        # if val is already a nodeitem don't re-wrap it.
+        return val if isinstance(val, NodeItem) else NodeItem(self.rpr_context, val) 
 
     def get_input_normal(self, socket_key):
         input_normal = super().get_input_normal(socket_key)
