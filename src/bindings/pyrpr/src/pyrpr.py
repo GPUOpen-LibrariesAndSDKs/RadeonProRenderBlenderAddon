@@ -456,6 +456,8 @@ class Scene(Object):
 
     def clear(self):
         self.set_background_image(None)
+        if self.environment_light:
+            self.remove_environment_light()
 
         for obj in tuple(self.objects):
             self.detach(obj)

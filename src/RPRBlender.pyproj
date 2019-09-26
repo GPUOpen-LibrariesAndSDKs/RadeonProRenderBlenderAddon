@@ -39,8 +39,10 @@
     <Compile Include="rprblender\configdev.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="rprblender\engine\animation_engine.py" />
     <Compile Include="rprblender\engine\context.py" />
     <Compile Include="rprblender\engine\engine.py" />
+    <Compile Include="rprblender\engine\export_engine.py" />
     <Compile Include="rprblender\engine\image_filter.py" />
     <Compile Include="rprblender\engine\preview_engine.py" />
     <Compile Include="rprblender\engine\render_engine.py" />
@@ -74,6 +76,7 @@
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\operators\export_scene.py" />
     <Compile Include="rprblender\operators\material_library.py" />
+    <Compile Include="rprblender\operators\mesh.py" />
     <Compile Include="rprblender\operators\nodes.py" />
     <Compile Include="rprblender\operators\render.py" />
     <Compile Include="rprblender\operators\world.py" />
@@ -82,6 +85,7 @@
     <Compile Include="rprblender\properties\camera.py" />
     <Compile Include="rprblender\properties\light.py" />
     <Compile Include="rprblender\properties\material_browser.py" />
+    <Compile Include="rprblender\properties\mesh.py" />
     <Compile Include="rprblender\properties\object.py" />
     <Compile Include="rprblender\properties\render.py" />
     <Compile Include="rprblender\properties\view_layer.py" />
@@ -91,6 +95,7 @@
     <Compile Include="rprblender\ui\light.py" />
     <Compile Include="rprblender\ui\material.py" />
     <Compile Include="rprblender\ui\material_browser.py" />
+    <Compile Include="rprblender\ui\mesh.py" />
     <Compile Include="rprblender\ui\object.py" />
     <Compile Include="rprblender\ui\render.py" />
     <Compile Include="rprblender\ui\view3d.py" />

@@ -299,6 +299,10 @@ class RenderEngine(Engine):
                                               self.current_sample, self.current_render_time)
         return image
 
+    def _init_rpr_context(self, scene):
+        scene.rpr.init_rpr_context(self.rpr_context)
+        self.rpr_context.scene.set_name(scene.name)
+
     def sync(self, depsgraph):
         log('Start syncing')
 
@@ -313,9 +317,7 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        # Initializing rpr_context
-        scene.rpr.init_rpr_context(self.rpr_context)
-        self.rpr_context.scene.set_name(scene.name)
+        self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \
             ((scene.render.border_min_x, scene.render.border_min_y),
@@ -346,8 +348,7 @@ class RenderEngine(Engine):
         self.notify_status(0, "Syncing instances 0%%")
 
         for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
-            obj = inst.object
-            instances_percent = (i * 100) // instances_len 
+            instances_percent = (i * 100) // instances_len
             if instances_percent > last_instances_percent:
                 self.notify_status(0, "Syncing instances %d%%" % instances_percent)
                 last_instances_percent = instances_percent

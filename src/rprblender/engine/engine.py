@@ -38,7 +38,6 @@ class Engine(metaclass=ABCMeta):
 
         # image filter
         self.image_filter = None
-        self.image_filter_settings = None
 
     @abstractmethod
     def render(self):
@@ -197,27 +196,29 @@ class Engine(metaclass=ABCMeta):
             self.rpr_engine.frame_set(cur_frame, 0.0)
 
     def setup_image_filter(self, settings):
-        if self.image_filter_settings != settings:
-            if settings['enable']:
-                if not self.image_filter:
-                    self._enable_image_filter(settings)
-                    return
+        if self.image_filter and self.image_filter.settings == settings:
+            return False
 
-                if self.image_filter_settings['resolution'] == settings['resolution'] \
-                        and self.image_filter_settings['filter_type'] == settings['filter_type'] \
-                        and self.image_filter_settings['filter_type'] != 'ML':
-                    self._update_image_filter(settings)
-                    return
+        if settings['enable']:
+            if not self.image_filter:
+                self._enable_image_filter(settings)
 
+            elif self.image_filter.settings['resolution'] == settings['resolution'] \
+                    and self.image_filter.settings['filter_type'] == settings['filter_type'] \
+                    and self.image_filter.settings['filter_type'] != 'ML':
+                self._update_image_filter(settings)
+
+            else:
                 # recreating filter
                 self._disable_image_filter()
                 self._enable_image_filter(settings)
 
-            elif self.image_filter:
-                self._disable_image_filter()
+        elif self.image_filter:
+            self._disable_image_filter()
+
+        return True
 
     def _enable_image_filter(self, settings):
-        self.image_filter_settings = settings
         width, height = settings['resolution']
 
         # Enabling AOV's which are used in all filters
@@ -282,12 +283,13 @@ class Engine(metaclass=ABCMeta):
             self.image_filter = image_filter.ImageFilterML(
                 self.rpr_context.context, inputs, {}, {}, width, height)
 
+        self.image_filter.settings = settings
+
     def _disable_image_filter(self):
         self.image_filter = None
-        self.image_filter_settings = None
 
     def _update_image_filter(self, settings):
-        self.image_filter_settings = settings
+        self.image_filter.settings = settings
 
         if settings['filter_type'] == 'BILATERAL':
             self.image_filter.update_sigma('color', settings['color_sigma'])
@@ -310,7 +312,7 @@ class Engine(metaclass=ABCMeta):
     def update_image_filter_inputs(self, tile_pos=(0, 0)):
         color = self.rpr_context.get_image()
 
-        filter_type = self.image_filter_settings['filter_type']
+        filter_type = self.image_filter.settings['filter_type']
         if filter_type == 'BILATERAL':
             world = self.rpr_context.get_image(pyrpr.AOV_WORLD_COORDINATE)
             object_id = self.rpr_context.get_image(pyrpr.AOV_OBJECT_ID)
@@ -356,7 +358,7 @@ class Engine(metaclass=ABCMeta):
         elif filter_type == 'ML':
             inputs = {'color': color}
 
-            if not self.image_filter_settings['ml_color_only']:
+            if not self.image_filter.settings['ml_color_only']:
                 inputs['depth'] = self.rpr_context.get_image(pyrpr.AOV_DEPTH)
                 inputs['albedo'] = self.rpr_context.get_image(pyrpr.AOV_DIFFUSE_ALBEDO)
                 inputs['normal'] = self.rpr_context.get_image(pyrpr.AOV_SHADING_NORMAL)

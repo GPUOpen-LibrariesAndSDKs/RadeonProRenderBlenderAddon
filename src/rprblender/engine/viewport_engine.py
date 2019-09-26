@@ -473,7 +473,7 @@ class ViewportEngine(Engine):
             self.gl_texture = gl.GLTexture(width, height)
 
         if self.image_filter:
-            image_filter_settings = self.image_filter_settings.copy()
+            image_filter_settings = self.image_filter.settings.copy()
             image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
             self.setup_image_filter(image_filter_settings)
 
@@ -650,9 +650,7 @@ class ViewportEngine(Engine):
         # image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings()
         image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
-        if self.image_filter_settings != image_filter_settings:
-            self.setup_image_filter(image_filter_settings)
-            restart = True
+        restart |= self.setup_image_filter(image_filter_settings)
 
         return restart
 
