@@ -8,6 +8,9 @@ from rprblender.utils.user_settings import get_user_settings
 
 class ImageFilter(metaclass=ABCMeta):
     def __init__(self, rpr_context, inputs, sigmas, params, width, height, frame_buffer_gl=None):
+        # field for custom external settings
+        self.settings = None
+
         # creating context
         creation_flags = rpr_context.get_creation_flags()
         if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:

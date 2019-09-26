@@ -62,6 +62,18 @@ class RPRContext:
         for fbs in self.frame_buffers_aovs.values():
             fbs['aov'].clear()
 
+    def clear_scene(self):
+        self.scene.clear()
+
+        self.objects = {}
+        self.particles = {}
+        self.volumes = {}
+
+        self.material_nodes = {}
+        self.materials = {}
+
+        self.images = {}
+
     def render(self, restart=False, tile=None):
         if restart:
             self.clear_frame_buffers()
