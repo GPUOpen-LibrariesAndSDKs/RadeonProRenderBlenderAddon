@@ -76,7 +76,7 @@ class RPR_ObjectProperites(RPR_Properties):
     subdivision_factor: FloatProperty(
         name="Adaptive Level",
         description="Subdivision factor for mesh, in pixels that it should be subdivided to. For finer subdivision set lower.",
-        min=0.0, soft_max=10,
+        min=0.0, soft_max=10.0,
         default=1.0
     )
     subdivision_boundary_type: EnumProperty(
@@ -117,8 +117,8 @@ class RPR_ObjectProperites(RPR_Properties):
             # RPR wants the subdivision factor as the "number of faces per pixel"
             # the setting gives user the size of face in number pixels.
             # rpr internally does: subdivision size in pixel = 2^factor  / 16.0
-            factor = int(math.log2(1 / (16.0 * self.subdivision_factor)))
-
+            factor = int(math.log2(16.0 / self.subdivision_factor))
+            
             rpr_shape.subdivision = {
                 'factor': factor,
                 'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER if self.subdivision_boundary_type == 'EDGE_CORNER' else

@@ -129,6 +129,12 @@ class RPR_MATERIAL_PT_surface(RPR_MaterialOutputSocket):
 class RPR_MATERIAL_PT_displacement(RPR_MaterialOutputSocket):
     bl_label = "Displacement"
 
+    def draw(self, context):
+        layout = self.layout
+
+        layout.prop(context.material.cycles, 'displacement_method')
+        super().draw(context)
+
 
 class RPR_MATERIAL_PT_volume(RPR_MaterialOutputSocket):
     bl_label = "Volume"

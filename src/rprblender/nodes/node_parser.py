@@ -30,7 +30,7 @@ class BaseNodeParser(metaclass=ABCMeta):
 
     def __init__(self, rpr_context: RPRContext, material: bpy.types.Material,
                  node: bpy.types.Node, socket_out: bpy.types.NodeSocket, group_nodes=(), *,
-                 obj: bpy.types.Object = None):
+                 obj: bpy.types.Object = None, normal_node = None):
         self.rpr_context = rpr_context
         self.material = material
         self.node = node
@@ -39,6 +39,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         # group nodes containing this node in depth, starting from upper level down to current
         # will need it to get out of each group
         self.group_nodes = group_nodes
+        self.normal_node = normal_node
 
     # INTERNAL FUNCTIONS
 
@@ -69,7 +70,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         node_parser_class = get_node_parser_class(node.bl_idname)
         if node_parser_class:
             node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out,
-                                            group_nodes, obj=self.object)
+                                            group_nodes, obj=self.object, normal_node=self.normal_node)
             return node_parser.final_export()
 
         log.warn("Ignoring unsupported node", node, self.material)
@@ -130,7 +131,8 @@ class BaseNodeParser(metaclass=ABCMeta):
 
     def get_input_normal(self, socket_key):
         """ Parse link, accept only RPR core material nodes """
-        return self.get_input_link(socket_key, accepted_type=pyrpr.MaterialNode)
+        input_normal = self.get_input_link(socket_key, accepted_type=pyrpr.MaterialNode)
+        return input_normal if input_normal is not None else self.normal_node    
 
     @staticmethod
     def is_link_allowed(link):
@@ -278,6 +280,11 @@ class NodeParser(BaseNodeParser):
     def node_item(self, val):
         return NodeItem(self.rpr_context, val)
 
+    def get_input_normal(self, socket_key):
+        input_normal = super().get_input_normal(socket_key)
+        return self.node_item(input_normal) if input_normal is not None else self.normal_node  
+
+
 
 class RuleNodeParser(NodeParser):
     """
@@ -308,8 +315,8 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
-    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, obj=None):
-        super().__init__(rpr_context, material, node, socket_out, group_nodes, obj=obj)
+    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, obj=None, normal_node=None):
+        super().__init__(rpr_context, material, node, socket_out, group_nodes, obj=obj, normal_node=normal_node)
 
         # internal cache of parsed node rules
         self._parsed_node_rules = {}

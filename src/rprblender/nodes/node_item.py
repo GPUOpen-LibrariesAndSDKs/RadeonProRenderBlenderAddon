@@ -24,7 +24,8 @@ class NodeItem:
         self.rpr_context = rpr_context
 
     def set_input(self, name, value):
-        self.data.set_input(name, value.data if isinstance(value, NodeItem) else value)
+        if value is not None:
+            self.data.set_input(name, value.data if isinstance(value, NodeItem) else value)
 
     ###### MATH OPS ######
     def _arithmetic_helper(self, other, rpr_operation, func):

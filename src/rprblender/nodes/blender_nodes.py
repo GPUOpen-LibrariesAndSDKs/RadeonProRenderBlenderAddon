@@ -32,7 +32,21 @@ SSS_MIN_RADIUS = 0.0001
 class ShaderNodeOutputMaterial(BaseNodeParser):
     # inputs: Surface, Volume, Displacement
 
+    def get_normal_node(self):
+        """ Returns the normal node if displacement mode is set to bump 
+            this returns a bumped normal, else returns a node_lookup N """
+        if self.node.inputs['Displacement'].is_linked and self.material.cycles.displacement_method in {"BUMP", "BOTH"}:
+            displacement_input = self.get_input_link("Displacement")
+            bump_node = self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
+                        'color': displacement_input
+                    })
+            return bump_node
+        else:
+            return None
+    
+
     def export(self, input_socket_key='Surface'):
+        self.normal_node = self.get_normal_node()
 
         rpr_node = self.get_input_link(input_socket_key)
         if input_socket_key == 'Surface':
@@ -394,9 +408,7 @@ class ShaderNodeLayerWeight(NodeParser):
         normal = self.get_input_normal('Normal')
 
         if not normal:
-            normal = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                'value': pyrpr.MATERIAL_NODE_LOOKUP_N
-            })
+            normal = self.normal_node
 
         invec = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
             'value': pyrpr.MATERIAL_NODE_LOOKUP_INVEC
