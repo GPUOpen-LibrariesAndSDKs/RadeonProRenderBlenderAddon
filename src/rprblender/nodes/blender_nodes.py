@@ -160,7 +160,7 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
 
         result = self.create_node(pyrpr.MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION, {
             'color': color,
-            'roughness': roughness,
+            'roughness': roughness * roughness,
             'anisotropic': anisotropy,
             'rotation': rotation,
         })
@@ -174,11 +174,19 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
     # inputs: Color, Roughness, Normal
 
     nodes = {
+        "square_roughness": {
+            "type": "*",
+            "params": {
+                "color0": "inputs.Roughness",
+                "color1": "inputs.Roughness",
+            }
+        },
+
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_DIFFUSE,
             "params": {
                 "color": "inputs.Color",
-                "roughness": "inputs.Roughness",
+                "roughness": "nodes.square_roughness",
                 "normal": "normal:inputs.Normal"
             }
         }
@@ -222,12 +230,12 @@ class ShaderNodeBsdfGlass(NodeParser):
                                    pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness * roughness)
 
         # refraction 
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT, 1.0)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS, roughness * roughness)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_IOR, ior)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_THIN_SURFACE, False)
         rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_CAUSTICS, True)
@@ -243,11 +251,19 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
     # inputs: Color, Roughness, Normal
 
     nodes = {
+        "square_roughness": {
+            "type": "*",
+            "params": {
+                "color0": "inputs.Roughness",
+                "color1": "inputs.Roughness",
+            }
+        },
+
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_MICROFACET,
             "params": {
                 "color": "inputs.Color",
-                "roughness": "inputs.Roughness",
+                "roughness": "nodes.square_roughness",
                 "normal": "normal:inputs.Normal"
             }
         }
@@ -259,11 +275,19 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
     # inputs: Color, Roughness, Normal, IOR
 
     nodes = {
+        "square_roughness": {
+            "type": "*",
+            "params": {
+                "color0": "inputs.Roughness",
+                "color1": "inputs.Roughness",
+            }
+        },
+
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION,
             "params": {
                 "color": "inputs.Color",
-                "roughness": "inputs.Roughness",
+                "roughness": "nodes.square_roughness",
                 "normal": "normal:inputs.Normal",
                 "ior": "inputs.IOR"
             }
