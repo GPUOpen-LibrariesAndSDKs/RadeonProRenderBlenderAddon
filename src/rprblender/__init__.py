@@ -1,3 +1,5 @@
+import traceback
+
 import bpy
 
 
@@ -28,7 +30,7 @@ from . import (
 from .engine.render_engine import RenderEngine
 from .engine.preview_engine import PreviewEngine
 from .engine.viewport_engine import ViewportEngine
-
+from .engine.animation_engine import AnimationEngine
 
 log = logging.Log(tag='init')
 log("Loading RPR addon {}".format(bl_info['version']))
@@ -48,44 +50,65 @@ class RPREngine(bpy.types.RenderEngine):
     engine: Engine = None
 
     def __del__(self):
+        log('__del__', self.as_pointer())
+
         if isinstance(self.engine, ViewportEngine):
             self.engine.stop_render()
 
     # final render
     def update(self, data, depsgraph):
         """ Called for final render """
-        log('update')
+        log('update', self.as_pointer())
 
         # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
-        if self.is_preview:
-            self.engine = PreviewEngine(self)
-        else:
-            self.engine = RenderEngine(self)
+        try:
+            if self.is_preview:
+                self.engine = PreviewEngine(self)
+            elif self.is_animation:
+                self.engine = AnimationEngine(self)
+            else:
+                self.engine = RenderEngine(self)
 
-        self.engine.sync(depsgraph)
+            self.engine.sync(depsgraph)
+
+        except Exception as e:
+            log.error(e, 'EXCEPTION:', traceback.format_exc())
 
     def render(self, depsgraph):
         """ Called with both final render and viewport """
-        log("render")
+        log("render", self.as_pointer())
+        try:
+            self.engine.render()
 
-        self.engine.render()
+        except Exception as e:
+            log.error(e, 'EXCEPTION:', traceback.format_exc())
 
     # viewport render
     def view_update(self, context, depsgraph):
         """ called when data is updated for viewport """
-        log('view_update')
+        log('view_update', self.as_pointer())
 
-        # if there is no engine set, create it and do the initial sync
-        if not self.engine:
-            self.engine = ViewportEngine(self)
-            self.engine.sync(context, depsgraph)
-            self.engine.render()
-        else:
-            self.engine.sync_update(context, depsgraph)
+        try:
+            # if there is no engine set, create it and do the initial sync
+            if not self.engine:
+                self.engine = ViewportEngine(self)
+                self.engine.sync(context, depsgraph)
+                self.engine.render()
+            else:
+                self.engine.sync_update(context, depsgraph)
+
+        except Exception as e:
+            log.error(e, 'EXCEPTION:', traceback.format_exc())
 
     def view_draw(self, context, depsgraph):
         """ called when viewport is to be drawn """
-        self.engine.draw(context)
+        log('view_draw', self.as_pointer())
+
+        try:
+            self.engine.draw(context)
+
+        except Exception as e:
+            log.error(e, 'EXCEPTION:', traceback.format_exc())
 
     # view layer AOVs
     def update_render_passes(self, render_scene=None, render_layer=None):
