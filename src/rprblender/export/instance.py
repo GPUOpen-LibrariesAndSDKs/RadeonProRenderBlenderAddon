@@ -32,6 +32,8 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance):
             # In this case we do additional object export and set visibility to False
             object.sync(rpr_context, obj)
             rpr_mesh = rpr_context.objects[obj_key]
+            if not rpr_mesh:
+                return
             rpr_mesh.set_visibility(False)
 
         rpr_shape = rpr_context.create_instance(instance_key, rpr_mesh)
