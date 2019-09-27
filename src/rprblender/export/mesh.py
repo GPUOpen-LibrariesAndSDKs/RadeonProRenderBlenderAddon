@@ -100,8 +100,9 @@ class MeshData:
 
             # preparing vertex_color buffer with the same size as vertices and
             # setting its data by indices from vertex colors
-            data.vertex_colors = np.zeros((len(data.vertices), 4), dtype=np.float32)
-            data.vertex_colors[data.vertex_indices] = colors[color_indices]
+            if colors[color_indices].size > 0:
+                data.vertex_colors = np.zeros((len(data.vertices), 4), dtype=np.float32)
+                data.vertex_colors[data.vertex_indices] = colors[color_indices]
 
         return data
 
