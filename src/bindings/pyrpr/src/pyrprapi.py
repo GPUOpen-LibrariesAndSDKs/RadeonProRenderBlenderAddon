@@ -590,7 +590,7 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
 
 
 def eval_constant(s):
-    if s.endswith('U'):
+    if s.endswith(('U', 'u')):
         s = s[:-1]
 
     try:
