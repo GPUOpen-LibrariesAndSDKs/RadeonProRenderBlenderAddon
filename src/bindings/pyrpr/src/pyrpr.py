@@ -459,13 +459,13 @@ class Scene(Object):
         if self.environment_light:
             self.remove_environment_light()
 
-        for obj in tuple(self.objects):
-            self.detach(obj)
         for override_type in tuple(self.environment_overrides.keys()):
             self.remove_environment_override(override_type)
 
-        self.set_camera(None)
         SceneClear(self)
+        self.camera = None
+        self.objects = set()
+
 
     def set_camera(self, camera):
         self.camera = camera
