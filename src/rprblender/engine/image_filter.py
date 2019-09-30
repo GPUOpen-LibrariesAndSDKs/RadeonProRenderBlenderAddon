@@ -145,7 +145,8 @@ class ImageFilterML(ImageFilter):
             self.filter = self.context.create_filter(rif.IMAGE_FILTER_OPENIMAGE_DENOISE)
         else:
             self.filter = self.context.create_filter(rif.IMAGE_FILTER_AI_DENOISE)
-            self.filter.set_parameter('useHDR', True)
+
+        self.filter.set_parameter('useHDR', True)
 
         models_path = utils.package_root_dir() / 'data/models'
         if not models_path.is_dir():

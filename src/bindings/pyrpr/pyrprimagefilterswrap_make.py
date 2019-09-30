@@ -38,17 +38,12 @@ print()
 
 constants_names = []
 
-def get_constant_value(c):
-    if c.value.endswith('U'):
-        return c.value[:-1]
-    return c.value
-
 for name, c in api.constants.items():
     prefix = 'RIF_'
     if name.startswith(prefix):
         name = name[len(prefix):]
 
-    print('{} = {}'.format(name, get_constant_value(c) ))
+    print('{} = {}'.format(name, pyrprapi.eval_constant(c.value)))
     constants_names.append(name)
 
 print('_constants_names =', repr(constants_names))
