@@ -15,8 +15,10 @@ from rprblender.utils import gl
 from rprblender import utils
 from rprblender import config
 
+from . import context as context_rpr
+
 from rprblender.utils import logging
-log = logging.Log(tag='ViewportEngine')
+log = logging.Log(tag='viewport_engine')
 
 
 @dataclass(init=False, eq=True)
@@ -179,7 +181,7 @@ class ViewportEngine(Engine):
         self.finish_render = False
         self.restart_render_event.clear()
 
-        self.render_thread = threading.Thread(target=ViewportEngine._do_render, args=(self,))
+        self.render_thread = threading.Thread(target=self._do_render, args=())
         self.render_thread.start()
 
     def stop_render(self):
@@ -220,8 +222,8 @@ class ViewportEngine(Engine):
                 if self.finish_render:
                     break
 
-                is_adaptive_active = is_adaptive and \
-                                     self.iteration >= self.rpr_context.get_parameter('as.minspp')
+                is_adaptive_active = is_adaptive and self.iteration >= \
+                                     self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
 
                 if self.restart_render_event.is_set():
                     self.restart_render_event.clear()
@@ -334,8 +336,8 @@ class ViewportEngine(Engine):
         self.setup_image_filter(image_filter_settings)
 
         # other context settings
-        self.rpr_context.set_parameter('preview', True)
-        self.rpr_context.set_parameter('iterations', 1)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, 1)
         scene.rpr.export_render_mode(self.rpr_context)
         scene.rpr.export_ray_depth(self.rpr_context)
         scene.rpr.export_pixel_filter(self.rpr_context)

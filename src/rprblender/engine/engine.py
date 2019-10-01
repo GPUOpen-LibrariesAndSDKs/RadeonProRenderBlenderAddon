@@ -31,9 +31,12 @@ class Engine(metaclass=ABCMeta):
 
     TYPE = None
 
+    # RPRContext class
+    _RPRContext = RPRContext
+
     def __init__(self, rpr_engine):
         self.rpr_engine = weakref.proxy(rpr_engine)
-        self.rpr_context = RPRContext()
+        self.rpr_context = self._RPRContext()
         self.rpr_context.engine_type = self.TYPE
 
         # image filter

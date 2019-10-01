@@ -30,6 +30,7 @@
     <Compile Include="bindings\pyrpr\rpr.py" />
     <Compile Include="bindings\pyrpr\rprinfo.py" />
     <Compile Include="bindings\pyrpr\rpr_load_store.py" />
+    <Compile Include="bindings\pyrpr\src\pyhybrid.py" />
     <Compile Include="bindings\pyrpr\src\pyrpr.py" />
     <Compile Include="bindings\pyrpr\src\pyrprapi.py" />
     <Compile Include="bindings\pyrpr\src\pyrprgltf.py" />
@@ -41,12 +42,14 @@
     </Compile>
     <Compile Include="rprblender\engine\animation_engine.py" />
     <Compile Include="rprblender\engine\context.py" />
+    <Compile Include="rprblender\engine\context_hybrid.py" />
     <Compile Include="rprblender\engine\engine.py" />
     <Compile Include="rprblender\engine\export_engine.py" />
     <Compile Include="rprblender\engine\image_filter.py" />
     <Compile Include="rprblender\engine\preview_engine.py" />
     <Compile Include="rprblender\engine\render_engine.py" />
     <Compile Include="rprblender\engine\viewport_engine.py" />
+    <Compile Include="rprblender\engine\viewport_engine_hybrid.py" />
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
     </Compile>

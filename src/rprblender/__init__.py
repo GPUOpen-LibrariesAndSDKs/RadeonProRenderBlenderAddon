@@ -32,6 +32,10 @@ from .engine.preview_engine import PreviewEngine
 from .engine.viewport_engine import ViewportEngine
 from .engine.animation_engine import AnimationEngine
 
+from .engine.render_engine_hybrid import RenderEngine as RenderEngineHybrid
+from .engine.viewport_engine_hybrid import ViewportEngine as ViewportEngineHybrid
+from .engine.animation_engine_hybrid import AnimationEngine as AnimationEngineHybrid
+
 log = logging.Log(tag='init')
 log("Loading RPR addon {}".format(bl_info['version']))
 
@@ -62,12 +66,21 @@ class RPREngine(bpy.types.RenderEngine):
 
         # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
         try:
+            is_hybrid = depsgraph.scene.rpr.render_quality != 'FULL'
             if self.is_preview:
                 self.engine = PreviewEngine(self)
+
             elif self.is_animation:
-                self.engine = AnimationEngine(self)
+                if is_hybrid:
+                    self.engine = AnimationEngineHybrid(self)
+                else:
+                    self.engine = AnimationEngine(self)
+
             else:
-                self.engine = RenderEngine(self)
+                if is_hybrid:
+                    self.engine = RenderEngineHybrid(self)
+                else:
+                    self.engine = RenderEngine(self)
 
             self.engine.sync(depsgraph)
 
@@ -90,12 +103,17 @@ class RPREngine(bpy.types.RenderEngine):
 
         try:
             # if there is no engine set, create it and do the initial sync
-            if not self.engine:
-                self.engine = ViewportEngine(self)
-                self.engine.sync(context, depsgraph)
-                self.engine.render()
-            else:
+            is_hybrid = depsgraph.scene.rpr.render_quality != 'FULL'
+            if self.engine and is_hybrid ^ isinstance(self.engine, ViewportEngineHybrid) == 0:
                 self.engine.sync_update(context, depsgraph)
+                return
+
+            if is_hybrid:
+                self.engine = ViewportEngineHybrid(self)
+            else:
+                self.engine = ViewportEngine(self)
+            self.engine.sync(context, depsgraph)
+            self.engine.render()
 
         except Exception as e:
             log.error(e, 'EXCEPTION:', traceback.format_exc())

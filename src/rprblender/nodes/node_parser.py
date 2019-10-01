@@ -4,6 +4,7 @@ import bpy
 import pyrpr
 
 from rprblender.engine.context import RPRContext
+from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 from .node_item import NodeItem
 
 from rprblender.utils import logging
@@ -183,13 +184,13 @@ class BaseNodeParser(metaclass=ABCMeta):
 
     def create_arithmetic(self, op_type, color1, color2=None, color3=None):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_ARITHMETIC, {
-            'op': op_type,
-            'color0': color1
+            pyrpr.MATERIAL_INPUT_OP: op_type,
+            pyrpr.MATERIAL_INPUT_COLOR0: color1
         })
         if color2:
-            rpr_node.set_input('color1', color2)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR1, color2)
         if color3:
-            rpr_node.set_input('color2', color3)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR2, color3)
 
         return rpr_node
 
@@ -206,7 +207,7 @@ class BaseNodeParser(metaclass=ABCMeta):
                 'color': color
             })
             if normal:
-                node.set_input('normal', normal)
+                node.set_input(pyrpr.MATERIAL_INPUT_NORMAL, normal)
 
             return node
         """
@@ -241,7 +242,10 @@ class NodeParser(BaseNodeParser):
         """
 
         log("export", self.material, self.node, self.socket_out, self.group_nodes)
-        node_item = self.export()
+        if isinstance(self.rpr_context, RPRContextHybrid):
+            node_item = self.export_hybrid()
+        else:
+            node_item = self.export()
         rpr_node = node_item.data if node_item else None
 
         if isinstance(rpr_node, pyrpr.MaterialNode):
@@ -254,6 +258,9 @@ class NodeParser(BaseNodeParser):
     @abstractmethod
     def export(self) -> [NodeItem, None]:
         pass
+
+    def export_hybrid(self) -> [NodeItem, None]:
+        return self.export()
 
     def get_output_default(self, socket_key=None) -> NodeItem:
         val = super().get_output_default(socket_key)
@@ -272,6 +279,9 @@ class NodeParser(BaseNodeParser):
 
     def create_node(self, material_type, inputs={}) -> NodeItem:
         val = super().create_node(material_type)
+        if not val:
+            return None
+
         for name, value in inputs.items():
             val.set_input(name, value.data if isinstance(value, NodeItem) else value)
 
@@ -331,6 +341,9 @@ class RuleNodeParser(NodeParser):
     def _export_node_rule(self, node_rule):
         """ Recursively exports current node_rule """
 
+        if not node_rule:
+            return None
+
         if 'warn' in node_rule:
             log.warn(node_rule['warn'], self.socket_out, self.node, self.material)
 
@@ -375,22 +388,23 @@ class RuleNodeParser(NodeParser):
 
         else:
             if node_type == '*':
-                return inputs['color0'] * inputs['color1']
+                return inputs[pyrpr.MATERIAL_INPUT_COLOR0] * inputs[pyrpr.MATERIAL_INPUT_COLOR1]
 
             if node_type == '+':
-                return inputs['color0'] + inputs['color1']
+                return inputs[pyrpr.MATERIAL_INPUT_COLOR0] + inputs[pyrpr.MATERIAL_INPUT_COLOR1]
 
             if node_type == '-':
-                return inputs['color0'] - inputs['color1']
+                return inputs[pyrpr.MATERIAL_INPUT_COLOR0] - inputs[pyrpr.MATERIAL_INPUT_COLOR1]
 
             if node_type == 'max':
-                return inputs['color0'].max(inputs['color1'])
+                return inputs[pyrpr.MATERIAL_INPUT_COLOR0].max(inputs[pyrpr.MATERIAL_INPUT_COLOR1])
 
             if node_type == 'min':
-                return inputs['color0'].min(inputs['color1'])
+                return inputs[pyrpr.MATERIAL_INPUT_COLOR0].min(inputs[pyrpr.MATERIAL_INPUT_COLOR1])
 
             if node_type == 'blend':
-                return inputs['weight'].blend(inputs['color0'], inputs['color1'])
+                return inputs[pyrpr.MATERIAL_INPUT_WEIGHT].blend(
+                    inputs[ pyrpr.MATERIAL_INPUT_COLOR0], inputs[pyrpr.MATERIAL_INPUT_COLOR1])
 
             raise TypeError("Incorrect type of node_type", node_type)
 
@@ -411,6 +425,15 @@ class RuleNodeParser(NodeParser):
             return None
 
         return self._export_node_rule_by_key(self.socket_out.name)
+
+    def export_hybrid(self):
+        """ Looking for base node_rule_key = 'hybrid:<socket_out.name> """
+
+        node_rule_key = 'hybrid:' + self.socket_out.name
+        if node_rule_key in self.nodes:
+            return self._export_node_rule_by_key(node_rule_key)
+
+        return self.export()
 
 
 def get_node_parser_class(node_idname: str):

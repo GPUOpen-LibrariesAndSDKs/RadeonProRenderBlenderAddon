@@ -10,6 +10,8 @@ use_gl_interop = True
 
 material_library_path = None
 
+enable_hybrid = True
+
 try:
     # configdev.py example for logging setup:
     # from . import logging
