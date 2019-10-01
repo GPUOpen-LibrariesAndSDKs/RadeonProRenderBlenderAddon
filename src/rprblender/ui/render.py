@@ -1,4 +1,5 @@
 import pyrpr
+import pyhybrid
 
 from . import RPR_Panel
 from rprblender import bl_info
@@ -26,13 +27,15 @@ class RPR_RENDER_PT_devices(RPR_Panel):
             col.prop(devices, 'cpu_threads')
 
         else:
-            col = layout.column(align=True)
-            col.prop(devices, 'cpu_state')
-            row = col.row()
-            row.enabled = devices.cpu_state
-            row.prop(devices, 'cpu_threads')
+            if pyrpr.Context.cpu_device:
+                col = layout.column(align=True)
+                col.prop(devices, 'cpu_state')
+                row = col.row()
+                row.enabled = devices.cpu_state
+                row.prop(devices, 'cpu_threads')
 
-            layout.separator()
+                layout.separator()
+
             col = layout.column(align=True)
             for i in range(len(devices.gpu_states)):
                 col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
@@ -69,13 +72,15 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
             col.prop(devices, 'cpu_threads')
 
         else:
-            col = layout.column(align=True)
-            col.prop(devices, 'cpu_state')
-            row = col.row()
-            row.enabled = devices.cpu_state
-            row.prop(devices, 'cpu_threads')
+            if pyrpr.Context.cpu_device:
+                col = layout.column(align=True)
+                col.prop(devices, 'cpu_state')
+                row = col.row()
+                row.enabled = devices.cpu_state
+                row.prop(devices, 'cpu_threads')
 
-            layout.separator()
+                layout.separator()
+
             col = layout.column(align=True)
             for i in range(len(devices.gpu_states)):
                 col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
@@ -153,7 +158,11 @@ class RPR_RENDER_PT_quality(RPR_Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        pass
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        if pyhybrid.enabled:
+            self.layout.prop(context.scene.rpr, 'render_quality')
 
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):

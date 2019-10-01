@@ -279,22 +279,24 @@ class Context(Object):
     cache_path = None
     cpu_device = None
     gpu_devices = []
-    
 
-    @staticmethod
-    def register_plugin(tahoe_path, cache_path):
-        plugin_id = RegisterPlugin(encode(tahoe_path))
+    @classmethod
+    def register_plugin(cls, dll_path, cache_path):
+        plugin_id = RegisterPlugin(encode(dll_path))
         if plugin_id == -1:
-            raise RuntimeError("Plugin is not registered", tahoe_path)
+            raise RuntimeError("Plugin is not registered", dll_path)
 
-        Context.plugins = [plugin_id, ]
-        Context.cache_path = cache_path
+        cls.plugins = [plugin_id, ]
+        cls.cache_path = cache_path
 
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
-                context = Context(create_flag, use_cache=False)
+                context = Context(create_flag)
                 device_name = context.get_info_str(info_flag)
+                if not device_name:
+                    return None
+
                 return {'flag': create_flag, 'name': device_name.strip()}
 
             except CoreError as err:
@@ -303,49 +305,57 @@ class Context(Object):
 
                 raise err
 
-        Context.cpu_device = get_device(CREATION_FLAGS_ENABLE_CPU, CONTEXT_CPU_NAME)
+        cls.cpu_device = get_device(CREATION_FLAGS_ENABLE_CPU, CONTEXT_CPU_NAME)
+        cls.gpu_devices = []
         for i in range(16):
             create_flag = getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i)
             if platform.system() == 'Darwin':
                 create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
-            device = get_device(create_flag,
-                                getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
-            if device:
-                Context.gpu_devices.append(device)
+            device = get_device(create_flag, getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
+            if not device:
+                break
 
-    def __init__(self, flags, props=None, use_cache=True):
+            cls.gpu_devices.append(device)
+
+    def __init__(self, flags: [set, int], props: list = None, use_cache=True):
         super().__init__()
         self.aovs = {}
         self.parameters = {}
-        
+
+        if isinstance(flags, set):
+            flags_ = 0
+            for flag in flags:
+                flags_ |= flag
+            flags = flags_
+
         props_ptr = ffi.NULL
         if props is not None:
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
-        CreateContext(API_VERSION, Context.plugins, len(Context.plugins), flags,
-            props_ptr, encode(Context.cache_path) if use_cache and Context.cache_path else ffi.NULL,
+        CreateContext(API_VERSION, self.plugins, len(self.plugins), flags,
+            props_ptr, encode(self.cache_path) if use_cache and self.cache_path else ffi.NULL,
             self)
 
-    def set_parameter(self, name, param):
+    def set_parameter(self, key, param):
         if isinstance(param, int):
-            ContextSetParameter1u(self, encode(name), param)
+            ContextSetParameterByKey1u(self, key, param)
         elif isinstance(param, bool):
-            ContextSetParameter1u(self, encode(name), int(param))
+            ContextSetParameterByKey1u(self, key, int(param))
         elif isinstance(param, float):
-            ContextSetParameter1f(self, encode(name), param)
+            ContextSetParameterByKey1f(self, key, param)
         elif isinstance(param, str):
-            ContextSetParameterString(self, encode(name), encode(param))
+            ContextSetParameterByKeyString(self, key, encode(param))
         elif isinstance(param, tuple) and len(param) == 3:
-            ContextSetParameter3f(self, encode(name), *param)
+            ContextSetParameterByKey3f(self, key, *param)
         elif isinstance(param, tuple) and len(param) == 4:
-            ContextSetParameter4f(self, encode(name), *param)
+            ContextSetParameterByKey4f(self, key, *param)
         else:
-            raise TypeError("Incorrect type for ContextSetParameter*", self, name, param)
+            raise TypeError("Incorrect type for ContextSetParameter*", self, key, param)
 
         if self:
             # self could be None
-            self.parameters[name] = param
+            self.parameters[key] = param
 
     def set_scene(self, scene):
         ContextSetScene(self, scene)
@@ -612,6 +622,21 @@ class Shape(Object):
     def set_portal_light(self, is_portal):
         self.is_portal_light = is_portal
 
+    def mark_static(self, is_static):
+        ShapeMarkStatic(self, is_static)
+
+    def set_vertex_value(self, index: int, indices, values):
+        ShapeSetVertexValue(self, index, ffi.cast("rpr_int *", indices.ctypes.data),
+                            ffi.cast("float *", values.ctypes.data), len(indices))
+
+    def set_vertex_colors(self, colors):
+        indices = np.arange(len(colors), dtype=np.int32)
+
+        # index is 0-3 index (use for r,g,b,a)
+        for i in range(4):
+            values = np.ascontiguousarray(colors[:, i], dtype=np.float32)
+            self.set_vertex_value(i, indices, values)
+
 
 class Curve(Object):
     core_type_name = 'rpr_curve'
@@ -739,18 +764,6 @@ class Mesh(Shape):
                 ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
                 self
             )
-
-    def set_vertex_value(self, index: int, indices, values):
-        ShapeSetVertexValue(self, index, ffi.cast("rpr_int *", indices.ctypes.data),
-                            ffi.cast("float *", values.ctypes.data), len(indices))
-
-    def set_vertex_colors(self, colors):
-        indices = np.arange(len(colors), dtype=np.int32)
-
-        # index is 0-3 index (use for r,g,b,a)
-        for i in range(4):
-            values = np.ascontiguousarray(colors[:, i], dtype=np.float32)
-            self.set_vertex_value(i, indices, values)
 
 
 class Instance(Shape):
@@ -1018,46 +1031,24 @@ class MaterialNode(Object):
         MaterialSystemCreateNode(self.material_system, self.type, self)
 
     def set_input(self, name, value):
-        if isinstance(name, str):
-            name_ = encode(name)
-            if isinstance(value, MaterialNode):
-                MaterialNodeSetInputN(self, name_, value)
-            elif isinstance(value, int):
-                MaterialNodeSetInputU(self, name_, value)
-            elif isinstance(value, bool):
-                MaterialNodeSetInputU(self, name_, TRUE if value else FALSE)
-            elif isinstance(value, float):
-                MaterialNodeSetInputF(self, name_, value, value, value, value)
-            elif isinstance(value, tuple) and len(value) == 3:
-                MaterialNodeSetInputF(self, name_, *value, 1.0)
-            elif isinstance(value, tuple) and len(value) == 4:
-                MaterialNodeSetInputF(self, name_, *value)
-            elif isinstance(value, Image):
-                MaterialNodeSetInputImageData(self, name_, value)
-            elif isinstance(value, Buffer):
-                MaterialNodeSetInputBufferData(self, name_, value)
-            else:
-                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
-
+        if isinstance(value, MaterialNode):
+            MaterialNodeSetInputNByKey(self, name, value)
+        elif isinstance(value, int):
+            MaterialNodeSetInputUByKey(self, name, value)
+        elif isinstance(value, bool):
+            MaterialNodeSetInputUByKey(self, name, TRUE if value else FALSE)
+        elif isinstance(value, float):
+            MaterialNodeSetInputFByKey(self, name, value, value, value, value)
+        elif isinstance(value, tuple) and len(value) == 3:
+            MaterialNodeSetInputFByKey(self, name, *value, 1.0)
+        elif isinstance(value, tuple) and len(value) == 4:
+            MaterialNodeSetInputFByKey(self, name, *value)
+        elif isinstance(value, Image):
+            MaterialNodeSetInputImageDataByKey(self, name, value)
+        elif isinstance(value, Buffer):
+            MaterialNodeSetInputBufferDataByKey(self, name, value)
         else:
-            if isinstance(value, MaterialNode):
-                MaterialNodeSetInputNByKey(self, name, value)
-            elif isinstance(value, int):
-                MaterialNodeSetInputUByKey(self, name, value)
-            elif isinstance(value, bool):
-                MaterialNodeSetInputUByKey(self, name, TRUE if value else FALSE)
-            elif isinstance(value, float):
-                MaterialNodeSetInputFByKey(self, name, value, value, value, value)
-            elif isinstance(value, tuple) and len(value) == 3:
-                MaterialNodeSetInputFByKey(self, name, *value, 1.0)
-            elif isinstance(value, tuple) and len(value) == 4:
-                MaterialNodeSetInputFByKey(self, name, *value)
-            elif isinstance(value, Image):
-                MaterialNodeSetInputImageDataByKey(self, name, value)
-            elif isinstance(value, Buffer):
-                MaterialNodeSetInputBufferDataByKey(self, name, value)
-            else:
-                raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
+            raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
         self.inputs[name] = value
 
@@ -1084,7 +1075,6 @@ class EnvironmentLight(Light):
         ContextCreateEnvironmentLight(self.context, self)
 
     def delete(self):
-        self.set_image(None)
         super().delete()
 
     def set_image(self, image):
@@ -1168,12 +1158,12 @@ class AreaLight(Light):
         self.material_system = material_system
 
         self.color_node = MaterialNode(self.material_system, MATERIAL_NODE_ARITHMETIC)
-        self.color_node.set_input('op', MATERIAL_NODE_OP_MUL)
-        self.color_node.set_input('color0', 1.0)    # for color
-        self.color_node.set_input('color1', 1.0)    # for image
+        self.color_node.set_input(MATERIAL_INPUT_OP, MATERIAL_NODE_OP_MUL)
+        self.color_node.set_input(MATERIAL_INPUT_COLOR0, 1.0)    # for color
+        self.color_node.set_input(MATERIAL_INPUT_COLOR1, 1.0)    # for image
 
         emissive_node = MaterialNode(self.material_system, MATERIAL_NODE_EMISSIVE)
-        emissive_node.set_input('color', self.color_node)
+        emissive_node.set_input(MATERIAL_INPUT_COLOR, self.color_node)
 
         self.mesh.set_material(emissive_node)
 
@@ -1186,15 +1176,15 @@ class AreaLight(Light):
         self.mesh.set_name(name)
 
     def set_radiant_power(self, r, g, b):
-        self.color_node.set_input('color0', (r, g, b))
+        self.color_node.set_input(MATERIAL_INPUT_COLOR0, (r, g, b))
 
     def set_image(self, image):
         if image:
             image_node = MaterialNode(self.material_system, MATERIAL_NODE_IMAGE_TEXTURE)
-            image_node.set_input('data', image)
-            self.color_node.set_input('color1', image_node)
+            image_node.set_input(MATERIAL_INPUT_DATA, image)
+            self.color_node.set_input(MATERIAL_INPUT_COLOR1, image_node)
         else:
-            self.color_node.set_input('color1', 1.0)
+            self.color_node.set_input(MATERIAL_INPUT_COLOR1, 1.0)
 
     def set_shadow(self, casts_shadow):
         self.mesh.set_shadow(casts_shadow)

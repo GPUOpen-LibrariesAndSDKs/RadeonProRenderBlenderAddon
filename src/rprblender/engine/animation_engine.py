@@ -1,11 +1,10 @@
 from .render_engine import RenderEngine
-from .context import RPRContext
 from .image_filter import ImageFilter
 
 
 class AnimationEngine(RenderEngine):
 
-    rpr_context: RPRContext = None
+    rpr_context = None
     image_filter: ImageFilter = None
 
     def __init__(self, rpr_engine):
@@ -15,7 +14,7 @@ class AnimationEngine(RenderEngine):
 
     def _init_rpr_context(self, scene):
         if not AnimationEngine.rpr_context:
-            AnimationEngine.rpr_context = RPRContext()
+            AnimationEngine.rpr_context = self._RPRContext()
             scene.rpr.init_rpr_context(AnimationEngine.rpr_context)
             AnimationEngine.rpr_context.scene.set_name(scene.name)
 

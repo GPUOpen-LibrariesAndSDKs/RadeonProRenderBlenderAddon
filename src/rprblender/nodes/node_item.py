@@ -1,6 +1,8 @@
 from __future__ import annotations # this is needed to use the same class type hints
-import pyrpr
 import math
+
+import pyrpr
+from rprblender.engine import context_hybrid
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.node')
@@ -40,8 +42,8 @@ class NodeItem:
                 result_data = tuple(map(func, self.data))
             else:
                 result_data = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
-                result_data.set_input('op', rpr_operation)
-                result_data.set_input('color0', self.data)
+                result_data.set_input(pyrpr.MATERIAL_INPUT_OP, rpr_operation)
+                result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR0, self.data)
 
         else:
             other_data = other.data if isinstance(other, NodeItem) else other
@@ -65,9 +67,9 @@ class NodeItem:
 
             else:
                 result_data = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
-                result_data.set_input('op', rpr_operation)
-                result_data.set_input('color0', self.data)
-                result_data.set_input('color1', other_data)
+                result_data.set_input(pyrpr.MATERIAL_INPUT_OP, rpr_operation)
+                result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR0, self.data)
+                result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR1, other_data)
 
         return NodeItem(self.rpr_context, result_data)
 
@@ -171,8 +173,8 @@ class NodeItem:
             }[key]
 
             result_data = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
-            result_data.set_input('op', rpr_key)
-            result_data.set_input('color0', self.data)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_OP, rpr_key)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR0, self.data)
 
         return NodeItem(self.rpr_context, result_data)
 
@@ -204,21 +206,24 @@ class NodeItem:
             result_data = if_data if bool(self.data) else else_data
         else:
             result_data = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_ARITHMETIC)
-            result_data.set_input('op', pyrpr.MATERIAL_NODE_OP_TERNARY)
-            result_data.set_input('color0', self.data)
-            result_data.set_input('color1', if_data)
-            result_data.set_input('color2', else_data)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_OP, pyrpr.MATERIAL_NODE_OP_TERNARY)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR0, self.data)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR1, if_data)
+            result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR2, else_data)
 
         return NodeItem(self.rpr_context, result_data)
 
     def blend(self, color0, color1):
+        if isinstance(self.rpr_context, context_hybrid.RPRContext):
+            return self * color1 + (1.0 - self) * color0
+
         data0 = color0.data if isinstance(color0, NodeItem) else color0
         data1 = color1.data if isinstance(color1, NodeItem) else color1
 
         result_data = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_BLEND_VALUE)
-        result_data.set_input('weight', self.data)
-        result_data.set_input('color0', data0)
-        result_data.set_input('color1', data1)
+        result_data.set_input(pyrpr.MATERIAL_INPUT_WEIGHT, self.data)
+        result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR0, data0)
+        result_data.set_input(pyrpr.MATERIAL_INPUT_COLOR1, data1)
 
         return NodeItem(self.rpr_context, result_data)
 

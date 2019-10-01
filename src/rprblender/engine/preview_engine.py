@@ -3,6 +3,7 @@ import bpy
 import pyrpr
 from .engine import Engine
 from rprblender.export import object, camera, particle, world
+from . import context
 
 from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
@@ -15,6 +16,7 @@ class PreviewEngine(Engine):
 
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
+
         self.is_synced = False
         self.render_samples = 0
         self.render_update_samples = 1
@@ -32,7 +34,7 @@ class PreviewEngine(Engine):
             update_samples = min(self.render_update_samples, self.render_samples - sample)
 
             log(f"  samples: {sample} +{update_samples} / {self.render_samples}")
-            self.rpr_context.set_parameter('iterations', update_samples)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
             self.rpr_context.render(restart=(sample == 0))
             self.rpr_context.resolve()
             self.update_render_result((0, 0), (self.rpr_context.width,
@@ -75,7 +77,7 @@ class PreviewEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
 
-        self.rpr_context.set_parameter('preview', True)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
         settings_scene.rpr.export_ray_depth(self.rpr_context)
         settings_scene.rpr.export_pixel_filter(self.rpr_context)
 

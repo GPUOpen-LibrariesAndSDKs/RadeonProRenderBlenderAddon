@@ -19,7 +19,7 @@ IMAGE_FORMATS = {
     'OPEN_EXR_MULTILAYER': ('OPEN_EXR', 'exr'),
     'OPEN_EXR': ('OPEN_EXR', 'exr'),
     'HDR': ('HDR', 'hdr'),
-    'TIFF': ('TIFF', 'tiff'),
+    # 'TIFF': ('TIFF', 'tiff'), # Seems tiff is not working properly in RPR
     'TARGA': ('TARGA', 'tga'),
     'TARGA_RAW': ('TARGA', 'tga'),
     # everything else will be stored as PNG

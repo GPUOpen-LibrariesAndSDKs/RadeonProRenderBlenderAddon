@@ -9,6 +9,7 @@ import bpy
 import mathutils
 
 import pyrpr
+import pyhybrid
 
 from . import image
 from rprblender.engine.context import RPRContext
@@ -54,15 +55,18 @@ def remove_environment_lights(rpr_context):
 def set_light_rotation(rpr_light, rotation: Tuple[float]) -> np.array:
     """ Calculates rotation matrix from gizmo rotation """
 
-    euler = mathutils.Euler((rotation[0], rotation[1], rotation[2] - np.pi / 2.0))
+    matrix = np.identity(4, dtype=np.float32)
+    if isinstance(rpr_light, pyhybrid.Light):
+        euler = mathutils.Euler((rotation[0], rotation[2], rotation[1]))
+    else:
+        euler = mathutils.Euler((rotation[0], rotation[1], rotation[2]))
+
     rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
     fixup = np.array([[1, 0, 0],
                       [0, 0, 1],
                       [0, 1, 0]], dtype=np.float32)
 
-    matrix = np.identity(4, dtype=np.float32)
     matrix[:3, :3] = np.dot(fixup, rotation_matrix)
-
     rpr_light.set_transform(matrix, False)
     return matrix
 

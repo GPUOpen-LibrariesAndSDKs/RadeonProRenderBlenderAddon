@@ -635,23 +635,29 @@ if __name__=='__main__':
         rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
         includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Win/inc']
 
-    export(rpr_header_rpr_wrap, includes_rpr, json_file_name_rpr_wrap,
-           {
-               'type':['rpr_', '_rpr'],
-               'function':['rpr',],
-               'constant':['RPR_',]
-           },
-        castxml)
+    export(
+        rpr_header_rpr_wrap, includes_rpr, json_file_name_rpr_wrap,
+        {
+            'type':['rpr_', '_rpr'],
+            'function':['rpr',],
+            'constant':['RPR_',]
+        },
+        castxml,
+        exclude=['RPR_CONTEXT_FLUSH_FRAMEBUFFERS_FUNC_NAME',
+                 'RPR_SHAPE_SET_LIGHTMAP_CHART_INDEX_FUNC_NAME',
+                 'rprDirectionalLightSetRasterShadowSplits']
+    )
 
-    export(rpr_header_image_filters, includes_image_filters, json_file_name_image_filters,
-           {
-               'type': ['rif_', '_rif'],
-               'function': ['rif'],
-               'constant': ['RIF_', 'VERSION_', 'COMMIT_'],
-           },
-           castxml,
-           exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD']
-           )
+    export(
+        rpr_header_image_filters, includes_image_filters, json_file_name_image_filters,
+        {
+            'type': ['rif_', '_rif'],
+            'function': ['rif'],
+            'constant': ['RIF_', 'VERSION_', 'COMMIT_'],
+        },
+        castxml,
+        exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD']
+    )
 
     # export(rpr_header_gltf, includes_gltf, json_file_name_gltf,
     #        {
