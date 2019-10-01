@@ -80,8 +80,10 @@ def send_data(data: dict):
     data['OS_lang'], data['OS_locale'] = get_system_language()
     data['OS_tz'] = time.strftime("%z", time.gmtime())
     # data['CPU_ID'] = ""
-    data['CPU_name'] = pyrpr.Context.cpu_device['name']
-    data['CPU_CORES_L'] = utils.get_cpu_threads_number()
+
+    if pyrpr.Context.cpu_device:
+        data['CPU_name'] = pyrpr.Context.cpu_device['name']
+        data['CPU_CORES_L'] = utils.get_cpu_threads_number()
     # data['CPU_CORES_P'] = ""
     # data['CPU_FREQ_MAX'] = ""
     # data['SYS_MEM'] = ""

@@ -64,7 +64,16 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
                     "roughness": "inputs.Roughness",
                     "normal": "normal:inputs.Normal"
                 }
-            }
+            },
+            "hybrid:Shader": {
+                "type": pyrpr.MATERIAL_NODE_UBERV2,
+                "params": {
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: 'inputs.Color',
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS: 'inputs.Roughness',
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL: 'normal:inputs.Normal',
+                }
+            },
         }
 
 class RPRShaderNodePassthrough(RPRShaderNode):
@@ -86,7 +95,14 @@ class RPRShaderNodePassthrough(RPRShaderNode):
                 "params": {
                     "color": "inputs.Color"
                 }
-            }
+            },
+            "hybrid:Shader": {
+                "type": pyrpr.MATERIAL_NODE_UBERV2,
+                "params": {
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
+                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: 'inputs.Color'
+                }
+            },
         }
 
 class RPRUberMenu(bpy.types.Menu):
@@ -512,12 +528,12 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
             rpr_image.set_wrap(image_wrap_val)
 
             rpr_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
-                'data': rpr_image
+                pyrpr.MATERIAL_INPUT_DATA: rpr_image
             })
 
             uv = self.get_input_link('UV')
             if uv:
-                rpr_node.set_input('uv', uv)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV, uv)
 
             # apply gamma correction if needed
             if self.node.color_space == 'SRGB':
@@ -564,23 +580,26 @@ class RPRShaderNodeLookup(RPRShaderNode):
         def export(self):
             if self.node.lookup_type == 'VERTEX_COLOR':
                 r = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE0
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE0
                 })
                 g = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE1
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE1
                 })
                 b = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE2
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE2
                 })
                 a = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    'value': pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE3
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_VERTEX_VALUE3
                 })
                 return r.combine4(g, b, a)
 
             else:
                 return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    'value': self.lookup_type_to_id[self.node.lookup_type]
+                    pyrpr.MATERIAL_INPUT_VALUE: self.lookup_type_to_id[self.node.lookup_type]
                 })
+
+        def export_hybrid(self):
+            return None
 
 
 class RPRShaderProceduralUVNode(RPRShaderNode):
@@ -670,32 +689,37 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
                 else:
                     camera = bpy.data.scenes[0].camera
 
-                rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
-                rpr_node.set_input('origin', tuple(camera.location))
-                rpr_node.set_input('zaxis', tuple(camera.matrix_world.col[2]))
-                rpr_node.set_input('xaxis', tuple(camera.matrix_world.col[0]))
-                rpr_node.set_input('uv_scale', tuple(camera.scale))
-                rpr_node.set_input('threshold', self.node.threshold)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_TYPE,
+                                   getattr(pyrpr, self.node.procedural_type))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_ORIGIN, tuple(camera.location))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_ZAXIS, tuple(camera.matrix_world.col[2]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_XAXIS, tuple(camera.matrix_world.col[0]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_SCALE, tuple(camera.scale))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_THRESHOLD, self.node.threshold)
 
             elif is_triplanar:
                 # triplanar
-                rpr_node.set_input('offset', tuple(self.node.origin))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_OFFSET, tuple(self.node.origin))
                 matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
-                rpr_node.set_input('zaxis', tuple(matrix.col[2]))
-                rpr_node.set_input('xaxis', tuple(matrix.col[0]))
-                rpr_node.set_input('weight', self.node.weight)
-                rpr_node.set_input('uv_scale', tuple(self.node.scale))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_ZAXIS, tuple(matrix.col[2]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_XAXIS, tuple(matrix.col[0]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_WEIGHT, self.node.weight)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_SCALE, tuple(self.node.scale))
 
             else:
                 # shape projection
-                rpr_node.set_input('uv_type', getattr(pyrpr, self.node.procedural_type))
-                rpr_node.set_input('origin', tuple(self.node.origin))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_TYPE,
+                                   getattr(pyrpr, self.node.procedural_type))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_ORIGIN, tuple(self.node.origin))
                 matrix = mathutils.Euler(self.node.rotation, 'XYZ').to_matrix()
-                rpr_node.set_input('zaxis', tuple(matrix.col[2]))
-                rpr_node.set_input('xaxis', tuple(matrix.col[0]))
-                rpr_node.set_input('uv_scale', tuple(self.node.scale))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_ZAXIS, tuple(matrix.col[2]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_XAXIS, tuple(matrix.col[0]))
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_SCALE, tuple(self.node.scale))
             
             return rpr_node
+
+        def export_hybrid(self):
+            return None
 
 
 class RPRShaderNodeBumpMap(RPRShaderNode):
@@ -717,7 +741,8 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
                     "color": "normal:inputs.Map",
                     "bumpscale": "inputs.Scale",
                 }
-            }
+            },
+            "hybrid:Normal": None
         }
 
 
@@ -769,9 +794,12 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
                 normal_map = normal_map * mul_vector + add_vector
 
             return self.create_node(pyrpr.MATERIAL_NODE_NORMAL_MAP, {
-                'color': normal_map,
-                'bumpscale': scale
+                pyrpr.MATERIAL_INPUT_COLOR: normal_map,
+                pyrpr.MATERIAL_INPUT_SCALE: scale
             })
+        
+        def export_hybrid(self):
+            return self.get_input_normal('Map')
 
 
 class RPRShaderNodeEmissive(RPRShaderNode):
@@ -799,16 +827,24 @@ class RPRShaderNodeEmissive(RPRShaderNode):
             intensity = self.get_input_value('Intensity')
 
             rpr_node_emissive = self.create_node(pyrpr.MATERIAL_NODE_EMISSIVE, {
-                'color': color * intensity
+                pyrpr.MATERIAL_INPUT_COLOR: color * intensity
             })
 
             if self.node.emission_doublesided:
                 return self.create_node(pyrpr.MATERIAL_NODE_TWOSIDED, {
-                    'frontface': rpr_node_emissive,
-                    'backface': rpr_node_emissive
+                    pyrpr.MATERIAL_INPUT_FRONTFACE: rpr_node_emissive,
+                    pyrpr.MATERIAL_INPUT_BACKFACE: rpr_node_emissive
                 })
 
             return rpr_node_emissive
+
+        def export_hybrid(self):
+            color = self.get_input_value('Color')
+            intensity = self.get_input_value('Intensity')
+
+            return self.create_node(pyrpr.MATERIAL_NODE_EMISSIVE, {
+                pyrpr.MATERIAL_INPUT_COLOR: color * intensity
+            })
 
 
 class RPRShaderNodeBlend(RPRShaderNode):
@@ -828,9 +864,9 @@ class RPRShaderNodeBlend(RPRShaderNode):
             # Just like ShaderNodeMixShader
             weight = self.get_input_value('Weight')
 
-            if isinstance(weight, float):
-                socket_key = 1 if math.isclose(weight, 0.0) else \
-                             2 if math.isclose(weight, 1.0) else None
+            if isinstance(weight.data, float):
+                socket_key = 1 if math.isclose(weight.data, 0.0) else \
+                             2 if math.isclose(weight.data, 1.0) else None
                 if socket_key:
                     shader = self.get_input_link(socket_key)
                     if shader:
@@ -846,14 +882,33 @@ class RPRShaderNodeBlend(RPRShaderNode):
                 return self.create_node(pyrpr.MATERIAL_NODE_DIFFUSE)
 
             rpr_node = self.create_node(pyrpr.MATERIAL_NODE_BLEND, {
-                'weight': weight
+                pyrpr.MATERIAL_INPUT_WEIGHT: weight
             })
             if shader1:
-                rpr_node.set_input('color0', shader1)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR0, shader1)
             if shader2:
-                rpr_node.set_input('color1', shader2)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR1, shader2)
 
             return rpr_node
+
+        def export_hybrid(self):
+            weight = self.get_input_value('Weight')
+
+            if isinstance(weight.data, float):
+                socket_key = 1 if math.isclose(weight.data, 0.0) else \
+                             2 if math.isclose(weight.data, 1.0) else None
+
+                if socket_key:
+                    shader = self.get_input_link(socket_key)
+                    if shader:
+                        return shader
+
+                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
+                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
+                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: (1.0, 1.0, 1.0, 1.0),
+                    })
+
+            return self.get_input_link(1)
 
 
 class RPRValueNode_Math(RPRShaderNode):

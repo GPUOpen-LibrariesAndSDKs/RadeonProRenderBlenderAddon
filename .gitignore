@@ -52,6 +52,7 @@ build_output/
 bindings-ok
 
 kernelsCache/
+.hybrid_cache
 
 vscode/
 

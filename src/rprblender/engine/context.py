@@ -6,12 +6,36 @@ import pyrpr
 class RPRContext:
     """ Manager of pyrpr calls.  Also includes threading lock to make sure
         calls aren't made simultaneously """
+
+    # Classes
+    _Context = pyrpr.Context
+    _Scene = pyrpr.Scene
+
+    _MaterialNode = pyrpr.MaterialNode
+
+    _PointLight = pyrpr.PointLight
+    _DirectionalLight = pyrpr.DirectionalLight
+    _SpotLight = pyrpr.SpotLight
+    _IESLight = pyrpr.IESLight
+    _AreaLight = pyrpr.AreaLight
+    _EnvironmentLight = pyrpr.EnvironmentLight
+
+    _Camera = pyrpr.Camera
+    _Shape = pyrpr.Shape
+    _Mesh = pyrpr.Mesh
+    _Instance = pyrpr.Instance
+    _Curve = pyrpr.Curve
+    _HeteroVolume = pyrpr.HeteroVolume
+
+    _PostEffect = pyrpr.PostEffect
+
     def __init__(self):
         self.context = None
         self.material_system = None
         self.width = None
         self.height = None
         self.gl_interop = None
+        self.engine_type = None
 
         # scene and objects
         self.scene = None
@@ -38,20 +62,22 @@ class RPRContext:
         self.use_reflection_catcher = False
 
     def init(self, context_flags, context_props):
-        self.context = pyrpr.Context(context_flags, context_props)
+        self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
-        self.gl_interop = bool(context_flags & pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP)
+        self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
 
         # context settings
-        self.context.set_parameter('xflip', False)
-        self.context.set_parameter('yflip', False)
+        self.set_parameter(pyrpr.CONTEXT_X_FLIP, False)
+        self.set_parameter(pyrpr.CONTEXT_Y_FLIP, False)
+        self.set_parameter(pyrpr.CONTEXT_DISPLAY_GAMMA, 1.0)
+
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
 
-        self.post_effect = pyrpr.PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
+        self.post_effect = self._PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
 
-        self.scene = pyrpr.Scene(self.context)
+        self.scene = self._Scene(self.context)
         self.context.set_scene(self.scene)
 
     def __del__(self):
@@ -326,13 +352,13 @@ class RPRContext:
 
     def create_light(self, key, light_type):
         if light_type == 'point':
-            light = pyrpr.PointLight(self.context)
+            light = self._PointLight(self.context)
         elif light_type == 'spot':
-            light = pyrpr.SpotLight(self.context)
+            light = self._SpotLight(self.context)
         elif light_type == 'directional':
-            light = pyrpr.DirectionalLight(self.context)
+            light = self._DirectionalLight(self.context)
         elif light_type == 'ies':
-            light = pyrpr.IESLight(self.context)
+            light = self._IESLight(self.context)
         else:
             raise KeyError("No such light type", light_type)
 
@@ -340,7 +366,7 @@ class RPRContext:
         return light
 
     def create_environment_light(self):
-        return pyrpr.EnvironmentLight(self.context)
+        return self._EnvironmentLight(self.context)
 
     def create_area_light(
             self, key,
@@ -348,13 +374,13 @@ class RPRContext:
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
     ):
-        mesh = pyrpr.Mesh(
+        mesh = self._Mesh(
             self.context,
             vertices, normals, [uvs],
             vertex_indices, normal_indices, [uv_indices],
             num_face_vertices
         )
-        light = pyrpr.AreaLight(mesh, self.material_system)
+        light = self._AreaLight(mesh, self.material_system)
         self.objects[key] = light
         return light
 
@@ -364,7 +390,7 @@ class RPRContext:
             vertex_indices, normal_indices, uv_indices,
             num_face_vertices
     ):
-        mesh = pyrpr.Mesh(
+        mesh = self._Mesh(
             self.context,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
@@ -374,28 +400,28 @@ class RPRContext:
         return mesh
 
     def create_instance(self, key, mesh):
-        instance = pyrpr.Instance(self.context, mesh)
+        instance = self._Instance(self.context, mesh)
         self.objects[key] = instance
         return instance
 
     def create_curve(self, key, control_points, uvs, radius):
-        curve = pyrpr.Curve(self.context, control_points, uvs, radius)
+        curve = self._Curve(self.context, control_points, uvs, radius)
         self.particles[key] = curve
         return curve
 
     def create_hetero_volume(self, key):
-        volume = pyrpr.HeteroVolume(self.context)
+        volume = self._HeteroVolume(self.context)
         self.volumes[key] = volume
         return volume
 
     def create_camera(self, key=None):
-        camera = pyrpr.Camera(self.context)
+        camera = self._Camera(self.context)
         if key:
             self.objects[key] = camera
         return camera
 
     def create_material_node(self, material_type):
-        return pyrpr.MaterialNode(self.material_system, material_type)
+        return self._MaterialNode(self.material_system, material_type)
 
     def set_material_node_key(self, key, material_node):
         self.material_nodes[key] = material_node
@@ -418,11 +444,11 @@ class RPRContext:
     def create_buffer(self, data, dtype):
         return pyrpr.Buffer(self.context, data, dtype)
 
-    def set_parameter(self, name, param):
-        if param == self.context.parameters.get(name, None):
+    def set_parameter(self, key, param):
+        if param == self.context.parameters.get(key, None):
             return False
 
-        self.context.set_parameter(name, param)
+        self.context.set_parameter(key, param)
         return True
 
     def get_parameter(self, name):

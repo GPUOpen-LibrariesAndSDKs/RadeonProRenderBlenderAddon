@@ -3,6 +3,7 @@ import os
 
 import bpy
 import pyrpr
+
 from bpy.props import (
     BoolProperty,
     FloatProperty,
@@ -91,17 +92,10 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         adaptive_threshold, adaptive_min_samples, and adaptive_tile_size
         """
         res = False
-        res |= rpr_context.set_parameter('as.tilesize', self.adaptive_tile_size)
-        res |= rpr_context.set_parameter('as.minspp', self.min_samples)
-        res |= rpr_context.set_parameter('as.threshold', self.noise_threshold)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_TILE_SIZE, self.adaptive_tile_size)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP, self.min_samples)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_THRESHOLD, self.noise_threshold)
         return res
-
-
-# Getting list of available devices for RPR_RenderDevices
-enum_devices = [('CPU', "CPU", "Use CPU for rendering"),]
-if len(pyrpr.Context.gpu_devices) > 0:
-    enum_devices.insert(0, ('GPU', "GPU", "Use GPU device for rendering"))
-    enum_devices.append(('GPU+CPU', "GPU+CPU", "Use GPU+CPU devices for rendering"))
 
 
 class RPR_RenderDevices(bpy.types.PropertyGroup):
@@ -127,7 +121,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         )
 
     cpu_state: BoolProperty(
-        name=pyrpr.Context.cpu_device['name'],
+        name=pyrpr.Context.cpu_device['name'] if pyrpr.Context.cpu_device else "",
         description="Use CPU device for rendering",
         default=len(pyrpr.Context.gpu_devices) == 0, # True if no GPUs are available
         update=update_states
@@ -349,6 +343,19 @@ class RPR_RenderProperties(RPR_Properties):
         default=1.5,
     )
 
+    render_quality: EnumProperty(
+        name="Render Quality",
+        description="Hybrid render quality",
+        items=(
+            ('FULL', "Full", "Full"),
+            # ('ULTRA', "Ultra", "Ultra"),
+            ('HIGH', "High", "High"),
+            ('MEDIUM', "Medium", "Medium"),
+            ('LOW', "Low", "Low"),
+        ),
+        default='FULL',
+    )
+
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         """ Initializes rpr_context by device settings """
 
@@ -357,25 +364,26 @@ class RPR_RenderProperties(RPR_Properties):
 
         devices = self.get_devices(is_final_engine)
 
-        context_flags = 0
+        context_flags = set()
         # enable CMJ sampler for adaptive sampling
         context_props = [pyrpr.CONTEXT_SAMPLER_TYPE, pyrpr.CONTEXT_SAMPLER_TYPE_CMJ]
+
         if devices.cpu_state:
-            context_flags |= pyrpr.Context.cpu_device['flag']
+            context_flags |= {pyrpr.Context.cpu_device['flag']}
             context_props.extend([pyrpr.CONTEXT_CPU_THREAD_LIMIT, devices.cpu_threads])
 
         metal_enabled = False
         if hasattr(devices, 'gpu_states'):
             for i, gpu_state in enumerate(devices.gpu_states):
                 if gpu_state:
-                    context_flags |= pyrpr.Context.gpu_devices[i]['flag']
+                    context_flags |= {pyrpr.Context.gpu_devices[i]['flag']}
                     if use_gl_interop:
-                        context_flags |= pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP
+                        context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
                 
                     if not metal_enabled and platform.system() == 'Darwin':
                         # only enable metal once and if a GPU is turned on
                         metal_enabled = True
-                        context_flags |= pyrpr.CREATION_FLAGS_ENABLE_METAL
+                        context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
                         
         context_props.append(0) # should be followed by 0
 
@@ -383,10 +391,10 @@ class RPR_RenderProperties(RPR_Properties):
             if not os.path.isdir(self.trace_dump_folder):
                 os.mkdir(self.trace_dump_folder)
 
-            pyrpr.Context.set_parameter(None, 'tracingfolder', self.trace_dump_folder)
-            pyrpr.Context.set_parameter(None, 'tracing', True)
+            pyrpr.Context.set_parameter(None, pyrpr.CONTEXT_TRACING_PATH, self.trace_dump_folder)
+            pyrpr.Context.set_parameter(None, pyrpr.CONTEXT_TRACING_ENABLED, True)
         else:
-            pyrpr.Context.set_parameter(None, 'tracing', False)
+            pyrpr.Context.set_parameter(None, pyrpr.CONTEXT_TRACING_ENABLED, False)
 
         rpr_context.init(context_flags, context_props)
 
@@ -394,8 +402,7 @@ class RPR_RenderProperties(RPR_Properties):
             mac_vers_major = platform.mac_ver()[0].split('.')[1]
             # if this is mojave turn on MPS
             if float(mac_vers_major) >= 14:
-                rpr_context.set_parameter("metalperformanceshader", 1)
-
+                rpr_context.set_parameter(pyrpr.CONTEXT_METAL_PERFORMANCE_SHADER, 1)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
@@ -409,30 +416,40 @@ class RPR_RenderProperties(RPR_Properties):
 
         res = False
 
-        res |= rpr_context.set_parameter('maxRecursion', self.max_ray_depth)
-        res |= rpr_context.set_parameter('maxdepth.diffuse', self.diffuse_depth)
-        res |= rpr_context.set_parameter('maxdepth.glossy', self.glossy_depth)
-        res |= rpr_context.set_parameter('maxdepth.shadow', self.shadow_depth)
-        res |= rpr_context.set_parameter('maxdepth.refraction', self.refraction_depth)
-        res |= rpr_context.set_parameter('maxdepth.refraction.glossy', self.glossy_refraction_depth)
-        res |= rpr_context.set_parameter('radianceclamp', self.clamp_radiance if self.use_clamp_radiance else sys.float_info.max)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_RECURSION, self.max_ray_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, self.diffuse_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, self.glossy_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW, self.shadow_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, self.refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, self.glossy_refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RADIANCE_CLAMP, self.clamp_radiance if \
+            self.use_clamp_radiance else sys.float_info.max)
 
-        res |= rpr_context.set_parameter('raycastepsilon', self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPISLON,
+                                         self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
 
     def export_render_mode(self, rpr_context):
-        return rpr_context.set_parameter('rendermode', getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
-
+        return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_MODE,
+                                         getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
 
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """
         filter_type = getattr(pyrpr, f"FILTER_{self.pixel_filter}")
-        
+        filter_radius = getattr(pyrpr, f"CONTEXT_IMAGE_FILTER_{self.pixel_filter}_RADIUS")
+
         res = False
-        res |= rpr_context.set_parameter('imagefilter.type', filter_type)
-        res |= rpr_context.set_parameter(f"imagefilter.{self.pixel_filter.lower()}.radius", self.pixel_filter_width)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_IMAGE_FILTER_TYPE, filter_type)
+        res |= rpr_context.set_parameter(filter_radius, self.pixel_filter_width)
         return res
+
+    def export_render_quality(self, rpr_context):
+        if self.render_quality == 'FULL':
+            return False
+
+        quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.render_quality)
+        return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_QUALITY, quality)
 
     @classmethod
     def register(cls):

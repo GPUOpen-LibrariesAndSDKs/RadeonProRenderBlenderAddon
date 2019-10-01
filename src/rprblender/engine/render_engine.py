@@ -66,8 +66,8 @@ class RenderEngine(Engine):
                 break
 
             self.current_render_time = time.perf_counter() - time_begin
-            is_adaptive_active = is_adaptive and \
-                                 self.current_sample >= self.rpr_context.get_parameter('as.minspp')
+            is_adaptive_active = is_adaptive and self.current_sample >= \
+                                 self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
 
             # if less that update_samples left, use the remainder
             update_samples = min(self.render_update_samples,
@@ -97,7 +97,7 @@ class RenderEngine(Engine):
 
             log(log_str)
 
-            self.rpr_context.set_parameter('iterations', update_samples)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
             self.rpr_context.render(restart=(self.current_sample == 0))
 
             self.current_sample += update_samples
@@ -185,8 +185,8 @@ class RenderEngine(Engine):
                 log_str = f"  samples: {sample} +{update_samples} / {self.render_samples}"\
                     f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
 
-                is_adaptive_active = is_adaptive and \
-                                        sample >= self.rpr_context.get_parameter('as.minspp')
+                is_adaptive_active = is_adaptive and sample >= \
+                                     self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
                 if is_adaptive_active:
                     adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
                     progress = max(progress, (tile_index + adaptive_progress) / tiles_number)
@@ -196,7 +196,7 @@ class RenderEngine(Engine):
                 self.notify_status(progress, info_str)
                 log(log_str)
 
-                self.rpr_context.set_parameter('iterations', update_samples)
+                self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
                 self.rpr_context.render(restart=(sample == 0))
 
                 sample += update_samples
@@ -437,7 +437,7 @@ class RenderEngine(Engine):
             self.rpr_engine.add_pass('Color', 4, 'RGBA', layer=view_layer.name)
 
         # SET rpr_context parameters
-        self.rpr_context.set_parameter('preview', False)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
         scene.rpr.export_pixel_filter(self.rpr_context)
 
@@ -477,13 +477,13 @@ class RenderEngine(Engine):
         # data['geometry_size_MB'] = ""
         # data['geometry_size_after_subdivision_MB'] = ""
         data['AOVs_enabled'] = tuple(self.rpr_context.frame_buffers_aovs.keys())
-        data['num_rays_cast'] = self.rpr_context.get_parameter('maxRecursion')
-        data['num_shadow_rays'] = self.rpr_context.get_parameter('maxdepth.shadow')
+        data['num_rays_cast'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_RECURSION)
+        data['num_shadow_rays'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW)
         data['num_diffuse_spec_reflec_refrac_rays'] = \
-            self.rpr_context.get_parameter('maxdepth.diffuse') + \
-            self.rpr_context.get_parameter('maxdepth.glossy') + \
-            self.rpr_context.get_parameter('maxdepth.refraction') + \
-            self.rpr_context.get_parameter('maxdepth.refraction.glossy')
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION)
 
         # data['time_building_bvh'] = ""
         # data['time_exec_shaders'] = ""
