@@ -295,7 +295,7 @@ class RenderEngine(Engine):
 
             # TODO: Apply render stamp after tile rendering
             image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
-                                              self.rpr_context.width, self.rpr_context.height, channels,
+                                              self.rpr_context, channels,
                                               self.current_sample, self.current_render_time)
         return image
 
