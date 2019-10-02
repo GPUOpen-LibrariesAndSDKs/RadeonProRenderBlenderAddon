@@ -6,7 +6,8 @@ from bpy.props import (
     EnumProperty,
     FloatProperty,
     FloatVectorProperty,
-    StringProperty
+    StringProperty,
+    IntProperty
 )
 import mathutils
 import pyrpr
@@ -40,6 +41,183 @@ class RPRShaderNode(bpy.types.ShaderNode):
     def poll(cls, tree: bpy.types.NodeTree):
         return tree.bl_idname in ('ShaderNodeTree', 'RPRTreeType') and bpy.context.scene.render.engine == 'RPR'
 
+
+# # Layered shaders nodes
+class RPRShaderNodeLayered(RPRShaderNode):
+    bl_label = 'RPR Layered Shader'
+    MAX_LAYERS_NUMBER = 8
+
+    def on_layers_number_changed(self, context):
+        """ Update enabled inputs by selected layers number """
+        for i in range(0, self.layers_number):
+            self.inputs[f'Layer {i+1}'].enabled = True
+            self.inputs[f'Layer {i+1} alpha'].enabled = True
+        for i in range(self.layers_number, self.MAX_LAYERS_NUMBER):
+            self.inputs[f'Layer {i+1}'].enabled = False
+            self.inputs[f'Layer {i+1} alpha'].enabled = False
+
+    # number of layers, [1..MAX_LAYERS_NUMBER]
+    layers_number: IntProperty(
+        min=1, max=MAX_LAYERS_NUMBER, default=1,
+        name="Number of layers",
+        update=on_layers_number_changed
+    )
+
+    def init(self, context):
+        self.outputs.new('NodeSocketShader', 'Shader')
+
+        self.inputs.new('NodeSocketShader', f'Base Shader')
+
+        for i in range(0, self.MAX_LAYERS_NUMBER):
+            self.inputs.new('NodeSocketShader', f'Layer {i+1}').hide_value = True
+            self.inputs.new('rpr_socket_weight', f'Layer {i+1} alpha').default_value = 0.5
+
+        self.on_layers_number_changed(context)
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'layers_number')
+
+    class Exporter(NodeParser):
+        def export(self):
+            result = self.get_input_link("Base Shader")
+
+            if result:  # no blending with absent base shader
+                for i in range(self.node.layers_number):
+                    fac = self.get_input_value(f'Layer {i+1} alpha')
+                    layer = self.get_input_link(f'Layer {i+1}')
+
+                    if layer:
+                        result = self.create_node(pyrpr.MATERIAL_NODE_BLEND, {
+                            pyrpr.MATERIAL_INPUT_WEIGHT: fac,
+                            pyrpr.MATERIAL_INPUT_COLOR0: result,
+                            pyrpr.MATERIAL_INPUT_COLOR1: layer,
+                        })
+
+            return result
+
+
+# # Layered texture nodes
+class RPRTextureNodeLayered(RPRShaderNode):
+    """ Single node to create mix of several weighted textures """
+    bl_label = 'RPR Layered Texture'
+    bl_width_min = 260
+    MAX_LAYERS_NUMBER = 8
+
+    MIX_ENUM = (
+        ('MIX', "Mix", ""),
+        ('ADD', "Add", ""),
+        ('MULTIPLY', "Multiply", ""),
+        ('SUBTRACT', "Subtract", ""),
+        ('DIVIDE', "Divide", ""),
+        ('DIFFERENCE', "Difference", ""),
+        ('DARKEN', "Darken", ""),
+    )
+
+    mix_layer_0: EnumProperty(
+        name=f"Layer 1 blend mode", description=f"Layer 1 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_1: EnumProperty(
+        name=f"Layer 2 blend mode", description=f"Layer 2 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_2: EnumProperty(
+        name=f"Layer 3 blend mode", description=f"Layer 3 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_3: EnumProperty(
+        name=f"Layer 4 blend mode", description=f"Layer 4 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_4: EnumProperty(
+        name=f"Layer 5 blend mode", description=f"Layer 5 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_5: EnumProperty(
+        name=f"Layer 6 blend mode", description=f"Layer 6 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_6: EnumProperty(
+        name=f"Layer 7 blend mode", description=f"Layer 7 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    mix_layer_7: EnumProperty(
+        name=f"Layer 8 blend mode", description=f"Layer 8 blend mode",
+        items=MIX_ENUM, default='MIX',
+    )
+
+    def on_layers_number_changed(self, context):
+        """ Update enabled inputs by selected layers number """
+        for i in range(0, self.layers_number):
+            self.inputs[f'Layer {i+1}'].enabled = True
+            self.inputs[f'Layer {i+1} alpha'].enabled = True
+        for i in range(self.layers_number, self.MAX_LAYERS_NUMBER):
+            self.inputs[f'Layer {i+1}'].enabled = False
+            self.inputs[f'Layer {i+1} alpha'].enabled = False
+
+    # number of layers, [1..MAX_LAYERS_NUMBER]
+    layers_number: IntProperty(
+        min=1, max=MAX_LAYERS_NUMBER, default=1,
+        name="Number of layers",
+        update=on_layers_number_changed
+    )
+
+    def init(self, context):
+        self.outputs.new('rpr_socket_color', 'Color')
+
+        self.inputs.new('rpr_socket_color', f'Base Texture')
+
+        for i in range(0, self.MAX_LAYERS_NUMBER):
+            self.inputs.new('rpr_socket_color', f'Layer {i+1}')
+            self.inputs.new('rpr_socket_weight', f'Layer {i+1} alpha').default_value = 0.5
+
+        self.on_layers_number_changed(context)
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        row.prop(self, 'layers_number')
+
+        for i in range(self.layers_number):
+            layout.prop(self, f"mix_layer_{i}")
+
+    class Exporter(NodeParser):
+        def export(self):
+            result = self.get_input_value("Base Texture")
+
+            for i in range(self.node.layers_number):
+                fac = self.get_input_value(f'Layer {i+1} alpha')
+                layer = self.get_input_value(f'Layer {i+1}')
+
+                blend_type = getattr(self.node, f"mix_layer_{i}")
+                if blend_type == 'MIX':
+                    result = fac.blend(result, layer)
+                elif blend_type == 'ADD':
+                    result = fac.blend(result, result + layer)
+                elif blend_type == 'MULTIPLY':
+                    result = fac.blend(result, result * layer)
+                elif blend_type == 'SUBTRACT':
+                    result = fac.blend(result, result - layer)
+                elif blend_type == 'DIVIDE':
+                    result = fac.blend(result, result / layer)
+                elif blend_type == 'DIFFERENCE':
+                    result = fac.blend(result, abs(result - layer))
+                elif blend_type == 'DARKEN':
+                    result = fac.blend(result, result.min(layer))
+
+            return result
+
+
+# # regular shader nodes
 
 class RPRShaderNodeDiffuse(RPRShaderNode):
 
