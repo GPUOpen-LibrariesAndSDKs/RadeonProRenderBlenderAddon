@@ -77,17 +77,14 @@ else:
         ]
 
 
-    def render_stamp(text, image, image_width, image_height, channels, frame_iter, frame_time):
+    def render_stamp(text, image, rpr_context, channels, frame_iter, frame_time):
         """
         Render info text with requested data to the source image
         :param text: text string for render
         :type text: str
         :param image: source image to blend text into
         :type image: np.Array
-        :param image_width: source image width
-        :type image_width: int
-        :param image_height: source image height
-        :type image_height: int
+        :param rpr_context: RPRContext
         :param channels: source image bytes per pixel
         :type channels: int
         :param frame_iter: current frame iteration number
@@ -99,6 +96,15 @@ else:
         """
         # Collect info the user could request for render stamp
         ver = bl_info['version']
+
+        lights_count = len([
+            e for e in rpr_context.objects.values()
+            if isinstance(e, pyrpr.Light)])
+        objects_count = len([
+            e for e in rpr_context.objects.values()
+            if isinstance(e, (pyrpr.Curve, pyrpr.Shape, pyrpr.HeteroVolume,))
+            and hasattr(e, 'is_visible') and e.is_visible
+        ])
 
         cpu_name = pyrpr.Context.cpu_device['name']
         settings = get_user_settings()
@@ -118,8 +124,8 @@ else:
             hardware = selected_gpu_names
             render_mode = "GPU"
             if devices.cpu_state:
-                 hardware = hardware + " / "
-                 render_mode = render_mode + " + "
+                hardware = hardware + " / "
+                render_mode = render_mode + " + "
         if devices.cpu_state:
             hardware += cpu_name
             render_mode = render_mode + "CPU"
@@ -127,8 +133,8 @@ else:
         # Replace markers with collected info
         text = text.replace("%pt", time.strftime("%H:%M:%S", time.gmtime(frame_time)))
         text = text.replace("%pp", str(frame_iter))
-        text = text.replace("%so", str(len(bpy.data.meshes)))
-        text = text.replace("%sl", str(len(bpy.data.lights)))
+        text = text.replace("%so", str(objects_count))
+        text = text.replace("%sl", str(lights_count))
         text = text.replace("%c", cpu_name)
         text = text.replace("%g", selected_gpu_names)
         text = text.replace("%r", render_mode)
@@ -138,7 +144,7 @@ else:
         text = text.replace("%b", "v%d.%d.%d" % (ver[0], ver[1], ver[2]))
 
         # do the actual text render
-        return render_text_to_image(text, image, image_width, image_height, channels)
+        return render_text_to_image(text, image, rpr_context.width, rpr_context.height, channels)
 
 
     def render_text_to_image(text, image, image_width, image_height, channels):

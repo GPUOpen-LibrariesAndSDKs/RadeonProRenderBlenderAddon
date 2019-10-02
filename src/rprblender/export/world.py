@@ -339,7 +339,6 @@ class WorldData:
                 override_data.color = tuple(color)
 
             override_data.image_type = getattr(rpr, f'{override_type}_image_type', 'SPHERE')
-            log.info(f"override image type: {override_data.image_type}")
 
             data.overrides[override_type] = override_data
 
