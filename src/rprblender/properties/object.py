@@ -76,7 +76,7 @@ class RPR_ObjectProperites(RPR_Properties):
     subdivision_factor: FloatProperty(
         name="Adaptive Level",
         description="Subdivision factor for mesh, in pixels that it should be subdivided to. For finer subdivision set lower.",
-        min=0.0, soft_max=10.0,
+        min=0.01, soft_max=10.0,
         default=1.0
     )
     subdivision_boundary_type: EnumProperty(
