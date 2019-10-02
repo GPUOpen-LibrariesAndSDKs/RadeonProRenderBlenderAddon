@@ -43,12 +43,14 @@ node_categories = [
         NodeItem('ShaderNodeVolumePrincipled'),
         NodeItem('RPRShaderNodeUber'),
         NodeItem('RPRShaderNodePassthrough'),
+        NodeItem('RPRShaderNodeLayered'),
     ]),
     RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
         NodeItem('ShaderNodeTexChecker'),
         NodeItem('ShaderNodeTexGradient'),
         NodeItem('ShaderNodeTexImage'),
         NodeItem('ShaderNodeTexNoise'),
+        NodeItem('RPRTextureNodeLayered'),
     ],),
     RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
         NodeItem('ShaderNodeBrightContrast'),
@@ -119,6 +121,8 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     rpr_nodes.RPRShaderNodeImageTexture,
     rpr_nodes.RPRValueNode_Math,
     rpr_nodes.RPRShaderProceduralUVNode,
+    rpr_nodes.RPRShaderNodeLayered,
+    rpr_nodes.RPRTextureNodeLayered,
 ])
 
 
