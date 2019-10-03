@@ -57,9 +57,9 @@ def set_light_rotation(rpr_light, rotation: Tuple[float]) -> np.array:
 
     matrix = np.identity(4, dtype=np.float32)
     if isinstance(rpr_light, pyhybrid.Light):
-        euler = mathutils.Euler((rotation[0], rotation[2], rotation[1]))
+        euler = mathutils.Euler((rotation[0], rotation[2] - np.pi/2, rotation[1]))
     else:
-        euler = mathutils.Euler((rotation[0], rotation[1], rotation[2]))
+        euler = mathutils.Euler((rotation[0], rotation[1], rotation[2] - np.pi/2))
 
     rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
     fixup = np.array([[1, 0, 0],
