@@ -1700,8 +1700,8 @@ class ShaderNodeHueSaturation(NodeParser):
         #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
         #  conversion.
         color = self.get_input_value('Color')
-        if not isinstance(color.data, tuple):
-            return color
+        #if not isinstance(color.data, tuple):
+        #    return color
 
         fac = self.get_input_scalar('Fac')
         hue = self.get_input_scalar('Hue')
@@ -1709,8 +1709,8 @@ class ShaderNodeHueSaturation(NodeParser):
         value = self.get_input_scalar('Value')
 
         hsv = color.rgb_to_hsv()
-        h = (hsv.get_channel(0) + hue) % 1.0
-        s = (hsv.get_channel(1) + saturation).clamp()
+        h = (hsv.get_channel(0) + hue + 0.5) % 1.0
+        s = (hsv.get_channel(1) * saturation).clamp()
         v = hsv.get_channel(2) * value
 
         rgb = h.combine(s, v).hsv_to_rgb()
