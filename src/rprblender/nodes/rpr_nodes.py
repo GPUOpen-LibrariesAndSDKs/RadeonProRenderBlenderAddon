@@ -271,7 +271,7 @@ class RPRShaderNodePassthrough(RPRShaderNode):
             "Shader": {
                 "type": pyrpr.MATERIAL_NODE_PASSTHROUGH,
                 "params": {
-                    "color": "inputs.Color"
+                    pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color"
                 }
             },
             "hybrid:Shader": {

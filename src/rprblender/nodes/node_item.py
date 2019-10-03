@@ -106,6 +106,9 @@ class NodeItem:
         f = self.floor()
         return (self == f).if_else(self, f + 1.0)
 
+    def fract(self):
+        return self - self.floor()
+
     # right hand methods for doing something like 1.0 - Node
     def __radd__(self, other):
         return self + other
@@ -275,22 +278,14 @@ class NodeItem:
         s = self.get_channel(1)
         v = self.get_channel(2)
 
-        c = v * s
-        h_i = h * 6.0
-        x = c * (1.0 - abs(h_i % 2.0 - 1.0))
-        m = v - c
+        K_x = 1.0
+        K_y = 2.0/3.0
+        K_z = 1.0/3.0
+        K_w = 3.0
+        K = NodeItem(self.rpr_context, (K_x, K_y, K_z))
 
-        o_o = NodeItem(self.rpr_context, 0.0)
-
-        rgb = (h_i <= 1.0).if_else(c.combine(x, 0.0),
-              (h_i <= 2.0).if_else(x.combine(c, 0.0),
-              (h_i <= 3.0).if_else(o_o.combine(c, x),
-              (h_i <= 4.0).if_else(o_o.combine(x, c),
-              (h_i <= 5.0).if_else(x.combine(0.0, c),
-              (h_i <= 6.0).if_else(c.combine(0.0, x),
-                                   (0.0, 0.0, 0.0) ))))))
-
-        return rgb + m
+        p = abs((h + K).fract() * 6.0 - K_w)
+        return s.blend(K_x, (p-K_x).clamp()) * v
     
     def rgb_to_hsv(self):
         ''' convert rgb back to hsv
@@ -299,20 +294,28 @@ class NodeItem:
         g = self.get_channel(1)
         b = self.get_channel(2)
 
-        mx = r.max(g.max(b))
-        mn = r.min(g.min(b))
-        df = mx - mn
+        K_x = 0.0
+        K_y = -1.0/3.0
+        K_z = 2.0/3.0
+        K_w = -1.0
 
-        h = (mx == mn).if_else(0.0,
-            (mx == r).if_else((g - b) / df + 6.0,
-            (mx == g).if_else((b - r) / df + 2.0,
-                              (r - g) / df + 4.0)))
-        h = (h % 6.0) / 6.0
+        p = (g < b).if_else(b.combine4(g, K_w, K_z), g.combine4(b, K_x, K_y))
+        p_x = p.get_channel(0)
+        p_y = p.get_channel(1)
+        p_z = p.get_channel(2)
+        p_w = p.get_channel(3)
+        q = (r < p_x).if_else(p_x.combine4(p_y, p_w, r), r.combine4(p_y, p_z, p_x))
+        q_x = q.get_channel(0)
+        q_y = q.get_channel(1)
+        q_z = q.get_channel(2)
+        q_w = q.get_channel(3)
 
-        s = (mx == 0.0).if_else(0.0, df / mx)
-        v = mx
+        d = q_x - min(q_w, q_y)
+        e = 1.0e-10
 
-        return h.combine(s, v)
+        h = abs(q_z + ((q_w - q_y) / (6.0 * d + e)))
+        s = d / (q_x + e)
+        return h.combine(s, q_x)
 
     def normalize(self):
         norm = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3, lambda a: a)
