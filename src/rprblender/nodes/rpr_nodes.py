@@ -238,9 +238,9 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
             "Shader": {
                 "type": pyrpr.MATERIAL_NODE_DIFFUSE,
                 "params": {
-                    "color": "inputs.Color",
-                    "roughness": "inputs.Roughness",
-                    "normal": "normal:inputs.Normal"
+                    pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color",
+                    pyrpr.MATERIAL_INPUT_ROUGHNESS: "inputs.Roughness",
+                    pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
                 }
             },
             "hybrid:Shader": {
@@ -916,8 +916,8 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
             "Normal": {
                 "type": pyrpr.MATERIAL_NODE_BUMP_MAP,
                 "params": {
-                    "color": "normal:inputs.Map",
-                    "bumpscale": "inputs.Scale",
+                    pyrpr.MATERIAL_INPUT_COLOR: "normal:inputs.Map",
+                    pyrpr.MATERIAL_INPUT_SCALE: "inputs.Scale",
                 }
             },
             "hybrid:Normal": None
