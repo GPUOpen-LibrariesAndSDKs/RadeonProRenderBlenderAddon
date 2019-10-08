@@ -13,7 +13,7 @@ def init(rpr_sdk_bin_path):
     lib = ffi.dlopen(path)
 
 
-def export(name, context, scene):
+def export(name, context, scene, flags):
 
     file_name = bytes(name, encoding="latin1")
 
@@ -24,7 +24,7 @@ def export(name, context, scene):
     # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - image data will be lossy compressed during export
     #  note: without any of above flags images will not be exported.
     return lib.rprsExport(file_name, context._get_handle(), scene._get_handle(),
-                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, 2)
+                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, flags)
 
 
 def get_library_path(rpr_sdk_bin_path):

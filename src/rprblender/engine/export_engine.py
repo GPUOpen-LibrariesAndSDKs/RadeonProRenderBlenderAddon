@@ -12,6 +12,7 @@ from rprblender.export import (
 )
 from .context import RPRContext
 from .engine import Engine
+import pyrpr
 
 from rprblender.utils.logging import Log
 log = Log(tag='ExportEngine')
@@ -54,20 +55,20 @@ class ExportEngine(Engine):
             instance.sync(self.rpr_context, inst)
 
         # rpr_context parameters
-        self.rpr_context.set_parameter('preview', False)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
 
         self.rpr_context.sync_portal_lights()
 
         # Exported scene will be rendered vertically flipped, flip it back
-        self.rpr_context.set_parameter('yflip', True)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_Y_FLIP, True)
 
         log('Finish sync')
 
-    def export_to_rpr(self, filepath: str):
+    def export_to_rpr(self, filepath: str, flags):
         """
         Export scene to RPR file
         :param filepath: full output file path, including filename extension
         """
         log('export_to_rpr')
-        pyrpr_load_store.export(filepath, self.rpr_context.context, self.rpr_context.scene)
+        pyrpr_load_store.export(filepath, self.rpr_context.context, self.rpr_context.scene, flags)
