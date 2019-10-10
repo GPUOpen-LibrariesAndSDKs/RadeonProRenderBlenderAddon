@@ -487,6 +487,11 @@ class ShaderNodeLayerWeight(NodeParser):
         if not normal:
             normal = self.normal_node
 
+            if not normal:
+                normal = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N
+                })
+
         invec = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
             pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_INVEC
         })
