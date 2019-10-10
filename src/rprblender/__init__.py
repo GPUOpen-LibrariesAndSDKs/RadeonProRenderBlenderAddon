@@ -86,6 +86,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         except Exception as e:
             log.error(e, 'EXCEPTION:', traceback.format_exc())
+            self.error_set(f"ERROR | {e}. Please see log for more details.")
 
     def render(self, depsgraph):
         """ Called with both final render and viewport """
@@ -95,6 +96,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         except Exception as e:
             log.error(e, 'EXCEPTION:', traceback.format_exc())
+            self.error_set(f"ERROR | {e}. Please see log for more details.")
 
     # viewport render
     def view_update(self, context, depsgraph):
@@ -108,12 +110,14 @@ class RPREngine(bpy.types.RenderEngine):
                 self.engine.sync_update(context, depsgraph)
                 return
 
+            if self.engine:
+                self.engine.stop_render()
+
             if is_hybrid:
                 self.engine = ViewportEngineHybrid(self)
             else:
                 self.engine = ViewportEngine(self)
             self.engine.sync(context, depsgraph)
-            self.engine.render()
 
         except Exception as e:
             log.error(e, 'EXCEPTION:', traceback.format_exc())

@@ -8,8 +8,7 @@ log = logging.Log(tag='context_hybrid')
 
 
 class RPRContext(context.RPRContext):
-    ''' Manager of pyrpr and pyrprx calls.  Also includes threading lock to make sure
-        calls aren't made simultaneously '''
+    """ Manager of pyhybrid and pyrpr calls """
 
     _Context = pyhybrid.Context
     _Scene = pyhybrid.Scene
