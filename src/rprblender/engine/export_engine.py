@@ -25,9 +25,6 @@ class ExportEngine(Engine):
         self.rpr_context = RPRContext()
         self.rpr_context.engine_type = self.TYPE
 
-    def render(self):
-        pass
-
     def sync(self, context):
         """ Prepare scene for export """
         log('Start sync')

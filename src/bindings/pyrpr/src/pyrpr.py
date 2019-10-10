@@ -521,10 +521,14 @@ class Shape(Object):
         self.is_portal_light = False
 
     def delete(self):
-        self.set_material(None)
-        self.set_volume_material(None)
-        self.set_displacement_material(None)
-        self.set_hetero_volume(None)
+        if self.materials:
+            self.set_material(None)
+        if self.volume_material:
+            self.set_volume_material(None)
+        if self.displacement_material:
+            self.set_displacement_material(None)
+        if self.hetero_volume:
+            self.set_hetero_volume(None)
 
         super().delete()
 

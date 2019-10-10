@@ -2,6 +2,8 @@ import threading
 import time
 import math
 from dataclasses import dataclass
+import traceback
+import textwrap
 
 import bpy
 import bgl
@@ -14,8 +16,6 @@ from rprblender.export import camera, material, world, object, instance, particl
 from rprblender.utils import gl
 from rprblender import utils
 from rprblender import config
-
-from . import context as context_rpr
 
 from rprblender.utils import logging
 log = logging.Log(tag='viewport_engine')
@@ -157,123 +157,206 @@ class ViewportEngine(Engine):
 
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
-        self.is_synced = False
-        self.render_iterations = 0
-        self.render_time = 0
-        self.iteration = 0
-        self.time_begin = 0.0
-        self.time_render = 0.0
-
-        self.is_last_iteration = False
-        self.image_filter_ready = False
 
         self.gl_texture: gl.GLTexture = None
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
         self.shading_data: ShadingData = None
 
-        self.render_thread: threading.Thread = None
+        self.sync_render_thread: threading.Thread = None
         self.restart_render_event = threading.Event()
-        self.lock = threading.Lock()
-        self.finish_render = False
+        self.render_lock = threading.Lock()
+        self.resolve_lock = threading.Lock()
 
-    def render(self):
-        self.finish_render = False
-        self.restart_render_event.clear()
-
-        self.render_thread = threading.Thread(target=self._do_render, args=())
-        self.render_thread.start()
+        self.is_finished = False
+        self.is_synced = False
+        self.is_rendered = False
+        self.is_denoised = False
+        self.render_iterations = 0
+        self.render_time = 0
 
     def stop_render(self):
-        if not self.render_thread:
-            return
-
-        self.finish_render = True
+        self.is_finished = True
         self.restart_render_event.set()
-        self.render_thread.join()
+        self.sync_render_thread.join()
 
-    def notify_status(self, info):
-        self.rpr_engine.update_stats("", info)
+        self.rpr_context = None
+        self.image_filter = None
 
-    def _do_render(self):
+    def _do_sync_render(self, depsgraph):
         """
-        Thread function for self.render_thread. It always run during viewport render.
+        Thread function for self.sync_render_thread. It always run during viewport render.
         If it doesn't render it waits for self.restart_render_event
         """
 
-        log("Start render thread")
+        def notify_status(info, status):
+            wrap_info = textwrap.fill(info, 120)
+            self.rpr_engine.update_stats(status, wrap_info)
+            log(status, wrap_info)
 
-        is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
+            # requesting blender to call draw()
+            self.rpr_engine.tag_redraw()
 
-        while True:
-            self.restart_render_event.wait()
+        class FinishRender(Exception):
+            pass
 
-            if self.finish_render:
-                break
+        try:
+            # SYNCING OBJECTS AND INSTANCES
+            notify_status("Starting...", "Sync")
+            time_begin = time.perf_counter()
 
-            self.iteration = 0
-            self.time_begin = 0.0
-            self.time_render = 0.0
-            if is_adaptive:
-                all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
+            # exporting objects
+            objects_len = len(depsgraph.objects)
+            for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
+                if self.is_finished:
+                    raise FinishRender
 
-            self.is_last_iteration = False
-            while not self.is_last_iteration:
-                if self.finish_render:
-                    break
+                time_sync = time.perf_counter() - time_begin
+                notify_status(f"Time {time_sync:.1f} | Object ({i}/{objects_len}): {obj.name}", "Sync")
 
-                is_adaptive_active = is_adaptive and self.iteration >= \
-                                     self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
+                object.sync(self.rpr_context, obj)
 
-                if self.restart_render_event.is_set():
-                    self.restart_render_event.clear()
-                    self.iteration = 0
-                    self.rpr_context.sync_auto_adapt_subdivision()
-                    self.rpr_context.sync_portal_lights()
-                    self.time_begin = time.perf_counter()
-                    log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
+                if len(obj.particle_systems):
+                    # export particles
+                    for particle_system in obj.particle_systems:
+                        particle.sync(self.rpr_context, particle_system, obj)
 
-                log_str = f"Render iteration: {self.iteration} / {self.render_iterations}"
-                if is_adaptive_active:
-                    log_str += f", active_pixels: {active_pixels}"
-                log(log_str)
+            # exporting instances
+            instances_len = len(depsgraph.object_instances)
+            last_instances_percent = 0
 
-                with self.lock:
-                    self.rpr_context.render(restart=(self.iteration == 0))
+            for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
+                if self.is_finished:
+                    raise FinishRender
 
-                self.iteration += 1
-                self.time_render = time.perf_counter() - self.time_begin
+                instances_percent = (i * 100) // instances_len
+                if instances_percent > last_instances_percent:
+                    time_sync = time.perf_counter() - time_begin
+                    notify_status(f"Time {time_sync:.1f} | Instances {instances_percent}%", "Sync")
+                    last_instances_percent = instances_percent
 
-                if is_adaptive_active:
-                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
-                    if active_pixels == 0:
-                        self.is_last_iteration = True
+                instance.sync(self.rpr_context, inst)
 
-                if self.render_iterations > 0:
-                    info_str = f"Time: {self.time_render:.1f} sec"\
-                               f" | Iteration: {self.iteration}/{self.render_iterations}"
-                else:
-                    info_str = f"Time: {self.time_render:.1f}/{self.render_time} sec"\
-                               f" | Iteration: {self.iteration}"
-                if is_adaptive_active:
-                    active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
-                    adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
-                    info_str += f" | Adaptive Sampling: {math.floor(adaptive_progress * 100)}%"
+            # shadow catcher
+            self.rpr_context.sync_catchers()
 
-                self.notify_status(info_str)
+            self.is_synced = True
 
-                if self.render_iterations > 0:
-                    if self.iteration >= self.render_iterations:
-                        self.is_last_iteration = True
-                else:
-                    if self.time_render >= self.render_time:
-                        self.is_last_iteration = True
-                if is_adaptive and active_pixels == 0:
-                    self.is_last_iteration = True
+            # RENDERING
+            notify_status("Starting...", "Render")
 
-                self.rpr_engine.tag_redraw()
+            is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
 
-        log("Finish render thread")
+            # Infinite cycle, which starts when scene has to be re-rendered.
+            # It waits for restart_render_event be enabled.
+            # Exit from this cycle is implemented through raising FinishRender
+            # when self.is_finished be enabled from main thread.
+            while True:
+                self.restart_render_event.wait()
+
+                if self.is_finished:
+                    raise FinishRender
+
+                # preparations to start rendering
+                iteration = 0
+                time_begin = 0.0
+                if is_adaptive:
+                    all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
+                is_last_iteration = False
+
+                # this cycle renders each iteration
+                while True:
+                    if self.is_finished:
+                        raise FinishRender
+
+                    is_adaptive_active = is_adaptive and iteration >= self.rpr_context.get_parameter(
+                        pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
+
+                    if self.restart_render_event.is_set():
+                        # clears restart_render_event, prepares to start rendering
+                        self.restart_render_event.clear()
+                        iteration = 0
+                        self.rpr_context.sync_auto_adapt_subdivision()
+                        self.rpr_context.sync_portal_lights()
+                        time_begin = time.perf_counter()
+                        log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
+
+                    # rendering
+                    with self.render_lock:
+                        if self.restart_render_event.is_set():
+                            break
+
+                        self.rpr_context.render(restart=(iteration == 0))
+
+                    # resolving
+                    with self.resolve_lock:
+                        self.rpr_context.resolve()
+
+                    self.is_rendered = True
+                    self.is_denoised = False
+                    iteration += 1
+
+                    # checking for last iteration
+                    # preparing information to show in viewport
+                    time_render = time.perf_counter() - time_begin
+                    if self.render_iterations > 0:
+                        info_str = f"Time: {time_render:.1f} sec"\
+                                   f" | Iteration: {iteration}/{self.render_iterations}"
+                    else:
+                        info_str = f"Time: {time_render:.1f}/{self.render_time} sec"\
+                                   f" | Iteration: {iteration}"
+
+                    if is_adaptive_active:
+                        active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
+                        adaptive_progress = max((all_pixels - active_pixels) / all_pixels, 0.0)
+                        info_str += f" | Adaptive Sampling: {math.floor(adaptive_progress * 100)}%"
+
+                    if self.render_iterations > 0:
+                        if iteration >= self.render_iterations:
+                            is_last_iteration = True
+                    else:
+                        if time_render >= self.render_time:
+                            is_last_iteration = True
+                    if is_adaptive and active_pixels == 0:
+                        is_last_iteration = True
+
+                    if is_last_iteration:
+                        break
+
+                    notify_status(info_str, "Render")
+
+                # notifying viewport that rendering is finished
+                if is_last_iteration:
+                    time_render = time.perf_counter() - time_begin
+
+                    if self.image_filter:
+                        notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+                                      f" | Denoising...", "Render")
+
+                        # applying denoising
+                        self.update_image_filter_inputs()
+                        self.image_filter.run()
+                        self.is_denoised = True
+
+                        time_render = time.perf_counter() - time_begin
+                        notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+                                      f" | Denoised", "Rendering Done")
+
+                    else:
+                        notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}",
+                                      "Rendering Done")
+
+        except FinishRender:
+            log("Finish by user")
+
+        except Exception as e:
+            log.error(e, 'EXCEPTION:', traceback.format_exc())
+            self.is_finished = True
+
+            # notifying viewport about error
+            notify_status(f"{e}.\nPlease see logs for more details.", "ERROR")
+
+        log("Finish _do_sync_render")
 
     def sync(self, context, depsgraph):
         log('Start sync')
@@ -305,30 +388,14 @@ class ViewportEngine(Engine):
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             viewport_limits.set_adaptive_params(self.rpr_context)
 
+        self.rpr_context.scene.set_name(scene.name)
+
         self.world_settings = self._get_world_settings(depsgraph)
         self.world_settings.export(self.rpr_context)
-
-        self.rpr_context.scene.set_name(scene.name)
 
         rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
-
-        # exporting objects
-        for obj in self.depsgraph_objects(depsgraph):
-            object.sync(self.rpr_context, obj)
-
-            if len(obj.particle_systems):
-                # export particles
-                for particle_system in obj.particle_systems:
-                    particle.sync(self.rpr_context, particle_system, obj)
-
-        # exporting instances
-        for inst in self.depsgraph_instances(depsgraph):
-            instance.sync(self.rpr_context, inst)
-
-        # shadow catcher
-        self.rpr_context.sync_catchers()
 
         # image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings()
@@ -344,11 +411,19 @@ class ViewportEngine(Engine):
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0) 
 
-        self.is_synced = True
+        self.is_finished = False
+        self.restart_render_event.clear()
+
+        self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
+        self.sync_render_thread.start()
+
         log('Finish sync')
 
     def sync_update(self, context, depsgraph):
         """ sync just the updated things """
+
+        if not self.is_synced:
+            return
 
         # get supported updates and sort by priorities
         updates = []
@@ -368,7 +443,7 @@ class ViewportEngine(Engine):
 
             self.shading_data = shading_data
 
-        with self.lock:
+        with self.render_lock:
             for update in updates:
                 obj = update.id
                 log("sync_update", obj)
@@ -482,60 +557,33 @@ class ViewportEngine(Engine):
     def draw(self, context):
         log("Draw")
 
-        with self.lock:
+        if not self.is_synced or self.is_finished:
+            return
+
+        scene = context.scene
+
+        with self.render_lock:
             viewport_settings = ViewportSettings(context)
-            scene = context.scene
 
             if viewport_settings.width * viewport_settings.height == 0:
                 return
 
             if self.viewport_settings != viewport_settings:
                 viewport_settings.export_camera(self.rpr_context.scene.camera)
+                self.viewport_settings = viewport_settings
 
                 if self.rpr_context.width != viewport_settings.width \
                         or self.rpr_context.height != viewport_settings.height:
                     self._resize(viewport_settings.width, viewport_settings.height)
+                    self.restart_render_event.set()
+                    return
 
-                self.viewport_settings = viewport_settings
                 self.restart_render_event.set()
 
-            self.rpr_context.resolve()
-            self.image_filter_ready = False
+        if not self.is_rendered:
+            return
 
-            if self.is_last_iteration:
-                self.time_render = time.perf_counter() - self.time_begin
-
-                if self.image_filter:
-                    self.notify_status(f"Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration} | Denoising...")
-                    self.rpr_engine.tag_redraw()
-
-                    self.update_image_filter_inputs()
-                    self.image_filter.run()
-                    self.image_filter_ready = True
-
-                    self.time_render = time.perf_counter() - self.time_begin
-                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration} | Denoised")
-
-                else:
-                    self.notify_status(f"Rendering Done | Time: {self.time_render:.1f} sec"
-                                       f" | Iteration: {self.iteration}")
-
-            if self.image_filter_ready:
-                im = self.image_filter.get_data()
-                self.gl_texture.set_image(im)
-                texture_id = self.gl_texture.texture_id
-
-            else:
-                if self.rpr_context.gl_interop:
-                    texture_id = self.rpr_context.get_frame_buffer().texture_id
-                else:
-                    im = self.rpr_context.get_image()
-
-                    self.gl_texture.set_image(im)
-                    texture_id = self.gl_texture.texture_id
-
+        def draw_(texture_id):
             if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
                                          'POSITION', 'NORMAL', 'TEXCOORD'):
                 # Draw without color management
@@ -554,6 +602,22 @@ class ViewportEngine(Engine):
 
                 self.rpr_engine.unbind_display_space_shader()
                 bgl.glDisable(bgl.GL_BLEND)
+
+        if self.is_denoised:
+            im = self.image_filter.get_data()
+            self.gl_texture.set_image(im)
+            draw_(self.gl_texture.texture_id)
+
+        elif self.rpr_context.gl_interop:
+            with self.resolve_lock:
+                draw_(self.rpr_context.get_frame_buffer().texture_id)
+
+        else:
+            with self.resolve_lock:
+                im = self.rpr_context.get_image()
+
+            self.gl_texture.set_image(im)
+            draw_(self.gl_texture.texture_id)
 
         log("Finish Draw")
 
@@ -658,14 +722,9 @@ class ViewportEngine(Engine):
 
     def _enable_image_filter(self, settings):
         super()._enable_image_filter(settings)
-        self.image_filter_ready = False
 
         if not self.gl_texture:
             self.gl_texture = gl.GLTexture(self.rpr_context.width, self.rpr_context.height)
-
-    def _disable_image_filter(self):
-        super()._disable_image_filter()
-        self.image_filter_ready = False
 
     def _get_world_settings(self, depsgraph):
         if self.shading_data.use_scene_world:
