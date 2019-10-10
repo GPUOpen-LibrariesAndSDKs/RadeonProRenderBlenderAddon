@@ -8,7 +8,6 @@ Other modules in this directory could be viewport, etc.
 
 import weakref
 import numpy as np
-from abc import ABCMeta, abstractmethod
 
 import bpy
 import mathutils
@@ -26,7 +25,7 @@ log = logging.Log(tag='Engine')
 ITERATED_OBJECT_TYPES = ('MESH', 'LIGHT', 'CURVE', 'FONT', 'SURFACE', 'META')
 
 
-class Engine(metaclass=ABCMeta):
+class Engine:
     """ This is the basic Engine class """
 
     TYPE = None
@@ -41,10 +40,6 @@ class Engine(metaclass=ABCMeta):
 
         # image filter
         self.image_filter = None
-
-    @abstractmethod
-    def render(self):
-        pass
 
     def apply_render_stamp(self, image, channels):
         """

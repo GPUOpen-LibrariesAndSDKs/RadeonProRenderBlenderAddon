@@ -4,8 +4,7 @@ import pyrpr
 
 
 class RPRContext:
-    """ Manager of pyrpr calls.  Also includes threading lock to make sure
-        calls aren't made simultaneously """
+    """ Manager of pyrpr calls """
 
     # Classes
     _Context = pyrpr.Context
