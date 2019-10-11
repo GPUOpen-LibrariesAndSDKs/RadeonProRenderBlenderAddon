@@ -35,17 +35,19 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
     def get_normal_node(self):
         """ Returns the normal node if displacement mode is set to bump 
             this returns a bumped normal, else returns a node_lookup N """
-        if self.node.inputs['Displacement'].is_linked and self.material.cycles.displacement_method in {"BUMP", "BOTH"}:
+        if self.material.cycles.displacement_method in {"BUMP", "BOTH"}:
             displacement_input = self.get_input_link("Displacement")
-            bump_node = self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
-                pyrpr.MATERIAL_INPUT_COLOR: displacement_input
-            })
-            return bump_node
-        else:
-            return None
+            if displacement_input:
+                return self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
+                    pyrpr.MATERIAL_INPUT_COLOR: displacement_input,
+                    pyrpr.MATERIAL_INPUT_SCALE: 1.0,
+                })
+
+        return None
 
     def export(self, input_socket_key='Surface'):
-        self.normal_node = self.get_normal_node()
+        if input_socket_key == 'Surface':
+            self.normal_node = self.get_normal_node()
 
         rpr_node = self.get_input_link(input_socket_key)
         if input_socket_key == 'Surface':
@@ -1704,10 +1706,8 @@ class ShaderNodeHueSaturation(NodeParser):
         #  work only with scalar values.
         #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
         #  conversion.
-        color = self.get_input_value('Color')
-        #if not isinstance(color.data, tuple):
-        #    return color
 
+        color = self.get_input_scalar('Color')
         fac = self.get_input_scalar('Fac')
         hue = self.get_input_scalar('Hue')
         saturation = self.get_input_scalar('Saturation')
