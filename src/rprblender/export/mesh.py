@@ -219,7 +219,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
     return True
 
 
-def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape):
+def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False):
     from rprblender.engine.viewport_engine import ViewportEngine
 
     rpr_shape.set_visibility(
@@ -229,7 +229,7 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape):
     if not rpr_shape.is_visible:
         return
 
-    obj.rpr.export_visibility(rpr_shape)
+    obj.rpr.export_visibility(rpr_shape, indirect_only)
     obj.rpr.export_subdivision(rpr_shape)
 
     if obj.rpr.portal_light:
@@ -242,13 +242,13 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape):
         rpr_shape.set_portal_light(False)
 
 
-def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = None):
+def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
-    if not mesh:
-        mesh = obj.data
+    mesh = kwargs.get("mesh", obj.data)
 
-    log("sync", mesh, obj)
+    indirect_only = kwargs.get("indirect_only", False)
+    log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
     obj_key = object.key(obj)
     data = MeshData.init_from_mesh(mesh)
@@ -272,10 +272,10 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, mesh: bpy.types.Mesh = 
     rpr_context.scene.attach(rpr_shape)
     rpr_shape.set_transform(object.get_transform(obj))
 
-    sync_visibility(rpr_context, obj, rpr_shape)
+    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
 
 
-def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
 
     mesh = obj.data
@@ -292,9 +292,11 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
         if is_updated_transform:
             rpr_shape.set_transform(object.get_transform(obj))
 
-        sync_visibility(rpr_context, obj, rpr_shape)
+        indirect_only = kwargs.get("indirect_only", False)
+
+        sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
         assign_materials(rpr_context, rpr_shape, obj)
         return True
 
-    sync(rpr_context, obj)
+    sync(rpr_context, obj, **kwargs)
     return True

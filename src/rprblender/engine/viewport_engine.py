@@ -214,7 +214,8 @@ class ViewportEngine(Engine):
                 time_sync = time.perf_counter() - time_begin
                 notify_status(f"Time {time_sync:.1f} | Object ({i}/{objects_len}): {obj.name}", "Sync")
 
-                object.sync(self.rpr_context, obj)
+                indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                object.sync(self.rpr_context, obj, indirect_only=indirect_only)
 
                 if len(obj.particle_systems):
                     # export particles
@@ -235,7 +236,8 @@ class ViewportEngine(Engine):
                     notify_status(f"Time {time_sync:.1f} | Instances {instances_percent}%", "Sync")
                     last_instances_percent = instances_percent
 
-                instance.sync(self.rpr_context, inst)
+                indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
 
             # shadow catcher
             self.rpr_context.sync_catchers()
@@ -467,8 +469,10 @@ class ViewportEngine(Engine):
                     if obj.type == 'CAMERA':
                         continue
 
+                    indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                     is_updated |= object.sync_update(self.rpr_context, obj,
-                                                     update.is_updated_geometry, update.is_updated_transform)
+                                                     update.is_updated_geometry, update.is_updated_transform,
+                                                     indirect_only=indirect_only)
                     continue
 
                 if isinstance(obj, bpy.types.World):
@@ -664,7 +668,8 @@ class ViewportEngine(Engine):
                 if rpr_obj:
                     rpr_obj.set_visibility(True)
                 else:
-                    object.sync(self.rpr_context, obj)
+                    indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                    object.sync(self.rpr_context, obj, indirect_only=indirect_only)
 
                 res = True
 
@@ -673,7 +678,8 @@ class ViewportEngine(Engine):
                 if instance.key(inst) not in object_keys_to_export:
                     continue
 
-                instance.sync(self.rpr_context, inst)
+                indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
                 res = True
 
         return res
@@ -689,12 +695,14 @@ class ViewportEngine(Engine):
                             if mat.name in obj.material_slots.keys())
         updated = False
         for obj in objects:
+            indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+
             if object.key(obj) not in self.rpr_context.objects:
-                object.sync(self.rpr_context, obj)
+                object.sync(self.rpr_context, obj, indirect_only=indirect_only)
                 updated = True
                 continue
 
-            updated |= object.sync_update(self.rpr_context, obj, False, False)
+            updated |= object.sync_update(self.rpr_context, obj, False, False, indirect_only=indirect_only)
 
         return updated
 

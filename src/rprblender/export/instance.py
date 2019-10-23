@@ -14,7 +14,7 @@ def get_transform(instance: bpy.types.DepsgraphObjectInstance):
     return np.array(instance.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
-def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance):
+def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
     """ sync the blender instance """
 
     assert instance.is_instance  # expecting: instance.is_instance == True
@@ -41,7 +41,8 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance):
         rpr_shape.set_transform(get_transform(instance))
 
         # exporting visibility from parent object
-        instance.parent.rpr.export_visibility(rpr_shape)
+        indirect_only = kwargs.get("indirect_only", False)
+        instance.parent.rpr.export_visibility(rpr_shape, indirect_only)
 
         rpr_context.scene.attach(rpr_shape)
 
