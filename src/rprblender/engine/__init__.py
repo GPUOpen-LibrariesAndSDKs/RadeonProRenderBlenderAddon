@@ -122,7 +122,8 @@ if pyhybrid.enabled:
     try:
         pyhybrid.Context.register_plugin(hybrid_path, hybrid_cache)
         log_pyrpr.info(f"Plugin is registered: plugins={pyhybrid.Context.plugins}, "
-                     f"gpu_devices={pyhybrid.Context.gpu_devices}")
+                       f"gpu_devices={pyhybrid.Context.gpu_devices}")
+        pyhybrid.enabled = bool(pyhybrid.Context.gpu_devices)
 
     except RuntimeError as e:
         pyhybrid.enabled = False

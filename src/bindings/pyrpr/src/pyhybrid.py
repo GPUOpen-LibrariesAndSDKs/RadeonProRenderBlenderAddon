@@ -62,11 +62,6 @@ SUPPORTED_AOVS = {
 
 
 class Context(pyrpr.Context):
-    plugins = None
-    cache_path = None
-    cpu_device = None
-    gpu_devices = []
-
     def set_parameter(self, key, param):
         if key == pyrpr.CONTEXT_ITERATIONS:
             self.parameters[key] = param

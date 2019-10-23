@@ -343,17 +343,26 @@ class RPR_RenderProperties(RPR_Properties):
         default=1.5,
     )
 
+    def update_render_quality(self, context):
+        if self.render_quality == 'FULL':
+            return
+
+        settings = get_user_settings()
+        settings.final_devices.cpu_state = False
+        settings.viewport_devices.cpu_state = False
+
     render_quality: EnumProperty(
         name="Render Quality",
-        description="Hybrid render quality",
+        description="RPR render quality",
         items=(
-            ('FULL', "Full", "Full"),
+            ('FULL', "Full", "Full render quality. If using CPU this is the only mode available"),
             # ('ULTRA', "Ultra", "Ultra"),
-            ('HIGH', "High", "High"),
-            ('MEDIUM', "Medium", "Medium"),
-            ('LOW', "Low", "Low"),
+            ('HIGH', "High", "High render quality"),
+            ('MEDIUM', "Medium", "Medium render quality"),
+            ('LOW', "Low", "Low render quality"),
         ),
         default='FULL',
+        update=update_render_quality
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):

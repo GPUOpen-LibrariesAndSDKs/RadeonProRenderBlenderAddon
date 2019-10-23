@@ -292,7 +292,7 @@ class Context(Object):
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
-                context = Context(create_flag)
+                context = cls(create_flag)
                 device_name = context.get_info_str(info_flag)
                 if not device_name:
                     return None
