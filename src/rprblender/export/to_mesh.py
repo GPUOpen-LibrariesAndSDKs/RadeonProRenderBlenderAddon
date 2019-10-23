@@ -10,7 +10,8 @@ from . import object, mesh
 from rprblender.utils import logging
 log = logging.Log(tag='export.to_mesh')
 
-def sync(rpr_context, obj: bpy.types.Object):
+
+def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     """ Converts object into blender's mesh and exports it as mesh """
 
     # This operation adds new mesh into bpy.data.meshes, that's why it should be removed after usage.
@@ -19,13 +20,13 @@ def sync(rpr_context, obj: bpy.types.Object):
     log("sync", obj, new_mesh)
 
     if new_mesh:
-        mesh.sync(rpr_context, obj, new_mesh)
+        mesh.sync(rpr_context, obj, mesh=new_mesh, **kwargs)
         return True
 
     return False
 
 
-def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
     """ Updates existing rpr mesh or creates a new mesh """
 
     log("sync_update", obj)
@@ -33,7 +34,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
     obj_key = object.key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
     if not rpr_shape:
-        sync(rpr_context, obj)
+        sync(rpr_context, obj, **kwargs)
         return True
 
     if is_updated_geometry:
@@ -45,4 +46,4 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         rpr_shape.set_transform(object.get_transform(obj))
         return True
 
-    return mesh.assign_materials(rpr_context, rpr_shape, obj.material_slots, None)
+    return mesh.assign_materials(rpr_context, rpr_shape, obj.material_slots)

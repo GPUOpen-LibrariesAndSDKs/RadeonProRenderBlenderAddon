@@ -95,10 +95,12 @@ class RPR_ObjectProperites(RPR_Properties):
         default=1.0,
     )
 
-    def export_visibility(self, rpr_shape):
+    def export_visibility(self, rpr_shape, indirect_only):
         """ Exports visibility settings """
 
-        rpr_shape.set_visibility_primary_only(self.visibility_in_primary_rays)
+        camera_visibility = self.visibility_in_primary_rays and not indirect_only
+
+        rpr_shape.set_visibility_primary_only(camera_visibility)
         rpr_shape.set_visibility_ex("visible.reflection", self.reflection_visibility)
         rpr_shape.set_visibility_ex("visible.reflection.glossy", self.reflection_visibility)
         rpr_shape.set_visibility_ex("visible.refraction", self.refraction_visibility)
