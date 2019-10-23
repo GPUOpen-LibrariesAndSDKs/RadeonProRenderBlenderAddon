@@ -14,13 +14,13 @@ def get_transform(obj: bpy.types.Object):
     return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
 
 
-def sync(rpr_context, obj: bpy.types.Object):
+def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     """ sync the object and any data attached """
 
-    log("sync", obj)
+    log("sync", obj, obj.type)
 
     if obj.type == 'MESH':
-        mesh.sync(rpr_context, obj)
+        mesh.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
@@ -29,7 +29,7 @@ def sync(rpr_context, obj: bpy.types.Object):
         camera.sync(rpr_context, obj)
 
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        to_mesh.sync(rpr_context, obj)
+        to_mesh.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'EMPTY':
         pass
@@ -40,7 +40,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     volume.sync(rpr_context, obj)
 
 
-def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
     """ Updates existing rpr object. Checks obj.type and calls corresponded sync_update() """
 
     log("sync_update", obj, is_updated_geometry, is_updated_transform)
@@ -51,10 +51,10 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         updated |= light.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     elif obj.type == 'MESH':
-        updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
-        updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
     elif obj.type == 'EMPTY':
         pass
