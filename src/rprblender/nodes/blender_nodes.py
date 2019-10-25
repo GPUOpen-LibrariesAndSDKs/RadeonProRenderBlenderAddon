@@ -9,7 +9,7 @@ import numpy as np
 
 import pyrpr
 
-from rprblender.export import image
+from rprblender.export import image, material
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
@@ -51,38 +51,31 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
 
         rpr_node = self.get_input_link(input_socket_key)
         if input_socket_key == 'Surface':
-            if isinstance(rpr_node, pyrpr.MaterialNode):
+            if rpr_node:
                 return rpr_node
 
-            if not rpr_node:
-                # checking if we have connected node to Volume socket
-                volume_rpr_node = self.export('Volume')
-                if volume_rpr_node:
-                    return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
-                        pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
-                    })
+            # checking if we have connected node to Volume socket
+            volume_rpr_node = material.sync(self.rpr_context, self.material, 'Volume')
+            if volume_rpr_node:
+                return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
+                    pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
+                })
 
             raise MaterialError("Incorrect Surface input socket",
-                                type(rpr_node), self.node, self.material)
+                                rpr_node, self.node, self.material)
 
         if input_socket_key == 'Displacement':
-            if not rpr_node:
-                return None
-
-            if isinstance(rpr_node, pyrpr.MaterialNode):
-                return rpr_node
-
-            raise MaterialError("Incorrect Displacement input socket",
-                                type(rpr_node), self.node, self.material)
+            return rpr_node
 
         if input_socket_key == 'Volume':
-            if isinstance(rpr_node, dict):
+            if not rpr_node or rpr_node.type == pyrpr.MATERIAL_NODE_VOLUME:
                 return rpr_node
 
             raise MaterialError("Incorrect Volume input socket",
-                                type(rpr_node), self.node, self.material)
+                                rpr_node, rpr_node.type, self.node, self.material)
 
-        return None
+        raise MaterialError("Incorrect input_socket_key",
+                            input_socket_key, self.node, self.material)
 
     def final_export(self, input_socket_key='Surface'):
         try:
@@ -93,9 +86,9 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
 
             if input_socket_key == 'Surface':
                 # creating error shader
-                rpr_node = self.rpr_context.create_material_node(pyrpr.MATERIAL_NODE_PASSTHROUGH)
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, ERROR_OUTPUT_COLOR)
-                return rpr_node
+                return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
+                    pyrpr.MATERIAL_INPUT_COLOR: ERROR_OUTPUT_COLOR
+                })
 
             return None
 
@@ -1654,10 +1647,24 @@ class ShaderNodeUVMap(NodeParser):
         })
 
 
-class ShaderNodeVolumePrincipled(BaseNodeParser):
+class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
-        # TODO: implement more correct ShaderNodeVolumePrincipled
+        color = self.get_input_value('Color')
+        density = self.get_input_value('Density')
+        anisotropy = self.get_input_value('Anisotropy')
+        absorption_color = self.get_input_value('Absorption Color')
+        emission_strength = self.get_input_value('Emission Strength')
+        emission_color = self.get_input_value('Emission Color')
 
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+            pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
+            pyrpr.MATERIAL_INPUT_ABSORBTION: absorption_color * density,
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
+            pyrpr.MATERIAL_INPUT_EMISSION: emission_color * emission_strength,
+            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+        })
+
+        # getting hetero volume data
         color = self.get_input_scalar('Color')
         density = self.get_input_scalar('Density')
         if isinstance(density, tuple):
@@ -1669,12 +1676,18 @@ class ShaderNodeVolumePrincipled(BaseNodeParser):
 
         emission_color = self.get_input_scalar('Emission Color')
 
-        return {
-            'color': color,
-            'density': density,
-            'emission': emission,
-            'emission_color': emission_color,
+        # storing hetero volume data as an additional field 'data' of MatrialNode object
+        rpr_node.data.data = {
+            'color': color.data,
+            'density': density.data,
+            'emission': emission.data,
+            'emission_color': emission_color.data,
         }
+
+        return rpr_node
+
+    def export_hybrid(self):
+        return None
 
 
 class ShaderNodeCombineHSV(NodeParser):

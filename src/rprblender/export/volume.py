@@ -20,13 +20,17 @@ def get_transform(obj: bpy.types.Object):
     return transform @ scale
 
 
+def get_smoke_modifier(obj: bpy.types.Object):
+    return next((modifier for modifier in obj.modifiers
+                 if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
+
+
 def sync(rpr_context, obj: bpy.types.Object):
     """ sync any volume attached to the object.  
         Note that volumes don't currently use motion blur """
 
     # find the smoke modifier
-    smoke_modifier = next((modifier for modifier in obj.modifiers
-                           if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
+    smoke_modifier = get_smoke_modifier(obj)
     if not smoke_modifier:
         return
 
@@ -40,12 +44,14 @@ def sync(rpr_context, obj: bpy.types.Object):
 
     # getting volume material
     volume_material = None
-    if len(obj.material_slots) and obj.material_slots[0].material:
+    if obj.material_slots and obj.material_slots[0].material:
         volume_material = material.sync(rpr_context, obj.material_slots[0].material, 'Volume')
 
-    if not isinstance(volume_material, dict):
-        log.warn("Incorrect volume material", obj)
+    if not volume_material:
+        log.warn("No volume material for smoke domain", obj)
         return
+
+    data = volume_material.data
 
     # creating rpr_volume
     volume_key = key(obj, smoke_modifier)
@@ -60,21 +66,21 @@ def sync(rpr_context, obj: bpy.types.Object):
 
     # set albedo grid
     albedo_grid = np.average(color_grid[:, :, :, :3], axis=3)
-    color = volume_material['color'][:3]
+    color = data['color'][:3]
     albedo_lookup = np.array([0.0, 0.0, 0.0, *color],
                              dtype=np.float32).reshape(-1, 3)
     rpr_volume.set_albedo_grid(np.ascontiguousarray(albedo_grid), albedo_lookup)
 
     # set density grid
     density_grid = color_grid[:, :, :, 3]
-    density = volume_material['density']
+    density = data['density']
     density_lookup = np.array([0.0, 0.0, 0.0, density, density, density],
                               dtype=np.float32).reshape(-1, 3)
     rpr_volume.set_density_grid(np.ascontiguousarray(density_grid), density_lookup)
 
-    if not math.isclose(volume_material['emission'], 0.0):
+    if not math.isclose(data['emission'], 0.0):
         # set emission grid
-        emission_color = np.array(volume_material['emission_color'][:3]) * volume_material['emission']
+        emission_color = np.array(data['emission_color'][:3]) * data['emission']
         emission_grid = np.fromiter(domain.flame_grid, dtype=np.float32).reshape(x, y, z)
         emission_lookup = np.array([0.0, 0.0, 0.0, *emission_color],
                                    dtype=np.float32).reshape(-1, 3)
