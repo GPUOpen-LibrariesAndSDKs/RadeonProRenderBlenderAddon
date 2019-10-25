@@ -8,7 +8,7 @@ import mathutils
 
 import pyrpr
 from rprblender.engine.context import RPRContext
-from . import object, material
+from . import object, material, volume
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.mesh')
@@ -200,21 +200,29 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
             if len(material_unique_indices) == 1:
                 rpr_shape.set_material(rpr_material)
             else:
-                # It is important not to remove previous unused materials here, because core could crash.
-                # They will be in memory till mesh exists.
+                # It is important not to remove previous unused materials here, because core
+                # could crash. They will be in memory till mesh exists.
                 face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
                 rpr_shape.set_material_faces(rpr_material, face_indices)
         else:
             rpr_shape.set_material(None)
 
-    # sync displacement for single material shape only
-    if len(material_slots) == 1 and material_slots[0].material and\
-        material_slots[0].material.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
-        rpr_displacement = material.sync(rpr_context, material_slots[0].material, 'Displacement')
-        rpr_shape.set_displacement_material(rpr_displacement)
-    
-    else:
-        rpr_shape.set_displacement_material(None)
+    # sync displacement and volume for shape with its first material
+    if material_slots and material_slots[0].material:
+        mat = material_slots[0].material
+
+        smoke_modifier = volume.get_smoke_modifier(obj)
+        if not smoke_modifier:
+            # setting volume material
+            rpr_volume = material.sync(rpr_context, mat, 'Volume')
+            rpr_shape.set_volume_material(rpr_volume)
+
+        # setting displacement material
+        if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
+            rpr_displacement = material.sync(rpr_context, mat, 'Displacement')
+            rpr_shape.set_displacement_material(rpr_displacement)
+        else:
+            rpr_shape.set_displacement_material(None)
 
     return True
 
