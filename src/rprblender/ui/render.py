@@ -266,6 +266,20 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Camera Exposure", slider=True)
 
 
+class RPR_RENDER_PT_film_transparency(RPR_Panel):
+    bl_label = "Film"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+
+        layout.prop(scene.render, "film_transparent", text="Transparent Background")
+
+
 class RPR_RENDER_PT_help_about(RPR_Panel):
     ''' Help/About UI panel '''
 
