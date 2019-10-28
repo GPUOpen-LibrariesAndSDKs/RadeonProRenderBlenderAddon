@@ -98,11 +98,7 @@ def init(log_fun, rprsdk_bin_path=None):
         ]
         lib_names = [
             'RadeonProRender64.dll',
-
-            'tbb-4233fe.dll',
-            'OpenImageDenoise.dll',
-            'MIOpen.dll',
-            'RadeonML-MIOpen.dll',
+            'RadeonML-DirectML.dll',
             'RadeonImageFilters64.dll',
 
             #'ProRenderGLTF.dll',
@@ -116,8 +112,6 @@ def init(log_fun, rprsdk_bin_path=None):
         lib_names = [
             'libRadeonProRender64.so',
 
-            'libMIOpen.so',
-            'libRadeonML-MIOpen.so',
             'libRadeonImageFilters64.so',
         ]
 
@@ -128,7 +122,6 @@ def init(log_fun, rprsdk_bin_path=None):
         ]
         lib_names = [
             'libRadeonProRender64.dylib',
-            'libOpenImageDenoise.0.dylib',
             'libRadeonImageFilters64.dylib'
         ]
 
