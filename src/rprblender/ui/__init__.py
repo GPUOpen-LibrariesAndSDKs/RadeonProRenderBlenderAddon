@@ -124,6 +124,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_light_clamping,
     render.RPR_RENDER_PT_motion_blur,
     render.RPR_RENDER_PT_render_stamp,
+    render.RPR_RENDER_PT_film_transparency,
     render.RPR_RENDER_PT_help_about,
     render.RPR_RENDER_PT_debug,
 

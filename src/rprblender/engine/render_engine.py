@@ -331,6 +331,8 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
+        self.rpr_context.set_transparent_background(scene.render.film_transparent)
+
         # EXPORT OBJECTS
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
