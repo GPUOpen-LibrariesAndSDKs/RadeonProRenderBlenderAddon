@@ -1,13 +1,15 @@
 from abc import ABCMeta, abstractmethod
 
 import pyrpr
+import pyhybrid
 import pyrprimagefilters as rif
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
 
 class ImageFilter(metaclass=ABCMeta):
-    def __init__(self, rpr_context, inputs, sigmas, params, width, height, frame_buffer_gl=None):
+    def __init__(self, rpr_context: pyrpr.Context, inputs, sigmas, params, width, height,
+                 frame_buffer_gl=None):
         # field for custom external settings
         self.settings = None
 
@@ -15,12 +17,10 @@ class ImageFilter(metaclass=ABCMeta):
         creation_flags = rpr_context.get_creation_flags()
         if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
             self.context = rif.ContextMetal(rpr_context)
-        elif pyrpr.is_gpu_enabled(creation_flags):
-            self.context = rif.ContextGPU(rpr_context)
-        elif creation_flags & pyrpr.CREATION_FLAGS_ENABLE_CPU:
-            self.context = rif.ContextCPU(rpr_context)
+        elif pyrpr.is_gpu_enabled(creation_flags) and not isinstance(rpr_context, pyhybrid.Context):
+            self.context = rif.ContextOpenCL(rpr_context)
         else:
-            raise ValueError("Not supported CONTEXT_CREATION_FLAGS: %d" % creation_flags)
+            self.context = rif.Context(rpr_context)
 
         self.width = width
         self.height = height

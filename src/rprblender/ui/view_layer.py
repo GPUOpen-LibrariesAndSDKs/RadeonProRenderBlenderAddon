@@ -43,6 +43,7 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
 
         col = self.layout.column()
         col.enabled = denoiser.enable
+        col.active = denoiser.is_available(context.scene)
         col.prop(denoiser, 'filter_type')
 
         if denoiser.filter_type == 'BILATERAL':
@@ -51,16 +52,20 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
             col.prop(denoiser, 'normal_sigma', slider=True)
             col.prop(denoiser, 'p_sigma', slider=True)
             col.prop(denoiser, 'trans_sigma', slider=True)
+
         elif denoiser.filter_type == 'EAW':
             col.prop(denoiser, 'color_sigma', slider=True)
             col.prop(denoiser, 'normal_sigma', slider=True)
             col.prop(denoiser, 'depth_sigma', slider=True)
             col.prop(denoiser, 'trans_sigma', slider=True)
+
         elif denoiser.filter_type == 'LWR':
             col.prop(denoiser, 'samples', slider=True)
             col.prop(denoiser, 'half_window', slider=True)
             col.prop(denoiser, 'bandwidth', slider=True)
+
         elif denoiser.filter_type == 'ML':
             col.prop(denoiser, 'ml_color_only')
+
         else:
             raise TypeError("No such filter type: %s" % denoiser.filter_type)

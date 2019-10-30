@@ -140,6 +140,9 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
             res += sum(bool(state) for state in self.gpu_states)
         return res
 
+    def has_gpu(self):
+        return hasattr(self, 'gpu_states') and any(bool(state) for state in self.gpu_states)
+
 
 class RPR_UserSettings(bpy.types.PropertyGroup):
     """
