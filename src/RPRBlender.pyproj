@@ -25,7 +25,6 @@
     <Compile Include="bindings\pyrpr\conftest.py" />
     <Compile Include="bindings\pyrpr\pyrprgltfwrap_make.py" />
     <Compile Include="bindings\pyrpr\pyrprimagefilterswrap_make.py" />
-    <Compile Include="bindings\pyrpr\pyrprsupportwrap_make.py" />
     <Compile Include="bindings\pyrpr\pyrprwrap_make.py" />
     <Compile Include="bindings\pyrpr\rpr.py" />
     <Compile Include="bindings\pyrpr\rprinfo.py" />
@@ -41,6 +40,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="rprblender\engine\animation_engine.py" />
+    <Compile Include="rprblender\engine\animation_engine_hybrid.py" />
     <Compile Include="rprblender\engine\context.py" />
     <Compile Include="rprblender\engine\context_hybrid.py" />
     <Compile Include="rprblender\engine\engine.py" />
@@ -48,6 +48,7 @@
     <Compile Include="rprblender\engine\image_filter.py" />
     <Compile Include="rprblender\engine\preview_engine.py" />
     <Compile Include="rprblender\engine\render_engine.py" />
+    <Compile Include="rprblender\engine\render_engine_hybrid.py" />
     <Compile Include="rprblender\engine\viewport_engine.py" />
     <Compile Include="rprblender\engine\viewport_engine_hybrid.py" />
     <Compile Include="rprblender\engine\__init__.py">
@@ -73,14 +74,12 @@
     <Compile Include="rprblender\nodes\blender_nodes.py" />
     <Compile Include="rprblender\nodes\node_item.py" />
     <Compile Include="rprblender\nodes\node_parser.py" />
-    <Compile Include="rprblender\nodes\output_node.py" />
     <Compile Include="rprblender\nodes\rpr_nodes.py" />
     <Compile Include="rprblender\nodes\sockets.py" />
     <Compile Include="rprblender\nodes\__init__.py" />
     <Compile Include="rprblender\operators\export_scene.py" />
     <Compile Include="rprblender\operators\light.py" />
     <Compile Include="rprblender\operators\material_library.py" />
-    <Compile Include="rprblender\operators\mesh.py" />
     <Compile Include="rprblender\operators\nodes.py" />
     <Compile Include="rprblender\operators\render.py" />
     <Compile Include="rprblender\operators\world.py" />

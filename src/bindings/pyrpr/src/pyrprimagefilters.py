@@ -112,19 +112,18 @@ def get_device_count(backend_api_type):
 class Context(Object, metaclass=ABCMeta):
     core_type_name = 'rif_context'
 
-    def __init__(self, rpr_context):
+    def __init__(self, rpr_context: pyrpr.Context):
         super().__init__()
         if not self._check_devices():
             raise RuntimeError("No compatible devices to create image filter")
         self._create(rpr_context)
 
-    @abstractmethod
-    def _check_devices(self):
-        pass
-
-    @abstractmethod
     def _create(self, rpr_context):
-        pass
+        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
+        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(cache_path), self)
+
+    def _check_devices(self):
+        return get_device_count(BACKEND_API_OPENCL) > 0
 
     def create_image(self, width, height, components=4):
         return Image(self, width, height, components)
@@ -141,17 +140,8 @@ class Context(Object, metaclass=ABCMeta):
     def create_filter(self, filter_type):
         return ImageFilter(self, filter_type)
 
-        
-class ContextCPU(Context):
-    def _create(self, rpr_context):
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(cache_path), self)
 
-    def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL) > 0
-
-
-class ContextGPU(Context):
+class ContextOpenCL(Context):
     def _create(self, rpr_context):
         cl_context = rpr_context.get_cl_context()
         cl_device = rpr_context.get_cl_device()
@@ -162,9 +152,6 @@ class ContextGPU(Context):
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageCL(self, frame_buffer)
-
-    def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL) > 0
 
 
 class ContextMetal(Context):

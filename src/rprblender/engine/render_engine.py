@@ -434,7 +434,7 @@ class RenderEngine(Engine):
         self.rpr_context.sync_catchers()
 
         # Image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene)
         image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
 
