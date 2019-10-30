@@ -29,7 +29,8 @@ class RPR_DenoiserProperties(RPR_Properties):
             ('BILATERAL', "Bilateral", "Bilateral", 0),
             ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
             ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
-            ('ML', "Machine Learning", "Machine Learning", 3)
+            ('ML', "Machine Learning", "Machine Learning. Available with GPU and "
+                                       "Full render quality", 3)
         )
 
     filter_type: EnumProperty(
@@ -41,7 +42,9 @@ class RPR_DenoiserProperties(RPR_Properties):
 
     scale_by_iterations: BoolProperty(
         name="Scale Denoising Iterations",
-        description="Scale the amount of denoiser blur by number of iterations.  This will give more blur for renders with less samples, and become sharper as more samples are added.",
+        description="Scale the amount of denoiser blur by number of iterations. "
+                    "This will give more blur for renders with less samples, "
+                    "and become sharper as more samples are added.",
         default=True
     )
 
@@ -103,9 +106,9 @@ class RPR_DenoiserProperties(RPR_Properties):
         default=True
     )
 
-    def get_settings(self):
+    def get_settings(self, scene, is_final_engine=True):
         return {
-            'enable': self.enable,
+            'enable': self.enable and self.is_available(scene, is_final_engine),
             'filter_type': self.filter_type,
             'color_sigma': self.color_sigma,
             'normal_sigma': self.normal_sigma,
@@ -118,6 +121,10 @@ class RPR_DenoiserProperties(RPR_Properties):
             'bandwidth': self.bandwidth,
             'ml_color_only': self.ml_color_only,
         }
+
+    def is_available(self, scene, is_final_engine=True):
+        return self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
+                                            and scene.rpr.render_quality == 'FULL')
 
 
 class RPR_ViewLayerProperites(RPR_Properties):

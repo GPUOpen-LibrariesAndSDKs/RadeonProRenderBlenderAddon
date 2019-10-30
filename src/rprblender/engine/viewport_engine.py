@@ -167,11 +167,14 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_lock = threading.Lock()
         self.resolve_lock = threading.Lock()
+        self.rif_lock = threading.Lock()
 
         self.is_finished = False
         self.is_synced = False
         self.is_rendered = False
         self.is_denoised = False
+        self.is_resized = False
+
         self.render_iterations = 0
         self.render_time = 0
 
@@ -182,6 +185,9 @@ class ViewportEngine(Engine):
 
         self.rpr_context = None
         self.image_filter = None
+
+    def _resolve(self):
+        self.rpr_context.resolve()
 
     def _do_sync_render(self, depsgraph):
         """
@@ -278,6 +284,16 @@ class ViewportEngine(Engine):
                         # clears restart_render_event, prepares to start rendering
                         self.restart_render_event.clear()
                         iteration = 0
+
+                        if self.is_resized:
+                            if not self.rpr_context.gl_interop:
+                                # When gl_interop is not enabled, than resize is better to do in
+                                # this thread. This is important for hybrid.
+                                with self.render_lock:
+                                    self.rpr_context.resize(self.viewport_settings.width,
+                                                            self.viewport_settings.height)
+                            self.is_resized = False
+
                         self.rpr_context.sync_auto_adapt_subdivision()
                         self.rpr_context.sync_portal_lights()
                         time_begin = time.perf_counter()
@@ -292,7 +308,7 @@ class ViewportEngine(Engine):
 
                     # resolving
                     with self.resolve_lock:
-                        self.rpr_context.resolve()
+                        self._resolve()
 
                     self.is_rendered = True
                     self.is_denoised = False
@@ -336,9 +352,11 @@ class ViewportEngine(Engine):
                                       f" | Denoising...", "Render")
 
                         # applying denoising
-                        self.update_image_filter_inputs()
-                        self.image_filter.run()
-                        self.is_denoised = True
+                        with self.rif_lock:
+                            if self.image_filter:
+                                self.update_image_filter_inputs()
+                                self.image_filter.run()
+                                self.is_denoised = True
 
                         time_render = time.perf_counter() - time_begin
                         notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
@@ -400,7 +418,7 @@ class ViewportEngine(Engine):
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
         image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
         self.setup_image_filter(image_filter_settings)
 
@@ -547,16 +565,8 @@ class ViewportEngine(Engine):
         bgl.glDeleteBuffers(2, vertex_buffer)
         bgl.glDeleteVertexArrays(1, vertex_array)
 
-    def _resize(self, width, height):
-        self.rpr_context.resize(width, height)
-
-        if self.gl_texture:
-            self.gl_texture = gl.GLTexture(width, height)
-
-        if self.image_filter:
-            image_filter_settings = self.image_filter.settings.copy()
-            image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
-            self.setup_image_filter(image_filter_settings)
+    def _get_render_image(self):
+        return self.rpr_context.get_image()
 
     def draw(self, context):
         log("Draw")
@@ -578,13 +588,27 @@ class ViewportEngine(Engine):
 
                 if self.rpr_context.width != viewport_settings.width \
                         or self.rpr_context.height != viewport_settings.height:
-                    self._resize(viewport_settings.width, viewport_settings.height)
-                    self.restart_render_event.set()
-                    return
+
+                    resolution = (viewport_settings.width, viewport_settings.height)
+
+                    if self.rpr_context.gl_interop:
+                        # GL framebuffer ahs to be recreated in this thread,
+                        # that's why we call resize here
+                        self.rpr_context.resize(*resolution)
+
+                    if self.gl_texture:
+                        self.gl_texture = gl.GLTexture(*resolution)
+
+                    if self.image_filter:
+                        image_filter_settings = self.image_filter.settings.copy()
+                        image_filter_settings['resolution'] = resolution
+                        self.setup_image_filter(image_filter_settings)
+
+                    self.is_resized = True
 
                 self.restart_render_event.set()
 
-        if not self.is_rendered:
+        if self.is_resized or not self.is_rendered:
             return
 
         def draw_(texture_id):
@@ -608,22 +632,26 @@ class ViewportEngine(Engine):
                 bgl.glDisable(bgl.GL_BLEND)
 
         if self.is_denoised:
-            im = self.image_filter.get_data()
-            self.gl_texture.set_image(im)
-            draw_(self.gl_texture.texture_id)
+            im = None
+            with self.rif_lock:
+                if self.image_filter:
+                    im = self.image_filter.get_data()
 
-        elif self.rpr_context.gl_interop:
+            if im is not None:
+                self.gl_texture.set_image(im)
+                draw_(self.gl_texture.texture_id)
+                return
+
+        if self.rpr_context.gl_interop:
             with self.resolve_lock:
                 draw_(self.rpr_context.get_frame_buffer().texture_id)
+            return
 
-        else:
-            with self.resolve_lock:
-                im = self.rpr_context.get_image()
+        with self.resolve_lock:
+            im = self._get_render_image()
 
-            self.gl_texture.set_image(im)
-            draw_(self.gl_texture.texture_id)
-
-        log("Finish Draw")
+        self.gl_texture.set_image(im)
+        draw_(self.gl_texture.texture_id)
 
     def sync_objects_collection(self, depsgraph):
         """
@@ -722,11 +750,17 @@ class ViewportEngine(Engine):
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings()
+        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
         image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
-        restart |= self.setup_image_filter(image_filter_settings)
+        if self.setup_image_filter(image_filter_settings):
+            self.is_denoised = False
+            restart = True
 
         return restart
+
+    def setup_image_filter(self, settings):
+        with self.rif_lock:
+            return super().setup_image_filter(settings)
 
     def _enable_image_filter(self, settings):
         super()._enable_image_filter(settings)
