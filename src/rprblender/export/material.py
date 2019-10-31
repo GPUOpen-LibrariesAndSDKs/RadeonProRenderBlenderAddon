@@ -25,6 +25,18 @@ def get_material_output_node(material):
                 None)
 
 
+def get_material_input_node(material, input_socket_key: str):
+    output_node = get_material_output_node(material)
+    if not output_node:
+        return None
+
+    socket_in = output_node.inputs[input_socket_key]
+    if not socket_in.is_linked or not socket_in.links[0].is_valid:
+        return None
+
+    return socket_in.links[0].from_node
+
+
 def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface', *,
          obj: bpy.types.Object = None):
     """
