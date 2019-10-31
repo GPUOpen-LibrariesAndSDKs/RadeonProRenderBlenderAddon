@@ -1,6 +1,8 @@
 from . import viewport_engine
 from . import context_hybrid
 
+from rprblender.operators.world import FOG_KEY
+
 from rprblender.utils import logging
 log = logging.Log(tag='viewport_engine_hybrid')
 
@@ -30,3 +32,10 @@ class ViewportEngine(viewport_engine.ViewportEngine):
 
     def _get_render_image(self):
         return self.render_image
+
+    def depsgraph_objects(self, depsgraph, with_camera=False):
+        for obj in super().depsgraph_objects(depsgraph, with_camera):
+            if obj.name == FOG_KEY:
+                continue
+
+            yield obj

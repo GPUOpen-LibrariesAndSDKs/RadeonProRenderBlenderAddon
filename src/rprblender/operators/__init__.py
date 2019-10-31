@@ -24,8 +24,7 @@ from . import (
 register_operators, unregister_operators = bpy.utils.register_classes_factory([
     render.RPR_RENDER_OP_open_web_page,
 
-    world.RPR_WORLD_OP_create_environment_gizmo,
-    world.RPR_WORLD_OT_convert_cycles_environment,
+    world.RPR_WORLD_OP_create_fog_object,
 
     nodes.RPR_MATERIAL_LIBRARY_OP_arrage_nodes,
     nodes.RPR_MATERIAL_OP_principled_to_uber,

@@ -1,5 +1,8 @@
 from . import RPR_Panel
 
+from rprblender.operators.world import FOG_KEY
+from rprblender.export.material import get_material_input_node
+
 
 class RPR_WORLD_PT_environment(RPR_Panel):
     bl_label = "Environment Light"
@@ -87,7 +90,7 @@ class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
         row.prop(rpr, 'background_image_type', expand=True)
 
         layout.template_ID(rpr, 'background_image', open='image.open', new='image.new')
-        
+
         row = layout.row()
         row.enabled = rpr.background_image is None
         row.prop(rpr, 'background_color')
@@ -156,3 +159,40 @@ class RPR_WORLD_PT_sun_sky(RPR_Panel):
         col = flow.column(align=True)
         col.prop(sun_sky, 'filter_color')
         col.prop(sun_sky, 'ground_color')
+
+
+class RPR_WORLD_PT_fog(RPR_Panel):
+    bl_label = "Fog"
+    bl_space_type = "PROPERTIES"
+    bl_context = 'world'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        fog_object = context.scene.objects.get(FOG_KEY)
+        if not fog_object:
+            layout.operator('rpr.op_create_fog_object')
+            return
+
+        col = layout.column()
+        col.enabled = False
+        col.prop(fog_object, 'name', text="Fog Object")
+
+        if not fog_object.data.materials:
+            layout.label(text="Incorrect fog material")
+            return
+
+        mat = fog_object.data.materials[0]
+        volume_node = get_material_input_node(mat, 'Volume')
+        if not volume_node or volume_node.bl_idname != 'ShaderNodeVolumePrincipled':
+            layout.label(text="Incorrect fog material")
+            return
+
+        col = layout.column(align=True)
+        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Color'])
+        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Density'])
+        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Anisotropy'])
+        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Absorption Color'])
