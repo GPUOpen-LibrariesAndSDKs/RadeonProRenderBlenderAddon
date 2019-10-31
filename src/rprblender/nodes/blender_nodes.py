@@ -4,6 +4,7 @@ All parser classes should:
 - override RuleNodeParser with class field: node
 """
 
+import bpy
 import math
 import numpy as np
 
@@ -1449,6 +1450,42 @@ class ShaderNodeMapping(NodeParser):
     """Creating mix of lookup and math nodes to adjust texture coordinates mapping in a way Cycles do"""
 
     def export(self):
+        """ Export node by version as it was changed in 2.81 """
+        major, minor, _ = bpy.app.version
+        if (major, minor) == (2, 80):  # running on Blender 2.80
+            return self.export_280()
+
+        return self.export_281()
+
+    def export_281(self):
+        """ Export reworked node of Blender version 2.81+ """
+        mapping = self.get_input_link('Vector')
+        if not mapping:
+            mapping = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
+            })
+
+        location = self.get_input_value('Location')
+        mapping = mapping + location
+
+        # Apply Z-axis rotation
+        rotation = self.get_input_default('Rotation')
+        angle = -rotation.data[2]  # Blender Mapping node angle is already in radians
+        if angle:
+            part1 = mapping.dot3((math.cos(angle), math.sin(angle), 0.0))
+            part2 = mapping.dot3((-math.sin(angle), math.cos(angle), 0.0))
+            mapping = part1.combine(part2, mapping)
+
+        scale = self.get_input_default('Scale')
+        if not (math.isclose(scale.data[0], 1.0) and
+                math.isclose(scale.data[1], 1.0) and
+                math.isclose(scale.data[2], 1.0)):
+            mapping *= scale
+
+        return mapping
+
+    def export_280(self):
+        """ Export node of Blender version 2.80 """
         mapping = self.get_input_link('Vector')
         if not mapping:
             mapping = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
@@ -1469,7 +1506,9 @@ class ShaderNodeMapping(NodeParser):
 
         # apply scale
         scale = tuple(self.node.scale)
-        if not (math.isclose(scale[0], 1.0) and math.isclose(scale[1], 1.0) and not (math.isclose(scale[2], 1.0))):
+        if not (math.isclose(scale[0], 1.0) and
+                math.isclose(scale[1], 1.0) and
+                math.isclose(scale[2], 1.0)):
             mapping *= scale
 
         if self.node.use_min:
