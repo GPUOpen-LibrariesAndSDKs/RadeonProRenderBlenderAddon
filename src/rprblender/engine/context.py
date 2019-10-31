@@ -456,8 +456,8 @@ class RPRContext:
     ):
         mesh = self._Mesh(
             self.context,
-            vertices, normals, [uvs],
-            vertex_indices, normal_indices, [uv_indices],
+            vertices, normals, uvs,
+            vertex_indices, normal_indices, uv_indices,
             num_face_vertices
         )
         light = self._AreaLight(mesh, self.material_system)
