@@ -134,7 +134,7 @@ class MeshData:
             main_uv_set = np.fromiter(
                 (vert.co[i] + 0.5 for vert in bm.verts for i in (0, 1)),
                 dtype=np.float32).reshape(-1, 2)
-            data.uvs = main_uv_set
+            data.uvs = [main_uv_set]
 
             # scale and rotate mesh around Y axis
             bmesh.ops.scale(bm, verts=bm.verts,
@@ -158,7 +158,7 @@ class MeshData:
             data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
             data.vertex_indices = np.fromiter((vert.vert.index for tri in loop_triangles for vert in tri), dtype=np.int32)
             data.normal_indices = data.vertex_indices
-            data.uv_indices = data.vertex_indices
+            data.uv_indices = [data.vertex_indices]
 
             data.area = sum(face.calc_area() for face in bm.faces)
 
