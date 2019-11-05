@@ -167,7 +167,6 @@ class ViewportEngine(Engine):
         self.restart_render_event = threading.Event()
         self.render_lock = threading.Lock()
         self.resolve_lock = threading.Lock()
-        self.rif_lock = threading.Lock()
 
         self.is_finished = False
         self.is_synced = False
@@ -352,7 +351,7 @@ class ViewportEngine(Engine):
                                       f" | Denoising...", "Render")
 
                         # applying denoising
-                        with self.rif_lock:
+                        with self.resolve_lock:
                             if self.image_filter:
                                 self.update_image_filter_inputs()
                                 self.image_filter.run()
@@ -633,7 +632,7 @@ class ViewportEngine(Engine):
 
         if self.is_denoised:
             im = None
-            with self.rif_lock:
+            with self.resolve_lock:
                 if self.image_filter:
                     im = self.image_filter.get_data()
 
@@ -759,7 +758,7 @@ class ViewportEngine(Engine):
         return restart
 
     def setup_image_filter(self, settings):
-        with self.rif_lock:
+        with self.resolve_lock:
             return super().setup_image_filter(settings)
 
     def _enable_image_filter(self, settings):
