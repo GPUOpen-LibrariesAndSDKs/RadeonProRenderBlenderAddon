@@ -108,7 +108,7 @@ log_pyrpr.info(f"Plugin is registered: plugins={pyrpr.Context.plugins}, "
                f"cpu_device={pyrpr.Context.cpu_device}, gpu_devices={pyrpr.Context.gpu_devices}")
 
 # enabling hybrid only for Windows now
-pyhybrid.enabled = config.enable_hybrid and utils.IS_WIN
+pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
 
 if pyhybrid.enabled:
     hybrid = {
