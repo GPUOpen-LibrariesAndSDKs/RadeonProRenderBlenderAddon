@@ -168,8 +168,16 @@ class MeshData:
             bm.free()
 
 
-def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object):
-    """ Assigns materials from material_slots to rpr_shape. It also syncs new material """
+def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object,
+                     material_override=None):
+    """
+    Assigns materials from material_slots to rpr_shape. It also syncs new material.
+    Override material is used instead of mesh-assigned if present.
+    """
+    # ViewLayer override is used for all objects in scene on that view layer
+    if material_override:
+        return assign_override_material(rpr_context, rpr_shape, obj, material_override)
+
     material_slots = obj.material_slots
     if len(material_slots) == 0:
         if rpr_shape.materials:
@@ -227,6 +235,16 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
     return True
 
 
+def assign_override_material(rpr_context, rpr_shape, obj, material_override):
+    """ Apply override material to shape if material is correct """
+    rpr_material = material.sync(rpr_context, material_override, obj=obj)
+    rpr_displacement = material.sync(rpr_context, material_override, 'Displacement')
+    rpr_shape.set_material(rpr_material)
+    rpr_shape.set_displacement_material(rpr_displacement)
+
+    return rpr_material or rpr_displacement
+
+
 def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False):
     from rprblender.engine.viewport_engine import ViewportEngine
 
@@ -254,7 +272,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
 
     mesh = kwargs.get("mesh", obj.data)
-
+    material_override = kwargs.get("material_override", None)
     indirect_only = kwargs.get("indirect_only", False)
     log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
@@ -275,7 +293,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)
 
-    assign_materials(rpr_context, rpr_shape, obj)
+    assign_materials(rpr_context, rpr_shape, obj, material_override)
 
     rpr_context.scene.attach(rpr_shape)
     rpr_shape.set_transform(object.get_transform(obj))
@@ -301,9 +319,10 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             rpr_shape.set_transform(object.get_transform(obj))
 
         indirect_only = kwargs.get("indirect_only", False)
+        material_override = kwargs.get("material_override", None)
 
         sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
-        assign_materials(rpr_context, rpr_shape, obj)
+        assign_materials(rpr_context, rpr_shape, obj, material_override)
         return True
 
     sync(rpr_context, obj, **kwargs)

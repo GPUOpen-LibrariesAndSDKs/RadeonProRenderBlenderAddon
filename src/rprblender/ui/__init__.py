@@ -157,6 +157,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     world.RPR_WORLD_PT_fog,
 
     view_layer.RPR_VIEWLAYER_PT_aovs,
+    view_layer.RPR_RENDER_PT_override,
     view_layer.RPR_RENDER_PT_denoiser,
 
     view3d.RPR_VIEW3D_MT_menu,
