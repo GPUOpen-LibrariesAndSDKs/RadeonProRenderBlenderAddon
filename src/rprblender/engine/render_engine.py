@@ -311,6 +311,7 @@ class RenderEngine(Engine):
 
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
+        material_override = view_layer.material_override
 
         self.render_layer_name = view_layer.name
         self.status_title = f"{scene.name}: {self.render_layer_name}"
@@ -340,7 +341,8 @@ class RenderEngine(Engine):
 
             # the correct collection visibility info is stored in original object
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
-            object.sync(self.rpr_context, obj, indirect_only=indirect_only)
+            object.sync(self.rpr_context, obj,
+                        indirect_only=indirect_only, material_override=material_override)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -358,7 +360,8 @@ class RenderEngine(Engine):
                 last_instances_percent = instances_percent
 
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
-            instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
+            instance.sync(self.rpr_context, inst,
+                          indirect_only=indirect_only, material_override=material_override)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
