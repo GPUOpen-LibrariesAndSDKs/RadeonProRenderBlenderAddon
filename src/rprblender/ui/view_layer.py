@@ -69,3 +69,19 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
 
         else:
             raise TypeError("No such filter type: %s" % denoiser.filter_type)
+
+
+class RPR_RENDER_PT_override(RPR_Panel):
+    """ Display View Layer material Override from Cycles """
+    bl_label = "Override"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "view_layer"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        view_layer = context.view_layer
+
+        layout.prop(view_layer, "material_override")

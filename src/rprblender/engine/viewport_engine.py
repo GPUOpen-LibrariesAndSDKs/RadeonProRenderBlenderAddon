@@ -13,6 +13,7 @@ from bpy_extras import view3d_utils
 import pyrpr
 from .engine import Engine
 from rprblender.export import camera, material, world, object, instance, particle
+from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
 from rprblender import utils
 from rprblender import config
@@ -150,6 +151,19 @@ class ShadingData:
             self.studio_light_background_alpha = shading.studiolight_background_alpha
 
 
+@dataclass(init=False, eq=True)
+class ViewLayerSettings:
+    """
+    Comparable dataclass which holds active view layer settings for ViewportEngine:
+    - override material
+    """
+
+    material_override: bpy.types.Material = None
+
+    def __init__(self, view_layer: bpy.types.ViewLayer):
+        self.material_override = view_layer.material_override
+
+
 class ViewportEngine(Engine):
     """ Viewport render engine """
 
@@ -162,6 +176,7 @@ class ViewportEngine(Engine):
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
         self.shading_data: ShadingData = None
+        self.view_layer_data: ViewLayerSettings = None
 
         self.sync_render_thread: threading.Thread = None
         self.restart_render_event = threading.Event()
@@ -211,6 +226,7 @@ class ViewportEngine(Engine):
             time_begin = time.perf_counter()
 
             # exporting objects
+            material_override = depsgraph.view_layer.material_override
             objects_len = len(depsgraph.objects)
             for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
                 if self.is_finished:
@@ -220,7 +236,8 @@ class ViewportEngine(Engine):
                 notify_status(f"Time {time_sync:.1f} | Object ({i}/{objects_len}): {obj.name}", "Sync")
 
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                object.sync(self.rpr_context, obj, indirect_only=indirect_only)
+                object.sync(self.rpr_context, obj,
+                            indirect_only=indirect_only, material_override=material_override)
 
                 if len(obj.particle_systems):
                     # export particles
@@ -242,7 +259,8 @@ class ViewportEngine(Engine):
                     last_instances_percent = instances_percent
 
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
+                instance.sync(self.rpr_context, inst,
+                              indirect_only=indirect_only, material_override=material_override)
 
             # shadow catcher
             self.rpr_context.sync_catchers()
@@ -379,7 +397,7 @@ class ViewportEngine(Engine):
 
     def sync(self, context, depsgraph):
         log('Start sync')
-    
+
         scene = depsgraph.scene
         viewport_limits = scene.rpr.viewport_limits
         view_layer = depsgraph.view_layer
@@ -388,6 +406,7 @@ class ViewportEngine(Engine):
                                    use_gl_interop=config.use_gl_interop)
 
         self.shading_data = ShadingData(context)
+        self.view_layer_data = ViewLayerSettings(view_layer)
 
         # getting initial render resolution
         viewport_settings = ViewportSettings(context)
@@ -399,7 +418,7 @@ class ViewportEngine(Engine):
         self.rpr_context.resize(width, height)
         if not self.rpr_context.gl_interop:
             self.gl_texture = gl.GLTexture(width, height)
-        
+
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
         if viewport_limits.noise_threshold > 0.0 and scene.rpr.get_devices(False).count() == 1:
@@ -428,7 +447,7 @@ class ViewportEngine(Engine):
         scene.rpr.export_ray_depth(self.rpr_context)
         scene.rpr.export_pixel_filter(self.rpr_context)
 
-        self.render_iterations, self.render_time = (viewport_limits.max_samples, 0) 
+        self.render_iterations, self.render_time = (viewport_limits.max_samples, 0)
 
         self.is_finished = False
         self.restart_render_event.clear()
@@ -452,6 +471,8 @@ class ViewportEngine(Engine):
         sync_collection = False
         sync_world = False
         is_updated = False
+
+        material_override = depsgraph.view_layer.material_override
 
         shading_data = ShadingData(context)
         if self.shading_data != shading_data:
@@ -489,7 +510,8 @@ class ViewportEngine(Engine):
                     indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                     is_updated |= object.sync_update(self.rpr_context, obj,
                                                      update.is_updated_geometry, update.is_updated_transform,
-                                                     indirect_only=indirect_only)
+                                                     indirect_only=indirect_only,
+                                                     material_override=material_override)
                     continue
 
                 if isinstance(obj, bpy.types.World):
@@ -657,6 +679,9 @@ class ViewportEngine(Engine):
         Removes objects which are not present in depsgraph anymore.
         Adds objects which are not present in rpr_context but existed in depsgraph
         """
+        res = False
+        view_layer_data = ViewLayerSettings(depsgraph.view_layer)
+        material_override = view_layer_data.material_override
 
         # set of depsgraph object keys
         depsgraph_keys = set.union(
@@ -674,7 +699,6 @@ class ViewportEngine(Engine):
         # sets of objects keys to export into rpr
         object_keys_to_export = depsgraph_keys - rpr_object_keys
 
-        res = False
         if object_keys_to_remove:
             log("Object keys to remove", object_keys_to_remove)
             for obj_key in object_keys_to_remove:
@@ -685,41 +709,99 @@ class ViewportEngine(Engine):
         if object_keys_to_export:
             log("Object keys to add", object_keys_to_export)
 
-            # exporting objects
-            for obj in self.depsgraph_objects(depsgraph):
-                obj_key = object.key(obj)
-                if obj_key not in object_keys_to_export:
-                    continue
+            res |= self.sync_collection_objects(depsgraph, object_keys_to_export,
+                                                material_override)
 
-                rpr_obj = self.rpr_context.objects.get(obj_key, None)
-                if rpr_obj:
-                    rpr_obj.set_visibility(True)
-                else:
-                    indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                    object.sync(self.rpr_context, obj, indirect_only=indirect_only)
+            res |= self.sync_collection_instances(depsgraph, object_keys_to_export,
+                                                  material_override)
+
+        # update/remove material override on rest of scene object
+        if view_layer_data != self.view_layer_data:
+            # update/remove material override on all other objects
+            self.view_layer_data = view_layer_data
+            res = True
+
+            rpr_mesh_keys = set(key for key, obj in self.rpr_context.objects.items()
+                                if isinstance(obj, pyrpr.Mesh) and obj.is_visible)
+            unchanged_meshes_keys = tuple(e for e in depsgraph_keys if e in rpr_mesh_keys)
+            log("Object keys to update material override", unchanged_meshes_keys)
+            self.sync_collection_objects(depsgraph, unchanged_meshes_keys,
+                                         material_override)
+
+            self.sync_collection_instances(depsgraph, unchanged_meshes_keys,
+                                           material_override)
+
+        return res
+
+    def sync_collection_objects(self, depsgraph, object_keys_to_export, material_override):
+        """ Export collections objects """
+        res = False
+
+        for obj in self.depsgraph_objects(depsgraph):
+            obj_key = object.key(obj)
+            if obj_key not in object_keys_to_export:
+                continue
+
+            rpr_obj = self.rpr_context.objects.get(obj_key, None)
+            if rpr_obj:
+                rpr_obj.set_visibility(True)
+
+                if not material_override:
+                    rpr_obj.set_material(None)
+                assign_materials(self.rpr_context, rpr_obj, obj, material_override)
+                res = True
+            else:
+                indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                object.sync(self.rpr_context, obj,
+                            indirect_only=indirect_only, material_override=material_override)
 
                 res = True
+        return res
 
-            # exporting instances
-            for inst in self.depsgraph_instances(depsgraph):
-                if instance.key(inst) not in object_keys_to_export:
-                    continue
+    def sync_collection_instances(self, depsgraph, object_keys_to_export, material_override):
+        """ Export collections instances """
+        res = False
 
+        for inst in self.depsgraph_instances(depsgraph):
+            instance_key = instance.key(inst)
+            if instance_key not in object_keys_to_export:
+                continue
+
+            if not material_override:
+                inst_obj = self.rpr_context.objects.get(instance_key, None)
+                if inst_obj:
+                    if len(inst.object.material_slots) == 0:
+                        # remove override from instance without assigned materials
+                        inst_obj.set_material(None)
+                    assign_materials(self.rpr_context, inst_obj, inst.object)
+                    res = True
+            else:
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
+                instance.sync(self.rpr_context, inst,
+                              indirect_only=indirect_only, material_override=material_override)
                 res = True
-
         return res
 
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
-        rpr_material = self.rpr_context.materials.get(material.key(mat), None)
-        rpr_displacement = self.rpr_context.materials.get(material.key(mat, 'Displacement'), None)
+        material_override = depsgraph.view_layer.material_override
+
+        if material_override:
+            rpr_material = self.rpr_context.materials.get(material.key(material_override))
+            rpr_displacement = self.rpr_context.materials.get(material.key(material_override, 'Displacement'), None)
+        else:
+            rpr_material = self.rpr_context.materials.get(material.key(mat), None)
+            rpr_displacement = self.rpr_context.materials.get(material.key(mat, 'Displacement'), None)
+
         if not rpr_material and not rpr_displacement:
             return False
 
-        objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
+        if material_override and material_override.name == mat.name:
+            objects = self.depsgraph_objects(depsgraph)
+        else:
+            objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
                             if mat.name in obj.material_slots.keys())
+
         updated = False
         for obj in objects:
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
@@ -729,12 +811,13 @@ class ViewportEngine(Engine):
                 updated = True
                 continue
 
-            updated |= object.sync_update(self.rpr_context, obj, False, False, indirect_only=indirect_only)
+            updated |= object.sync_update(self.rpr_context, obj, False, False,
+                                          indirect_only=indirect_only, material_override=material_override)
 
         return updated
 
     def update_render(self, scene: bpy.types.Scene, view_layer: bpy.types.ViewLayer):
-        ''' update settings if changed while live returns True if restart needed'''
+        ''' update settings if changed while live returns True if restart needed '''
         restart = scene.rpr.export_render_mode(self.rpr_context)
         restart |= scene.rpr.export_ray_depth(self.rpr_context)
         restart |= scene.rpr.export_pixel_filter(self.rpr_context)
