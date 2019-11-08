@@ -98,10 +98,7 @@ def init(log_fun, rprsdk_bin_path=None):
         ]
         lib_names = [
             'RadeonProRender64.dll',
-            'RadeonML-DirectML.dll',
             'RadeonImageFilters64.dll',
-
-            #'ProRenderGLTF.dll',
         ]
 
     elif platform.system() == "Linux":
@@ -111,7 +108,6 @@ def init(log_fun, rprsdk_bin_path=None):
         ]
         lib_names = [
             'libRadeonProRender64.so',
-
             'libRadeonImageFilters64.so',
         ]
 
