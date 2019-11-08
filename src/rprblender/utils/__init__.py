@@ -37,14 +37,7 @@ def get_cpu_threads_number():
 
 def core_ver_str():
     import pyrpr
-    if hasattr(pyrpr, 'VERSION_MAJOR_MINOR_REVISION'):  # core 1.33.5+
-        return "{}.{}.{}".format(
-            pyrpr.VERSION_MAJOR, pyrpr.VERSION_MINOR, pyrpr.VERSION_REVISION)
-    else:  # core 1.334 or earlier
-        # TODO: remove when core 1.33.5 became master
-        mj = (pyrpr.API_VERSION & 0xFFFF00000) >> 28
-        mn = (pyrpr.API_VERSION & 0xFFFFF) >> 8
-        return "%x.%x" % (mj, mn)
+    return f"{pyrpr.VERSION_MAJOR}.{pyrpr.VERSION_MINOR}.{pyrpr.VERSION_REVISION}"
 
 
 def tile_iterator(tile_order, width, height, tile_width, tile_height):
