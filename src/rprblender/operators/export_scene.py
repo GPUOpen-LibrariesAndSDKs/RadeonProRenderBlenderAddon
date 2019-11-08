@@ -10,6 +10,7 @@ from bpy_extras.io_utils import ExportHelper
 from rprblender.engine.export_engine import ExportEngine
 import os.path
 import json
+from rprblender.utils.user_settings import get_user_settings
 
 from . import RPR_Operator
 
@@ -173,6 +174,19 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
                 aov_name = aov_map[aov['rpr']]
                 aovs[aov_name] = output_base + '.' + aov_name + '.png'
         data['aovs'] = aovs
+
+        # set devices based on final render
+        device_settings = {}
+        devices = get_user_settings().final_devices
+        
+        device_settings['cpu'] = int(devices.cpu_state)
+        device_settings['threads'] = devices.cpu_threads
+        
+        if hasattr(devices, 'gpu_states'):
+            for i, gpu_state in enumerate(devices.gpu_states):
+                device_settings[f'gpu{i}'] = int(gpu_state)
+
+        data['context'] = device_settings
 
         with open(filepath, 'w') as outfile:
             json.dump(data, outfile)
