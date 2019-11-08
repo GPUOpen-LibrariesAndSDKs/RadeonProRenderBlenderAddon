@@ -59,7 +59,7 @@ class RPRContext(context.RPRContext):
     def create_material_node(self, material_type):
         if material_type not in pyhybrid.SUPPORTED_MATERIAL_NODES:
             log.warn("Unsupported RPRContext.create_material_node", material_type)
-            return pyhybrid.EmptyMaterialNode()
+            return pyhybrid.EmptyMaterialNode(material_type)
 
         return super().create_material_node(material_type)
 
