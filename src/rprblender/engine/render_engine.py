@@ -52,8 +52,8 @@ class RenderEngine(Engine):
         athena_data = {}
 
         time_begin = time.perf_counter()
-        athena_data['start_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-        athena_data['end_status'] = "successfully completed"
+        athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['End Status'] = "successful"
 
         self.current_sample = 0
         is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
@@ -62,7 +62,7 @@ class RenderEngine(Engine):
 
         while True:
             if self.rpr_engine.test_break():
-                athena_data['end_status'] = "killed by user"
+                athena_data['End Status'] = "cancelled"
                 break
 
             self.current_render_time = time.perf_counter() - time_begin
@@ -128,11 +128,8 @@ class RenderEngine(Engine):
                                       layer_name=self.render_layer_name,
                                       apply_image_filter=True)
 
-        athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-        # additional parameters (not in parameters list)
-        athena_data['render_samples'] = self.current_sample
-        athena_data['render_update_samples'] = self.render_update_samples
+        athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['Samples'] = self.current_sample
 
         self.athena_send(athena_data)
 
@@ -146,12 +143,13 @@ class RenderEngine(Engine):
         rpr_camera = self.rpr_context.scene.camera
 
         time_begin = time.perf_counter()
-        athena_data['start_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-        athena_data['end_status'] = "successfully completed"
+        athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['End Status'] = "successful"
+        progress = 0.0
 
         for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
-                athena_data['end_status'] = "killed by user"
+                athena_data['End Status'] = "cancelled"
                 break
 
             log(f"Render tile {tile_index} / {tiles_number}: [{tile_pos}, {tile_size}]")
@@ -249,16 +247,8 @@ class RenderEngine(Engine):
 
             self.rpr_engine.end_result(result)
 
-        athena_data['stop_time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-
-        # additional parameters (not in parameters list)
-        athena_data['render_samples'] = self.render_samples
-        athena_data['render_update_samples'] = self.render_update_samples
-        athena_data['tile_resolution'] = self.tile_size
-        athena_data['tiles_number'] = tiles_number
-        athena_data['tile_order'] = self.tile_order
-        athena_data['rendered_tiles_number'] = tile_index + 1
-
+        athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['Samples'] = round(self.render_samples * progress)
         self.athena_send(athena_data)
 
     def render(self):
@@ -466,37 +456,42 @@ class RenderEngine(Engine):
 
         devices = settings.final_devices
 
-        # data['CPU_util_avg'] = ""
-        # data['CPU_util_max'] = ""
-        # data['GPU_util_avg'] = ""
-        # data['GPU_util_max'] = ""
-
-        data['CPU_enabled'] = devices.cpu_state
+        data['CPU Enabled'] = devices.cpu_state
         if hasattr(devices, 'gpu_states'):
             for i, gpu_state in enumerate(devices.gpu_states):
-                data[f'GPU{i}_enabled'] = gpu_state
+                data[f'GPU{i} Enabled'] = gpu_state
 
-        # data['max_memory_util'] = ""
-        data['render_resolution'] = (self.width, self.height)
-        # data['num_polygons'] = ""
-        data['num_lights'] = sum(1 for o in self.rpr_context.scene.objects
+        data['Resolution'] = (self.width, self.height)
+        quality = self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
+        data['Quality'] = {-1: "high",
+                           pyrpr.RENDER_QUALITY_HIGH: "high",
+                           pyrpr.RENDER_QUALITY_MEDIUM: "medium",
+                           pyrpr.RENDER_QUALITY_LOW: "low"}[quality]
+        data['Number Lights'] = sum(1 for o in self.rpr_context.scene.objects
                                  if isinstance(o, pyrpr.Light))
-        # data['textures_used_MB'] = ""
-        # data['geometry_size_MB'] = ""
-        # data['geometry_size_after_subdivision_MB'] = ""
-        data['AOVs_enabled'] = tuple(self.rpr_context.frame_buffers_aovs.keys())
-        data['num_rays_cast'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_RECURSION)
-        data['num_shadow_rays'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW)
-        data['num_diffuse_spec_reflec_refrac_rays'] = \
+        data['AOVs Enabled'] = tuple(
+            f'RPR_{v}' for v in dir(pyrpr) if v.startswith('AOV_')
+            and getattr(pyrpr, v) in self.rpr_context.frame_buffers_aovs
+        )
+
+        data['Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_RECURSION)
+        data['Shadow Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW)
+        data['Reflection Ray Depth'] = \
             self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE) + \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY)
+        data['Refraction Ray Depth'] = \
             self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION) + \
             self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION)
 
-        # data['time_building_bvh'] = ""
-        # data['time_exec_shaders'] = ""
-        # data['time_compiling_shaders'] = ""
-        # data['time_tracing_rays'] = ""
+        data['Num Polygons'] = sum(
+            (o.mesh.poly_count if isinstance(o, pyrpr.Instance) else o.poly_count)
+            for o in self.rpr_context.objects.values() if isinstance(o, pyrpr.Shape)
+        )
+        data['Num Textures'] = len(self.rpr_context.images)
+        data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
+                                // (1024 * 1024)  # in MB
+
+        data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
 
         # sending data
         from rprblender.utils import athena

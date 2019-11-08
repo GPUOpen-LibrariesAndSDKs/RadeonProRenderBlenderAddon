@@ -700,6 +700,7 @@ class Mesh(Shape):
                  vertex_indices, normal_indices, uv_indices: List[np.array],
                  num_face_vertices):
         super().__init__(context)
+        self.poly_count = len(num_face_vertices)
 
         if len(uvs) > 1:
             # several UVs set present
@@ -1212,12 +1213,22 @@ class Image(Object):
     def __init__(self, context):
         super().__init__()
         self.context = context
+        self._size_byte = None
 
     def set_gamma(self, gamma):
         ImageSetGamma(self, gamma)
 
     def set_wrap(self, wrap_type):
         ImageSetWrap(self, wrap_type)
+
+    @property
+    def size_byte(self):
+        if self._size_byte is None:
+            ptr = ffi.new('long long *', 0)
+            ImageGetInfo(self, IMAGE_DATA_SIZEBYTE, 8, ptr, ffi.NULL)
+            self._size_byte = ptr[0]
+
+        return self._size_byte
 
 
 class ImageData(Image):
