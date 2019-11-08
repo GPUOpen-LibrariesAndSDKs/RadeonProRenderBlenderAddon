@@ -705,12 +705,12 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             subsurface_color = self.get_input_value('Subsurface Color')
 
         metallic = self.get_input_value('Metallic')
+        specular = self.get_input_value('Specular')
         roughness = self.get_input_value('Roughness')
 
-        specular = self.get_input_value('Specular')
         anisotropic = None
         anisotropic_rotation = None
-        if enabled(specular):
+        if enabled(metallic):
             # TODO: use Specular Tint input
             anisotropic = self.get_input_value('Anisotropic')
             if enabled(anisotropic):
@@ -748,34 +748,31 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # Creating uber material and set inputs to it
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
 
-        diffuse = 1.0 - transmission
+        # looks like diffuse should be always enabled, regarding cycles
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR, base_color)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, 0.0)
 
-        if enabled(diffuse):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR, base_color)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 1.0)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS, roughness)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, 0.0)
+        if enabled(normal):
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL, normal)
+
+        if enabled(specular) and not enabled(metallic):
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, specular)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
 
             if enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL, normal)
-        else:
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 0.0)
+                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
 
-        # Metallic -> Reflection (always on unless specular is set to non-physical 0.0)
-        if enabled(specular):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, specular)
-            # TODO: check, probably need to multiply specular by 2
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
 
-            # mode 'metal' unless transmission is set and metallic is 0
-            if enabled(transmission) and not enabled(metallic):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
-                                   pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
-            else:
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
-                                   pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_METALNESS, metallic)
-
+        elif enabled(metallic):
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, 1.0)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_METALNESS, metallic)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
 
@@ -813,8 +810,8 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_WEIGHT, subsurface)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_COLOR, subsurface_color)
 
-            # check for 0 channel value(for Cycles it means "light shall not pass" unlike "pass it all" of RPR)
-            # that's why we check it with small value like 0.0001
+            # check for 0 channel value(for Cycles it means "light shall not pass"
+            # unlike "pass it all" of RPR) that's why we check it with small value like 0.0001
             subsurface_radius = subsurface_radius.max(SSS_MIN_RADIUS)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_DISTANCE, subsurface_radius)
             # TODO: check with radius_scale = bpy.context.scene.unit_settings.scale_length * 0.1
@@ -826,9 +823,12 @@ class ShaderNodeBsdfPrincipled(NodeParser):
 
         # Emission -> Emission
         if enabled(emission):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_WEIGHT, 1.0)
+            # more related formula for emission weight:
+            emission_weight = emission.average_xyz().min(1.0) * 0.5 + 0.5
+
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_WEIGHT, emission_weight)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_COLOR, emission)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE, 2)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE, 2)  # double sided
 
         # Alpha -> Transparency
         if enabled(transparency):
