@@ -8,6 +8,7 @@ import locale
 from pathlib import Path
 import base64
 
+import bpy
 import pyrpr
 from rprblender import utils
 from rprblender import bl_info
@@ -73,68 +74,24 @@ def send_data(data: dict):
         return
 
     # System/Platform Information (excluding GPU information)
-    data['OS_name'] = platform.system()
-    data['OS_version'] = platform.version()
-    data['OS_arch'] = platform.architecture()[0]
-    # data['OS_KERNEL_DLL_ver'] = ""
-    data['OS_lang'], data['OS_locale'] = get_system_language()
-    data['OS_tz'] = time.strftime("%z", time.gmtime())
-    # data['CPU_ID'] = ""
+    data['OS Name'] = platform.system()
+    data['OS Version'] = platform.version()
+    data['OS Arch'] = platform.architecture()[0]
+    data['OS Lang'], data['OS Locale'] = get_system_language()
+    data['OS TZ'] = time.strftime("%z", time.gmtime())
 
     if pyrpr.Context.cpu_device:
-        data['CPU_name'] = pyrpr.Context.cpu_device['name']
-        data['CPU_CORES_L'] = utils.get_cpu_threads_number()
-    # data['CPU_CORES_P'] = ""
-    # data['CPU_FREQ_MAX'] = ""
-    # data['SYS_MEM'] = ""
-    # data['SYS_MEM_CHAN'] = ""
-    # data['SYS_TYPE'] = ""
-    # data['BIOS_VERSION'] = ""
-    # data['BIOS_DATE'] = ""
-    # data['BIOS_MANUFACTURER'] = ""
-    # data['MOTHERBOARD_MANUFACTURER'] = ""
-    # data['MOTHERBOARD_PRODUCT'] = ""
-    # data['MOTHERBOARD_INSTALLDATE'] = ""
+        data['CPU Name'] = pyrpr.Context.cpu_device['name']
+        data['CPU Cores'] = utils.get_cpu_threads_number()
 
-    # GPU and Display Information
-    # data['GPU_ID'] = ""
-    data['GPU_name'] = pyrpr.Context.gpu_devices[0]['name'] if pyrpr.Context.gpu_devices else ""
-    # data['DID'] = ""
-    # data['VID'] = ""
-    # data['Graphics_Bfg'] = ""
-    # data['DRV_ver'] = ""
-    # data['2D_DRV_ver'] = ""
-    # data['D3D_ver'] = ""
-    # data['OGL_ver'] = ""
-    # data['OCL_ver'] = ""
-    # data['MTL_ver'] = ""
-    # data['MTL_API_ver'] = ""
-    # data['AUD_DRV_ver'] = ""
-    # data['CARD_REV_ID'] = ""
-    # data['BUS_TYPE'] = ""
-    # data['BUS_SETTINGS'] = ""
-    # data['BIOS_ver'] = ""
-    # data['BIOS_pn'] = ""
-    # data['BIOS_date'] = ""
-    # data['GPU_MEM_SIZE'] = ""
-    # data['GPU_MEM_TYPE'] = ""
-    # data['GPU_MEM_CLOCK'] = ""
-    # data['GPU_CORE_CLK'] = ""
-    # data['GPU_MEM_BW'] = ""
-    # data['NUM_DISPLAYS'] = ""
-    # data['VSR'] = ""
-    # data['EYEFIN'] = ""
-    # data['PDR'] = ""
-    # data['PDS'] = ""
-    # data['PDC'] = ""
-    # data['PDM'] = ""
-    # data['Freesync'] = ""
+    for i, gpu in enumerate(pyrpr.Context.gpu_devices):
+        data[f'GPU{i} Name'] = gpu['name']
 
     # ProRender Job/Workload Information
-    # data['ProRender_installdate'] = ""
-    data['ProRender_core_ver'] = utils.core_ver_str()
-    data['ProRender_plugin_ver'] = "%d.%d.%d" % bl_info['version']
-    data['Host_App'] = "Blender"
+    data['ProRender Core Version'] = utils.core_ver_str()
+    data['ProRender Plugin Version'] = "%d.%d.%d" % bl_info['version']
+    data['Host App'] = "Blender"
+    data['App Version'] = ".".join(str(v) for v in bpy.app.version)
 
     log("send_data", data)
     thread = threading.Thread(target=_send_data_thread, args=(data,))

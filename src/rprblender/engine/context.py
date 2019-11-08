@@ -531,8 +531,8 @@ class RPRContext:
         self.context.set_parameter(key, param)
         return True
 
-    def get_parameter(self, name):
-        return self.context.parameters[name]
+    def get_parameter(self, name, default=None):
+        return self.context.parameters.get(name, default)
 
     def get_info(self, context_info: int, value_type: type):
         if value_type is int:
