@@ -96,9 +96,10 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
-        limits = context.scene.rpr.limits
+        rpr = context.scene.rpr
+        limits = rpr.limits
 
-        enable_adaptive = context.scene.rpr.get_devices(True).count() == 1
+        enable_adaptive = rpr.get_devices(True).count() == 1
 
         col = self.layout.column(align=True)
         row = col.row()
@@ -111,17 +112,18 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'update_samples')
 
         col = self.layout.column(align=True)
-        col.enabled = not context.scene.rpr.use_tile_render
+        col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.prop(context.scene.rpr, 'use_tile_render')
+        col.enabled = rpr.render_quality == 'FULL'
+        col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
-        col.enabled = context.scene.rpr.use_tile_render
-        col.prop(context.scene.rpr, 'tile_x')
-        col.prop(context.scene.rpr, 'tile_y')
-        col.prop(context.scene.rpr, 'tile_order')
+        col.enabled = rpr.is_tile_render_available
+        col.prop(rpr, 'tile_x')
+        col.prop(rpr, 'tile_y')
+        col.prop(rpr, 'tile_order')
 
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):

@@ -214,7 +214,7 @@ class RPR_RenderProperties(RPR_Properties):
     # RENDER TILES
     use_tile_render: BoolProperty(
         name="Tiled rendering",
-        description="Use tiles to do final rendering",
+        description="Use tiles to do final rendering. Available with Full render quality only",
         default=False,
     )
     tile_x: IntProperty(
@@ -236,6 +236,10 @@ class RPR_RenderProperties(RPR_Properties):
         ),
         default='CENTER_SPIRAL'
     )
+
+    @property
+    def is_tile_render_available(self):
+        return self.use_tile_render and self.render_quality == 'FULL'
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(

@@ -181,6 +181,7 @@ class MaterialNode(pyrpr.MaterialNode):
                 pyrpr.UBER_MATERIAL_INPUT_COATING_THICKNESS,
                 pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ABSORPTION_DISTANCE,
                 pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ABSORPTION_COLOR,
+                pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE,
         ):
             log_unsupported(f"MaterialNode.set_input({name})", self.type)
             return
@@ -201,8 +202,8 @@ class MaterialNode(pyrpr.MaterialNode):
 
 
 class EmptyMaterialNode(MaterialNode):
-    def __init__(self):
-        pass
+    def __init__(self, material_type):
+        self.type = material_type
 
     def delete(self):
         pass

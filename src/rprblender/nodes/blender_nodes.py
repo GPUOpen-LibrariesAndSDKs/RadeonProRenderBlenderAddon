@@ -14,6 +14,7 @@ from rprblender.export import image, material
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
+from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -58,9 +59,15 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             # checking if we have connected node to Volume socket
             volume_rpr_node = material.sync(self.rpr_context, self.material, 'Volume')
             if volume_rpr_node:
-                return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
-                    pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
-                })
+                if isinstance(self.rpr_context, RPRContextHybrid):
+                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
+                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 0.0,
+                        pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY: (1.0, 1.0, 1.0),
+                    })
+                else:
+                    return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
+                        pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
+                    })
 
             raise MaterialError("Incorrect Surface input socket",
                                 rpr_node, self.node, self.material)
@@ -87,9 +94,14 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
 
             if input_socket_key == 'Surface':
                 # creating error shader
-                return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
-                    pyrpr.MATERIAL_INPUT_COLOR: ERROR_OUTPUT_COLOR
-                })
+                if isinstance(self.rpr_context, RPRContextHybrid):
+                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
+                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: ERROR_OUTPUT_COLOR
+                    })
+                else:
+                    return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
+                        pyrpr.MATERIAL_INPUT_COLOR: ERROR_OUTPUT_COLOR
+                    })
 
             return None
 
@@ -1726,7 +1738,7 @@ class ShaderNodeVolumePrincipled(NodeParser):
         return rpr_node
 
     def export_hybrid(self):
-        return None
+        return self.create_node(pyrpr.MATERIAL_NODE_VOLUME)
 
 
 class ShaderNodeCombineHSV(NodeParser):
