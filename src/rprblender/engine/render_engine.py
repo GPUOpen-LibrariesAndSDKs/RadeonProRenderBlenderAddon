@@ -462,8 +462,8 @@ class RenderEngine(Engine):
                 data[f'GPU{i} Enabled'] = gpu_state
 
         data['Resolution'] = (self.width, self.height)
-        quality = self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
-        data['Quality'] = {-1: "high",
+        quality = -1 if utils.IS_MAC else self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
+        data['Quality'] = "full" if utils.IS_MAC else {-1: "full",
                            pyrpr.RENDER_QUALITY_HIGH: "high",
                            pyrpr.RENDER_QUALITY_MEDIUM: "medium",
                            pyrpr.RENDER_QUALITY_LOW: "low"}[quality]
