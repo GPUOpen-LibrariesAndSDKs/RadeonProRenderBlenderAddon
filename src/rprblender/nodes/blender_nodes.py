@@ -1492,7 +1492,11 @@ class ShaderNodeMapping(NodeParser):
         if not (math.isclose(scale.data[0], 1.0) and
                 math.isclose(scale.data[1], 1.0) and
                 math.isclose(scale.data[2], 1.0)):
-            mapping *= scale
+            # to match cycles texture type should divide scale
+            if self.node.vector_type == 'TEXTURE':
+                mapping /= max(scale, 0.001)
+            else:
+                mapping *= scale
 
         return mapping
 
@@ -1521,7 +1525,11 @@ class ShaderNodeMapping(NodeParser):
         if not (math.isclose(scale[0], 1.0) and
                 math.isclose(scale[1], 1.0) and
                 math.isclose(scale[2], 1.0)):
-            mapping *= scale
+            # to match cycles texture type should divide scale
+            if self.node.vector_type == 'TEXTURE':
+                mapping /= max(scale, 0.001)
+            else:
+                mapping *= scale
 
         if self.node.use_min:
             mapping = mapping.min(tuple(self.node.min))
