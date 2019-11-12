@@ -281,7 +281,7 @@ class RenderEngine(Engine):
         """
         if bpy.context.scene.rpr.use_render_stamp \
                 and render_stamp.render_stamp_supported \
-                and not bpy.context.scene.rpr.is_tile_render_avialable:
+                and not bpy.context.scene.rpr.is_tile_render_available:
 
             # TODO: Apply render stamp after tile rendering
             image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
