@@ -700,6 +700,8 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
                 return ERROR_IMAGE_COLOR
 
             rpr_image = image_export.sync(self.rpr_context, self.node.image)
+            if not rpr_image:
+                return None
 
             # get image wrap type and set
             image_wrap_val = getattr(pyrpr, 'IMAGE_WRAP_TYPE_' + self.node.wrap)
