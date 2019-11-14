@@ -757,39 +757,32 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         if enabled(normal):
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL, normal)
 
-        if enabled(specular) and not enabled(metallic):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, specular)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
+        if enabled(specular) or enabled(metallic):
+            # setting reflection weight as max of specular and metallic weights
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, specular.max(metallic))
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
 
-            if enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
-
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
-                               pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
-
-        elif enabled(metallic):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, 1.0)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
                                pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_METALNESS, metallic)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
 
             if enabled(normal):
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
 
             if enabled(anisotropic):
                 rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY, anisotropic)
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY_ROTATION, anisotropic_rotation)
+                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY_ROTATION,
+                                   anisotropic_rotation)
 
         # Clearcloat
         if enabled(clearcoat):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_COLOR, (1.0, 1.0, 1.0))
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_WEIGHT, clearcoat)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_ROUGHNESS, clearcoat_roughness)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_THICKNESS, 0.0)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
+            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0))
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_MODE,
                                pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
             rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_IOR, ior)
