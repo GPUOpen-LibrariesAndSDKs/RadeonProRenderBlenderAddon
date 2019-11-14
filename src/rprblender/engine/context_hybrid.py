@@ -66,8 +66,5 @@ class RPRContext(context.RPRContext):
     def create_buffer(self, data, dtype):
         return None
 
-    def get_parameter(self, name):
-        return self.context.parameters.get(name, 0)
-
     def sync_catchers(self):
         pass

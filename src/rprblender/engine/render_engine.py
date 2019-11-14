@@ -477,11 +477,11 @@ class RenderEngine(Engine):
         data['Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_RECURSION)
         data['Shadow Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW)
         data['Reflection Ray Depth'] = \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE) + \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY)
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, 0) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, 0)
         data['Refraction Ray Depth'] = \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION) + \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION)
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, 0) + \
+            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, 0)
 
         data['Num Polygons'] = sum(
             (o.mesh.poly_count if isinstance(o, pyrpr.Instance) else o.poly_count)

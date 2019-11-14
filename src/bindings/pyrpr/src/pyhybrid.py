@@ -158,6 +158,18 @@ class Camera(pyrpr.Camera):
         log_unsupported("Camera.set_aperture_blades()")
         pass
 
+    def set_angular_motion(self, x, y, z, w):
+        log_unsupported("Camera.set_angular_motion()")
+        pass
+
+    def set_linear_motion(self, x, y, z):
+        log_unsupported("Camera.set_linear_motion()")
+        pass
+
+    def set_exposure(self, exposure):
+        log_unsupported("Camera.set_exposure()")
+        pass
+
 
 class MaterialNode(pyrpr.MaterialNode):
     def set_input(self, name, value):
@@ -264,6 +276,18 @@ class Shape(pyrpr.Shape):
 
     def set_vertex_value(self, index: int, indices, values):
         log_unsupported("Shape.set_vertex_value()")
+        pass
+
+    def set_linear_motion(self, x, y, z):
+        log_unsupported("Shape.set_linear_motion()")
+        pass
+
+    def set_angular_motion(self, x, y, z, w):
+        log_unsupported("Shape.set_angular_motion()")
+        pass
+
+    def set_scale_motion(self, x, y, z):
+        log_unsupported("Shape.set_scale_motion()")
         pass
 
 
