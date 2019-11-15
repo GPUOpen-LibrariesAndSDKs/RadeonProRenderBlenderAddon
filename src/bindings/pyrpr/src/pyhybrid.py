@@ -181,19 +181,19 @@ class MaterialNode(pyrpr.MaterialNode):
 
         if self.type == pyrpr.MATERIAL_NODE_UBERV2 \
             and name in (
-                pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT,
-                pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR,
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_CAUSTICS,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL,
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN,
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN_TINT,
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN_WEIGHT,
-                pyrpr.UBER_MATERIAL_INPUT_COATING_TRANSMISSION_COLOR,
-                pyrpr.UBER_MATERIAL_INPUT_COATING_THICKNESS,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ABSORPTION_DISTANCE,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ABSORPTION_COLOR,
-                pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR,
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_CAUSTICS,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL,
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN,
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT,
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT,
+                pyrpr.MATERIAL_INPUT_UBER_COATING_TRANSMISSION_COLOR,
+                pyrpr.MATERIAL_INPUT_UBER_COATING_THICKNESS,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ABSORPTION_DISTANCE,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ABSORPTION_COLOR,
+                pyrpr.MATERIAL_INPUT_UBER_EMISSION_MODE,
         ):
             log_unsupported(f"MaterialNode.set_input({name})", self.type)
             return
