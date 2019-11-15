@@ -415,10 +415,10 @@ class RenderEngine(Engine):
                     return
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
-        enable_adaptive = scene.rpr.get_devices(True).count() == 1
+        enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive)
 
-        if scene.rpr.limits.noise_threshold > 0.0 and enable_adaptive:
+        if enable_adaptive:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
