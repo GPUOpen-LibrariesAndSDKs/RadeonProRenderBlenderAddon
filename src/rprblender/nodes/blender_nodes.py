@@ -61,8 +61,8 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             if volume_rpr_node:
                 if isinstance(self.rpr_context, RPRContextHybrid):
                     return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 0.0,
-                        pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY: (1.0, 1.0, 1.0),
+                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+                        pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY: (1.0, 1.0, 1.0),
                     })
                 else:
                     return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
@@ -96,7 +96,7 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
                 # creating error shader
                 if isinstance(self.rpr_context, RPRContextHybrid):
                     return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                        pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: ERROR_OUTPUT_COLOR
+                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: ERROR_OUTPUT_COLOR
                     })
                 else:
                     return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
@@ -201,14 +201,14 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
         rotation = 0.5 - (rotation % 1)
 
         result = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-            pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 0.0,
-            pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR: color,
-            pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS: roughness * roughness,
-            pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY: anisotropy,
-            pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY_ROTATION: rotation,
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: color,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: roughness * roughness,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY: anisotropy,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION: rotation,
         })
         if normal:
-            result.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
+            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
 
         return result
 
@@ -237,10 +237,10 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
         'hybrid:BSDF': {
             'type': pyrpr.MATERIAL_NODE_UBERV2,
             'params': {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: 'inputs.Color',
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS: 'nodes.square_roughness',
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL: 'normal:inputs.Normal',
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: 'inputs.Color',
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 'nodes.square_roughness',
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: 'normal:inputs.Normal',
             }
         }
     }
@@ -275,27 +275,27 @@ class ShaderNodeBsdfGlass(NodeParser):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
 
         # disable diffuse
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 0.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
         
         # reflection
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
                                    pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness * roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness * roughness)
 
         # refraction 
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS, roughness * roughness)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_IOR, ior)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_THIN_SURFACE, False)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_CAUSTICS, True)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS, roughness * roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_IOR, ior)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_THIN_SURFACE, False)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_CAUSTICS, True)
 
         if enabled(normal):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL, normal)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL, normal)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
 
         return rpr_node
 
@@ -323,11 +323,11 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
         "hybrid:BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 0.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS: "nodes.square_roughness",
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL: "normal:inputs.Normal",
             }
         }
 
@@ -359,12 +359,12 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
         "hybrid:BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 0.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS: "nodes.square_roughness",
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL: "normal:inputs.Normal",
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_IOR: "inputs.IOR"
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_IOR: "inputs.IOR"
             }
         }
     }
@@ -385,12 +385,12 @@ class ShaderNodeBsdfTranslucent(RuleNodeParser):
         "hybrid:BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL: "normal:inputs.Normal",
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL: "normal:inputs.Normal",
             }
         }
     }
@@ -408,10 +408,10 @@ class ShaderNodeBsdfTransparent(NodeParser):
     def export_hybrid(self):
         color = self.get_input_value('Color')
         return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-            pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
-            pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS: 0.0,
-            pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: color,
-            pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY: color.average_xyz(),
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 0.0,
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: color,
+            pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY: color.average_xyz(),
         })
 
 
@@ -422,13 +422,13 @@ class ShaderNodeBsdfVelvet(RuleNodeParser):
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: "inputs.Sigma",
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL: "normal:inputs.Normal",
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT: 0.0,
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN_TINT: "inputs.Sigma",
-                pyrpr.UBER_MATERIAL_INPUT_SHEEN: "inputs.Color"
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN: "inputs.Color"
             }
         }
     }
@@ -585,14 +585,14 @@ class ShaderNodeSubsurfaceScattering(RuleNodeParser):
         "BSSRDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT: 0.0,
-                pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR: (1.0, 1.0, 1.0, 1.0),
-                pyrpr.UBER_MATERIAL_INPUT_SSS_WEIGHT: 1.0,
-                pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_COLOR: "inputs.Color",
-                pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_DISTANCE: "nodes.radius",
-                pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL: "normal:inputs.Normal"
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR: (1.0, 1.0, 1.0, 1.0),
+                pyrpr.MATERIAL_INPUT_UBER_SSS_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_SSS_SCATTER_COLOR: "inputs.Color",
+                pyrpr.MATERIAL_INPUT_UBER_SSS_SCATTER_DISTANCE: "nodes.radius",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal"
             }
         }
     }
@@ -749,95 +749,95 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
 
         # looks like diffuse should be always enabled, regarding cycles
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS, roughness)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, 0.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 0.0)
 
         if enabled(normal):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL, normal)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL, normal)
 
         if enabled(specular) or enabled(metallic):
             # setting reflection weight as max of specular and metallic weights
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, specular.max(metallic))
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_IOR, ior)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
 
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_MODE,
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
                                pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_METALNESS, metallic)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, base_color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
 
             if enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
 
             if enabled(anisotropic):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY, anisotropic)
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ANISOTROPY_ROTATION,
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY, anisotropic)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION,
                                    anisotropic_rotation)
-
         # Clearcloat
         if enabled(clearcoat):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_COLOR, (1.0, 1.0, 1.0))
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_WEIGHT, clearcoat)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_ROUGHNESS, clearcoat_roughness)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_THICKNESS, 0.0)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0))
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_MODE,
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_WEIGHT, clearcoat)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_ROUGHNESS, clearcoat_roughness)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_THICKNESS, 0.0)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_MODE,
                                pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_IOR, ior)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_IOR, ior)
 
             if enabled(clearcoat_normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_NORMAL, clearcoat_normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, clearcoat_normal)
             elif enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_NORMAL, normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, normal)
 
         # Sheen
         if enabled(sheen):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SHEEN_WEIGHT, sheen)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SHEEN, base_color)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SHEEN_TINT, sheen_tint)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT, sheen)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SHEEN, base_color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT, sheen_tint)
 
         # Subsurface
         if enabled(subsurface):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_WEIGHT, subsurface)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_COLOR, subsurface_color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SSS_WEIGHT, subsurface)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SSS_SCATTER_COLOR, subsurface_color)
 
             # check for 0 channel value(for Cycles it means "light shall not pass"
             # unlike "pass it all" of RPR) that's why we check it with small value like 0.0001
             subsurface_radius = subsurface_radius.max(SSS_MIN_RADIUS)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_SCATTER_DISTANCE, subsurface_radius)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SSS_SCATTER_DISTANCE, subsurface_radius)
             # TODO: check with radius_scale = bpy.context.scene.unit_settings.scale_length * 0.1
 
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_SSS_MULTISCATTER, False)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_SSS_MULTISCATTER, False)
             # these also need to be set for core SSS to work.
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, subsurface)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_COLOR, subsurface_color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, subsurface)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR, subsurface_color)
 
         # Emission -> Emission
         if enabled(emission):
             # more related formula for emission weight:
             emission_weight = emission.average_xyz().min(1.0) * 0.5 + 0.5
 
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_WEIGHT, emission_weight)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_COLOR, emission)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_MODE, 2)  # double sided
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_WEIGHT, emission_weight)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_COLOR, emission)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_MODE,
+                               pyrpr.UBER_MATERIAL_EMISSION_MODE_DOUBLESIDED)  # double sided
 
         # Alpha -> Transparency
         if enabled(transparency):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY, transparency)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, transparency)
 
         # Transmission -> Refraction
         if enabled(transmission):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_WEIGHT, transmission)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_COLOR, base_color)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_ROUGHNESS, transmission_roughness)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_IOR, ior)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_THIN_SURFACE, False)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_CAUSTICS, True)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT, transmission)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR, base_color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS, transmission_roughness)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_IOR, ior)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_THIN_SURFACE, False)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_CAUSTICS, True)
 
             if enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFRACTION_NORMAL, normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL, normal)
 
         return rpr_node
 
@@ -1145,8 +1145,8 @@ class ShaderNodeMixShader(NodeParser):
                     return shader
 
                 return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT: 1.0,
-                    pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR: (1.0, 1.0, 1.0, 1.0),
+                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
+                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: (1.0, 1.0, 1.0, 1.0),
                 })
 
         return self.get_input_link(1)
@@ -1825,40 +1825,40 @@ class ShaderNodeEeveeSpecular(NodeParser):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
 
         # Diffuse
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_COLOR, base_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_ROUGHNESS, roughness)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_BACKSCATTER_WEIGHT, 0.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 0.0)
         if enabled(normal):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_DIFFUSE_NORMAL, normal)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL, normal)
 
         # Specular
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_COLOR, specular_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, specular_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
 
         if enabled(normal):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_REFLECTION_NORMAL, normal)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
 
         # Emissive
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_COLOR, emissive_color)
-        rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_EMISSION_WEIGHT, emissive_color.average_xyz())
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_COLOR, emissive_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_WEIGHT, emissive_color.average_xyz())
 
         # Transparency
         if enabled(transparency):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_TRANSPARENCY, transparency)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, transparency)
 
         # Clear Coat
         if enabled(clearcoat):
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_WEIGHT, clearcoat)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_ROUGHNESS, clearcoat_roughness)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_THICKNESS, 0.0)
-            rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_WEIGHT, clearcoat)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_ROUGHNESS, clearcoat_roughness)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_THICKNESS, 0.0)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_TRANSMISSION_COLOR, (0.0, 0.0, 0.0, 0.0))
 
             if enabled(clearcoat_normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_NORMAL, clearcoat_normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, clearcoat_normal)
             elif enabled(normal):
-                rpr_node.set_input(pyrpr.UBER_MATERIAL_INPUT_COATING_NORMAL, normal)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, normal)
 
         return rpr_node
