@@ -484,8 +484,8 @@ class RPRContext:
         self.objects[key] = instance
         return instance
 
-    def create_curve(self, key, control_points, uvs, radius):
-        curve = self._Curve(self.context, control_points, uvs, radius)
+    def create_curve(self, key, control_points, uvs, root_radius, tip_radius):
+        curve = self._Curve(self.context, control_points, uvs, root_radius, tip_radius)
         self.particles[key] = curve
         return curve
 
