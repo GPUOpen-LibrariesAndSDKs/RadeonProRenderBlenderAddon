@@ -341,7 +341,7 @@ class PostEffect:
 
 
 class Curve(pyrpr.Curve):
-    def __init__(self, context, control_points, uvs, radius):
+    def __init__(self, context, control_points, uvs, root_radius, tip_radius):
         pass
 
     def delete(self):

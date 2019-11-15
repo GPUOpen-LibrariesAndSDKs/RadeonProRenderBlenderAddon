@@ -634,7 +634,7 @@ class Shape(Object):
 class Curve(Object):
     core_type_name = 'rpr_curve'
 
-    def __init__(self, context, control_points, uvs, radius):
+    def __init__(self, context, control_points, uvs, root_radius, tip_radius):
         def to_segments(n):
             """Index iterator which splits curve with n points to segments by 4"""
             m = n - 1
@@ -665,19 +665,32 @@ class Curve(Object):
         else:
             uvs_ptr = ffi.cast("float *", uvs.ctypes.data)
        
+        segments_per_curve = curve_length // 4
         # create list of indices 0-control_points length
         indices = np.arange(len(points), dtype=np.uint32)
         # create list of full radius values for each curve
-        radii = np.full(num_curves, radius, dtype=np.float32)
+        if root_radius == tip_radius:
+            is_tapered = 0
+            radii = np.full(num_curves, root_radius, dtype=np.float32)
+        else:
+            # tapered curves create list of radii per curve by linear interp
+            radius_delta = tip_radius - root_radius
+            is_tapered = 1
+            curve_radii = []
+            for seg in range(segments_per_curve):
+                curve_radii.extend([root_radius + (seg / segments_per_curve) * radius_delta, 
+                                    root_radius + ((seg + 1) / segments_per_curve) * radius_delta])
+            radii = np.full((num_curves, len(curve_radii)), curve_radii, dtype=np.float32)
+
         # create list of segments per curve num_segments = length / 4
-        segments = np.full(num_curves, curve_length // 4, dtype=np.int32)
+        segments = np.full(num_curves, segments_per_curve, dtype=np.int32)
         
         ContextCreateCurve(self.context, self,
             len(points), ffi.cast("float *", points.ctypes.data), points[0].nbytes,
             len(indices), num_curves,
             ffi.cast('rpr_uint*', indices.ctypes.data), ffi.cast("float *", radii.ctypes.data),
             uvs_ptr,
-            ffi.cast('rpr_int*', segments.ctypes.data))
+            ffi.cast('rpr_int*', segments.ctypes.data), is_tapered)
         
     def delete(self):
         self.set_material(None)

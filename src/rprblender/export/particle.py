@@ -72,7 +72,8 @@ def sync_particles(rpr_context, particle_system, master_shape, master_key):
 class CurveData:
     points: np.array
     uvs: np.array
-    radius: float
+    root_radius: float
+    tip_radius: float
 
     @staticmethod
     def init(p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, is_preview: bool):
@@ -138,7 +139,8 @@ class CurveData:
         else:
             data.uvs = None
 
-        data.radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
+        data.root_radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
+        data.tip_radius = p_sys.settings.tip_radius * p_sys.settings.radius_scale
 
         return data
 
@@ -159,7 +161,7 @@ def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object
             return
         
         rpr_hair = rpr_context.create_curve(particle_key, curve_data.points,
-                                            curve_data.uvs, curve_data.radius)
+                                            curve_data.uvs, curve_data.root_radius, curve_data.tip_radius)
         rpr_hair.set_name(str(particle_key))
         rpr_context.scene.attach(rpr_hair)
 
