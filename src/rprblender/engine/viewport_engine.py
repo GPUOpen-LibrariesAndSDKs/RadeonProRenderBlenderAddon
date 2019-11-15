@@ -421,7 +421,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
-        if viewport_limits.noise_threshold > 0.0 and scene.rpr.get_devices(False).count() == 1:
+        if viewport_limits.noise_threshold > 0.0:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             viewport_limits.set_adaptive_params(self.rpr_context)
