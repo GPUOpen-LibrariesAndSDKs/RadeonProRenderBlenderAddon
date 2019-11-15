@@ -148,11 +148,12 @@ class ImageFilterML(ImageFilter):
 
         self.filter.set_parameter('useHDR', True)
 
-        models_path = utils.package_root_dir() / 'data/models'
-        if not models_path.is_dir():
-            # set alternative path
-            models_path = utils.package_root_dir() / '../../ThirdParty/RadeonProImageProcessing/models'
-        self.filter.set_parameter('modelPath', str(models_path))
+        if utils.IS_WIN or utils.IS_LINUX:
+            models_path = utils.package_root_dir() / 'data/models'
+            if not models_path.is_dir():
+                # set alternative path
+                models_path = utils.package_root_dir() / '../../ThirdParty/RadeonProImageProcessing/models'
+            self.filter.set_parameter('modelPath', str(models_path))
 
         ml_output_image = self.context.create_image(self.width, self.height, 3)
 
