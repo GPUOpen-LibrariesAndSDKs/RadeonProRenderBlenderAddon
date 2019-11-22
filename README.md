@@ -20,7 +20,8 @@ support for debugging Python when you attach to a process.
 
 ### ThirdParty libraries
 
-External dependencies must be included in the repository's ThirdParty directory. Please check the README in the ThirdParty directory to see  how to acquire the required libraries.
+There is ThirdParty repository included to the project as a submodule. Please update submodules:
+` git submodule update --init -f --recursive`
 
 ## Developing
 
