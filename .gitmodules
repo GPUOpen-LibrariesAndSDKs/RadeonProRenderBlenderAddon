@@ -1,0 +1,3 @@
+[submodule "ThirdParty"]
+	path = ThirdParty
+	url = git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git

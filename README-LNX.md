@@ -6,8 +6,7 @@
 - AMD drivers from web site
     // The instruction is here: http://support.amd.com/en-us/kb-articles/Pages/AMDGPU-PRO-Install.aspx 
 
-- Blender 2.78c - minimal requirement. 
-    // Blender 2.78b crashes when numpy is used(https://developer.blender.org/T50703) 
+- Blender 2.80 - minimal requirement. 
     
 - Embree
 
@@ -26,6 +25,10 @@
 - FreeImage
     sudo apt-get install libfreeimage-dev
 
+- There is ThirdParty repository included to the project as a submodule. Please update submodules:
+` git submodule update --init -f --recursive`
+
+
 ### Build Requirements
 
 	sudo apt-get install  \
@@ -39,6 +42,7 @@
 
 
 ### Build
+
 - Build the pyrpr and RPRHelper
 
 python3 build.py
@@ -56,5 +60,3 @@ python3 tests/commandline/run_blender.py ~/blender/blender-2.78c-linux-glibc219-
 - make addon installer
 python3 build_zip_installer.py --target linux
 //this will make .zip that can be installed with Blender(User Preferences/Addons/InstallFromFile)
-
-

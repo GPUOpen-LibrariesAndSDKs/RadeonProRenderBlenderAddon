@@ -19,7 +19,7 @@ has some specific requirements.
 
 	- Additionally Python 3.5.2 is required for compatibility with Blender. Install this
 	version of Python and make sure that it comes first in the path when running the 
-	build.  On OSX, Python 2.7 is supplied in /usr/bin/python and it is not sufficient
+	build. On OSX, Python 2.7 is supplied in /usr/bin/python and it is not sufficient
 	for building the Blender Radeon ProRender Addon.
 	- Configure python3:
 		- python3 -m pip install cffi # python-cffi
@@ -28,7 +28,11 @@ has some specific requirements.
 		- python3 -m pip install numpy
 		- python3 -m pip install pyopengl
 
+There is ThirdParty repository included to the project as a submodule. Please update submodules:
+` git submodule update --init -f --recursive`
+
 ### Building
+
 - After syncing the source, run:
 	- ./build_osx.sh
 
