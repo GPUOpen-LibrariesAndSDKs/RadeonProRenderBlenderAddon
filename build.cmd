@@ -5,13 +5,8 @@ setlocal enabledelayedexpansion
 :cleanup
 rmdir /S /Q RPRBlenderHelper\.build src\bindings\pyrpr\.build src\bindings\pyrpr\src\__pycache__
 
-:update_3dparty
-pushd ThirdParty
-call win_update.cmd
-popd
-
 :check_castxml
-set castxml=..\RadeonProRenderThirdPartyComponents\castxml\win\bin\castxml.exe
+set castxml=ThirdParty\castxml\win\bin\castxml.exe
 
 if not exist %castxml% (
 	echo Castxml tool is not found.
