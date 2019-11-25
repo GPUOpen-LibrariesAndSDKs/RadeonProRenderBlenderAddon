@@ -164,7 +164,7 @@ class ImageFilterML(ImageFilter):
         else:
             # setup remap normals filter
             normal_remap_filter = self.context.create_filter(rif.IMAGE_FILTER_REMAP_RANGE)
-            normal_remap_filter.set_parameter('dstLo', -1.0)
+            normal_remap_filter.set_parameter('dstLo', 0.0)
             normal_remap_filter.set_parameter('dstHi', 1.0)
             normal_remap_image = self.context.create_image(self.width, self.height)
             self.command_queue.attach_image_filter(normal_remap_filter, self.inputs['normal'],
