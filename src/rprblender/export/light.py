@@ -96,6 +96,10 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
         if light.rpr.ies_file:
             if light.rpr.ies_file.source in ('FILE', 'GENERATED'):
                 file_path = image.cache_image_file(light.rpr.ies_file)
+                if not file_path:
+                    rpr_context.create_empty_object(light_key)
+                    return
+
                 rpr_light = rpr_context.create_light(light_key, 'ies')
                 rpr_light.set_image_from_file(file_path, 256, 256)
             else:  # unsupported source type

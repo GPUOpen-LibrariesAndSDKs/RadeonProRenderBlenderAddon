@@ -161,6 +161,10 @@ def cache_image_file(image):
     See if image is a file, cache image pixels to temporary folder if not.
     Return image file path.
     """
+    if image.size[0] * image.size[1] * image.channels == 0:
+        log.warn("Image has no data", image)
+        return None
+
     if image.source == 'FILE':
         file_path = image.filepath_from_user()
         if image.is_dirty or not os.path.isfile(file_path) \

@@ -71,7 +71,7 @@ class PreviewEngine(Engine):
         # export world only if active_material.use_preview_world is enabled
         preview_obj = next(obj for obj in self.depsgraph_objects(depsgraph)
                                if obj.name.startswith('preview_'))
-        if preview_obj.active_material.use_preview_world:
+        if preview_obj.active_material and preview_obj.active_material.use_preview_world:
             world.sync(self.rpr_context, settings_scene.world)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
