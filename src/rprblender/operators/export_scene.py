@@ -102,7 +102,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
 
                 exporter = ExportEngine()
                 exporter.sync(context)
-                exporter.export_to_rpr(self.filepath, flags)
+                exporter.export_to_rpr(filepath_frame, flags)
                 self.save_json(filepath_json, scene, context.view_layer)
                 log.info(f"Finished frame {i} export to '{filepath_frame}'")
 
