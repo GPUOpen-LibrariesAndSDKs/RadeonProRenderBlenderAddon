@@ -66,7 +66,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
         try:
-            is_hybrid = depsgraph.scene.rpr.render_quality != 'FULL'
+            is_hybrid = depsgraph.scene.rpr.is_hybrid
             if self.is_preview:
                 self.engine = PreviewEngine(self)
 
@@ -105,7 +105,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         try:
             # if there is no engine set, create it and do the initial sync
-            is_hybrid = depsgraph.scene.rpr.render_quality != 'FULL'
+            is_hybrid = depsgraph.scene.rpr.is_hybrid
             if self.engine and is_hybrid ^ isinstance(self.engine, ViewportEngineHybrid) == 0:
                 self.engine.sync_update(context, depsgraph)
                 return
