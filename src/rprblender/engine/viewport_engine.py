@@ -615,7 +615,8 @@ class ViewportEngine(Engine):
                     if self.rpr_context.gl_interop:
                         # GL framebuffer ahs to be recreated in this thread,
                         # that's why we call resize here
-                        self.rpr_context.resize(*resolution)
+                        with self.resolve_lock:
+                            self.rpr_context.resize(*resolution)
 
                     if self.gl_texture:
                         self.gl_texture = gl.GLTexture(*resolution)
