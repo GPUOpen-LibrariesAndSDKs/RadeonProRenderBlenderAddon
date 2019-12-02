@@ -3,6 +3,7 @@ import os
 
 import bpy
 import pyrpr
+import pyhybrid
 
 from bpy.props import (
     BoolProperty,
@@ -239,7 +240,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     @property
     def is_tile_render_available(self):
-        return self.use_tile_render and self.render_quality == 'FULL'
+        return self.use_tile_render and not self.is_hybrid
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
@@ -371,6 +372,10 @@ class RPR_RenderProperties(RPR_Properties):
         default='FULL',
         update=update_render_quality
     )
+
+    @property
+    def is_hybrid(self):
+        return pyhybrid.enabled and self.render_quality != 'FULL'
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         """ Initializes rpr_context by device settings """

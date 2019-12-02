@@ -28,7 +28,7 @@ class RPR_VIEW3D_PT_panel(RPR_Panel):
             layout.prop(rpr, 'render_quality')
 
         row = layout.row()
-        row.enabled = rpr.render_quality == 'FULL'
+        row.enabled = not rpr.is_hybrid
         row.prop(rpr, 'render_mode')
 
 

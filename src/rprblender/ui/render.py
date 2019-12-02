@@ -29,7 +29,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.render_quality == 'FULL'
+                col.enabled = not context.scene.rpr.is_hybrid
 
                 col.prop(devices, 'cpu_state')
                 row = col.row()
@@ -116,7 +116,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.render_quality == 'FULL'
+        col.enabled = not rpr.is_hybrid
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
