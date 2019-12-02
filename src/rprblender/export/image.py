@@ -161,12 +161,25 @@ def cache_image_file(image):
     See if image is a file, cache image pixels to temporary folder if not.
     Return image file path.
     """
-    if image.size[0] * image.size[1] * image.channels == 0:
-        log.warn("Image has no data", image)
-        return None
 
     if image.source == 'FILE':
         file_path = image.filepath_from_user()
+
+        if file_path.lower().endswith('.ies'):
+            if os.path.isfile(file_path):
+                return file_path
+
+            if not image.packed_file:
+                log.warn("Can't load image", image, file_path)
+                return None
+
+            file_path = utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.ies"
+            if not file_path.is_file():
+                # save data of packed file
+                file_path.write_bytes(image.packed_file.data)
+
+            return str(file_path)
+
         if image.is_dirty or not os.path.isfile(file_path) \
                 or file_path.lower().endswith(UNSUPPORTED_IMAGES):
             target_format, target_extension = IMAGE_FORMATS.get(image.file_format, DEFAULT_FORMAT)
