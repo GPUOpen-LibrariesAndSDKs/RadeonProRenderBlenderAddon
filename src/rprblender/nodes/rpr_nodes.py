@@ -726,6 +726,7 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
 class RPRShaderNodeLookup(RPRShaderNode):
     ''' Looks up geometry values '''
     bl_label = 'RPR Lookup'
+    bl_width_min = 170
 
     lookup_type: bpy.props.EnumProperty(
         name='Type',
@@ -737,6 +738,7 @@ class RPRShaderNodeLookup(RPRShaderNode):
             ('UV1', "UV1", "Second set of texture coordinates"),
             ('P_LOCAL', "Object Position", "Object position"),
             ('VERTEX_COLOR', "Vertex Color", "Vertex Color"),
+            ('RANDOM_COLOR', "Random Color", "Shape Random Color"),
         ),
         default='UV'
     )
@@ -756,6 +758,7 @@ class RPRShaderNodeLookup(RPRShaderNode):
             'INVEC': pyrpr.MATERIAL_NODE_LOOKUP_INVEC,
             'UV1': pyrpr.MATERIAL_NODE_LOOKUP_UV1,
             'P_LOCAL': pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
+            'RANDOM_COLOR': pyrpr.MATERIAL_NODE_LOOKUP_SHAPE_RANDOM_COLOR,
         }
 
         def export(self):
