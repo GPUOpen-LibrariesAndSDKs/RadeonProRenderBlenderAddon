@@ -198,7 +198,7 @@ class MaterialNode(pyrpr.MaterialNode):
             log_unsupported(f"MaterialNode.set_input({name})", self.type)
             return
 
-        if self.type == pyrpr.MATERIAL_NODE_IMAGE_TEXTURE and name == 'uv':
+        if self.type == pyrpr.MATERIAL_NODE_IMAGE_TEXTURE and name == pyrpr.MATERIAL_INPUT_UV:
             log_unsupported(f"MaterialNode.set_input({name})", self.type)
             return
 
