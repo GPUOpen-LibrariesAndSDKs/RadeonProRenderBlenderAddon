@@ -336,3 +336,12 @@ class NodeItem:
             avg.data = sum(avg.data[:3]) / 3
 
         return avg
+
+    def length(self):
+        length = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_LENGTH3, lambda a: a)
+        
+        # don't need to do anything if it's a float
+        if isinstance(length.data, tuple):
+            length.data = math.sqrt(sum(length.data[i]*length.data[i] for i in range(3)))
+        
+        return length
