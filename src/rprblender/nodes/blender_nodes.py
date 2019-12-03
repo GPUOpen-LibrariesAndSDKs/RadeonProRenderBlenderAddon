@@ -1084,12 +1084,43 @@ class ShaderNodeVectorMath(NodeParser):
                 res = in1 + in2
             elif op == 'SUBTRACT':
                 res = in1 - in2
+            elif op == 'MULTIPLY':
+                res = in1 * in2
+            elif op == 'DIVIDE':
+                res = in1 / in2
             elif op == 'AVERAGE':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_AVERAGE, in1, in2)
             elif op == 'DOT_PRODUCT':
                 res = in1.dot3(in2)
             elif op == 'CROSS_PRODUCT':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_CROSS3, in1, in2)
+            elif op == 'MINIMUM':
+                res = min(in1, in2)
+            elif op == 'MAXIMUM':
+                res = max(in1, in2)
+            elif op == 'FLOOR':
+                res = in1.floor()
+            elif op == 'CEIL':
+                res = in1.ceil()
+            elif op == 'MODULO':
+                res = in1 % in2
+            elif op == 'FRACTION':
+                res = in1 - in1.floor()
+            elif op == 'PROJECT':
+                len_sq = in2.dot3(in2)
+                res = (len_sq != 0.0).if_else(in1.dot3(in2) / len_sq, 0.0)
+            elif op == 'REFLECT':
+                in2_norm = in2.normalize()
+                res = in1 - in2_norm.dot3(in1) * 2.0 * in2_norm
+            elif op == 'DISTANCE':
+                diff = in1 - in2
+                res = diff.length()
+            elif op == 'LENGTH':
+                res = in1.length()
+            elif op == 'SNAP':
+                res = (in1 / in2).floor() * in2
+            elif op == 'ABSOLUTE':
+                res = abs(in1)
             else:
                 raise ValueError("Incorrect operation", op)
 
@@ -1355,7 +1386,7 @@ class ShaderNodeTexGradient(NodeParser):
             val = atan2 / (2.0 * math.pi) + 0.5
         else:
             # r = max(1.0 - length, 0.0);
-            length = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_LENGTH3, vec)
+            length = vec.length()
             r = (1.0 - length).max(0.0)
             if gradiant_type  == 'QUADRATIC_SPHERE':
                 val = r * r
