@@ -633,6 +633,25 @@ class ShaderNodeTexChecker(NodeParser):
 
 class ShaderNodeTexImage(NodeParser):
     def export(self):
+        wrap_mapping = {
+            'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
+            'EXTEND': pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+            'CLIP': pyrpr.IMAGE_WRAP_TYPE_CLAMP_ZERO,
+        }
+
+        return self._export_image_node(wrap_mapping)
+
+    def export_hybrid(self):
+        # Hybrid has separate list of supported wrap types
+        wrap_mapping_hybrid = {
+            'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
+            'EXTEND': pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+        }
+
+        return self._export_image_node(wrap_mapping_hybrid)
+
+    def _export_image_node(self, wrap_mapping):
+        """ Export image node as RPR node using supported wrapping types """
         if not self.node.image:
             return self.node_item(ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else
                                   ERROR_IMAGE_COLOR[3])
@@ -641,12 +660,11 @@ class ShaderNodeTexImage(NodeParser):
         if not rpr_image:
             return None
 
-        wrap_mapping = {
-            'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
-            'EXTEND': pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-            'CLIP': pyrpr.IMAGE_WRAP_TYPE_CLAMP_ZERO
-        }
-        rpr_image.set_wrap(wrap_mapping[self.node.extension])
+        if self.node.extension in wrap_mapping:
+            rpr_image.set_wrap(wrap_mapping[self.node.extension])
+        else:
+            log.warn(f"Unsupported image wrap type {self.node.extension}")
+            rpr_image.set_wrap(pyrpr.IMAGE_WRAP_TYPE_REPEAT)
 
         # TODO: Implement using node properties: interpolation, projection
         if self.node.interpolation != 'Linear':
