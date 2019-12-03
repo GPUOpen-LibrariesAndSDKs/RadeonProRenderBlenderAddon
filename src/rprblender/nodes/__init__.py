@@ -37,6 +37,7 @@ node_categories = [
     ],),
     RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
         NodeItem('ShaderNodeBsdfPrincipled'),
+        NodeItem('ShaderNodeBsdfHair'),
         NodeItem('ShaderNodeAddShader'),
         NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
