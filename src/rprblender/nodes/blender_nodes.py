@@ -859,6 +859,50 @@ class ShaderNodeBsdfPrincipled(NodeParser):
 
         return rpr_node
 
+class ShaderNodeBsdfHair(NodeParser):
+    ''' Cycles Hair BSDF has two modes, transmission and reflection.
+        Use "WARD" for reflection and transparent for transmission '''
+
+    def export(self):
+        # Getting require inputs. Note: if some inputs are not needed they won't be taken
+        component = self.node.component
+        base_color = self.get_input_value('Color')
+
+        roughness_u = self.get_input_value('RoughnessU')
+        roughness_v = self.get_input_value('RoughnessV')
+
+        # TODO: use Tangent input
+
+        # Treat reflection as WARD shader 
+        if component == 'Reflection':
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_WARD)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_X, roughness_u)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_Y, roughness_v)
+        else:
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
+
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, base_color)
+        
+        return rpr_node
+
+    def export_hybrid(self):
+        # we'll just use roughness_u and uber for bsdf 
+        component = self.node.component
+        color = self.get_input_value('Color')
+        roughness_u = self.get_input_value('RoughnessU')
+        
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
+            
+        if component == 'Reflection':
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness_u)
+        else:
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, color)
+
+        return rpr_node
+
 
 class ShaderNodeNewGeometry(RuleNodeParser):
     # outputs: Position, Normal, Tangent, True Normal, Incoming, Parametric, Backfacing, Pointiness
