@@ -1424,7 +1424,7 @@ class RPRValueNode_Math(RPRShaderNode):
             elif op == 'CROSS3':
                 val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_CROSS3, value1, value2)
             elif op == 'LENGTH3':
-                val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_LENGTH3, value1)
+                val = value1.length()
             elif op == 'NORMALIZE3':
                 val = value1.normalize()
             elif op == 'POW':
