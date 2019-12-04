@@ -283,25 +283,6 @@ class RPRShaderNodePassthrough(RPRShaderNode):
             },
         }
 
-class RPRUberMenu(bpy.types.Menu):
-    bl_idname = "SHADER_MT_RPR_UBER_MENU"
-    bl_label = "Layers"
-
-    def draw(self, context):
-        layout = self.layout
-
-        uber_node = bpy.app.driver_namespace['RPR_ACTIVE_NODE']
-
-        layout.prop(uber_node, 'enable_diffuse', toggle=True)
-        layout.prop(uber_node, 'enable_reflection', toggle=True)
-        layout.prop(uber_node, 'enable_refraction', toggle=True)
-        layout.prop(uber_node, 'enable_coating', toggle=True)
-        layout.prop(uber_node, 'enable_sheen', toggle=True)
-        layout.prop(uber_node, 'enable_emission', toggle=True)
-        layout.prop(uber_node, 'enable_sss', toggle=True)
-        layout.prop(uber_node, 'enable_normal', toggle=True)
-        layout.prop(uber_node, 'enable_transparency', toggle=True)
-
 
 class RPRShaderNodeUber(RPRShaderNode):
     bl_label = 'RPR Uber'
@@ -312,7 +293,6 @@ class RPRShaderNodeUber(RPRShaderNode):
             of principled with this '''
         # TODO
         pass
-
 
     # list of parameters used for creating sockets, and changing enabled states of form:
     #   name: (socket_type, default_value, enabled buttons)
@@ -437,9 +417,19 @@ class RPRShaderNodeUber(RPRShaderNode):
         self.update_visibility(context)
 
     def draw_buttons(self, context, layout):
-        bpy.app.driver_namespace['RPR_ACTIVE_NODE'] = self
-
-        layout.menu('SHADER_MT_RPR_UBER_MENU')
+        col = layout.column(align=True)
+        r = col.row(align=True)
+        r.prop(self, 'enable_diffuse', toggle=True)
+        r.prop(self, 'enable_reflection', toggle=True)
+        r.prop(self, 'enable_refraction', toggle=True)
+        r = col.row(align=True)
+        r.prop(self, 'enable_coating', toggle=True)
+        r.prop(self, 'enable_sheen', toggle=True)
+        r.prop(self, 'enable_emission', toggle=True)
+        r = col.row(align=True)
+        r.prop(self, 'enable_sss', toggle=True)
+        r.prop(self, 'enable_normal', toggle=True)
+        r.prop(self, 'enable_transparency', toggle=True)
 
         col = layout.column(align=True)
         if self.enable_diffuse:
@@ -477,7 +467,6 @@ class RPRShaderNodeUber(RPRShaderNode):
             c = box.column(align=True)
             c.prop(self, 'sss_use_diffuse_color')
             c.prop(self, 'sss_multiscatter')
-
         
     class Exporter(NodeParser):
         def export(self):

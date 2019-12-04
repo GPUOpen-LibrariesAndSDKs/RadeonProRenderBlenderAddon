@@ -110,7 +110,6 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     sockets.RPRSocketAngle360,
     sockets.RPRSocketValue,
 
-    rpr_nodes.RPRUberMenu,
     rpr_nodes.RPRShaderNodeUber,
     rpr_nodes.RPRShaderNodeDiffuse,
     rpr_nodes.RPRShaderNodePassthrough,
