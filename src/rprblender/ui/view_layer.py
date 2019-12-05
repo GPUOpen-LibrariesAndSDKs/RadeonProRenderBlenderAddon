@@ -9,8 +9,6 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
 
     def draw(self, context):
         view_layer = context.view_layer.rpr
-        enable_adaptive = context.scene.rpr.get_devices(True).count() == 1
-
         row = self.layout.split(factor=0.5, align=True)
 
         col1 = row.column()
@@ -23,7 +21,6 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
 
             col = col1 if i <= len(view_layer.enable_aovs) // 2 else col2
             r = col.row()
-            r.enabled = aov['rpr'] != pyrpr.AOV_VARIANCE or enable_adaptive
             r.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
 
 
