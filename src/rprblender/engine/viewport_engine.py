@@ -587,7 +587,12 @@ class ViewportEngine(Engine):
         bgl.glDeleteVertexArrays(1, vertex_array)
 
     def _get_render_image(self):
-        return self.rpr_context.get_image()
+        ''' This is only called for non-GL interop image gets '''
+        if utils.IS_MAC:
+            with self.render_lock:
+                return self.rpr_context.get_image()
+        else:
+            return self.rpr_context.get_image()
 
     def draw(self, context):
         log("Draw")
