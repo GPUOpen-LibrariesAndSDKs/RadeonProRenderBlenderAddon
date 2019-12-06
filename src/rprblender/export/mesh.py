@@ -188,7 +188,8 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
 
     mesh = obj.data
     material_unique_indices = (0,)
-    if len(material_slots) > 1:
+    # mesh here could actually be curve data which wouldn't have loop_triangles
+    if len(material_slots) > 1 and getattr(mesh, 'loop_triangles', None):
         # Multiple materials found, going to collect indices of actually used materials
         material_indices = np.fromiter((tri.material_index for tri in mesh.loop_triangles), dtype=np.int32)
         material_unique_indices = np.unique(material_indices)
