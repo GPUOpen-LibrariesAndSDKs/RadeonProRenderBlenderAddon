@@ -9,6 +9,7 @@ import mathutils
 import pyrpr
 from rprblender.engine.context import RPRContext
 from . import object, material, volume
+from rprblender.utils import get_data_from_collection
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.mesh')
@@ -48,40 +49,35 @@ class MeshData:
             return None
 
         data = MeshData()
-        data.vertices = np.fromiter(
-            (x for vert in mesh.vertices for x in vert.co),
-            dtype=np.float32).reshape(-1, 3)
-        data.normals = np.fromiter(
-            (x for tri in mesh.loop_triangles for norm in tri.split_normals for x in norm),
-            dtype=np.float32).reshape(-1, 3)
+        data.vertices = get_data_from_collection(mesh.vertices, 'co', (len(mesh.vertices), 3))
+        
+        len_loop_triangles = len(mesh.loop_triangles)
+        data.normals = get_data_from_collection(mesh.loop_triangles, 'split_normals',
+                                                (len_loop_triangles * 3, 3))
 
         data.uvs = []
         data.uv_indices = []
 
         primary_uv = mesh.rpr.primary_uv_layer
         if primary_uv:
-            uvs = np.fromiter(
-                (x for uv_data in primary_uv.data for x in uv_data.uv),
-                dtype=np.float32).reshape(-1, 2)
+            uvs = get_data_from_collection(primary_uv.data, 'uv', (len(primary_uv.data), 2))
+            uv_indices = get_data_from_collection(mesh.loop_triangles, 'loops',
+                                                  (len_loop_triangles * 3,), np.int32)
+
             if len(uvs) > 0:
-                uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops),
-                                         dtype=np.int32)
                 data.uvs.append(uvs)
                 data.uv_indices.append(uv_indices)
 
             secondary_uv = mesh.rpr.secondary_uv_layer
             if secondary_uv:
-                uvs = np.fromiter(
-                    (x for uv_data in secondary_uv.data for x in uv_data.uv),
-                    dtype=np.float32).reshape(-1, 2)
+                uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
                 if len(uvs) > 0:
-                    uv_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops),
-                                             dtype=np.int32)
                     data.uvs.append(uvs)
                     data.uv_indices.append(uv_indices)
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
-        data.vertex_indices = np.fromiter((x for tri in mesh.loop_triangles for x in tri.vertices), dtype=np.int32)
+        data.vertex_indices = get_data_from_collection(mesh.loop_triangles, 'vertices',
+                                                       (len_loop_triangles * 3,), np.int32)
         data.normal_indices = np.arange(tris_len * 3, dtype=np.int32)
 
         if calc_area:
@@ -90,13 +86,11 @@ class MeshData:
         # set active vertex color map
         if mesh.vertex_colors.active:
             color_data = mesh.vertex_colors.active.data
-
             # getting vertex colors and its indices (the same as uv_indices)
-            colors = np.fromiter(
-                (x for vert in color_data for x in vert.color),
-                dtype=np.float32).reshape(-1, 4)
-            color_indices = data.uv_indices if data.uv_indices is not None else \
-                np.fromiter((x for tri in mesh.loop_triangles for x in tri.loops), dtype=np.int32)
+            colors = get_data_from_collection(color_data, 'color', (len(color_data), 4))
+            color_indices = data.uv_indices[0] if data.uv_indices is not None else \
+                get_data_from_collection(mesh.loop_triangles, 'loops',
+                                         (len_loop_triangles * 3,), np.int32)
 
             # preparing vertex_color buffer with the same size as vertices and
             # setting its data by indices from vertex colors
