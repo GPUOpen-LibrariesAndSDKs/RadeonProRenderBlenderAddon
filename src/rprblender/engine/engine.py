@@ -41,18 +41,6 @@ class Engine:
         # image filter
         self.image_filter = None
 
-    def apply_render_stamp(self, image, channels):
-        """
-        Don't change anything unless it's the final render. Redefined in render_engine to apply render stamp.
-        :param image: source image
-        :type image: np.Array
-        :param channels: image depth in bytes per pixel
-        :type channels: int
-        :return: image with applied render stamp text if text allowed, unchanged source image otherwise
-        :rtype: np.Array
-        """
-        return image
-
     def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
         """
         Sets render result to render passes
@@ -72,8 +60,6 @@ class Engine:
                     image = self.image_filter.get_data()
                 else:
                     image = self.rpr_context.get_image()
-
-                image = self.apply_render_stamp(image, p.channels)
 
             elif p.name == "Color":
                 image = self.rpr_context.get_image(pyrpr.AOV_COLOR)

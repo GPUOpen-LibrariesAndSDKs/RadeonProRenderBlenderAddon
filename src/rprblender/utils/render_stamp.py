@@ -6,33 +6,21 @@ This version uses Windows API so it's compatible only with Windows operation sys
 
 import platform
 
-import pyrpr
-from .user_settings import get_user_settings
 
 from . import logging
 log = logging.Log(tag="render_stamp")
 
 
-if 'Windows' != platform.system():
-    # WinAPI text rendering doesn't work on Ubuntu and MacOS, use empty placeholder
-    def render_stamp(text, image, image_width, image_height, channels, iter, frame_time):
-        """Placeholder for non-Windows systems"""
-        pass
-    render_stamp_supported = False
-
-else:
-    # Windows specific imports and code
-    import bpy
+# WinAPI text rendering doesn't work on Ubuntu and MacOS, use empty placeholder
+if platform.system() == 'Windows':
+    # Windows specific imports and constants
     import numpy as np
-    import time
 
-    import socket
     import ctypes
     from ctypes import windll
     from ctypes.wintypes import RECT, SIZE
 
-    from rprblender import bl_info
-
+    TEXT_BRIGHTNESS_DECREASE_COEFF = 510.0
     FW_NORMAL = 400
     DEFAULT_CHARSET = 1
     OUT_DEFAULT_PRECIS = 0
@@ -53,186 +41,144 @@ else:
     HKEY_CURRENT_USER = 0x80000001
     HKEY_LOCAL_MACHINE = 0x80000002
 
-
-    class BITMAPINFOHEADER(ctypes.Structure):
-        _fields_ = [
-            ('biSize', ctypes.c_uint32),
-            ('biWidth', ctypes.c_int),
-            ('biHeight', ctypes.c_int),
-            ('biPlanes', ctypes.c_short),
-            ('biBitCount', ctypes.c_short),
-            ('biCompression', ctypes.c_uint32),
-            ('biSizeImage', ctypes.c_uint32),
-            ('biXPelsPerMeter', ctypes.c_long),
-            ('biYPelsPerMeter', ctypes.c_long),
-            ('biClrUsed', ctypes.c_uint32),
-            ('biClrImportant', ctypes.c_uint32)
-        ]
+    FONT_NAME = "MS Shell Dlg"
 
 
-    class BITMAPINFO(ctypes.Structure):
-        _fields_ = [
-            ('bmiHeader', BITMAPINFOHEADER),
-            ('bmiColors', ctypes.c_ulong * 3)
-        ]
+class BitmapInfoHeader(ctypes.Structure):
+    """ DIB/BMP BITMAPINFOHEADER structure """
+    _fields_ = [
+        ('biSize', ctypes.c_uint32),
+        ('biWidth', ctypes.c_int),
+        ('biHeight', ctypes.c_int),
+        ('biPlanes', ctypes.c_short),
+        ('biBitCount', ctypes.c_short),
+        ('biCompression', ctypes.c_uint32),
+        ('biSizeImage', ctypes.c_uint32),
+        ('biXPelsPerMeter', ctypes.c_long),
+        ('biYPelsPerMeter', ctypes.c_long),
+        ('biClrUsed', ctypes.c_uint32),
+        ('biClrImportant', ctypes.c_uint32)
+    ]
 
 
-    def render_stamp(text, image, rpr_context, channels, frame_iter, frame_time):
-        """
-        Render info text with requested data to the source image
-        :param text: text string for render
-        :type text: str
-        :param image: source image to blend text into
-        :type image: np.Array
-        :param rpr_context: RPRContext
-        :param channels: source image bytes per pixel
-        :type channels: int
-        :param frame_iter: current frame iteration number
-        :type frame_iter: int
-        :param frame_time: current frame render time
-        :type frame_time: Time
-        :return: source image with integrated text
-        :rtype: np.Array
-        """
-        # Collect info the user could request for render stamp
-        ver = bl_info['version']
-
-        lights_count = len([
-            e for e in rpr_context.objects.values()
-            if isinstance(e, pyrpr.Light)])
-        objects_count = len([
-            e for e in rpr_context.objects.values()
-            if isinstance(e, (pyrpr.Curve, pyrpr.Shape, pyrpr.HeteroVolume,))
-            and hasattr(e, 'is_visible') and e.is_visible
-        ])
-
-        cpu_name = pyrpr.Context.cpu_device['name']
-        settings = get_user_settings()
-        devices = settings.final_devices
-        hardware = ''
-        render_mode = ''
-        selected_gpu_names = ''
-        for i, gpu_state in enumerate(devices.gpu_states):
-            if gpu_state:
-                name = pyrpr.Context.gpu_devices[i]['name']
-                if selected_gpu_names:
-                    selected_gpu_names += " + {}".format(name)
-                else:
-                    selected_gpu_names += name
-
-        if selected_gpu_names:
-            hardware = selected_gpu_names
-            render_mode = "GPU"
-            if devices.cpu_state:
-                hardware = hardware + " / "
-                render_mode = render_mode + " + "
-        if devices.cpu_state:
-            hardware += cpu_name
-            render_mode = render_mode + "CPU"
-
-        # Replace markers with collected info
-        text = text.replace("%pt", time.strftime("%H:%M:%S", time.gmtime(frame_time)))
-        text = text.replace("%pp", str(frame_iter))
-        text = text.replace("%so", str(objects_count))
-        text = text.replace("%sl", str(lights_count))
-        text = text.replace("%c", cpu_name)
-        text = text.replace("%g", selected_gpu_names)
-        text = text.replace("%r", render_mode)
-        text = text.replace("%h", hardware)
-        text = text.replace("%i", socket.gethostname())
-        text = text.replace("%d", time.strftime("%a, %d %b %Y", time.localtime()))
-        text = text.replace("%b", "v%d.%d.%d" % (ver[0], ver[1], ver[2]))
-
-        # do the actual text render
-        return render_text_to_image(text, image, rpr_context.width, rpr_context.height, channels)
+class BitmapInfo(ctypes.Structure):
+    """ DIB/BMP BITMAPINFO structure """
+    _fields_ = [
+        ('bmiHeader', BitmapInfoHeader),
+        ('bmiColors', ctypes.c_ulong * 3)
+    ]
 
 
-    def render_text_to_image(text, image, image_width, image_height, channels):
-        """
-        Use Windows API to draw text to source image
-        :param text: text string to render
-        :type text: str
-        :param image: source image
-        :type image: np.Array
-        :param image_width:
-        :type image_width: int
-        :param image_height:
-        :type image_height: int
-        :param channels: bytes per pixel
-        :type channels: int
-        :return: source image with integrated text
-        :rtype: np.Array
-        """
-
-        # Use Windows system font
-        font_header = windll.gdi32.CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
+class Win32GdiFont:
+    """ Support class to handle Win32 GDI font object for stamp text rendering """
+    def __init__(self, font_name):
+        """ Create GDI font object """
+        self.font_header = windll.gdi32.CreateFontW(-12, 0, 0, 0, FW_NORMAL, 0, 0, 0,
                                                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                                                NONANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
-                                               "MS Shell Dlg")
-        assert font_header
+                                               font_name)
+        assert self.font_header, f"GDI font '{font_name}' creation failure"
 
-        # Setup device context
-        device_context = windll.gdi32.CreateCompatibleDC(None)
-        assert device_context
-        windll.gdi32.SetTextColor(device_context, (255 | 255 << 8 | 255 << 16))
-        windll.gdi32.SetBkColor(device_context, (0 | 0 << 8 | 0 << 16))
-        windll.gdi32.SelectObject(device_context, font_header)
+    def __enter__(self):
+        return self.font_header
 
-        # compute text size
-        textSize = SIZE()
-        assert windll.gdi32.GetTextExtentPoint32W(device_context, text, len(text), ctypes.byref(textSize))
-        width = textSize.cx + 6  # add some margins
-        height = textSize.cy + 6
-        buffer_length = width * height * 4
-        if width > image_width:
-            width = image_width
-        if height > image_height:
-            height = image_height
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ctypes.windll.gdi32.DeleteDC(self.font_header)
 
-        # prepare text bitmap info
-        bitmap_info = BITMAPINFO()
-        bitmap_header = bitmap_info.bmiHeader
-        ctypes.memset(ctypes.byref(bitmap_header), 0, ctypes.sizeof(bitmap_info.bmiHeader))
-        bitmap_header.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+
+class Win32GdiDeviceContext:
+    """ Support class to handle Win32 GDI device context object """
+    def __init__(self, font_header):
+        self.device_context = windll.gdi32.CreateCompatibleDC(None)
+        assert self.device_context, "GDI device context creation failure"
+        windll.gdi32.SetTextColor(self.device_context, (255 | 255 << 8 | 255 << 16))
+        windll.gdi32.SetBkColor(self.device_context, (0 | 0 << 8 | 0 << 16))
+        windll.gdi32.SelectObject(self.device_context, font_header)
+
+    def __enter__(self):
+        return self.device_context
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ctypes.windll.gdi32.DeleteDC(self.device_context)
+
+
+class Win32GdiBitmap:
+    """ Support class to handle Win32 GDI device independent bitmap object """
+    def __init__(self, device_context, width, height):
+        self.bitmap_info = BitmapInfo()
+        bitmap_header = self.bitmap_info.bmiHeader
+        ctypes.memset(ctypes.byref(bitmap_header), 0, ctypes.sizeof(self.bitmap_info.bmiHeader))
+        bitmap_header.biSize = ctypes.sizeof(BitmapInfoHeader)
         bitmap_header.biWidth = width
         bitmap_header.biHeight = height
         bitmap_header.biPlanes = 1
         bitmap_header.biBitCount = 32
         bitmap_header.biCompression = BI_RGB
-        bitmap = windll.gdi32.CreateDIBSection(device_context, ctypes.byref(bitmap_info), DIB_RGB_COLORS, None, None, 0)
-        assert bitmap
-        old_bitmap = ctypes.windll.gdi32.SelectObject(device_context, bitmap)
+        self.bitmap = windll.gdi32.CreateDIBSection(device_context, ctypes.byref(self.bitmap_info), DIB_RGB_COLORS, None, None, 0)
+        assert self.bitmap, "GDI bitmap creation failed"
 
-        # render text to bitmap
-        r = RECT()
-        r.left = 0
-        r.top = 2  # offset text a little bit down
-        r.right = r.left + width - 1
-        r.bottom = r.top + height - 1
-        assert windll.user32.DrawTextW(device_context, text, -1, ctypes.byref(r), DT_CENTER | DT_VCENTER | DT_NOPREFIX)
-        image_text = ctypes.create_string_buffer(buffer_length)
-        ctypes.windll.gdi32.SelectObject(device_context, old_bitmap)
-        windll.gdi32.GetDIBits(device_context, bitmap, 0, ctypes.c_uint32(height),
-                               ctypes.byref(image_text), ctypes.byref(bitmap_info),
-                               DIB_RGB_COLORS)
-        text_bytes = np.fromstring(image_text, dtype=np.uint8, count=width * height * 4)
+    def __enter__(self):
+        return self.bitmap, self.bitmap_info
 
-        # reshape both images in the same way
-        ordered_image = np.reshape(image, (image_height, image_width, channels))
-        ordered_text_bytes = np.reshape(text_bytes, (height, width, 4))
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ctypes.windll.gdi32.DeleteDC(self.bitmap)
 
-        ctypes.windll.gdi32.DeleteObject(bitmap)
-        ctypes.windll.gdi32.DeleteDC(device_context)
-        ctypes.windll.gdi32.DeleteObject(font_header)
 
-        # blend text image to the right bottom corner of the source image
-        if channels == 1:
-            ordered_image[0:height, image_width-width:, 0:1] = \
-                ordered_image[0:height, image_width-width:, 0:1] * 0.5 + ordered_text_bytes[:, :, 0:1] / 510.0
-        else:
-            ordered_image[0:height, image_width-width:, 0:3] = \
-                ordered_image[0:height, image_width-width:, 0:3] * 0.5 + ordered_text_bytes[:, :, 0:3] / 510.0
+if platform.system() != 'Windows':
+    def render(text, image_width, image_height):
+        """ Unable to render """
+        log.debug(f"Render stamp for operation system '{platform.system()}' is not implemented yet")
+        raise NotImplementedError()
+else:
+    def render(text, image_width, image_height):
+        """
+        Render stamp text as bitmap using Windows GDI32 API, return pixels and actual stamp image size
+        """
+        with Win32GdiFont(FONT_NAME) as font_header:
+            with Win32GdiDeviceContext(font_header) as device_context:
+                # compute text size
+                text_size = SIZE()
+                assert windll.gdi32.GetTextExtentPoint32W(device_context, text, len(text), ctypes.byref(text_size))
 
-        return ordered_image
+                # add some margins
+                width = text_size.cx + 6
+                height = text_size.cy + 6
 
-    render_stamp_supported = True
+                buffer_length = width * height * 4
+
+                # clip by image size
+                if width > image_width:
+                    width = image_width
+                if height > image_height:
+                    height = image_height
+
+                r = RECT()
+                r.left = 0
+                r.top = 2  # offset text a little bit down
+                r.right = r.left + width - 1
+                r.bottom = r.top + height - 1
+
+                # render text to bitmap
+                with Win32GdiBitmap(device_context, width, height) as (bitmap, bitmap_info):
+                    old_bitmap = windll.gdi32.SelectObject(device_context, bitmap)
+                    assert windll.user32.DrawTextW(device_context, text, -1, ctypes.byref(r),
+                                                   DT_CENTER | DT_VCENTER | DT_NOPREFIX)
+                    ctypes.windll.gdi32.SelectObject(device_context, old_bitmap)
+                    text_image_buffer = ctypes.create_string_buffer(buffer_length)
+                    windll.gdi32.GetDIBits(device_context, bitmap, 0, ctypes.c_uint32(height),
+                                           ctypes.byref(text_image_buffer), ctypes.byref(bitmap_info),
+                                           DIB_RGB_COLORS)
+
+                    # extract bitmap pixels to array
+                    text_image_bytes = np.frombuffer(text_image_buffer, dtype=np.uint8, count=width * height * 4)
+
+        # Turn text int pixels to white-over-black floats
+        ordered_text_bytes = np.reshape(text_image_bytes, (height * width, 4))
+        black_white_rect = [
+            [1.0, 1.0, 1.0, 1.0] if e[0] > 0 else [0.0, 0.0, 0.0, 1.0]
+            for e in ordered_text_bytes
+        ]
+
+        return black_white_rect, width, height
+
+

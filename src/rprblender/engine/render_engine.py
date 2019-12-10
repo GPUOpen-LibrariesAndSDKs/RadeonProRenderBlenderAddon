@@ -1,3 +1,4 @@
+import socket
 import time
 import datetime
 import math
@@ -11,6 +12,7 @@ from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
 from rprblender.utils.user_settings import get_user_settings
+from rprblender import bl_info
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -43,6 +45,8 @@ class RenderEngine(Engine):
         self.tile_order = None
 
         self.world_backplate = None
+
+        self.render_stamp_text = ""
 
     def notify_status(self, progress, info):
         self.rpr_engine.update_progress(progress)
@@ -116,9 +120,8 @@ class RenderEngine(Engine):
             if self.current_sample == self.render_samples:
                 break
 
-            if self.render_time:
-                if self.current_render_time >= self.render_time:
-                    break
+            if self.render_time and self.current_render_time >= self.render_time:
+                break
 
         if self.image_filter:
             self.notify_status(1.0, "Applying denoising final image")
@@ -127,6 +130,8 @@ class RenderEngine(Engine):
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name,
                                       apply_image_filter=True)
+
+        self.apply_render_stamp_to_image()
 
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = self.current_sample
@@ -203,6 +208,9 @@ class RenderEngine(Engine):
                 self.update_render_result(tile_pos, tile_size,
                                           layer_name=self.render_layer_name)
 
+                # store maximum actual number of used samples for render stamp info
+                self.current_sample = max(self.current_sample, sample)
+
                 if is_adaptive_active:
                     active_pixels = self.rpr_context.get_info(pyrpr.CONTEXT_ACTIVE_PIXEL_COUNT, int)
                     if active_pixels == 0:
@@ -247,6 +255,9 @@ class RenderEngine(Engine):
 
             self.rpr_engine.end_result(result)
 
+        if not self.rpr_engine.test_break():
+            self.apply_render_stamp_to_image()
+
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = round(self.render_samples * progress)
         self.athena_send(athena_data)
@@ -268,26 +279,6 @@ class RenderEngine(Engine):
 
         self.notify_status(1, "Finish render")
         log('Finish render')
-
-    def apply_render_stamp(self, image, channels):
-        """
-        Apply render stamp to image if enabled.
-        :param image: source image
-        :type image: np.Array
-        :param channels: image depth in bytes per pixel
-        :type channels: int
-        :return: image with applied render stamp text if text allowed, unchanged source image otherwise
-        :rtype: np.Array
-        """
-        if bpy.context.scene.rpr.use_render_stamp \
-                and render_stamp.render_stamp_supported \
-                and not bpy.context.scene.rpr.is_tile_render_available:
-
-            # TODO: Apply render stamp after tile rendering
-            image = render_stamp.render_stamp(bpy.context.scene.rpr.render_stamp, image,
-                                              self.rpr_context, channels,
-                                              self.current_sample, self.current_render_time)
-        return image
 
     def _init_rpr_context(self, scene):
         scene.rpr.init_rpr_context(self.rpr_context)
@@ -441,7 +432,10 @@ class RenderEngine(Engine):
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.render_update_samples = scene.rpr.limits.update_samples
-        
+
+        if scene.rpr.use_render_stamp:
+            self.render_stamp_text = self.prepare_scene_stamp_text(scene)
+
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
         log('Finish sync')
@@ -496,3 +490,80 @@ class RenderEngine(Engine):
         # sending data
         from rprblender.utils import athena
         athena.send_data(data)
+
+    def prepare_scene_stamp_text(self, scene):
+        """ Fill stamp with static scene and render devices info that user can ask for """
+        text = str(scene.rpr.render_stamp)
+        text = text.replace("%i", socket.gethostname())
+
+        lights_count = len([
+            e for e in self.rpr_context.objects.values()
+            if isinstance(e, pyrpr.Light)])
+        text = text.replace("%sl", str(lights_count))
+
+        objects_count = len([
+            e for e in self.rpr_context.objects.values()
+            if isinstance(e, (pyrpr.Curve, pyrpr.Shape, pyrpr.HeteroVolume,))
+               and hasattr(e, 'is_visible') and e.is_visible
+        ])
+        text = text.replace("%so", str(objects_count))
+
+        cpu_name = pyrpr.Context.cpu_device['name']
+        text = text.replace("%c", cpu_name)
+
+        selected_gpu_names = ''
+        settings = get_user_settings()
+        devices = settings.final_devices
+        for i, gpu_state in enumerate(devices.gpu_states):
+            if gpu_state:
+                name = pyrpr.Context.gpu_devices[i]['name']
+                if selected_gpu_names:
+                    selected_gpu_names += f" + {name}"
+                else:
+                    selected_gpu_names += name
+
+        hardware = ''
+        render_mode = ''
+        if selected_gpu_names:
+            hardware = selected_gpu_names
+            render_mode = "GPU"
+            if devices.cpu_state:
+                hardware += " / "
+                render_mode += " + "
+        if devices.cpu_state:
+            hardware += cpu_name
+            render_mode = render_mode + "CPU"
+        text = text.replace("%g", selected_gpu_names)
+        text = text.replace("%r", render_mode)
+        text = text.replace("%h", hardware)
+
+        ver = bl_info['version']
+        text = text.replace("%b", f"v{ver[0]}.{ver[1]}.{ver[2]}")
+
+        return text
+
+    def apply_render_stamp_to_image(self):
+        """
+        Apply render stamp if enabled to "Combined" view layer pass.
+        """
+        if self.render_stamp_text:
+            # fill render iteration info
+            text = self.render_stamp_text
+            text = text.replace("%pt", time.strftime("%H:%M:%S", time.gmtime(self.current_render_time)))
+            text = text.replace("%d", time.strftime("%a, %d %b %Y", time.localtime()))
+            text = text.replace("%pp", str(self.current_sample))
+
+            try:
+                ordered_text_bytes, width, height = \
+                    render_stamp.render(text, self.width, self.height)
+            except NotImplementedError:
+                return
+
+            # Write stamp pixels to the RenderResult
+            result = self.rpr_engine.begin_result(self.width - width, 0,
+                                                  width, height)
+
+            for p in result.layers[0].passes:
+                p.rect = [e[:p.channels] for e in ordered_text_bytes]
+
+            self.rpr_engine.end_result(result)
