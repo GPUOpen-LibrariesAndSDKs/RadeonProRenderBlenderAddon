@@ -7,6 +7,7 @@ import shutil
 import platform
 import sys
 import glob
+import numpy as np
 
 import bpy
 import rprblender
@@ -188,3 +189,10 @@ def clear_temp_dir():
             shutil.rmtree(path, ignore_errors=True)
         else:
             os.remove(path)
+
+
+def get_data_from_collection(collection, attribute, size, dtype=np.float32):
+    len = np.prod(size)
+    data = np.zeros(len, dtype=dtype)
+    collection.foreach_get(attribute, data)
+    return data.reshape(size)
