@@ -141,7 +141,15 @@ class ShaderNodeDisplacement(NodeParser):
         if normal:
             displacement *= normal
 
-        return displacement
+        if isinstance(displacement.data, (float, tuple)):
+            return self.create_node(pyrpr.MATERIAL_NODE_CONSTANT_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_VALUE: displacement
+            })
+        else:
+            return displacement
+
+    def export_hybrid(self):
+        return None
 
 
 class NodeReroute(NodeParser):
