@@ -1086,6 +1086,10 @@ class EnvironmentLight(Light):
 
     def set_image(self, image):
         self.image = image
+        if not self.image:
+            self.set_color(1.0, 0.0, 1.0)
+            return
+
         EnvironmentLightSetImage(self, image)
 
     def set_color(self, r, g, b):
