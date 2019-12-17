@@ -99,16 +99,12 @@ class CurveData:
         # welding (0, 0, 0) point by previous point
         for curve in all_points:
             for i in range(1, length):
-                # if module of curve[i] == 0 then make it equal to curve[i-1]
-                if math.isclose(np.linalg.norm(curve[i]), 0.0):
+                # if all elements of curve[i] == 0 then make it equal to curve[i-1]
+                if np.count_nonzero(curve[i]) == 0:
                     curve[i] = curve[i-1]
 
-        # getting indices of curves with length > 0
-        curve_indices = np.fromiter(
-            (i for i, curve in enumerate(all_points)
-               if not math.isclose(np.linalg.norm(curve), 0.0)),
-            dtype=np.int32
-        )
+        # getting indices of curves rows (points) with any non-zero values
+        curve_indices = np.arange(curves_count * length,dtype=np.int32)
 
         if len(curve_indices) == 0:
             return None
