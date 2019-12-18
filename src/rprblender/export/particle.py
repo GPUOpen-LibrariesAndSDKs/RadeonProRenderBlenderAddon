@@ -104,7 +104,7 @@ class CurveData:
                     curve[i] = curve[i-1]
 
         # getting indices of curves rows (points) with any non-zero values
-        curve_indices = np.arange(curves_count * length,dtype=np.int32)
+        curve_indices = np.arange(len(all_points), dtype=np.int32)
 
         if len(curve_indices) == 0:
             return None
