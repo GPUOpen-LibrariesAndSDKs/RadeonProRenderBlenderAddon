@@ -88,7 +88,7 @@ class MeshData:
             color_data = mesh.vertex_colors.active.data
             # getting vertex colors and its indices (the same as uv_indices)
             colors = get_data_from_collection(color_data, 'color', (len(color_data), 4))
-            color_indices = data.uv_indices[0] if data.uv_indices is not None else \
+            color_indices = data.uv_indices[0] if (data.uv_indices is not None and len(data.uv_indices) > 0) else \
                 get_data_from_collection(mesh.loop_triangles, 'loops',
                                          (len_loop_triangles * 3,), np.int32)
 
