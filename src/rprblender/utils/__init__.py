@@ -148,6 +148,8 @@ IS_WIN = platform.system() == 'Windows'
 IS_MAC = platform.system() == 'Darwin'
 IS_LINUX = platform.system() == 'Linux'
 
+major, minor, _ = bpy.app.version
+USE_BLENDER_DENOISER = IS_MAC and minor >= 81
 
 from . import logging
 log = logging.Log(tag='utils')
@@ -196,3 +198,13 @@ def get_data_from_collection(collection, attribute, size, dtype=np.float32):
     data = np.zeros(len, dtype=dtype)
     collection.foreach_get(attribute, data)
     return data.reshape(size)
+
+def has_denoise_node():
+    ''' returns true if compositor node in the tree '''
+    composite_tree = bpy.context.scene.node_tree
+    if not composite_tree:
+        return False
+    for node in composite_tree.nodes:
+        if isinstance(node, bpy.types.CompositorNodeDenoise):
+            return True
+    return False

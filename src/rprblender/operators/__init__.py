@@ -23,6 +23,7 @@ from . import (
 
 register_operators, unregister_operators = bpy.utils.register_classes_factory([
     render.RPR_RENDER_OP_open_web_page,
+    render.RPR_RENDER_OP_add_denoiser_node,
 
     world.RPR_WORLD_OP_create_fog_object,
 

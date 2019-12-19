@@ -9,7 +9,7 @@ from bpy.props import (
 )
 
 import pyrpr
-from rprblender.utils import logging
+from rprblender.utils import logging, USE_BLENDER_DENOISER
 from . import RPR_Properties
 import platform
 
@@ -123,8 +123,9 @@ class RPR_DenoiserProperties(RPR_Properties):
         }
 
     def is_available(self, scene, is_final_engine=True):
-        return self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
-                                            and scene.rpr.render_quality == 'FULL')
+        return not USE_BLENDER_DENOISER and (self.filter_type != 'ML' or 
+                                             (scene.rpr.get_devices(is_final_engine).has_gpu()
+                                                and scene.rpr.render_quality == 'FULL'))
 
 
 class RPR_ViewLayerProperites(RPR_Properties):
@@ -326,6 +327,13 @@ class RPR_ViewLayerProperites(RPR_Properties):
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
             rpr_context.enable_aov(aov['rpr'])
+
+    def enable_aov_by_name(self, name):
+        ''' Enables a give aov name '''
+        for i, aov_info in enumerate(self.aovs_info):
+            if aov_info['name'] == name:
+                self.enable_aovs[i] = True
+                return
 
     @classmethod
     def register(cls):
