@@ -79,14 +79,14 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - lossy image
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_NORMALS (1 << 3) 
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_UV (1 << 4) 
-        if self.export_as_single_file:
-            flags += 1 << 0
+        if not self.export_as_single_file:
+            flags |= 1 << 0
         
         compression = {'NONE': 0,
                         'LOW': 1 << 1,
                         'MEDIUM': 1 << 2,
-                        'HIGH': 1 << 2 + 1 << 3 + 1 << 4}
-        flags += compression[self.compression]
+                        'HIGH': 1 << 2 | 1 << 3 | 1 << 4}
+        flags |= compression[self.compression]
 
         if self.export_animation and self.start_frame <= self.end_frame:
             orig_frame = scene.frame_current
