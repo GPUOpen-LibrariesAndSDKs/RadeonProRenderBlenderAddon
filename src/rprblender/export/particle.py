@@ -135,8 +135,10 @@ class CurveData:
         else:
             data.uvs = None
 
-        data.root_radius = p_sys.settings.root_radius * p_sys.settings.radius_scale
-        data.tip_radius = p_sys.settings.tip_radius * p_sys.settings.radius_scale
+        settings = p_sys.settings
+        radius_scale = settings.radius_scale * sum(abs(x) for x in obj.matrix_world.to_scale()) / 3
+        data.root_radius = settings.root_radius * radius_scale
+        data.tip_radius = 0.0 if settings.use_close_tip else settings.tip_radius * radius_scale
 
         return data
 
