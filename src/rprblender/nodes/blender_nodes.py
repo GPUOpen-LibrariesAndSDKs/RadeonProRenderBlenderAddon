@@ -1787,13 +1787,11 @@ class ShaderNodeUVMap(NodeParser):
                     pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
                 })
 
-            secondary_uv = mesh.rpr.secondary_uv_layer
-            if secondary_uv and self.node.uv_map == secondary_uv.name:
+            # use secondary UV set if any available for the mesh
+            if mesh.rpr.secondary_uv_layer(self.object):
                 return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
                     pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV1
                 })
-
-            return None
 
         return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
             pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
