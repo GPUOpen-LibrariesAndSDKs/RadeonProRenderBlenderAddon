@@ -855,15 +855,18 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
             rpr_node = self.create_node(node_type)
 
             if self.node.procedural_type == 'MATERIAL_NODE_UVTYPE_PROJECT':
-                # get camera set, if none set get from scene
-                if self.node.camera:
-                    camera_data =  bpy.data.cameras[self.node.camera]
-                    camera = next(obj for obj in bpy.data.objects if obj.data == camera_data)
-                else:
-                    camera = bpy.data.scenes[0].camera
-
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV_TYPE,
                                    getattr(pyrpr, self.node.procedural_type))
+
+                # get camera set, if none set get from scene
+                if self.node.camera:
+                    camera_data = bpy.data.cameras[self.node.camera]
+                    camera = next((obj for obj in bpy.data.objects if obj.data == camera_data), None)
+                else:
+                    camera = bpy.data.scenes[0].camera
+                if not camera:  # default projection if no camera present will be "top-down at 0-0-0"
+                    return rpr_node
+
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_ORIGIN, tuple(camera.location))
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_ZAXIS, tuple(camera.matrix_world.col[2]))
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_XAXIS, tuple(camera.matrix_world.col[0]))

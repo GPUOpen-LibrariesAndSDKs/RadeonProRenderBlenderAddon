@@ -11,11 +11,11 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.node')
 
 
-def key(material, node, socket_out, group_nodes: list) -> tuple:
+def key(material_key, node, socket_out, group_nodes: list) -> tuple:
     if group_nodes:
-        return (material.name, node.name, socket_out.name if socket_out else None,
+        return (material_key, node.name, socket_out.name if socket_out else None,
                 tuple((e.name for e in group_nodes)))
-    return (material.name, node.name, socket_out.name if socket_out else None)
+    return (material_key, node.name, socket_out.name if socket_out else None)
 
 
 class MaterialError(BaseException):
@@ -31,7 +31,7 @@ class BaseNodeParser(metaclass=ABCMeta):
 
     def __init__(self, rpr_context: RPRContext, material: bpy.types.Material,
                  node: bpy.types.Node, socket_out: bpy.types.NodeSocket, group_nodes=(), *,
-                 obj: bpy.types.Object = None, normal_node = None):
+                 obj: bpy.types.Object = None, normal_node=None, material_key):
         self.rpr_context = rpr_context
         self.material = material
         self.node = node
@@ -41,6 +41,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         # will need it to get out of each group
         self.group_nodes = group_nodes
         self.normal_node = normal_node
+        self.material_key = material_key
 
     # INTERNAL FUNCTIONS
 
@@ -61,9 +62,9 @@ class BaseNodeParser(metaclass=ABCMeta):
             group_nodes = self.group_nodes
 
         # check if this node was already parsed
-        rpr_node = self.rpr_context.material_nodes.get(
-            key(self.material, node, socket_out, group_nodes),
-            None)
+        node_key = key(self.material_key, node, socket_out, group_nodes)
+
+        rpr_node = self.rpr_context.material_nodes.get(node_key, None)
         if rpr_node:
             return rpr_node
 
@@ -71,7 +72,8 @@ class BaseNodeParser(metaclass=ABCMeta):
         node_parser_class = get_node_parser_class(node.bl_idname)
         if node_parser_class:
             node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out,
-                                            group_nodes, obj=self.object, normal_node=self.normal_node)
+                                            group_nodes, obj=self.object, normal_node=self.normal_node,
+                                            material_key=self.material_key)
             return node_parser.final_export()
 
         log.warn("Ignoring unsupported node", node, self.material)
@@ -133,7 +135,7 @@ class BaseNodeParser(metaclass=ABCMeta):
     def get_input_normal(self, socket_key):
         """ Parse link, accept only RPR core material nodes """
         input_normal = self.get_input_link(socket_key, accepted_type=pyrpr.MaterialNode)
-        return input_normal if input_normal is not None else self.normal_node    
+        return input_normal if input_normal is not None else self.normal_node
 
     @staticmethod
     def is_link_allowed(link):
@@ -223,7 +225,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         rpr_node = self.export()
 
         if isinstance(rpr_node, pyrpr.MaterialNode):
-            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
+            node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
 
@@ -249,7 +251,7 @@ class NodeParser(BaseNodeParser):
         rpr_node = node_item.data if node_item else None
 
         if isinstance(rpr_node, pyrpr.MaterialNode):
-            node_key = key(self.material, self.node, self.socket_out, self.group_nodes)
+            node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
             rpr_node.set_name(str(node_key))
 
@@ -289,11 +291,11 @@ class NodeParser(BaseNodeParser):
 
     def node_item(self, val):
         # if val is already a nodeitem don't re-wrap it.
-        return val if isinstance(val, NodeItem) else NodeItem(self.rpr_context, val) 
+        return val if isinstance(val, NodeItem) else NodeItem(self.rpr_context, val)
 
     def get_input_normal(self, socket_key):
         input_normal = super().get_input_normal(socket_key)
-        return self.node_item(input_normal) if input_normal is not None else self.normal_node  
+        return self.node_item(input_normal) if input_normal is not None else self.normal_node
 
 
 
@@ -326,8 +328,10 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
-    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, obj=None, normal_node=None):
-        super().__init__(rpr_context, material, node, socket_out, group_nodes, obj=obj, normal_node=normal_node)
+    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, obj=None, normal_node=None,
+                 material_key=None):
+        super().__init__(rpr_context, material, node, socket_out, group_nodes, obj=obj, normal_node=normal_node,
+                         material_key=material_key)
 
         # internal cache of parsed node rules
         self._parsed_node_rules = {}

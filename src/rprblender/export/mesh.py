@@ -30,7 +30,7 @@ class MeshData:
     area: float = None
 
     @staticmethod
-    def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False):
+    def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False, obj=None):
         """ Returns MeshData from bpy.types.Mesh """
 
         # Looks more like Blender's bug that we have to check that mesh has calc_normals_split().
@@ -50,7 +50,7 @@ class MeshData:
 
         data = MeshData()
         data.vertices = get_data_from_collection(mesh.vertices, 'co', (len(mesh.vertices), 3))
-        
+
         len_loop_triangles = len(mesh.loop_triangles)
         data.normals = get_data_from_collection(mesh.loop_triangles, 'split_normals',
                                                 (len_loop_triangles * 3, 3))
@@ -68,7 +68,7 @@ class MeshData:
                 data.uvs.append(uvs)
                 data.uv_indices.append(uv_indices)
 
-            secondary_uv = mesh.rpr.secondary_uv_layer
+            secondary_uv = mesh.rpr.secondary_uv_layer(obj)
             if secondary_uv:
                 uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
                 if len(uvs) > 0:
@@ -195,7 +195,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         if not slot.material:
             continue
 
-        log("Syncing material '%s'" % slot.name, slot)
+        log(f"Syncing material '{slot.name}'; {slot}")
 
         rpr_material = material.sync(rpr_context, slot.material, obj=obj)
 
@@ -217,12 +217,12 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         smoke_modifier = volume.get_smoke_modifier(obj)
         if not smoke_modifier:
             # setting volume material
-            rpr_volume = material.sync(rpr_context, mat, 'Volume')
+            rpr_volume = material.sync(rpr_context, mat, 'Volume', obj=obj)
             rpr_shape.set_volume_material(rpr_volume)
 
         # setting displacement material
         if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
-            rpr_displacement = material.sync(rpr_context, mat, 'Displacement')
+            rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
             rpr_shape.set_displacement_material(rpr_displacement)
         else:
             rpr_shape.set_displacement_material(None)
@@ -233,7 +233,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
 def assign_override_material(rpr_context, rpr_shape, obj, material_override):
     """ Apply override material to shape if material is correct """
     rpr_material = material.sync(rpr_context, material_override, obj=obj)
-    rpr_displacement = material.sync(rpr_context, material_override, 'Displacement')
+    rpr_displacement = material.sync(rpr_context, material_override, 'Displacement', obj=obj)
     rpr_shape.set_material(rpr_material)
     rpr_shape.set_displacement_material(rpr_displacement)
 
@@ -272,7 +272,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
     obj_key = object.key(obj)
-    data = MeshData.init_from_mesh(mesh)
+    data = MeshData.init_from_mesh(mesh, obj=obj)
     if not data:
         rpr_context.create_empty_object(obj_key)
         return
