@@ -20,16 +20,34 @@ class RPR_MeshProperites(RPR_Properties):
 
     @property
     def primary_uv_layer(self):
+        """ Get the mesh primary UV if present """
         uv_layers = self.id_data.uv_layers
         return next((uv for uv in uv_layers if uv.active_render), None)
 
     @property
-    def secondary_uv_layer(self):
+    def primary_uv_name(self):
+        layer = self.primary_uv_layer
+        if layer:
+            return layer.name
+        return None
+
+    @property
+    def uv_sets_names(self):
+        return tuple(uv.name for uv in self.id_data.uv_layers)
+
+    def secondary_uv_layer(self, obj):
+        """ Get the mesh secondary UV set if present """
         uv_layers = self.id_data.uv_layers
-        if len(uv_layers) <= 1 or not self.secondary_uv_layer_name:
+        # RPR field value can get lost if mesh has modifiers, use original object value
+        if len(uv_layers) <= 1:
             return None
 
-        return next((uv for uv in uv_layers if uv.name == self.secondary_uv_layer_name), None)
+        secondary_name = obj.original.data.rpr.secondary_uv_layer_name
+        if secondary_name:  # set is selected explicitly
+            return next((uv for uv in uv_layers if uv.name == secondary_name), None)
+
+        # if no secondary UV specified use the first non-primary set
+        return next((uv for uv in uv_layers if not uv.active_render))
 
     @classmethod
     def register(cls):

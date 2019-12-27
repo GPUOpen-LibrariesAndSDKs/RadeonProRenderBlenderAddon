@@ -497,9 +497,12 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Material):
-                    mesh_obj = context.object if context.object and \
-                                                 context.object.type == 'MESH' else None
-                    material.sync_update(self.rpr_context, obj, mesh_obj)
+                    if material.has_uv_map_node(obj):
+                        self.remove_material_uvs_instances(obj, depsgraph)
+                    else:
+                        mesh_obj = context.object if context.object and \
+                                                     context.object.type == 'MESH' else None
+                        material.sync_update(self.rpr_context, obj, mesh_obj)
                     is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
                     continue
 
@@ -788,28 +791,39 @@ class ViewportEngine(Engine):
                 res = True
         return res
 
+    def remove_material_uvs_instances(self, mat, depsgraph):
+        """ Find and remove each unique instance of material by UVs combinations """
+        uvs = set(entry.data.rpr.uv_sets_names for entry in self.depsgraph_objects(depsgraph)
+                  if mat.name in entry.material_slots)
+
+        for entry in uvs:
+            for socket in ('Surface', 'Volume', 'Displacement'):
+                mat_key = material.key((mat.name, entry), input_socket_key=socket)
+                if mat_key in self.rpr_context.materials:
+                    self.rpr_context.remove_material(mat_key)
+
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
 
-        if material_override:
-            rpr_material = self.rpr_context.materials.get(material.key(material_override))
-            rpr_displacement = self.rpr_context.materials.get(material.key(material_override, 'Displacement'), None)
-        else:
-            rpr_material = self.rpr_context.materials.get(material.key(mat), None)
-            rpr_displacement = self.rpr_context.materials.get(material.key(mat, 'Displacement'), None)
-
-        if not rpr_material and not rpr_displacement:
-            return False
-
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)
+            active_mat = material_override
         else:
             objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
                             if mat.name in obj.material_slots.keys())
+            active_mat = mat
+
+        has_uv_map = material.has_uv_map_node(active_mat)
 
         updated = False
         for obj in objects:
+            rpr_material, rpr_volume, rpr_displacement = \
+                self.get_object_rpr_materials(obj, active_mat, has_uv_map)
+
+            if not rpr_material and not rpr_volume and not rpr_displacement:
+                continue
+
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
 
             if object.key(obj) not in self.rpr_context.objects:
@@ -821,6 +835,30 @@ class ViewportEngine(Engine):
                                           indirect_only=indirect_only, material_override=material_override)
 
         return updated
+
+    def get_object_rpr_materials(self, obj, active_mat, has_uv_map):
+        """ Get existing materials for shape; create new if UV map present in material """
+        mat_name_key = (active_mat.name, obj.data.rpr.uv_sets_names) if has_uv_map else active_mat.name
+
+        rpr_material = self.rpr_context.materials.get(
+            material.key(mat_name_key,),
+            None)
+        rpr_volume = self.rpr_context.materials.get(
+            material.key(mat_name_key, input_socket_key='Volume'),
+            None)
+        rpr_displacement = self.rpr_context.materials.get(
+            material.key(mat_name_key, input_socket_key='Displacement'),
+            None)
+
+        if has_uv_map:
+            if not rpr_material:
+                rpr_material = material.sync(self.rpr_context, active_mat, obj=obj)
+            if not rpr_volume:
+                rpr_volume = material.sync(self.rpr_context, active_mat, input_socket_key='Volume', obj=obj)
+            if not rpr_displacement:
+                rpr_displacement = material.sync(self.rpr_context, active_mat, input_socket_key='Displacement', obj=obj)
+
+        return rpr_material, rpr_volume, rpr_displacement
 
     def update_render(self, scene: bpy.types.Scene, view_layer: bpy.types.ViewLayer):
         ''' update settings if changed while live returns True if restart needed '''
