@@ -52,36 +52,14 @@ def ensure_boto3() -> None:
     # TODO: check if scene reload works as well (note: even then it couldn't be used at all; just to be sure on how it works)
     try:
         import boto3
+        log.info("boto3 is already available")
     except ImportError:
+        log.info("Installing boto3 library...")
         import subprocess
         # subprocess.call([bpy.app.binary_path_python, "-m", "ensurepip"])  # seems to be working fine without it
         subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "--upgrade", "pip", "--user"])
         subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "boto3", "--user"])
-
-
-"""
-
-#moody
-Вот дождь пошёл и спать охота,
-И всё такое "ни к чему".
-Куда иду? про что работа?
-Зачем живу?
-
-Вопросы, мысли и сомненья.
-Вокруг всё тлен и суета.
-Какое, к чёрту, вдохновенье.
-Какая, блин, ещё еда.
-
-Такой вот сумрак на душе,
-И кофе душу мне не греет.
-Послать охота всё подряд.
-И всёж - задачу ту доделать.
-
-Решить, создать, отдать, забыть.
-И - на фиг надо. В глушь. В деревню.
-Туда, где тишь да маета. Но кто тогда
-Работу будет делать заместо меня?
-"""
+        log.info("Library boto3 should be available after Blender restart")
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -231,6 +209,7 @@ def on_load_pre(*args, **kwargs):
 
 
 def register():
+    """ Register all addon classes in Blender """
     log("register")
 
     bpy.utils.register_class(RPREngine)
@@ -246,6 +225,7 @@ def register():
 
 
 def unregister():
+    """ Unregister all addon classes from Blender """
     log("unregister")
 
     bpy.app.handlers.version_update.remove(on_version_update)
