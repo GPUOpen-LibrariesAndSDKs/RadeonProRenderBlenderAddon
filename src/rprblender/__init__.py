@@ -40,6 +40,50 @@ log = logging.Log(tag='init')
 log("Loading RPR addon {}".format(bl_info['version']))
 
 
+def ensure_boto3() -> None:
+    """
+    WIP "try to install boto3 library at the addon launch time" for zip archive distribution type
+    """
+    # TODO: test on MacOS
+    # TODO: test on Ubuntu
+    # TODO: test if no Python present at all on Windows
+    # use this snippet to install boto3 library with all the dependencies if absent at the addon launch time
+    # note: still it will be available at the next Blender launch only
+    # TODO: check if scene reload works as well (note: even then it couldn't be used at all; just to be sure on how it works)
+    try:
+        import boto3
+    except ImportError:
+        import subprocess
+        # subprocess.call([bpy.app.binary_path_python, "-m", "ensurepip"])  # seems to be working fine without it
+        subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "--upgrade", "pip", "--user"])
+        subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "boto3", "--user"])
+
+
+"""
+
+#moody
+Вот дождь пошёл и спать охота,
+И всё такое "ни к чему".
+Куда иду? про что работа?
+Зачем живу?
+
+Вопросы, мысли и сомненья.
+Вокруг всё тлен и суета.
+Какое, к чёрту, вдохновенье.
+Какая, блин, ещё еда.
+
+Такой вот сумрак на душе,
+И кофе душу мне не греет.
+Послать охота всё подряд.
+И всёж - задачу ту доделать.
+
+Решить, создать, отдать, забыть.
+И - на фиг надо. В глушь. В деревню.
+Туда, где тишь да маета. Но кто тогда
+Работу будет делать заместо меня?
+"""
+
+
 class RPREngine(bpy.types.RenderEngine):
     """
     Main class of Radeon ProRender render engine for Blender v2.80+
