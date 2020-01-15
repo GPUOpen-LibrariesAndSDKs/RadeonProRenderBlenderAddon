@@ -32,7 +32,7 @@ else:
     importlib.reload(rprblender.editor_nodes)
     importlib.reload(rprblender.nodes)
     importlib.reload(viewportdraw)
-    
-rprblender.register()    
+
+rprblender.register()
 
 print('DONE')

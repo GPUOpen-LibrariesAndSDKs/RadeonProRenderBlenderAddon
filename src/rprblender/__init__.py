@@ -211,6 +211,7 @@ def on_load_pre(*args, **kwargs):
 def register():
     """ Register all addon classes in Blender """
     log("register")
+    ensure_boto3()
 
     bpy.utils.register_class(RPREngine)
     material_library.register()
