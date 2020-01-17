@@ -1,10 +1,6 @@
 
 #script to load addon from within blender text editor
 
-import bpy
-import os
-import sys
-
 import faulthandler
 
 faulthandler.enable()
