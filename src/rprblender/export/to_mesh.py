@@ -14,16 +14,21 @@ log = logging.Log(tag='export.to_mesh')
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     """ Converts object into blender's mesh and exports it as mesh """
 
-    # This operation adds new mesh into bpy.data.meshes, that's why it should be removed after usage.
-    # obj.to_mesh() could also return None for META objects.
-    new_mesh = obj.to_mesh()
-    log("sync", obj, new_mesh)
+    try:
+        # This operation adds new mesh into bpy.data.meshes, that's why it should be removed after usage.
+        # obj.to_mesh() could also return None for META objects.
+        new_mesh = obj.to_mesh()
+        log("sync", obj, new_mesh)
 
-    if new_mesh:
-        mesh.sync(rpr_context, obj, mesh=new_mesh, **kwargs)
-        return True
+        if new_mesh:
+            mesh.sync(rpr_context, obj, mesh=new_mesh, **kwargs)
+            return True
 
-    return False
+        return False
+
+    finally:
+        # it's important to clear created mesh
+        obj.to_mesh_clear()
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
