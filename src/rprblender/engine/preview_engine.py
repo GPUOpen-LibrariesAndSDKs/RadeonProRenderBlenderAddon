@@ -1,12 +1,16 @@
-import bpy
+import threading
 
+import bpy
 import pyrpr
+
 from .engine import Engine
 from rprblender.export import object, camera, particle, world
-from . import context
 
 from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
+
+
+CONTEXT_LIFETIME = 300.0    # 5 minutes in seconds
 
 
 class PreviewEngine(Engine):
@@ -14,12 +18,37 @@ class PreviewEngine(Engine):
 
     TYPE = 'PREVIEW'
 
+    rpr_context = None
+    timer: threading.Timer = None    # timer to remove rpr_context
+
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
         self.is_synced = False
         self.render_samples = 0
         self.render_update_samples = 1
+
+    def _init_rpr_context(self, scene):
+        if PreviewEngine.timer:
+            PreviewEngine.timer.cancel()
+
+        if not PreviewEngine.rpr_context:
+            log("Creating RPRContext")
+            PreviewEngine.rpr_context = self._RPRContext()
+            scene.rpr.init_rpr_context(PreviewEngine.rpr_context, is_final_engine=False)
+            PreviewEngine.rpr_context.scene.set_name(scene.name)
+
+        self.rpr_context = PreviewEngine.rpr_context
+
+        PreviewEngine.timer = threading.Timer(CONTEXT_LIFETIME, PreviewEngine._remove_rpr_context)
+        PreviewEngine.timer.start()
+
+    @staticmethod
+    def _remove_rpr_context():
+        log("Removing RPRContext")
+        # Here we remove only link to rpr_context instance.
+        # Real deletion will be applied after all links be lost.
+        PreviewEngine.rpr_context = None
 
     def render(self):
         if not self.is_synced:
@@ -51,10 +80,9 @@ class PreviewEngine(Engine):
         scene = depsgraph.scene
         settings_scene = bpy.context.scene
 
-        settings_scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False)
+        self._init_rpr_context(scene)
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
-
-        self.rpr_context.scene.set_name(scene.name)
+        self.rpr_context.clear_scene()
 
         # export visible objects
         for obj in self.depsgraph_objects(depsgraph):
