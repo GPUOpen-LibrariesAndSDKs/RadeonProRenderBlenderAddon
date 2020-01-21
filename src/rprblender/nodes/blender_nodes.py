@@ -1865,17 +1865,15 @@ class ShaderNodeSeparateHSV(NodeParser):
 class ShaderNodeHueSaturation(NodeParser):
 
     def export(self):
-        # TODO: With rpr nodes such rpr node calculations slows down render very much (about 100
-        #  times slower), because here we have a very complex calculations. That's why here we
-        #  work only with scalar values.
-        #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
+        # TODO: 
+        #  This should be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
         #  conversion.
 
-        color = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
-        hue = self.get_input_scalar('Hue')
-        saturation = self.get_input_scalar('Saturation')
-        value = self.get_input_scalar('Value')
+        color = self.get_input_value('Color')
+        fac = self.get_input_value('Fac')
+        hue = self.get_input_value('Hue')
+        saturation = self.get_input_value('Saturation')
+        value = self.get_input_value('Value')
 
         hsv = color.rgb_to_hsv()
         h = (hsv.get_channel(0) + hue + 0.5) % 1.0
