@@ -600,43 +600,45 @@ def eval_constant(s):
         return s
 
 
+def get_rpr_sdk(base=Path()):
+    p = base / ".sdk/rpr"
+    return {
+        'inc': p / "inc",
+        'bin': p / "bin",
+        'lib': p / "lib" if platform.system() == 'Windows' else None
+    }
+
+
+def get_rif_sdk(base=Path()):
+    p = base / ".sdk/rif"
+    return {
+        'inc': p / "inc",
+        'bin': p / "bin",
+        'lib': p / "lib" if platform.system() == 'Windows' else None
+    }
+
+
 if __name__=='__main__':
     #change paths according to your developer environment:
     #castxml = r'C:\Development\tools\castxml\bin\castxml'
 
     castxml = sys.argv[1]
 
+    rpr_sdk = get_rpr_sdk()
+    rif_sdk = get_rif_sdk()
+
     # RPR
-    rpr_header_rpr_wrap = 'src/bindings/pyrpr/rprwrap.h'
-    includes_rpr = ['ThirdParty/RadeonProRender SDK/Linux-Ubuntu/inc']
-    json_file_name_rpr_wrap = 'src/bindings/pyrpr/src/pyrprwrapapi.json'
-    json_file_name_rpr = 'src/bindings/pyrpr/src/pyrprapi.json'
+    rpr_wrap_h = 'src/bindings/pyrpr/rprwrap.h'
+    rpr_includes = [str(rpr_sdk['inc'])]
+    rpr_wrap_json = 'src/bindings/pyrpr/src/pyrprwrapapi.json'
 
     # ImageProcessing
-    rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap.h'
-    json_file_name_image_filters = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
-    includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Linux/Ubuntu/include']
-
-    # GLTF
-    rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc/ProRenderGLTF.h'
-    includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/inc']
-    json_file_name_gltf = 'src/bindings/pyrpr/src/pyrprgltfapi.json'
-
-    if "Darwin" == platform.system():
-        rpr_header_image_filters = 'src/bindings/pyrpr/imagefilterswrap_metal.h'
-        includes_rpr = ['ThirdParty/RadeonProRender SDK/Mac/inc']
-        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Mac/inc']
-        rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Mac/inc/ProRenderGLTF.h'
-        includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Mac/inc']
-
-    if "Windows" == platform.system():
-        includes_rpr = ['ThirdParty/RadeonProRender SDK/Win/inc']
-        includes_image_filters = [*includes_rpr, 'ThirdParty/RadeonProImageProcessing/Windows/inc']
-        rpr_header_gltf = 'ThirdParty/RadeonProRender-GLTF/Win/inc/ProRenderGLTF.h'
-        includes_gltf = [*includes_rpr, 'ThirdParty/RadeonProRender-GLTF/Win/inc']
+    rif_wrap_h = 'src/bindings/pyrpr/imagefilterswrap.h'
+    rif_wrap_json = 'src/bindings/pyrpr/src/pyrprimagefiltersapi.json'
+    rif_includes = [*rpr_includes, str(rif_sdk['inc'])]
 
     export(
-        rpr_header_rpr_wrap, includes_rpr, json_file_name_rpr_wrap,
+        rpr_wrap_h, rpr_includes, rpr_wrap_json,
         {
             'type':['rpr_', '_rpr'],
             'function':['rpr',],
@@ -645,11 +647,12 @@ if __name__=='__main__':
         castxml,
         exclude=['RPR_CONTEXT_FLUSH_FRAMEBUFFERS_FUNC_NAME',
                  'RPR_SHAPE_SET_LIGHTMAP_CHART_INDEX_FUNC_NAME',
+                 'RPR_MESH_UPDATE_FUNC_NAME',
                  'rprDirectionalLightSetRasterShadowSplits']
     )
 
     export(
-        rpr_header_image_filters, includes_image_filters, json_file_name_image_filters,
+        rif_wrap_h, rif_includes, rif_wrap_json,
         {
             'type': ['rif_', '_rif'],
             'function': ['rif'],

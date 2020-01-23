@@ -55,6 +55,7 @@ if %vs_major%==15 or %vs_major%==16 (
 	goto :eof
 
 :build_plugin
+py -3.7 cmd_tools\create_sdk.py
 py -3.7 src\bindings\pyrpr\src\pyrprapi.py %castxml%
 
 set bindingsOk=.\bindings-ok
