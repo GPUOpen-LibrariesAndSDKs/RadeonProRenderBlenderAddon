@@ -5,10 +5,9 @@ echo BLENDER_28x_EXE "${BLENDER_28x_EXE}"
 DEBUGGER_EXE="$1"
 
 if [ -x "${BLENDER_28x_EXE}" ]; then
-
 	rm -rf dist/
 	mkdir dist
-	cp -r "ThirdParty/RadeonProRender SDK/Mac/lib" dist/
+	cp -r .sdk/rpr/bin dist/
 	cp ./RPRBlenderHelper/.build/libRPRBlenderHelper.dylib dist/lib
 
 	ln -s dist/lib distlib 

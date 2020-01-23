@@ -13,7 +13,9 @@ import pyrprapi
 def export(json_file_name, dependencies, header_file_name, cffi_name, output_name, output_name_make, abi_mode):
     ffi = cffi.FFI()
 
-    rprsdk_path = Path('../../../ThirdParty/RadeonProRender SDK').resolve()
+    base = Path("../../..").resolve()
+    rpr_sdk = pyrprapi.get_rpr_sdk(base)
+    rif_sdk = pyrprapi.get_rif_sdk(base)
 
     api_desc_fpath = str(Path(pyrprapi.__file__).parent / json_file_name)
 
@@ -26,34 +28,14 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     lib_names = ['RadeonProRender64', 'RadeonImageFilters64', 'python37']
 
+    inc_dir = [str(base / "src/bindings/pyrpr"),
+               str(rpr_sdk['inc']),
+               str(rif_sdk['inc'])]
+
+    lib_dir = []
     if "Windows" == platform.system():
-        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
-                   str(rprsdk_path / "Win/inc"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Windows/inc"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Win/inc")]
-        lib_dir = [str(rprsdk_path / "Win/lib"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Windows/lib"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Win/lib")]
-    elif "Linux" == platform.system():
-        assert 'Ubuntu' in platform.version()
-        # assert '16.04' in platform.version()
-        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
-                   str(rprsdk_path / "Linux-Ubuntu/inc"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Linux/Ubuntu/include"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Linux-Ubuntu/inc")]
-        lib_dir = [str(rprsdk_path / "Linux-Ubuntu/lib"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Linux/Ubuntu/lib64"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Linux-Ubuntu/lib")]
-    elif "Darwin" == platform.system():
-        inc_dir = [str(rprsdk_path / "../../src/bindings/pyrpr"),
-                   str(rprsdk_path / "Mac/inc"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Mac/inc"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Mac/inc")]
-        lib_dir = [str(rprsdk_path / "Mac/lib"),
-                   str(rprsdk_path / "../RadeonProImageProcessing/Mac/lib"),
-                   str(rprsdk_path / "../RadeonProRender-GLTF/Mac/lib")]
-    else:
-        assert False
+        lib_dir = [str(rpr_sdk['lib']),
+                   str(rif_sdk['lib'])]
 
     for d in inc_dir:
         assert os.path.isdir(d), "Bad include path: '%s'" % d
