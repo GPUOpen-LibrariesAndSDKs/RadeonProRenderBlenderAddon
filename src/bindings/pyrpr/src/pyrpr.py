@@ -91,34 +91,22 @@ def init(log_fun, rprsdk_bin_path=None):
 
     _init_data._log_fun = log_fun
 
+    alternate_relative_paths = []
     if platform.system() == "Windows":
-        alternate_relative_paths = [
-            "../../../RadeonProImageProcessing/Windows/lib",
-            #"../../../RadeonProRender-GLTF/Win/lib"
-        ]
+        alternate_relative_paths += ["../../rif/bin"]
         lib_names = [
             'RadeonProRender64.dll',
             'RadeonImageFilters64.dll',
         ]
 
     elif platform.system() == "Linux":
-        alternate_relative_paths = [
-            "../../../RadeonProImageProcessing/Linux/Ubuntu/lib64",
-            # "../../../RadeonProRender-GLTF/Linux-Ubuntu/lib"
-        ]
         lib_names = [
             'libRadeonProRender64.so',
-            'libRadeonImageFilters64.so',
         ]
 
     elif platform.system() == "Darwin":
-        alternate_relative_paths = [
-            "../../../RadeonProImageProcessing/Mac/lib",
-            # "../../../RadeonProRender-GLTF/Mac/lib"
-        ]
         lib_names = [
             'libRadeonProRender64.dylib',
-            'libRadeonImageFilters64.dylib'
         ]
 
     else:

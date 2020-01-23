@@ -1,3 +1,9 @@
 [submodule "ThirdParty"]
 	path = ThirdParty
 	url = git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
+[submodule "RadeonProRenderSDK"]
+	path = RadeonProRenderSDK
+	url = git@github.com:Radeon-Pro/RadeonProRenderSDK.git
+[submodule "RadeonProImageProcessingSDK"]
+	path = RadeonProImageProcessingSDK
+	url = git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
