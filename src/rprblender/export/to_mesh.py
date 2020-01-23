@@ -51,4 +51,5 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         rpr_shape.set_transform(object.get_transform(obj))
         return True
 
-    return mesh.assign_materials(rpr_context, rpr_shape, obj.material_slots)
+    material_override = kwargs.get('material_override', None)
+    return mesh.assign_materials(rpr_context, rpr_shape, obj, material_override=material_override)
