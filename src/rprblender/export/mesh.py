@@ -163,7 +163,7 @@ class MeshData:
 
 
 def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object,
-                     material_override=None):
+                     material_override=None) -> bool:
     """
     Assigns materials from material_slots to rpr_shape. It also syncs new material.
     Override material is used instead of mesh-assigned if present.
@@ -230,14 +230,14 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
     return True
 
 
-def assign_override_material(rpr_context, rpr_shape, obj, material_override):
+def assign_override_material(rpr_context, rpr_shape, obj, material_override) -> bool:
     """ Apply override material to shape if material is correct """
     rpr_material = material.sync(rpr_context, material_override, obj=obj)
     rpr_displacement = material.sync(rpr_context, material_override, 'Displacement', obj=obj)
     rpr_shape.set_material(rpr_material)
     rpr_shape.set_displacement_material(rpr_displacement)
 
-    return rpr_material or rpr_displacement
+    return bool(rpr_material or rpr_displacement)
 
 
 def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False):
