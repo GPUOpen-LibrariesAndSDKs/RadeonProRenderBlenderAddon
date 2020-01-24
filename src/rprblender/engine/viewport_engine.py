@@ -794,7 +794,7 @@ class ViewportEngine(Engine):
     def remove_material_uvs_instances(self, mat, depsgraph):
         """ Find and remove each unique instance of material by UVs combinations """
         uvs = set(entry.data.rpr.uv_sets_names for entry in self.depsgraph_objects(depsgraph)
-                  if mat.name in entry.material_slots)
+                  if isinstance(entry, bpy.types.Mesh) and mat.name in entry.material_slots)
 
         for entry in uvs:
             for socket in ('Surface', 'Volume', 'Displacement'):
