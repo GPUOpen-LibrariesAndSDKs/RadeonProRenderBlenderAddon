@@ -62,17 +62,8 @@ if 'pyrpr' not in sys.modules:
         # try loading pyrpr from source
         src = utils.package_root_dir().parent
         project_root = src.parent
-        
-        # load the shared lib from a common path where the
-        # dependent libs have been remapped
-        if "Darwin" == platform.system():
-            rprsdk_path = "/Users/Shared/RadeonProRender"
-        else:
-            rprsdk_path = str(project_root / 'ThirdParty/RadeonProRender SDK')
 
-        bin_folder = { 'Windows': 'Win/bin', 'Linux': 'Linux-Ubuntu/lib', 'Darwin': 'lib' }[platform.system()]
-
-        rprsdk_bin_path = Path(rprsdk_path) / bin_folder
+        rprsdk_bin_path = project_root / ".sdk/rpr/bin"
 
         bindings_import_path = str(src / 'bindings/pyrpr/.build')
         pyrpr_import_path = str(src / 'bindings/pyrpr/src')
