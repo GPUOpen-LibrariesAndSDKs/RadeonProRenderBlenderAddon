@@ -1865,9 +1865,8 @@ class ShaderNodeSeparateHSV(NodeParser):
 class ShaderNodeHueSaturation(NodeParser):
 
     def export(self):
-        # TODO: 
-        #  This should be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
-        #  conversion.
+        # Follows code example for doing RGB transform from 
+        # http://beesbuzz.biz/code/16-hsv-color-transforms
 
         color = self.get_input_value('Color')
         fac = self.get_input_value('Fac')
@@ -1875,12 +1874,25 @@ class ShaderNodeHueSaturation(NodeParser):
         saturation = self.get_input_value('Saturation')
         value = self.get_input_value('Value')
 
-        hsv = color.rgb_to_hsv()
-        h = (hsv.get_channel(0) + hue + 0.5) % 1.0
-        s = (hsv.get_channel(1) * saturation).clamp()
-        v = hsv.get_channel(2) * value
+        vsu = value * saturation * hue.cos()
+        vsw = value * saturation * hue.sin()
 
-        rgb = h.combine(s, v).hsv_to_rgb()
+        r = (.299 * value + .701 * vsu + .168 * vsw) * color.get_channel(0)
+        r2 = (.587 * value - .587 * vsu + .330 * vsw) * color.get_channel(1)
+        r3 = (.114 * value - .114 * vsu - .497 * vsw) * color.get_channel(2)
+        r = r + r2 + r3
+
+        g = (.299 * value - .299 * vsu - .328 * vsw) * color.get_channel(0)
+        g2 = (.587 * value + .413 * vsu + .035 * vsw) * color.get_channel(1)
+        g3 = (.114 * value - .114 * vsu + .292 * vsw) * color.get_channel(2)
+        g = g + g2 + g3
+
+        b = (.299 * value - .300 * vsu + 1.25 * vsw) * color.get_channel(0)
+        b2 = (.587 * value - .588 * vsu - 1.05 * vsw) * color.get_channel(1)
+        b3 = (.114 * value + .886 * vsu - .203 * vsw) * color.get_channel(2)
+        b = b + b2 + b3
+
+        rgb = r.combine(g, b)
         return fac.blend(color, rgb)
 
 

@@ -337,3 +337,11 @@ class NodeItem:
             length.data = math.sqrt(sum(length.data[i]*length.data[i] for i in range(3)))
         
         return length
+
+    def sin(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_SIN,
+                                       lambda a: math.sin(a))
+
+    def cos(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_SIN,
+                                       lambda a: math.sin(a))
