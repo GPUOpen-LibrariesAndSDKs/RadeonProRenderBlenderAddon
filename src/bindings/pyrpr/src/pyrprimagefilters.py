@@ -23,28 +23,22 @@ def init(log_fun, rprsdk_bin_path):
 
     _init_data._log_fun = log_fun
 
-    lib_platform = ""
-    rel_path = "../../../RadeonProImageProcessing"
-    if platform.system() == "Windows":
-        lib_name = 'RadeonImageFilters64.dll'
-        lib_platform = "Win/lib"
-    elif platform.system() == "Linux":
-        lib_name = 'libRadeonImageFilters64.so'
-        lib_platform = "Linux/Ubuntu/lib64"
-    elif platform.system() == "Darwin":
-        lib_name = 'libRadeonImageFilters64.dylib'
-        lib_platform = "Mac/lib"
-    else:
-        assert False
+    rel_path = "../../rif/bin"
+
+    lib_name = {
+        'Windows': "RadeonImageFilters64.dll",
+        'Linux': "libRadeonImageFilters64.so",
+        'Darwin': "libRadeonImageFilters64.dylib"
+    }[platform.system()]
 
     import __imagefilters
 
     try:
         lib = __imagefilters.lib
     except AttributeError:
-        lib_path = str(rprsdk_bin_path / lib_name )
+        lib_path = str(rprsdk_bin_path / lib_name)
         if not os.path.isfile(lib_path):
-            lib_path = str(rprsdk_bin_path / rel_path / lib_platform / lib_name ) 
+            lib_path = str(rprsdk_bin_path / rel_path / lib_name)
         lib = __imagefilters.ffi.dlopen(lib_path)
 
     pyrprimagefilterswrap.lib = lib

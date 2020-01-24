@@ -1582,15 +1582,20 @@ class ShaderNodeMapping(NodeParser):
             part2 = mapping.dot3((-math.sin(angle), math.cos(angle), 0.0))
             mapping = part1.combine(part2, mapping)
 
-        scale = self.get_input_default('Scale')
-        if not (math.isclose(scale.data[0], 1.0) and
-                math.isclose(scale.data[1], 1.0) and
-                math.isclose(scale.data[2], 1.0)):
-            # to match cycles texture type should divide scale
-            if self.node.vector_type == 'TEXTURE':
-                mapping /= max(scale, 0.001)
+        if self.node.vector_type == 'TEXTURE':
+            # to match cycles "Texture" mapping type scale is used as a divider
+            scale = self.get_input_value('Scale')
+            if isinstance(scale.data, tuple):
+                if not (math.isclose(scale.data[0], 1.0) and
+                        math.isclose(scale.data[1], 1.0) and
+                        math.isclose(scale.data[2], 1.0)):
+                    mapping /= tuple(max(abs(axis_scale), 0.001) for axis_scale in scale.data)
             else:
-                mapping *= scale
+                scale = abs(scale)
+                mapping /= scale
+        else:
+            scale = self.get_input_value('Scale')
+            mapping *= scale
 
         return mapping
 
@@ -1619,9 +1624,9 @@ class ShaderNodeMapping(NodeParser):
         if not (math.isclose(scale[0], 1.0) and
                 math.isclose(scale[1], 1.0) and
                 math.isclose(scale[2], 1.0)):
-            # to match cycles texture type should divide scale
+            # to match cycles "Texture" mapping type scale is used as a divider
             if self.node.vector_type == 'TEXTURE':
-                mapping /= max(scale, 0.001)
+                mapping /= tuple(max(axis_scale, 0.001) for axis_scale in scale)
             else:
                 mapping *= scale
 
