@@ -1,5 +1,3 @@
-import threading
-
 import bpy
 import pyrpr
 
@@ -19,7 +17,6 @@ class PreviewEngine(Engine):
     TYPE = 'PREVIEW'
 
     rpr_context = None
-    timer: threading.Timer = None    # timer to remove rpr_context
 
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
@@ -29,9 +26,6 @@ class PreviewEngine(Engine):
         self.render_update_samples = 1
 
     def _init_rpr_context(self, scene):
-        if PreviewEngine.timer:
-            PreviewEngine.timer.cancel()
-
         if not PreviewEngine.rpr_context:
             log("Creating RPRContext")
             PreviewEngine.rpr_context = self._RPRContext()
@@ -40,15 +34,13 @@ class PreviewEngine(Engine):
 
         self.rpr_context = PreviewEngine.rpr_context
 
-        PreviewEngine.timer = threading.Timer(CONTEXT_LIFETIME, PreviewEngine._remove_rpr_context)
-        PreviewEngine.timer.start()
-
     @staticmethod
-    def _remove_rpr_context():
-        log("Removing RPRContext")
-        # Here we remove only link to rpr_context instance.
-        # Real deletion will be applied after all links be lost.
-        PreviewEngine.rpr_context = None
+    def reset():
+        if PreviewEngine.rpr_context:
+            log("Removing RPRContext")
+            # Here we remove only link to rpr_context instance.
+            # Real deletion will be applied after all links be lost.
+            PreviewEngine.rpr_context = None
 
     def render(self):
         if not self.is_synced:
@@ -71,6 +63,9 @@ class PreviewEngine(Engine):
 
             sample += update_samples
 
+        # clearing scene after finishing render
+        self.rpr_context.clear_scene()
+
         log('Finish render')
 
     def sync(self, depsgraph):
@@ -82,7 +77,6 @@ class PreviewEngine(Engine):
 
         self._init_rpr_context(scene)
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
-        self.rpr_context.clear_scene()
 
         # export visible objects
         for obj in self.depsgraph_objects(depsgraph):
