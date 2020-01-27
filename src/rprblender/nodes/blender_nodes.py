@@ -1877,19 +1877,23 @@ class ShaderNodeHueSaturation(NodeParser):
         vsu = value * saturation * hue.cos()
         vsw = value * saturation * hue.sin()
 
-        r = (.299 * value + .701 * vsu + .168 * vsw) * color.get_channel(0)
-        r2 = (.587 * value - .587 * vsu + .330 * vsw) * color.get_channel(1)
-        r3 = (.114 * value - .114 * vsu - .497 * vsw) * color.get_channel(2)
+        color_r = color.get_channel(0)
+        color_g = color.get_channel(1)
+        color_b = color.get_channel(2)
+
+        r = (.299 * value + .701 * vsu + .168 * vsw) * color_r
+        r2 = (.587 * value - .587 * vsu + .330 * vsw) * color_g
+        r3 = (.114 * value - .114 * vsu - .497 * vsw) * color_b
         r = r + r2 + r3
 
-        g = (.299 * value - .299 * vsu - .328 * vsw) * color.get_channel(0)
-        g2 = (.587 * value + .413 * vsu + .035 * vsw) * color.get_channel(1)
-        g3 = (.114 * value - .114 * vsu + .292 * vsw) * color.get_channel(2)
+        g = (.299 * value - .299 * vsu - .328 * vsw) * color_r
+        g2 = (.587 * value + .413 * vsu + .035 * vsw) * color_g
+        g3 = (.114 * value - .114 * vsu + .292 * vsw) * color_b
         g = g + g2 + g3
 
-        b = (.299 * value - .300 * vsu + 1.25 * vsw) * color.get_channel(0)
-        b2 = (.587 * value - .588 * vsu - 1.05 * vsw) * color.get_channel(1)
-        b3 = (.114 * value + .886 * vsu - .203 * vsw) * color.get_channel(2)
+        b = (.299 * value - .300 * vsu + 1.25 * vsw) * color_r
+        b2 = (.587 * value - .588 * vsu - 1.05 * vsw) * color_g
+        b3 = (.114 * value + .886 * vsu - .203 * vsw) * color_b
         b = b + b2 + b3
 
         rgb = r.combine(g, b)
