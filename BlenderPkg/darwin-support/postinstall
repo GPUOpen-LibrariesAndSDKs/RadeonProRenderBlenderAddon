@@ -1,0 +1,108 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+import os
+import sys
+import subprocess
+import shutil
+import glob
+
+loggingOn = False
+
+def log(str):
+    if loggingOn:
+        f = open("/tmp/postinstall-log.txt","a")
+        f.write(str)
+        f.close()
+
+log("POSTINSTALL script started\n")
+
+blender_path = None
+
+
+def ascript_get_blender_distro():
+    cmd = """osascript<<END
+    tell app "Finder"
+    activate
+    set apppath to choose file with prompt "Please select the Blender.app to use" of type {"app"}
+    set posix_apppath to (the POSIX path of apppath)
+    end tell
+    return posix_apppath
+    END"""
+
+    output = subprocess.check_output(cmd,shell=True)
+    return output
+
+def ascript_error(str):
+    cmd = """osascript<<END
+    tell me to activate
+    display dialog "Installation error: %s" buttons {"OK"} default button 1
+    END"""
+
+    fullcmd = (cmd % str)
+    output = subprocess.check_output(fullcmd,shell=True)
+    return output
+
+
+# 1. Get blender distro and install the plugin
+#
+
+log("POSTINSTALL script getting blender distro\n")
+
+try:
+    result = ascript_get_blender_distro()
+except:
+    sys.exit(-1)
+
+blender_path = result.strip().replace(':', '')
+
+python_executable_path = str(blender_path) + str("/Contents/Resources/2.*/python/bin/python3.7m")
+possible_python_paths = glob.glob(python_executable_path)
+if not len(possible_python_paths):
+    ascript_error("Could not find the python3.7m executable at " + python_executable_path)
+    sys.exit(-1)
+python_executable_path = possible_python_paths[0]
+
+blender_pip = str("/Users/Shared/RadeonProRender/Blender/addon/blender_pip.py")
+if not os.path.exists(blender_pip):
+    ascript_error("Could not find " + blender_pip)
+    sys.exit(-1)
+
+install_blender_pip_cmd = [python_executable_path, blender_pip]
+output=""
+try:
+    output=subprocess.check_output(install_blender_pip_cmd, stderr=subprocess.PIPE)
+except subprocess.CalledProcessError as e:
+    print("Python ouput: %s", e.output.decode('utf8'))
+    sys.exit(-1)
+
+log("output: '%s'\n"% output)
+
+blender_executable_path = str(blender_path) + str("/Contents/MacOS/blender")
+if not os.path.exists(blender_executable_path):
+    ascript_error("Could not find the .../blender.app/Contents/MacOS/blender executable")
+    sys.exit(-1)
+
+install_to_blender = str("/Users/Shared/RadeonProRender/Blender/addon/install_blender_addon.py")
+
+install_blender_addon_cmd = [
+                str(blender_executable_path), '--background',
+                '--python', str(install_to_blender)]
+
+log("cmd: '%s'\n"% install_blender_addon_cmd)
+
+output=""
+try:
+    output=subprocess.check_output(install_blender_addon_cmd, stderr=subprocess.PIPE)
+except subprocess.CalledProcessError as e:
+    print("Blender ouput: %s", e.output.decode('utf8'))
+    sys.exit(-1)
+
+log("output: '%s'\n"% output)
+
+# 2. Return
+#
+
+log("POSTINSTALL script done -----------------------------------\n")
+
+sys.exit(0)
