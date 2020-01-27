@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Include>
+
+<?define ProductLongName="Radeon ProRender for Blender" ?>
+<?define ProductName="Radeon ProRender" ?>
+<?define ProductsFolder="RadeonProRenderPlugins" ?>
+<?define ProductVersion = "$(env.BLENDER_PLUGIN_VERSION)" ?>
+<?define Manufacturer="AMD" ?>
+<?define Version="$(env.BLENDER_PLUGIN_VERSION)" ?>
+<?define UpgradeCode="AEFEE718-9842-428D-B9F2-7C8E95417974" ?>
+
+<?define WebPageMainSite="http://pro.radeon.com/en-us/software/prorender/" ?>
+<?define WebPageDocumentation="http://pro.radeon.com/en-us/software/prorender/" ?>
+
+</Include>
