@@ -62,7 +62,7 @@ support_path = Path('./darwin-support')
 for name in ['welcome.html']:
     shutil.copy(str(support_path / name), str(resource_files_dist_dir))
 
-legal_path = Path('../Legal')
+legal_path = Path('Legal')
 for name in ['eula.txt']:
     shutil.copy(str(legal_path / name), str(resource_files_dist_dir))
 
@@ -287,7 +287,7 @@ fi
 """
 
 def make_installer_app(appName,appExe,dirpath,signing_str):
-    icon_file = Path("../Icons/darwin//RadeonProRenderBlenderInstaller.icns")
+    icon_file = Path("darwin-support/RadeonProRenderBlenderInstaller.icns")
     bundle_path=os.path.join(dirpath,appName+".app")
     contents_path=os.path.join(bundle_path,"Contents")
     for name in ['MacOS', 'Contents', 'Resources', 'Packages']:
