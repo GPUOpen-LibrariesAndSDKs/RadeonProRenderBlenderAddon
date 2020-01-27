@@ -16,7 +16,11 @@ def ensure_boto3() -> None:
         log.info("Installing boto3 library...")
         import bpy
         import subprocess
+        import importlib
         # subprocess.call([bpy.app.binary_path_python, "-m", "ensurepip"])  # seems to be working fine without it
         subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "--upgrade", "pip", "--user"])
         subprocess.call([bpy.app.binary_path_python, "-m", "pip", "install", "boto3", "--user"])
-        log.info("Library boto3 should be available after Blender restart")
+
+        # TODO: check if it available from other modules after that
+        globals()['boto3'] = importlib.import_module('boto3')
+        log.info("Library boto3 should be available right now. At least in install_libs module")
