@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
 rm -rf __pycache__
 
-rm ThirdParty
-ln -s ../ThirdParty ThirdParty
+pushd ..
 
-pushd ../
-
-python3.7 build.py 
+./build.sh
 
 popd
 
 python3.7 build_linux_installer.py
-
-rm ThirdParty
 
