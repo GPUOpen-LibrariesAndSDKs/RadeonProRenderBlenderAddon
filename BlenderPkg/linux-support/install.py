@@ -23,8 +23,6 @@ parser = ArgumentParser()
 parser.add_argument('blender_path', help="Blender distro folder")
 
 # debugging options
-parser.add_argument('--no-matlib', action='store_true',
-                    help="Install material library")
 parser.add_argument('-v', '--verbose', action='store_true',
                     help="print debug info")
 parser.add_argument('--log-file', default=None, help="save log to file")
@@ -332,33 +330,6 @@ with install_component("addon to Blender"):
     with (install_dir_for_files / 'addon' / '.installed').open('w'):
         pass
 
-matlib_skip = False
-if args.no_matlib:
-    matlib_skip = True
-else:
-    if install_dir_for_material_library.exists():
-        while True:
-            a = input(
-                "Found installed material library at '%s', replace? (y or n)"
-                % str(install_dir_for_material_library)).lower()
-
-            if 'y' == a:
-                shutil.rmtree(str(install_dir_for_material_library))
-                matlib_skip = False
-                break
-            if 'n' == a:
-                matlib_skip = True
-                break
-            print("Please answer yes or no.")
-
-if not matlib_skip:
-    with install_component("Material Library"):
-
-        shutil.copytree(str(distr_dir / 'matlib/feature_MaterialLibrary'),
-                        str(install_dir_for_material_library))
-
-        with (install_dir_for_files / '.matlib_installed').open('w') as f:
-            print(str(install_dir_for_material_library), file=f, end='')
 
 log_info("Installation complete.")
 log_warning("To uninstall, please run '%s/uninstall.py %s'",
