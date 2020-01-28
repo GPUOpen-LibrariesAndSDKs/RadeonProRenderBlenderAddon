@@ -41,8 +41,6 @@ print("Version info: %s %s" % (plugin_version, plugin_version_parts))
 dist_dir = installer_build_dir / 'dist'
 addon_files_dist_dir = dist_dir / 'Blender/addon'
 addon_files_dist_dir.mkdir(parents=True)
-libs_files_dist_dir = dist_dir / 'Blender/lib'
-libs_files_dist_dir.mkdir(parents=True)
 material_library_dist_dir = dist_dir / 'Blender/matlib'
 resource_files_dist_dir = dist_dir / 'resources'
 resource_files_dist_dir.mkdir(parents=True)
@@ -93,13 +91,8 @@ subprocess.check_call(['make'], cwd=str(checker_build_path))
 for name in ['checker']:
     shutil.copy(str(support_path / "Checker/.build" / name), str(addon_files_dist_dir))
 
-# Copy libraries
-
-create_osx_build_output.copy_libs(libs_files_dist_dir)
-
 # Create zip file
-
-create_osx_build_output.create_zip_addon(str(libs_files_dist_dir),str(addon_files_dist_dir / 'addon.zip'),
+create_osx_build_output.create_zip_addon(str(addon_files_dist_dir / 'addon.zip'),
                                          plugin_version, target='darwin')
 
 # Create the RprBlender.plist file from the template using the version number
