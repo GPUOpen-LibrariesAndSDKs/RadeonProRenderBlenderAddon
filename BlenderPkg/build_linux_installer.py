@@ -48,8 +48,6 @@ subprocess.check_call(['make'], cwd=str(checker_build_path))
 for name in ['remove_blender_addon.py', 'Checker/.build/checker']:
     shutil.copy(str(installer_src_path / name), str(addon_files_dist_dir))
 
-create_build_output.CreateMaterialLibrary(str(material_library_dist_dir))
-
 installer_path = installer_build_dir / (
 'RadeonProRenderForBlender_%s.run' % plugin_version)
 
