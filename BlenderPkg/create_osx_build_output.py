@@ -46,7 +46,7 @@ else:
         return os.getlogin()
 
 
-def enumerate_addon_data(lib_path,version, target):
+def enumerate_addon_data(version, target):
     pyrpr_path = repo_root / 'src/bindings/pyrpr'
 
     repo_root_pushd()
@@ -77,20 +77,16 @@ target=%s
     exec(version_text, {}, version_dict)
     assert version == version_dict['version']
 
-    if lib_path:
-        for name in os.listdir(lib_path):
-            yield Path(lib_path)/name, name
-    else:
-        rprsdk_bin = repo_root / '.sdk/rpr/bin'
-        for name in os.listdir((str(rprsdk_bin))):
-            yield Path(rprsdk_bin)/name, name
+    rprsdk_bin = repo_root / '.sdk/rpr/bin'
+    for name in os.listdir((str(rprsdk_bin))):
+        yield Path(rprsdk_bin)/name, name
 
-        name_ending = ""
-        rpipsdk_bin = repo_root / '.sdk/rif/bin'
-        name_ending = ".dylib"
-        for name in os.listdir((str(rpipsdk_bin))):
-            if name.endswith(name_ending):
-                yield Path(rpipsdk_bin)/name, name
+    name_ending = ""
+    rifsdk_bin = repo_root / '.sdk/rif/bin'
+    name_ending = ".dylib"
+    for name in os.listdir((str(rifsdk_bin))):
+        if name.endswith(name_ending):
+            yield Path(rifsdk_bin)/name, name
 
     # copy pyrpr files
     pyrpr_folders = [pyrpr_path/'.build', pyrpr_path/'src']
@@ -205,10 +201,10 @@ def ReadAddOnVersion() :
     return result
 
 
-def create_zip_addon(lib_path,package_name, version, target='windows'):
+def create_zip_addon(package_name, version, target='windows'):
 
     with zipfile.ZipFile(package_name, 'w') as myzip:
-        for src, package_path in enumerate_addon_data(lib_path,version, target=target):
+        for src, package_path in enumerate_addon_data(version, target=target):
             if isinstance(src, bytes):
                 myzip.writestr(str(Path('rprblender') / package_path), src)
             else:
