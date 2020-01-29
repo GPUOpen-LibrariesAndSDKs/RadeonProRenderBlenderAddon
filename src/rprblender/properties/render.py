@@ -112,6 +112,11 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
             self.cpu_state = True
         on_settings_changed(self, context)
 
+        # after changing devices its good to reset PreviewEngine and
+        # PreviewEngine.rpr_context will be created with updated devices
+        from rprblender.engine.preview_engine import PreviewEngine
+        PreviewEngine.reset()
+
     if len(pyrpr.Context.gpu_devices) > 0:
         gpu_states: BoolVectorProperty(
             name="",
