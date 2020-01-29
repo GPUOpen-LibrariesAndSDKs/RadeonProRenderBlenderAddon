@@ -343,5 +343,5 @@ class NodeItem:
                                        lambda a: math.sin(a))
 
     def cos(self):
-        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_SIN,
-                                       lambda a: math.sin(a))
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_COS,
+                                       lambda a: math.cos(a))
