@@ -294,28 +294,20 @@ class NodeItem:
         g = self.get_channel(1)
         b = self.get_channel(2)
 
-        K_x = 0.0
-        K_y = -1.0/3.0
-        K_z = 2.0/3.0
-        K_w = -1.0
+        mx = r.max(g.max(b))
+        mn = r.min(g.min(b))
+        df = mx - mn
 
-        p = (g < b).if_else(b.combine4(g, K_w, K_z), g.combine4(b, K_x, K_y))
-        p_x = p.get_channel(0)
-        p_y = p.get_channel(1)
-        p_z = p.get_channel(2)
-        p_w = p.get_channel(3)
-        q = (r < p_x).if_else(p_x.combine4(p_y, p_w, r), r.combine4(p_y, p_z, p_x))
-        q_x = q.get_channel(0)
-        q_y = q.get_channel(1)
-        q_z = q.get_channel(2)
-        q_w = q.get_channel(3)
+        h = (mx == mn).if_else(0.0,
+            (mx == r).if_else((g - b) / df + 6.0,
+            (mx == g).if_else((b - r) / df + 2.0,
+                              (r - g) / df + 4.0)))
+        h = (h % 6.0) / 6.0
 
-        d = q_x - min(q_w, q_y)
-        e = 1.0e-10
+        s = (mx == 0.0).if_else(0.0, df / mx)
+        v = mx
 
-        h = abs(q_z + ((q_w - q_y) / (6.0 * d + e)))
-        s = d / (q_x + e)
-        return h.combine(s, q_x)
+        return h.combine(s, v)
 
     def normalize(self):
         norm = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3, lambda a: a)
@@ -345,3 +337,11 @@ class NodeItem:
             length.data = math.sqrt(sum(length.data[i]*length.data[i] for i in range(3)))
         
         return length
+
+    def sin(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_SIN,
+                                       lambda a: math.sin(a))
+
+    def cos(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_COS,
+                                       lambda a: math.cos(a))

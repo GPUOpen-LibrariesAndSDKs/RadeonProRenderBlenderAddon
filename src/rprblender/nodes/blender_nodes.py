@@ -1899,24 +1899,38 @@ class ShaderNodeSeparateHSV(NodeParser):
 class ShaderNodeHueSaturation(NodeParser):
 
     def export(self):
-        # TODO: With rpr nodes such rpr node calculations slows down render very much (about 100
-        #  times slower), because here we have a very complex calculations. That's why here we
-        #  work only with scalar values.
-        #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
-        #  conversion.
+        # Follows code example for doing RGB transform from 
+        # http://beesbuzz.biz/code/16-hsv-color-transforms
 
-        color = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
-        hue = self.get_input_scalar('Hue')
-        saturation = self.get_input_scalar('Saturation')
-        value = self.get_input_scalar('Value')
+        color = self.get_input_value('Color')
+        fac = self.get_input_value('Fac')
+        hue = self.get_input_value('Hue')
+        saturation = self.get_input_value('Saturation')
+        value = self.get_input_value('Value')
 
-        hsv = color.rgb_to_hsv()
-        h = (hsv.get_channel(0) + hue + 0.5) % 1.0
-        s = (hsv.get_channel(1) * saturation).clamp()
-        v = hsv.get_channel(2) * value
+        vsu = value * saturation * hue.cos()
+        vsw = value * saturation * hue.sin()
 
-        rgb = h.combine(s, v).hsv_to_rgb()
+        color_r = color.get_channel(0)
+        color_g = color.get_channel(1)
+        color_b = color.get_channel(2)
+
+        r = (.299 * value + .701 * vsu + .168 * vsw) * color_r
+        r2 = (.587 * value - .587 * vsu + .330 * vsw) * color_g
+        r3 = (.114 * value - .114 * vsu - .497 * vsw) * color_b
+        r = r + r2 + r3
+
+        g = (.299 * value - .299 * vsu - .328 * vsw) * color_r
+        g2 = (.587 * value + .413 * vsu + .035 * vsw) * color_g
+        g3 = (.114 * value - .114 * vsu + .292 * vsw) * color_b
+        g = g + g2 + g3
+
+        b = (.299 * value - .300 * vsu + 1.25 * vsw) * color_r
+        b2 = (.587 * value - .588 * vsu - 1.05 * vsw) * color_g
+        b3 = (.114 * value + .886 * vsu - .203 * vsw) * color_b
+        b = b + b2 + b3
+
+        rgb = r.combine(g, b)
         return fac.blend(color, rgb)
 
 
