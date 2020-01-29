@@ -7,4 +7,4 @@ pushd ..
 popd
 
 # Parameters: --sign will prompt user for the signing id
-python3.7 build_osx_installer.py --nomatlib $1
+python3.7 build_osx_installer.py $1

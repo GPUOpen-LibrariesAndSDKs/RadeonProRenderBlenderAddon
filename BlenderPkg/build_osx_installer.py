@@ -12,12 +12,10 @@ import create_osx_build_output
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sign', action='store_true')
-parser.add_argument('--nomatlib', action='store_true')
 
 args = parser.parse_args()
 
 signApp = args.sign
-noMatLib = args.nomatlib
 
 installer_build_dir = Path("./.installer_build")
 
@@ -50,11 +48,6 @@ bld_files_dist_dir = dist_dir / 'bld'
 bld_files_dist_dir.mkdir(parents=True)
 scripts_files_dist_dir = dist_dir / 'scripts'
 scripts_files_dist_dir.mkdir(parents=True)
-
-if noMatLib:
-	print("Not adding matlib\n")
-else:
-	create_osx_build_output.CreateMaterialLibrary(str(material_library_dist_dir))
 
 support_path = Path('./darwin-support')
 for name in ['welcome.html']:

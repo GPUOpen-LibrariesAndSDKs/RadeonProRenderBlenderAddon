@@ -8,3 +8,4 @@ linux-support/Checker/.build/
 ThirdParty/
 *.zip
 *.msi
+RprBlender.plist
