@@ -1,0 +1,10 @@
+#!/usr/bin/osascript
+
+do shell script "/Users/Shared/RadeonProRender/Blender/addon/checker"
+
+tell me to activate
+set pwrd to the text returned of (display dialog "Registration key:" default answer "")
+if (pwrd is not equal to "TagYourRenders#ProRender") then
+display dialog "Invalid key entered: cancelling installation." buttons {"OK" } default button 1
+    error "Incorrect key entered"
+end if

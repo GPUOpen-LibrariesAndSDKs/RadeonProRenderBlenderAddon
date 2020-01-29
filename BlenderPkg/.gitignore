@@ -1,0 +1,11 @@
+.vs/
+__pycache__/
+output/
+out/
+system/
+.installer_build/
+linux-support/Checker/.build/
+ThirdParty/
+*.zip
+*.msi
+RprBlender.plist
