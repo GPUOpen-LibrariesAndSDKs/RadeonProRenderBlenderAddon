@@ -59,10 +59,6 @@ def BuildInstaller():
     create_build_output.CreateAddOnModule(sPluginVersion, sBuildOutputFolder)
 
 
-# EXCLUDE MATERIAL LIBRARY FROM INSTALLER   
-#    create_build_output.CreateMaterialLibrary(sBuildOutputFolder)
-
-
 ###################################################################
 # 
 BuildInstaller()
