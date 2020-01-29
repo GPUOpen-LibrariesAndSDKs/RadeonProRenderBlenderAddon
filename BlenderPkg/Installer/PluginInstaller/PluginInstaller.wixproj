@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProductVersion>3.10</ProductVersion>
+    <ProjectGuid>858d0e71-3ce0-43d0-abe8-937d9a0b3ff5</ProjectGuid>
+    <SchemaVersion>2.0</SchemaVersion>
+    <OutputName>PluginInstaller</OutputName>
+    <OutputType>Package</OutputType>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <Name>PluginInstaller</Name>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>Debug;SourceDir=..\build_output\rpblender</DefineConstants>
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>SourceDir=..\build_output\rpblender</DefineConstants>
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <DefineConstants>Debug;SourceDir=..\..\out\_pb\system\build_output\rprblender;MatLibrary=..\..\out\_pb\system\build_output\feature_MaterialLibrary;InstallerDll=..\..\output\PluginInstallerDll\PluginInstallerDll.dll</DefineConstants>
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
+    <WixVariables>
+    </WixVariables>
+    <LinkerAdditionalOptions>-reusecab -cc .\obj\cache</LinkerAdditionalOptions>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>SourceDir=..\..\out\_pb\system\build_output\rprblender;MatLibrary=..\..\out\_pb\system\build_output\feature_MaterialLibrary;InstallerDll=..\..\output\PluginInstallerDll\PluginInstallerDll.dll</DefineConstants>
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+    <WixVariables>
+    </WixVariables>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Generated\AddOn.wxs" />
+    <!--
+EXCLUDE MATERIAL LIBRARY FROM INSTALLER
+    <Compile Include="Generated\MatLibrary.wxs" />
+EXCLUDE MATERIAL LIBRARY FROM INSTALLER
+-->
+    <Compile Include="WiXFiles\CheckHardwareDlg.wxs" />
+    <Compile Include="WiXFiles\PluginFinishDlg.wxs" />
+    <Compile Include="WiXFiles\PluginWelcomeDlg.wxs" />
+    <Compile Include="WiXFiles\Product.wxs" />
+    <Compile Include="WiXFiles\WiXUI_Wizard.wxs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="agreement.rtf" />
+    <Content Include="rpr_banner.png" />
+    <Content Include="rpr_dialog.png" />
+    <Content Include="WiXFiles\Variables.wxi" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Generated" />
+    <Folder Include="WiXFiles" />
+  </ItemGroup>
+  <ItemGroup>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixUIExtension">
+      <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
+      <Name>WixUIExtension</Name>
+    </WixExtension>
+  </ItemGroup>
+  <Import Project="$(WixTargetsPath)" />
+  <PropertyGroup>
+    <PreBuildEvent>    
+      "$(WIX)bin\heat.exe" dir "$(ProjectDir)..\..\out\_pb\system\build_output\rprblender" -cg CG_BLENDER_ADDON -ag -scom -sreg -sfrag -srd -dr INSTALLFOLDER -var var.SourceDir -out "$(ProjectDir)Generated\AddOn.wxs"
+<!--
+EXCLUDE MATERIAL LIBRARY FROM INSTALLER
+      "$(WIX)bin\heat.exe" dir "$(ProjectDir)..\..\out\_pb\system\build_output\feature_MaterialLibrary" -cg CG_MATLIBRARY -ag -scom -sreg -sfrag -srd -dr DR_MATLIBRARY -var var.MatLibrary -out "$(ProjectDir)Generated\MatLibrary.wxs"
+EXCLUDE MATERIAL LIBRARY FROM INSTALLER
+--></PreBuildEvent>
+  </PropertyGroup>
+  <!--
+	To modify your build process, add your task inside one of the targets below and uncomment it.
+	Other similar extension points exist, see Wix.targets.
+	<Target Name="BeforeBuild">
+	</Target>
+	<Target Name="AfterBuild">
+	</Target>
+	-->
+</Project>
