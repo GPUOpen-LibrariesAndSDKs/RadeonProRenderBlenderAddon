@@ -210,6 +210,7 @@ class ViewportEngine(Engine):
         """
 
         def notify_status(info, status):
+            """ Display export progress status """
             wrap_info = textwrap.fill(info, 120)
             self.rpr_engine.update_stats(status, wrap_info)
             log(status, wrap_info)
