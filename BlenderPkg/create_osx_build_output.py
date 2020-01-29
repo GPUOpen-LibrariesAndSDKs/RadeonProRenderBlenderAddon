@@ -147,29 +147,6 @@ def CreateAddOnModule(addOnVersion, build_output_folder):
     shutil.copy2('./addon.zip', dst_fpath)
 
 
-def CreateMaterialLibrary(build_output_folder):
-    sys.dont_write_bytecode = True
-
-    print('Creating Material Library for AddOn')
-    
-    # build_output_matlib = os.path.join(build_output_folder, 'feature_MaterialLibrary')
-    build_output_matlib = build_output_folder
-    if os.access(build_output_matlib, os.F_OK):
-        shutil.rmtree(build_output_matlib)
-
-    #os.makedirs(build_output_matlib, 0x777)
-
-    # build_output_matlibmaps = os.path.join(build_output_folder, 'feature_MaterialLibrary/RadeonProRMaps')
-    # build_output_matlibmaps = build_output_folder + "/RadeonProRMaps"
-    #if os.access(build_output_matlibmaps, os.F_OK):
-    #    shutil.rmtree(build_output_matlibmaps)
-
-    #os.makedirs(build_output_matlibmaps, 0x777)    
-
-    Copy( materialLibraryXML, build_output_matlib + "/Xml" )
-    Copy( materialLibraryMaps, build_output_matlib + "/Maps" )
-
-
 def ReadAddOnVersion() :
     print("ReadAddOnVersion...")
 
