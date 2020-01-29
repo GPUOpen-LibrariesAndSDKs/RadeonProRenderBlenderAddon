@@ -362,7 +362,7 @@ class WorldData:
     @staticmethod
     def init_from_shading_data(shading):
         data = WorldData()
-        data.intensity = 1.0
+        data.intensity = shading.studio_light_intensity
         data.ibl = WorldData.IblData.init_from_shading(shading)
         data.gizmo_rotation = (0.0, 0.0, shading.studio_light_rotate_z)
 
