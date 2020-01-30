@@ -156,7 +156,7 @@ class ImagePixels:
         return rpr_image
 
 
-def cache_image_file(image):
+def cache_image_file(image: bpy.types.Image) -> str:
     """
     See if image is a file, cache image pixels to temporary folder if not.
     Return image file path.
@@ -211,7 +211,8 @@ def cache_image_file(image):
     return file_path
 
 
-def cache_image_file_path(file_path):
+def cache_image_file_path(file_path: bpy.types.Image) -> str:
+    """ Cache Blender integrated and user-defined LookDev IBL files """
     if not file_path.lower().endswith(UNSUPPORTED_IMAGES):
         return file_path
 
