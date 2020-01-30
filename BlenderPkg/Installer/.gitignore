@@ -1,0 +1,5 @@
+PluginInstaller/bin/
+PluginInstaller/obj/
+PluginInstaller/Generated/
+output/
+system/
