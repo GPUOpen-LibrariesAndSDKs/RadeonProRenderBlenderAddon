@@ -19,5 +19,12 @@ class RPR_LIGHT_OP_open_IES_file(RPR_Operator, ImportHelper):
     )
 
     def execute(self, context):
+        """ Load image, put on current light and force light object update in viewport """
         context.light.rpr.ies_file = load_image(self.filepath)
+
+        # force scene depsgraph to update light object
+        energy = context.light.energy
+        context.light.energy = 0.0
+        context.light.energy = energy
+
         return {'FINISHED'}
