@@ -49,6 +49,7 @@ class RenderEngine(Engine):
         self.render_stamp_text = ""
 
     def notify_status(self, progress, info):
+        """ Display export/render status """
         self.rpr_engine.update_progress(progress)
         self.rpr_engine.update_stats(self.status_title, info)
 
@@ -73,7 +74,7 @@ class RenderEngine(Engine):
             is_adaptive_active = is_adaptive and self.current_sample >= \
                                  self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
 
-            # if less that update_samples left, use the remainder
+            # if less than update_samples left, use the remainder
             update_samples = min(self.render_update_samples,
                                  self.render_samples - self.current_sample)
 
@@ -355,7 +356,7 @@ class RenderEngine(Engine):
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # Camera object should be taken from depsgrapgh objects.
-        # If it is not available then taking it from scene.camera
+        # Use bpy.scene.camera if none found
         camera_obj = depsgraph.objects.get(camera_key, None)
         if not camera_obj:
             camera_obj = scene.camera
@@ -367,6 +368,13 @@ class RenderEngine(Engine):
             if scene.camera.data.type == 'PANO':
                 log.warn("Tiles rendering is not supported for Panoramic camera")
             else:
+                # create adaptive subdivision camera to use total render area for calculations
+                subdivision_camera_key = camera_key + ".RPR_ADAPTIVE_SUBDIVISION_CAMERA"
+                subdivision_camera = self.rpr_context.create_camera(subdivision_camera_key)
+                self.camera_data.export(subdivision_camera)
+                self.rpr_context.scene.set_subdivision_camera(subdivision_camera)
+
+                # apply tiles settings
                 self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
                 self.tile_order = scene.rpr.tile_order
                 self.rpr_context.resize(*self.tile_size)

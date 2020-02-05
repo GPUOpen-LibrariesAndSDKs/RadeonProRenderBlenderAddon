@@ -1471,25 +1471,47 @@ class ShaderNodeRGBCurve(NodeParser):
         There are two inputs here, color and Fac.  What cycles does is remap color with the mapping
         and mix between in color and remapped one with fac.
     """
+    @staticmethod
+    def eval_curve(mapping: bpy.types.CurveMapping, curve_index: int, value: float) -> float:
+        """ Evaluate 'value' on 'mapping' RGB Curve 'curve_index', clip to limits if needed """
+        if mapping.use_clip:
+            value = min(max(value, mapping.clip_min_x), mapping.clip_max_x)
+
+        _, minor, _ = bpy.app.version
+        if minor >= 82:  # CurveMapping and CurveMap were changed in Blender release 2.82
+            res = mapping.evaluate(mapping.curves[curve_index], value)
+        else:
+            res = mapping.curves[curve_index].evaluate(value)
+
+        if mapping.use_clip:
+            res = min(max(res, mapping.clip_min_y), mapping.clip_max_y)
+
+        return res
+
     def export(self):
-        ''' create a buffer from ramp data and sample that in nodes if connected '''
-        BUFFER_SIZE = 256 # hard code, this is what cycles does
+        """ create a buffer from ramp data and sample it in nodes if connected """
+        def rgba(i):
+            c = self.eval_curve(mapping, 3, i / (BUFFER_SIZE - 1))
+            return (self.eval_curve(mapping, 0, c),
+                    self.eval_curve(mapping, 1, c),
+                    self.eval_curve(mapping, 2, c),
+                    1.0)
+
+        BUFFER_SIZE = 256  # hard code, this is what cycles does
 
         in_col = self.get_input_value('Color')
         fac = self.get_input_value('Fac')
+        mapping = self.node.mapping
 
         # these need to be initialized for some reason
-        self.node.mapping.initialize()
-
-        def rgba(i):
-            c = self.node.mapping.curves[3].evaluate(i / (BUFFER_SIZE - 1))
-            return (self.node.mapping.curves[0].evaluate(c),
-                    self.node.mapping.curves[1].evaluate(c),
-                    self.node.mapping.curves[2].evaluate(c),
-                    1.0)
+        mapping.initialize()
 
         if isinstance(in_col.data, tuple):
-            out_col = tuple(self.node.mapping.curves[i].evaluate(in_col.data[i]) for i in range(4))
+            out_col = tuple(
+                self.eval_curve(mapping, i,
+                                self.eval_curve(mapping, 3, in_col.data[i]))
+                for i in range(3)
+            ) + (in_col.data[3],)
 
         else:
             arr = np.fromiter(
@@ -1521,13 +1543,20 @@ class ShaderNodeRGBCurve(NodeParser):
         return fac.blend(in_col, out_col)
 
     def export_hybrid(self):
+        """ Convert color using channel curves """
         in_col = self.get_input_scalar('Color')
         fac = self.get_input_scalar('Fac')
+        mapping = self.node.mapping
 
         # these need to be initialized for some reason
-        self.node.mapping.initialize()
+        mapping.initialize()
 
-        out_col = tuple(self.node.mapping.curves[i].evaluate(in_col.data[i]) for i in range(4))
+        out_col = tuple(
+            self.eval_curve(mapping, i,
+                            self.eval_curve(mapping, 3, in_col.data[i]))
+            for i in range(3)
+        ) + (in_col.data[3],)
+
         return fac.blend(in_col, out_col)
 
 
@@ -1870,24 +1899,38 @@ class ShaderNodeSeparateHSV(NodeParser):
 class ShaderNodeHueSaturation(NodeParser):
 
     def export(self):
-        # TODO: With rpr nodes such rpr node calculations slows down render very much (about 100
-        #  times slower), because here we have a very complex calculations. That's why here we
-        #  work only with scalar values.
-        #  This has to be fixed at core side: core should provide rgb_to_hsv and hsv_to_rgb
-        #  conversion.
+        # Follows code example for doing RGB transform from 
+        # http://beesbuzz.biz/code/16-hsv-color-transforms
 
-        color = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
-        hue = self.get_input_scalar('Hue')
-        saturation = self.get_input_scalar('Saturation')
-        value = self.get_input_scalar('Value')
+        color = self.get_input_value('Color')
+        fac = self.get_input_value('Fac')
+        hue = self.get_input_value('Hue')
+        saturation = self.get_input_value('Saturation')
+        value = self.get_input_value('Value')
 
-        hsv = color.rgb_to_hsv()
-        h = (hsv.get_channel(0) + hue + 0.5) % 1.0
-        s = (hsv.get_channel(1) * saturation).clamp()
-        v = hsv.get_channel(2) * value
+        vsu = value * saturation * hue.cos()
+        vsw = value * saturation * hue.sin()
 
-        rgb = h.combine(s, v).hsv_to_rgb()
+        color_r = color.get_channel(0)
+        color_g = color.get_channel(1)
+        color_b = color.get_channel(2)
+
+        r = (.299 * value + .701 * vsu + .168 * vsw) * color_r
+        r2 = (.587 * value - .587 * vsu + .330 * vsw) * color_g
+        r3 = (.114 * value - .114 * vsu - .497 * vsw) * color_b
+        r = r + r2 + r3
+
+        g = (.299 * value - .299 * vsu - .328 * vsw) * color_r
+        g2 = (.587 * value + .413 * vsu + .035 * vsw) * color_g
+        g3 = (.114 * value - .114 * vsu + .292 * vsw) * color_b
+        g = g + g2 + g3
+
+        b = (.299 * value - .300 * vsu + 1.25 * vsw) * color_r
+        b2 = (.587 * value - .588 * vsu - 1.05 * vsw) * color_g
+        b3 = (.114 * value + .886 * vsu - .203 * vsw) * color_b
+        b = b + b2 + b3
+
+        rgb = r.combine(g, b)
         return fac.blend(color, rgb)
 
 
