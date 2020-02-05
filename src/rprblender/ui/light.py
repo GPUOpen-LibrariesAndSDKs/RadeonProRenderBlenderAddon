@@ -36,7 +36,7 @@ class RPR_LIGHT_PT_light(RPR_Panel):
             main_col.prop(light, 'show_cone')
 
         elif light.type == 'SUN':
-            main_col.prop(rpr_light, 'shadow_softness')
+            main_col.prop(rpr_light, 'shadow_softness_angle')
 
         elif light.type == 'AREA':
             main_col.prop(rpr_light, 'shape')
