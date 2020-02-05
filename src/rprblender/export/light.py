@@ -110,7 +110,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     elif light.type in ('SUN', 'HEMI'):  # just in case old scenes will have outdated Hemi
         rpr_light = rpr_context.create_light(light_key, 'directional')
-        rpr_light.set_shadow_softness(light.rpr.shadow_softness)
+        rpr_light.set_shadow_softness_angle(light.rpr.shadow_softness_angle)
 
     elif light.type == 'SPOT':
         rpr_light = rpr_context.create_light(light_key, 'spot')

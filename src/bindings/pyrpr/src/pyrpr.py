@@ -1151,8 +1151,8 @@ class DirectionalLight(Light):
     def set_radiant_power(self, r, g, b):
         DirectionalLightSetRadiantPower3f(self, r, g, b)
 
-    def set_shadow_softness(self, coeff):
-        DirectionalLightSetShadowSoftness(self, coeff)
+    def set_shadow_softness_angle(self, angle):
+        DirectionalLightSetShadowSoftnessAngle(self, angle)
 
 
 class AreaLight(Light):
