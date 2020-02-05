@@ -1,3 +1,5 @@
+import math
+
 import bpy
 from bpy.props import (
     PointerProperty,
@@ -84,10 +86,12 @@ class RPR_LightProperties(RPR_Properties):
 
 
     # SUN LIGHT
-    shadow_softness: FloatProperty(
-        name="Shadow Softness",
-        description="Edge shadow softness. Increase for lighter shadows",
-        min=0.0, max=1.0, default=0.0
+    shadow_softness_angle: FloatProperty(
+        name="Shadow Softness Angle",
+        description="Softness of shadow produced by the light, 0.0 means sharp shadow",
+        subtype='ANGLE',
+        min=0.0, max=math.radians(90),
+        default=0.0
     )
 
     # AREA LIGHT

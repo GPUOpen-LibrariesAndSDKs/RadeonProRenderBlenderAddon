@@ -117,7 +117,9 @@ class SpotLight(pyrpr.SpotLight, Light):
 
 
 class DirectionalLight(pyrpr.DirectionalLight, Light):
-    pass
+    def set_shadow_softness_angle(self, angle):
+        log_unsupported("DirectionalLight.set_shadow_softness_angle()")
+        pass
 
 
 class AreaLight(pyrpr.AreaLight, Light):
