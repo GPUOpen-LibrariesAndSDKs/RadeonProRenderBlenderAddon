@@ -36,13 +36,6 @@ def copy_rpr_sdk():
     # copying rprTools files
     shutil.copytree(str(rpr_dir / "rprTools"), str(sdk_rpr_dir / "rprTools"))
 
-    if OS == 'Darwin':
-        # fixing stddef.h include for OSX
-        rpr_h = sdk_rpr_dir / "inc/RadeonProRender.h"
-        rpr_h_text = rpr_h.read_text()
-        rpr_h_text = rpr_h_text.replace("<cstddef>", "<stddef.h>")
-        rpr_h.write_text(rpr_h_text)
-
     # copying bin lib files
     bin_glob = {
         'Windows': "binWin64/*.dll",

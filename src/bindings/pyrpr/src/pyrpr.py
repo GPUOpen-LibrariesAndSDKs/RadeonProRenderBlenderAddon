@@ -400,6 +400,7 @@ class Scene(Object):
         self.context = context
         self.objects = set()
         self.camera = None
+        self.subdivision_camera = None
         self.environment_light = None
         self.background_image = None
         self.environment_overrides = {}
@@ -451,12 +452,17 @@ class Scene(Object):
 
         SceneClear(self)
         self.camera = None
+        self.subdivision_camera = None
         self.objects = set()
 
 
     def set_camera(self, camera):
         self.camera = camera
         SceneSetCamera(self, self.camera)
+
+    def set_subdivision_camera(self, camera):
+        """ Keep subdivision camera reference if used """
+        self.subdivision_camera = camera
 
     def add_environment_light(self, light):
         self.environment_light = light
