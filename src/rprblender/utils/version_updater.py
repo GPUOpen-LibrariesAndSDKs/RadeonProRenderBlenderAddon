@@ -107,7 +107,6 @@ def update_light(light):
         # 'ies_file_name',
         'luminous_efficacy',
         'intensity_normalization',
-        'shadow_softness',
     )
 
     if 'rpr_lamp' in light.keys():
