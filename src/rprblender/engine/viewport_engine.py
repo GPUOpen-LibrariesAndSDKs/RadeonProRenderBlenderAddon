@@ -132,6 +132,7 @@ class ShadingData:
     studio_light: str = None
     studio_light_rotate_z: float = 0.0
     studio_light_background_alpha: float = 0.0
+    studio_light_intensity: float = 1.0
 
     def __init__(self, context: bpy.types.Context):
         shading = context.area.spaces.active.shading
@@ -149,7 +150,8 @@ class ShadingData:
                                         "studiolights/world" / shading.studio_light)
             self.studio_light_rotate_z = shading.studiolight_rotate_z
             self.studio_light_background_alpha = shading.studiolight_background_alpha
-
+            if hasattr(shading, "studiolight_intensity"):  # parameter added in Blender 2.81
+                self.studio_light_intensity = shading.studiolight_intensity
 
 @dataclass(init=False, eq=True)
 class ViewLayerSettings:
@@ -210,6 +212,7 @@ class ViewportEngine(Engine):
         """
 
         def notify_status(info, status):
+            """ Display export progress status """
             wrap_info = textwrap.fill(info, 120)
             self.rpr_engine.update_stats(status, wrap_info)
             log(status, wrap_info)

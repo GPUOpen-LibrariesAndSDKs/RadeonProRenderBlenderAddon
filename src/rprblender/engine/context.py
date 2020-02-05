@@ -391,20 +391,30 @@ class RPRContext:
         del self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite']
 
     def sync_auto_adapt_subdivision(self, width=0, height=0):
+        camera = self.scene.subdivision_camera
+        if not camera:
+            camera = self.scene.camera
         if width == 0:
             width = self.width
         if height == 0:
             height = self.height
 
+        objects_with_adaptive_subdivision = tuple(
+                obj for obj in self.scene.objects
+                if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None
+        )
+
+        if not objects_with_adaptive_subdivision:
+            return
+
         fb = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['aov']
+        if fb.width != width or fb.height != height:
+            # creating temporary FrameBuffer of required size only to set subdivision
+            fb = pyrpr.FrameBuffer(self.context, width, height)
 
-        for obj in self.scene.objects:
+        for obj in objects_with_adaptive_subdivision:
             if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
-                if fb.width != width or fb.height != height:
-                    # creating temporary framebuffer of required size only to set subdivision
-                    fb = pyrpr.FrameBuffer(self.context, width, height)
-
-                obj.set_auto_adapt_subdivision_factor(fb, self.scene.camera, obj.subdivision['factor'])
+                obj.set_auto_adapt_subdivision_factor(fb, camera, obj.subdivision['factor'])
                 obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
                 obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
 
