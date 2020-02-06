@@ -65,7 +65,11 @@ def get_library_path() -> str:
 
     elif 'Linux' == platform.system():
         home = Path.home()
-        install_dir_for_files = Path(os.environ.get('XDG_DATA_HOME', home / '.local/share')) / 'rprblender'
+
+        # check for separate installation location first
+        install_dir_for_files = Path(os.environ.get('XDG_DATA_HOME', home / '.local/share')) / 'rprmaterials'
+        if not install_dir_for_files.exists():
+            install_dir_for_files = Path(os.environ.get('XDG_DATA_HOME', home / '.local/share')) / 'rprblender'
 
         matlib_installed = install_dir_for_files / '.matlib_installed'
         if matlib_installed.exists():
