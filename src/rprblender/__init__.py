@@ -166,8 +166,8 @@ def on_version_update(*args, **kwargs):
     log("on_version_update")
 
     addon_version = bl_info['version']
-    if version_updater.is_scene_saved_by_older_addon_version(addon_version):
-        version_updater.update_old_scene()
+    if version_updater.is_scene_from_2_79(addon_version):
+        version_updater.update_2_79_scene()
 
 
 @bpy.app.handlers.persistent

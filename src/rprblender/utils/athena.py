@@ -44,7 +44,10 @@ def _send_data_thread(data):
             is_error = True
 
         finally:
-            os.remove(file_name)
+            try:
+                os.remove(file_name)
+            except Exception as e:  # In case removal happens on Blender exit, when temporary folder is already removed
+                log.warn(f"Unable to remove temporary json: {e}")
 
         log("send_data_thread finish")
 
