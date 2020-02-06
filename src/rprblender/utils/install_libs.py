@@ -44,24 +44,18 @@ def ensure_boto3() -> None:
     except (ImportError, ModuleNotFoundError):
         log.info("Installing boto3 library...")
         running_os = platform.system()
-        if running_os == 'Linux':  # Blender for linux has ensurepip module but no pip
+        if running_os in ('Linux', 'Darwin'):  # Blender for Linux and MacOS have ensurepip module. Linux has no pip
             if run_python_call('ensurepip', '--upgrade') and run_pip("--upgrade", "pip") and run_pip('boto3'):
                 log.info("Library boto3 installed and ready to use.")
                 return
-        elif running_os == 'Windows':  # Blender for Windows has pip and no ensurepip module
-            if run_pip("--upgrade", "pip") and run_pip("boto3"):
-                # Note: at this point library can be loaded by direct path usage, for example:
-                # hardcoded_path = "C:\\Users\\<user_name>\\AppData\\Roaming\\Python\\Python37\\site-packages"
-                # importlib.sys.path.append(hardcoded_path)
-                # globals()['boto3'] = importlib.import_module('boto3')
+        elif run_pip("--upgrade", "pip") and run_pip("boto3"):  # Blender for Windows has pip and no ensurepip module
+            # Note: at this point library can be loaded by direct path usage, for example:
+            # hardcoded_path = "C:\\Users\\<user_name>\\AppData\\Roaming\\Python\\Python37\\site-packages"
+            # importlib.sys.path.append(hardcoded_path)
+            # globals()['boto3'] = importlib.import_module('boto3')
 
-                # after Blender restart no path modification would be needed. Report and let it be.
-                log.info("Library boto3 should be available after Blender restart.")
-                return
-        else:
-            if run_pip("--upgrade", "pip") and run_pip("boto3"):
-                # Mac is fine.
-                log.info("Library boto3 installed and ready to use.")
-                return
+            # after Blender restart no path modification would be needed. Report and let it be.
+            log.info("Library boto3 should be available after Blender restart.")
+            return
 
         log.warn("Something went wrong, unable to install boto3 library.")
