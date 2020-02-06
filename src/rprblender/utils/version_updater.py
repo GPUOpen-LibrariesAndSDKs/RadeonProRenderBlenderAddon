@@ -14,31 +14,34 @@ from .logging import Log
 log = Log(tag="VersionUpdater")
 
 
-def is_scene_saved_by_older_addon_version(version):
-    saved_version = tuple(bpy.context.scene.rpr.saved_addon_version)
+def is_scene_from_2_79(plugin_version):
+    """ Checks if scene is saved in Blender 2.78-2.79b plugin version """
+    scene_version = tuple(bpy.context.scene.rpr.saved_addon_version)
+    log.debug(f"scene_version: {scene_version}")
 
-    # ignore freshly created scenes and scene first time loaded with RPR
-    if saved_version[0] == 0 and saved_version[1] == 0 and saved_version[2] == 0:
+    # plugin versions for 2.78-2.79b were 1.##.###
+    # 0.0.0 is a default unsaved scene value, ignore.
+    if scene_version[0] != 1:
         return False
 
-    if saved_version[0] >= version[0]:
-        if saved_version[1] >= version[1]:
-            if saved_version[2] >= version[2]:
-                return False
+    log.info(f"Scene was saved in plugin version "
+             f"{scene_version[0]}.{scene_version[1]}.{scene_version[2]}"
+             f" for Blender 2.79")
     return True
 
 
-def update_old_scene():
-    update_environment()
+def update_2_79_scene():
+    """ Update scene from Blender 2.79 plugin version """
+    update_2_79_environment()
 
     for obj in bpy.data.objects:
-        update_object(obj)
+        update_2_79_object(obj)
 
     for entry in bpy.data.lights:
-        update_light(entry)
+        update_2_79_light(entry)
 
 
-def update_environment():
+def update_2_79_environment():
     """ Import environment lightning settings from world.rpr_data """
     world = bpy.context.scene.world
     env_data = world.get('rpr_data', None)
@@ -86,7 +89,7 @@ def update_environment():
     # TODO Import Sun & Sky
 
 
-def update_object(obj):
+def update_2_79_object(obj):
     """ Import data from obj.rpr_object """
     # Subdivision
     # Motion Blur
@@ -96,7 +99,7 @@ def update_object(obj):
     pass
 
 
-def update_light(light):
+def update_2_79_light(light):
     """ Import Physical lights data from light.rpr_lamp"""
     convert = (
         'intensity',
