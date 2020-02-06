@@ -19,6 +19,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parser.print_help()
         sys.exit(-1)
 
+
 parser = ArgumentParser()
 parser.add_argument('blender_path', help="Blender distro folder")
 parser.add_argument('--install-dir', default=None, help="Blender install folder")
@@ -46,23 +47,6 @@ if subprocess.call([str(blender_executable_path), '--background',
 if (install_dir/'.files_installed').is_file():
     print(blue + "Removing installed files..." + default)
     shutil.rmtree(str(install_dir))
-
-if (install_dir/'.matlib_installed').is_file():
-    matlib_dir = (install_dir / '.matlib_installed').read_text()
-    if matlib_dir.exists():
-        matlib_remove = False
-        print("Found installed material library in ", str(matlib_dir))
-        while True:
-            a = input("Remove? (y or n)").lower()
-
-            if 'y' == a:
-                matlib_remove = True
-                break
-            if 'n' == a:
-                matlib_remove = False
-                break
-            print("Please answer yes or no.")
-        shutil.rmtree(str(matlib_dir))
 
 print(blue+"Removal complete."+default)
 
