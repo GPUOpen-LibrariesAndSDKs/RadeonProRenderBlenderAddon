@@ -80,6 +80,23 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
         return luminance / MAX_LUMINOUS_EFFICACY
 
 
+def sync_ies_light(rpr_context, light: bpy.types.Light, light_key) -> RPRContext._IESLight:
+    """ Sync IES light source """
+    if light.rpr.ies_file.source not in ('FILE', 'GENERATED'):
+        # unsupported image source type
+        return rpr_context.create_light(light_key, 'point')
+
+    file_path = image.cache_image_file(light.rpr.ies_file)
+    if not file_path:
+        rpr_context.create_empty_object(light_key)
+        return None
+
+    rpr_light = rpr_context.create_light(light_key, 'ies')
+    rpr_light.set_image_from_file(file_path, 256, 256)
+
+    return rpr_light
+
+
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     """ Creates pyrpr.Light from obj.data: bpy.types.Light """
 
@@ -94,23 +111,13 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     if light.type == 'POINT':
         if light.rpr.ies_file:
-            if light.rpr.ies_file.source in ('FILE', 'GENERATED'):
-                file_path = image.cache_image_file(light.rpr.ies_file)
-                if not file_path:
-                    rpr_context.create_empty_object(light_key)
-                    return
-
-                rpr_light = rpr_context.create_light(light_key, 'ies')
-                rpr_light.set_image_from_file(file_path, 256, 256)
-            else:  # unsupported source type
-                log.warn(f"Unable to load IES file for light {light}")
-                rpr_light = rpr_context.create_light(light_key, 'point')
+            rpr_light = sync_ies_light(rpr_context, light, light_key)
         else:
             rpr_light = rpr_context.create_light(light_key, 'point')
 
     elif light.type in ('SUN', 'HEMI'):  # just in case old scenes will have outdated Hemi
         rpr_light = rpr_context.create_light(light_key, 'directional')
-        rpr_light.set_shadow_softness(light.rpr.shadow_softness)
+        rpr_light.set_shadow_softness_angle(light.rpr.shadow_softness_angle)
 
     elif light.type == 'SPOT':
         rpr_light = rpr_context.create_light(light_key, 'spot')
@@ -154,7 +161,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     rpr_context.scene.attach(rpr_light)
 
 
-def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform) -> bool:
     """ Update existing light from obj.data: bpy.types.Light or create a new light """
 
     light = obj.data
