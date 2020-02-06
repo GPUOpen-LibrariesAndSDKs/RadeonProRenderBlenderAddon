@@ -17,6 +17,7 @@ bl_info = {
 }
 
 from .utils import logging, version_updater
+from .utils import install_libs
 
 from .engine.engine import Engine
 from . import (
@@ -187,7 +188,9 @@ def on_load_pre(*args, **kwargs):
 
 
 def register():
+    """ Register all addon classes in Blender """
     log("register")
+    install_libs.ensure_boto3()
 
     bpy.utils.register_class(RPREngine)
     material_library.register()
@@ -202,6 +205,7 @@ def register():
 
 
 def unregister():
+    """ Unregister all addon classes from Blender """
     log("unregister")
 
     bpy.app.handlers.version_update.remove(on_version_update)
