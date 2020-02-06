@@ -13,21 +13,6 @@ script_py = sys.argv[2]
 # Note: Only the OSX run script sets the debugger from the command line currently
 debugger = sys.argv[3] if len(sys.argv) >= 4 else None
 
-# getting Blender python exe and running blender_pip.py
-python_search = {
-    'Windows': "2.8*/python/bin/python.exe",
-    'Linux': "2.8*/python/bin/python3.*",
-    'Darwin': "../Resources/2.8*/python/bin/python3.*"
-}[platform.system()]
-blender_python_exe = next(Path(blender_exe).parent.glob(python_search))
-
-print(f"Using Blender Python executable '{blender_python_exe}'")
-
-try:
-    subprocess.check_call([str(blender_python_exe), 'cmd_tools/blender_pip.py'])
-except subprocess.CalledProcessError as e:
-    print(f"\npip+boto3 installation failed: {e}")
-
 # Running Blender
 call_args = [
     blender_exe,
