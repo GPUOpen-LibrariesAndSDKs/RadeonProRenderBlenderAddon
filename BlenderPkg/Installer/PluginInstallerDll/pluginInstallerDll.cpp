@@ -2,7 +2,6 @@
 #include <msi.h>
 #include <msiquery.h>
 #include <Shellapi.h>
-#include "checkCompatibility.h"
 #include "../../../.sdk/rpr/inc/RadeonProRender.h" // for get FR_API_VERSION
 #include <comdef.h>
 #include <Commdlg.h>
@@ -77,37 +76,6 @@ Uninstall  ("postUninstall")
 2.5. Catch any subprocess exception, quit removal if script call failed
 2.6. Remove registry entry for Blender version  ("removeRegistryEntry")
 */
-
-
-extern "C" __declspec(dllexport) UINT hardwareCheck(MSIHANDLE hInstall) {
-	/* Check for hardware and OpenCL driver compatibility */
-	LogSystem("hardwareCheck...");
-	std::wstring hw_message;
-	bool hw_res = checkCompatibility_hardware(hw_message);
-
-	std::wstring sw_message;
-	bool sw_res = checkCompatibility_driver(sw_message);
-
-	MsiSetProperty(hInstall, L"HARDWARECHECK_RESULT", hw_res ? L"1" : L"0");
-	MsiSetProperty(hInstall, L"SOFTWARECHECK_RESULT", sw_res ? L"1" : L"0");
-
-	if (!hw_res || !sw_res)
-	{
-		std::wstring text;
-		if (!hw_res)
-			text += L"\r\n" + hw_message;
-
-		if (!sw_res)
-			text += L"\r\n" + sw_message;
-
-		std::wstring s = L"Detail info:" + text;
-
-		MsiSetProperty(hInstall, L"CHECK_RESULT_TEXT", s.c_str());
-	}
-
-	LogSystem("hardwareCheck finished.");
-	return ERROR_SUCCESS;
-}
 
 
 std::wstring getBlenderPathByUser()

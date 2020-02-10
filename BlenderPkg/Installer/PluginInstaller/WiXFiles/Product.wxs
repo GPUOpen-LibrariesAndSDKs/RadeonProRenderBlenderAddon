@@ -19,7 +19,6 @@
     <!-- Preparation stage actions -->
     <CustomAction Id='CollectInstalledBlenderEntries' BinaryKey='InstallerDll' DllEntry='collectInstalledBlenderEntries' />
     <CustomAction Id='GetBlenderEntriesForUninstall' BinaryKey='InstallerDll' DllEntry='getBlenderEntriesForUninstall' />
-    <CustomAction Id='HardwareCheck' BinaryKey='InstallerDll' DllEntry='hardwareCheck' Return="ignore" />
     <!-- Actual Blender+registry manipulations -->
     <CustomAction Id='PostInstall' BinaryKey='InstallerDll' DllEntry='postInstall' Return="ignore" />
     <CustomAction Id='PostUnInstall' BinaryKey='InstallerDll' DllEntry='postUnInstall' Return="ignore" />
