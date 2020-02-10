@@ -1904,7 +1904,7 @@ class ShaderNodeHueSaturation(NodeParser):
 
         color = self.get_input_value('Color')
         fac = self.get_input_value('Fac')
-        hue = self.get_input_value('Hue')
+        hue = self.get_input_value('Hue') - 0.5
         saturation = self.get_input_value('Saturation')
         value = self.get_input_value('Value')
 
