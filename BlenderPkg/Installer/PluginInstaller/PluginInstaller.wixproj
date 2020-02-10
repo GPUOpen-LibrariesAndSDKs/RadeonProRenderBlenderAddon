@@ -48,7 +48,6 @@ EXCLUDE MATERIAL LIBRARY FROM INSTALLER
     <Compile Include="Generated\MatLibrary.wxs" />
 EXCLUDE MATERIAL LIBRARY FROM INSTALLER
 -->
-    <Compile Include="WiXFiles\CheckHardwareDlg.wxs" />
     <Compile Include="WiXFiles\PluginFinishDlg.wxs" />
     <Compile Include="WiXFiles\PluginWelcomeDlg.wxs" />
     <Compile Include="WiXFiles\Product.wxs" />
