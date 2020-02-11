@@ -15,6 +15,7 @@ from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
+from rprblender.utils import BLENDER_VERSION
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -1477,8 +1478,7 @@ class ShaderNodeRGBCurve(NodeParser):
         if mapping.use_clip:
             value = min(max(value, mapping.clip_min_x), mapping.clip_max_x)
 
-        _, minor, _ = bpy.app.version
-        if minor >= 82:  # CurveMapping and CurveMap were changed in Blender release 2.82
+        if BLENDER_VERSION >= '2.82':  # CurveMapping and CurveMap were changed in Blender release 2.82
             res = mapping.evaluate(mapping.curves[curve_index], value)
         else:
             res = mapping.curves[curve_index].evaluate(value)
@@ -1586,8 +1586,7 @@ class ShaderNodeMapping(NodeParser):
 
     def export(self):
         """ Export node by version as it was changed in 2.81 """
-        major, minor, _ = bpy.app.version
-        if (major, minor) == (2, 80):  # running on Blender 2.80
+        if BLENDER_VERSION == '2.80':  # running on Blender 2.80
             return self.export_280()
 
         return self.export_281()
