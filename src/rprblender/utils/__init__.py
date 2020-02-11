@@ -148,8 +148,8 @@ IS_WIN = platform.system() == 'Windows'
 IS_MAC = platform.system() == 'Darwin'
 IS_LINUX = platform.system() == 'Linux'
 
-major, minor, _ = bpy.app.version
-USE_BLENDER_DENOISER = IS_MAC and minor >= 81
+BLENDER_VERSION = f'{bpy.app.version[0]}.{bpy.app.version[1]}'
+USE_BLENDER_DENOISER = IS_MAC and BLENDER_VERSION >= '2.81'
 
 from . import logging
 log = logging.Log(tag='utils')
