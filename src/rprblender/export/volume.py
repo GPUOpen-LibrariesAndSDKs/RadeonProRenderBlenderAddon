@@ -3,6 +3,7 @@ import math
 
 import bpy
 from . import object, material
+from rprblender.utils import BLENDER_VERSION
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.volume')
@@ -21,8 +22,12 @@ def get_transform(obj: bpy.types.Object):
 
 
 def get_smoke_modifier(obj: bpy.types.Object):
-    return next((modifier for modifier in obj.modifiers
-                 if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
+    if BLENDER_VERSION >= '2.82':
+        return next((modifier for modifier in obj.modifiers
+                     if modifier.type == 'FLUID' and modifier.fluid_type == 'DOMAIN'), None)
+    else:
+        return next((modifier for modifier in obj.modifiers
+                     if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
 
 
 def sync(rpr_context, obj: bpy.types.Object):
@@ -59,10 +64,13 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_volume.set_name(str(volume_key))
 
     # getting smoke resolution and color_grid
-    amplify = domain.amplify if domain.use_high_resolution else 0
-    x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
+    if BLENDER_VERSION >= '2.82':
+        x, y, z = domain.domain_resolution
+    else:
+        amplify = domain.amplify if domain.use_high_resolution else 0
+        x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
 
-    color_grid = np.fromiter(domain.color_grid, dtype=np.float32).reshape(x, y, z, 4)
+    color_grid = np.fromiter(domain.color_grid, dtype=np.float32).reshape(x, y, z, -1)
 
     # set albedo grid
     albedo_grid = np.average(color_grid[:, :, :, :3], axis=3)
