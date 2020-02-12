@@ -356,6 +356,9 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
+    def set_aov_index_lookup(self, input, r, g, b, a):
+        ContextSetAOVindexLookup(self, input, r, g, b, a)
+
     def get_info_size(self, context_info):
         size = ffi.new('size_t *', 0)
         ContextGetInfo(self, context_info, 0, ffi.NULL, size)
@@ -623,6 +626,9 @@ class Shape(Object):
         for i in range(4):
             values = np.ascontiguousarray(colors[:, i], dtype=np.float32)
             self.set_vertex_value(i, indices, values)
+
+    def set_id(self, id):
+        ShapeSetObjectID(self, id)
 
 
 class Curve(Object):

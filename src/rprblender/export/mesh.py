@@ -284,6 +284,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
         data.num_face_vertices
     )
     rpr_shape.set_name(obj.name)
+    rpr_shape.set_id(obj.pass_index)
+
 
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)
