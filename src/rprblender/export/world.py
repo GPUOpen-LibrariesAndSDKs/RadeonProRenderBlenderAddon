@@ -169,27 +169,11 @@ class Backplate:
 
         return pixels, pixels.size
 
-    def export(self, rpr_context):
-        rpr_image = None
-        if self.enabled and self.name:
-            texture = bpy.data.images[self.name]
-            try:
-                rpr_image = image.sync_image_region(
-                    rpr_context, texture,
-                    0, 0,
-                    texture.size[0]-1, texture.size[1]-1,
-                    flipud=False
-                )
-            except ValueError as e:
-                log.warn(e)
-
-        rpr_context.scene.set_background_image(rpr_image)
-
     def export_full(self, rpr_context):
         if not self.source_size:
             return
 
-        rpr_image = self.source_pixels.export_full(rpr_context)
+        rpr_image = self.source_pixels.export_full(rpr_context, flipud=True)
         rpr_context.scene.set_background_image(rpr_image)
 
     def export_tile(self, rpr_context, x1: float, y1: float, x2: float, y2: float):
@@ -202,7 +186,7 @@ class Backplate:
             int(x2 * self.source_size[0]), int(y2 * self.source_size[1]),
         )
 
-        rpr_image = self.source_pixels.export_region(rpr_context, *region)
+        rpr_image = self.source_pixels.export_region(rpr_context, *region, flipud=True)
         rpr_context.scene.set_background_image(rpr_image)
 
 
