@@ -77,6 +77,11 @@ class Engine:
             if p.channels != image.shape[2]:
                 image = image[:, :, 0:p.channels]
 
+            if p.name == "Object Index":
+                # De-normalizing Object ID to match blender values
+                # it appears values > 256 get clipped.
+                image = image * 255.0
+
             images.append(image.flatten())
 
         # efficient way to copy all AOV images
