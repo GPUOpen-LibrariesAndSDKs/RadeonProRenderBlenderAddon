@@ -292,6 +292,9 @@ class Shape(pyrpr.Shape):
         log_unsupported("Shape.set_scale_motion()")
         pass
 
+    def set_id(self, id):
+        log_unsupported("Shape.set_object_id()")
+
 
 class Mesh(pyrpr.Mesh, Shape):
     pass
