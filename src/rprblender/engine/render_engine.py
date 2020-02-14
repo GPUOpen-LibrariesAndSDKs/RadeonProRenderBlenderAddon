@@ -65,6 +65,7 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
+        render_iteration = 0
         while True:
             if self.rpr_engine.test_break():
                 athena_data['End Status'] = "cancelled"
@@ -103,6 +104,7 @@ class RenderEngine(Engine):
             log(log_str)
 
             self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, render_iteration)
             self.rpr_context.render(restart=(self.current_sample == 0))
 
             self.current_sample += update_samples
@@ -123,6 +125,8 @@ class RenderEngine(Engine):
 
             if self.render_time and self.current_render_time >= self.render_time:
                 break
+
+            render_iteration += 1
 
         if self.image_filter:
             self.notify_status(1.0, "Applying denoising final image")
@@ -176,6 +180,7 @@ class RenderEngine(Engine):
             if is_adaptive:
                 all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
+            render_iteration = 0
             while True:
                 if self.rpr_engine.test_break():
                     break
@@ -201,6 +206,7 @@ class RenderEngine(Engine):
                 log(log_str)
 
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
+                self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, render_iteration)
                 self.rpr_context.render(restart=(sample == 0))
 
                 sample += update_samples
@@ -219,6 +225,8 @@ class RenderEngine(Engine):
 
                 if sample == self.render_samples:
                     break
+
+                render_iteration += 1
 
             if self.image_filter and sample == self.render_samples:
                 self.update_image_filter_inputs(tile_pos)
