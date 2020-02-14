@@ -324,6 +324,7 @@ class ViewportEngine(Engine):
                         if self.restart_render_event.is_set():
                             break
 
+                        self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, iteration)
                         self.rpr_context.render(restart=(iteration == 0))
 
                     # resolving
