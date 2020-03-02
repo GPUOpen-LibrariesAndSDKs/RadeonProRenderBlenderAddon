@@ -30,18 +30,31 @@ class BaseNodeParser(metaclass=ABCMeta):
     """
 
     def __init__(self, rpr_context: RPRContext, material: bpy.types.Material,
-                 node: bpy.types.Node, socket_out: bpy.types.NodeSocket, group_nodes=(), *,
-                 obj: bpy.types.Object = None, normal_node=None, material_key):
+                 node: bpy.types.Node, socket_out: bpy.types.NodeSocket, group_nodes=(), *, data):
         self.rpr_context = rpr_context
         self.material = material
         self.node = node
         self.socket_out = socket_out
-        self.object = obj
         # group nodes containing this node in depth, starting from upper level down to current
         # will need it to get out of each group
         self.group_nodes = group_nodes
-        self.normal_node = normal_node
-        self.material_key = material_key
+        self.data = data
+
+    @property
+    def material_key(self):
+        return self.data['material_key']
+
+    @property
+    def normal_node(self):
+        return self.data.get('normal_node')
+
+    @normal_node.setter
+    def normal_node(self, node):
+        self.data['normal_node'] = node
+
+    @property
+    def object(self):
+        return self.data['object']
 
     # INTERNAL FUNCTIONS
 
@@ -72,8 +85,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         node_parser_class = get_node_parser_class(node.bl_idname)
         if node_parser_class:
             node_parser = node_parser_class(self.rpr_context, self.material, node, socket_out,
-                                            group_nodes, obj=self.object, normal_node=self.normal_node,
-                                            material_key=self.material_key)
+                                            group_nodes, data=self.data)
             return node_parser.final_export()
 
         log.warn("Ignoring unsupported node", node, self.material)
@@ -328,10 +340,8 @@ class RuleNodeParser(NodeParser):
 
     nodes = {}
 
-    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, obj=None, normal_node=None,
-                 material_key=None):
-        super().__init__(rpr_context, material, node, socket_out, group_nodes, obj=obj, normal_node=normal_node,
-                         material_key=material_key)
+    def __init__(self, rpr_context, material, node, socket_out, group_nodes=(), *, data):
+        super().__init__(rpr_context, material, node, socket_out, group_nodes, data=data)
 
         # internal cache of parsed node rules
         self._parsed_node_rules = {}

@@ -86,7 +86,7 @@ def sync_ies_light(rpr_context, light: bpy.types.Light, light_key) -> RPRContext
         # unsupported image source type
         return rpr_context.create_light(light_key, 'point')
 
-    file_path = image.cache_image_file(light.rpr.ies_file)
+    file_path = image.cache_image_file(light.rpr.ies_file, rpr_context.blender_data['depsgraph'])
     if not file_path:
         rpr_context.create_empty_object(light_key)
         return None

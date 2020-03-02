@@ -324,6 +324,8 @@ class RenderEngine(Engine):
 
         self.rpr_context.set_transparent_background(scene.render.film_transparent)
 
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
+
         # EXPORT OBJECTS
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):

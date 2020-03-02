@@ -1812,7 +1812,7 @@ class ShaderNodeUVMap(NodeParser):
         """ Check if uv_map is set to primary, use LOOKUP node to set it """
         # The material preview uv_map value is surprisingly empty
 
-        if self.node.uv_map and self.object:
+        if self.node.uv_map:
             mesh = self.object.data
             primary_uv = mesh.rpr.primary_uv_layer
             if primary_uv and self.node.uv_map == primary_uv.name:
