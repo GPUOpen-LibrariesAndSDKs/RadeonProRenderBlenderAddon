@@ -35,7 +35,7 @@ def set_light_image(rpr_context, rpr_light, image_name):
 
 
 def set_light_studio_image(rpr_context, rpr_light, studio_light):
-    file_path = image.cache_image_file_path(studio_light)
+    file_path = image.cache_image_file_path(studio_light, rpr_context.blender_data['depsgraph'])
     rpr_image = rpr_context.create_image_file(None, file_path)
     rpr_light.set_image(rpr_image)
 

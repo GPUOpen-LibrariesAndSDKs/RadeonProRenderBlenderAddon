@@ -36,6 +36,9 @@ class RPRContext:
         self.gl_interop = None
         self.engine_type = None
 
+        # Here we'll store some useful blender data, which could be required to do some export
+        self.blender_data = {}
+
         # scene and objects
         self.scene = None
         self.objects = {}
