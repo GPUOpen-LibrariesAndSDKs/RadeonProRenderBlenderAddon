@@ -73,7 +73,8 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
         log("No output node", material)
         return None
 
-    node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None, obj=obj, material_key=mat_key)
+    data = {'material_key': mat_key, 'object': obj}
+    node_parser = ShaderNodeOutputMaterial(rpr_context, material, output_node, None, data=data)
     rpr_material = node_parser.final_export(input_socket_key)
 
     if rpr_material:

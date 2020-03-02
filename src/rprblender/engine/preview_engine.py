@@ -78,6 +78,8 @@ class PreviewEngine(Engine):
         self._init_rpr_context(scene)
         self.rpr_context.resize(scene.render.resolution_x, scene.render.resolution_y)
 
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
+
         # export visible objects
         for obj in self.depsgraph_objects(depsgraph):
             object.sync(self.rpr_context, obj)

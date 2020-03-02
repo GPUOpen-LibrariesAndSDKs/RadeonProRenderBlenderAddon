@@ -409,6 +409,8 @@ class ViewportEngine(Engine):
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
                                    use_gl_interop=config.use_gl_interop)
 
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
+
         self.shading_data = ShadingData(context)
         self.view_layer_data = ViewLayerSettings(view_layer)
 
@@ -486,6 +488,8 @@ class ViewportEngine(Engine):
                 sync_collection = True
 
             self.shading_data = shading_data
+
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         with self.render_lock:
             for update in updates:

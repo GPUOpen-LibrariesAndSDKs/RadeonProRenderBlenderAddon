@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from pathlib import Path
 
 import bpy
 import bpy_extras
@@ -47,7 +48,7 @@ def sync(rpr_context, image: bpy.types.Image):
     log("sync", image)
 
     if image.source in ('FILE', 'GENERATED'):
-        file_path = cache_image_file(image)
+        file_path = cache_image_file(image, rpr_context.blender_data['depsgraph'])
         rpr_image = rpr_context.create_image_file(image_key, file_path)
 
     else:
@@ -162,62 +163,63 @@ class ImagePixels:
         return rpr_image
 
 
-def cache_image_file(image: bpy.types.Image) -> str:
+def _get_temp_image_path(image: [bpy.types.Image, str], extension="png") -> str:
+    h = abs(hash(image if isinstance(image, str) else image.name))
+    return str(utils.get_temp_pid_dir() / f"{h}.{extension}")
+
+
+def _save_temp_image(image, target_format, temp_path, depsgraph):
+    scene = depsgraph.scene_eval
+
+    # set desired output image file format
+    scene.render.image_settings.file_format = target_format
+    image.save_render(temp_path, scene=scene)
+
+
+def cache_image_file(image: bpy.types.Image, depsgraph) -> str:
     """
     See if image is a file, cache image pixels to temporary folder if not.
     Return image file path.
     """
+    if image.source != 'FILE':
+        temp_path = _get_temp_image_path(image)
+        if image.is_dirty or not os.path.isfile(temp_path):
+            image.save_render(temp_path)
 
-    if image.source == 'FILE':
-        file_path = image.filepath_from_user()
+        return temp_path
 
-        if file_path.lower().endswith('.ies'):
-            if os.path.isfile(file_path):
-                return file_path
+    file_path = image.filepath_from_user()
 
-            if not image.packed_file:
-                log.warn("Can't load image", image, file_path)
-                return None
+    if file_path.lower().endswith('.ies'):
+        if os.path.isfile(file_path):
+            return file_path
 
-            file_path = utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.ies"
-            if not file_path.is_file():
-                # save data of packed file
-                file_path.write_bytes(image.packed_file.data)
+        if not image.packed_file:
+            log.warn("Can't load image", image, file_path)
+            return None
 
-            return str(file_path)
+        temp_path = _get_temp_image_path(image, "ies")
+        if not os.path.isfile(temp_path):
+            # save data of packed file
+            Path(temp_path).write_bytes(image.packed_file.data)
 
-        if image.is_dirty or not os.path.isfile(file_path) \
-                or file_path.lower().endswith(UNSUPPORTED_IMAGES):
-            target_format, target_extension = IMAGE_FORMATS.get(image.file_format, DEFAULT_FORMAT)
+        return temp_path
 
-            # getting file path from image cache and if such file not exist saving image to cache
-            file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.{target_extension}")
-            if image.is_dirty or not os.path.isfile(file_path):
-                current_format = bpy.context.scene.render.image_settings.file_format
-                try:
-                    # set desired output image file format
-                    bpy.context.scene.render.image_settings.file_format = target_format
-                    image.save_render(file_path)
-                finally:
-                    # restore user scene output settings
-                    bpy.context.scene.render.image_settings.file_format = current_format
+    if image.is_dirty or not os.path.isfile(file_path) \
+            or file_path.lower().endswith(UNSUPPORTED_IMAGES):
+        target_format, target_extension = IMAGE_FORMATS.get(image.file_format, DEFAULT_FORMAT)
 
-    else:
-        file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(image.name))}.png")
-        if image.is_dirty or not os.path.isfile(file_path):
-            current_format = bpy.context.scene.render.image_settings.file_format
-            try:
-                # set desired output image file format
-                bpy.context.scene.render.image_settings.file_format = 'PNG'
-                image.save_render(file_path)
-            finally:
-                # restore user scene output settings
-                bpy.context.scene.render.image_settings.file_format = current_format
+        # getting file path from image cache and if such file not exist saving image to cache
+        temp_path = _get_temp_image_path(image, target_extension)
+        if image.is_dirty or not os.path.isfile(temp_path):
+            _save_temp_image(image, target_format, temp_path, depsgraph)
+
+        return temp_path
 
     return file_path
 
 
-def cache_image_file_path(file_path: bpy.types.Image) -> str:
+def cache_image_file_path(file_path: str, depsgraph) -> str:
     """ Cache Blender integrated and user-defined LookDev IBL files """
     if not file_path.lower().endswith(UNSUPPORTED_IMAGES):
         return file_path
@@ -227,19 +229,14 @@ def cache_image_file_path(file_path: bpy.types.Image) -> str:
     else:
         target_format, target_extension = IMAGE_FORMATS['TIFF']
 
-    cache_file_path = str(utils.get_temp_pid_dir() / f"{abs(hash(file_path))}.{target_extension}")
-    if os.path.isfile(cache_file_path):
-        return cache_file_path
+    temp_path = _get_temp_image_path(file_path, target_extension)
+    if os.path.isfile(temp_path):
+        return temp_path
 
     image = bpy_extras.image_utils.load_image(file_path)
-    current_format = bpy.context.scene.render.image_settings.file_format
     try:
-        # set desired output image format
-        bpy.context.scene.render.image_settings.file_format = target_format
-        image.save_render(cache_file_path)
+        _save_temp_image(image, target_format, temp_path, depsgraph)
     finally:
-        # restore user scene output settings
-        bpy.context.scene.render.image_settings.file_format = current_format
         bpy.data.images.remove(image)
 
-    return cache_file_path
+    return temp_path
