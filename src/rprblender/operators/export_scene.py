@@ -190,10 +190,3 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
 
         with open(filepath, 'w') as outfile:
             json.dump(data, outfile)
-
-        
-
-
-
-
-
