@@ -132,6 +132,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         self.layout.use_property_decorate = False
 
         limits = context.scene.rpr.viewport_limits
+        settings = get_user_settings()
 
         col = self.layout.column(align=True)
         row = col.row()
@@ -140,6 +141,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row = col.row()
         row.prop(limits, 'noise_threshold', slider = True)
         col.prop(limits, 'limit_viewport_resolution')
+        col.prop(settings, 'use_gl_interop')
 
         col.separator()
         col.prop(limits, 'preview_samples')

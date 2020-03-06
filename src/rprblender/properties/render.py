@@ -174,6 +174,14 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
+    use_gl_interop: BoolProperty(
+        name="OpenGL interoperability",
+        description="Use OpenGL interoperability in viewport. This should speedup viewport rendering. "
+                    "However, to use an external GPU for viewport rendering this should be disabled.",
+        default=True,
+        update=on_settings_changed,
+    )
+
 
 class RPR_RenderProperties(RPR_Properties):
     """ Main render properties. Available from scene.rpr """
