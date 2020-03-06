@@ -6,8 +6,6 @@ pyrpr_log_calls = False
 pyrprimagefilters_log_calls = False
 pyrprgltf_log_calls = False
 
-use_gl_interop = True
-
 material_library_path = None
 
 enable_hybrid = True
