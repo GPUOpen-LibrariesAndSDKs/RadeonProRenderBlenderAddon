@@ -106,12 +106,12 @@ class ImagePixels:
         return self.extract_pixels_region(pixels, x1, y1, x2, y2)
 
     def extract_pixels_region(self, pixels: np.array, x1, y1, x2, y2) -> np.array:
-        # crop pixels to region size
+        """ Crop pixels to region size """
         region_pixels = np.array(pixels[y1:y2+1, x1:x2+1, :], dtype=np.float32)
 
         return region_pixels
 
-    def export_full(self, rpr_context, flipud: bool) -> (pyrpr.Image, None):
+    def export_full(self, rpr_context) -> (pyrpr.Image, None):
         """ Export the full image pixels as RPR image"""
         if self.is_empty():
             return None
@@ -121,10 +121,7 @@ class ImagePixels:
         if image_key in rpr_context.images:
             return rpr_context.images[image_key]
 
-        if flipud:
-            pixels = np.ascontiguousarray(np.flipud(self.pixels))
-        else:
-            pixels = np.ascontiguousarray(self.pixels)
+        pixels = np.ascontiguousarray(np.flipud(self.pixels))
         rpr_image = rpr_context.create_image_data(image_key, pixels)
         rpr_image.set_name(image_key)
 
@@ -133,7 +130,7 @@ class ImagePixels:
 
         return rpr_image
 
-    def export_region(self, rpr_context, x1, y1, x2, y2, flipud: bool) -> (pyrpr.Image, None):
+    def export_region(self, rpr_context, x1, y1, x2, y2) -> (pyrpr.Image, None):
         """ Export pixels cropped to sub-region coordinates as RPR image """
         if self.is_empty():
             return None
@@ -150,8 +147,7 @@ class ImagePixels:
 
         # get pixels region
         pixels = self.extract_pixels_region(self.pixels, x1, y1, x2, y2)
-        if flipud:
-            pixels = np.flipud(pixels)
+        pixels = np.flipud(pixels)
 
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(pixels))
 
