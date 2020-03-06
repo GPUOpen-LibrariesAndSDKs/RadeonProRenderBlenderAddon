@@ -16,7 +16,7 @@ from rprblender.export import camera, material, world, object, instance, particl
 from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
 from rprblender import utils
-from rprblender import config
+from rprblender.utils.user_settings import get_user_settings
 
 from rprblender.utils import logging
 log = logging.Log(tag='viewport_engine')
@@ -405,9 +405,10 @@ class ViewportEngine(Engine):
         scene = depsgraph.scene
         viewport_limits = scene.rpr.viewport_limits
         view_layer = depsgraph.view_layer
+        settings = get_user_settings()
 
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
-                                   use_gl_interop=config.use_gl_interop)
+                                   use_gl_interop=settings.use_gl_interop)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
