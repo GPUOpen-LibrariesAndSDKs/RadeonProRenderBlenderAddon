@@ -34,11 +34,14 @@ materialLibraryMaps = "../MaterialLibrary/2.0/Maps"
 
 repo_root = Path('..')
 
+
 def repo_root_pushd():
     os.chdir(str(repo_root))
-	
+
+
 def repo_root_popd():
     os.chdir("BlenderPkg")
+
 
 def Copy(src, dest):
     try:
@@ -51,7 +54,7 @@ def Copy(src, dest):
             raise NameError('Directory not copied. Error: %s' % e)
 
 
-if platform.system() in ("Linux","Darwin"):
+if platform.system() in ("Linux", "Darwin"):
     import pwd
 
     def get_user_name():
@@ -67,10 +70,10 @@ def enumerate_addon_data(version, target):
     dll_ext = {'windows': '.dll', 'linux': '.so', 'darwin': '.dylib'}[target]
 
     """repo_root_pushd()
-	
+
     git_commit = subprocess.check_output('git rev-parse HEAD'.split())
     git_tag = subprocess.check_output('git describe --tags --match builds/*'.split())
-		
+
     repo_root_popd()"""
 
     version_text = """version=%r
@@ -160,8 +163,6 @@ def CreateAddOnModule(addOnVersion, build_output_folder):
     sys.dont_write_bytecode = True
 
     print('Creating build_output for AddOn version: %s' % addOnVersion)
-    
-    """commit = subprocess.check_output(['git', 'describe', '--always'])"""
 
     build_output_rpblender = os.path.join(build_output_folder, 'rprblender')
     if os.access(build_output_rpblender, os.F_OK):
@@ -173,51 +174,40 @@ def CreateAddOnModule(addOnVersion, build_output_folder):
     print('dst_fpath: ', dst_fpath)
     shutil.copy2('./addon.zip', dst_fpath)
 
-    #for src, package_path in enumerate_addon_data(addOnVersion):
-    #    if isinstance(src, bytes):
-    #        with (Path(build_output_rpblender)/package_path).open('wb') as f:
-    #            f.write(src)
-    #    else:
-    #        dst_fpath = Path(build_output_rpblender)/package_path
-    #        if not dst_fpath.parent.is_dir():
-    #            dst_fpath.parent.mkdir(parents=True)
-    #        shutil.copy2(str(src), str(dst_fpath))
 
-
-def ReadAddOnVersion() :
+def ReadAddOnVersion():
     print("ReadAddOnVersion...")
 
     pyInitFileName = repo_root / 'src/rprblender/__init__.py'
     result = None
     with open( str(pyInitFileName), "r" ) as pyFile:
         s = pyFile.read()
-    
+
         val = re.match( "(?s).*\"version\":\s\(([^)]+)\),", s )
-        if val == None :
+        if val == None:
             raise NameError("Can't get addOnVersion")
-    
+
         version = val.group(1)
         versionParts = version.split(",")
         if(len(versionParts) != 3):
             raise NameError("Invalid version string in __init__.py")
-    
+
         sPluginVersionMajor = versionParts[0].rstrip().lstrip()
         sPluginVersionMinor = versionParts[1].rstrip().lstrip()
         sPluginVersionBuild = versionParts[2].rstrip().lstrip()
-    
+
         sPluginVersion = sPluginVersionMajor + "." + sPluginVersionMinor + "." + sPluginVersionBuild
 
-        result = sPluginVersion, (sPluginVersionMajor, sPluginVersionMinor, sPluginVersionBuild)  
-    
-        print( "  addOnVersion: \"%s\"" % sPluginVersion)
-    
+        result = sPluginVersion, (sPluginVersionMajor, sPluginVersionMinor, sPluginVersionBuild)
+
+        print("  addOnVersion: \"%s\"" % sPluginVersion)
+
         print("ReadAddOnVersion ok.")
-    return result            
+    return result
 
 
 def create_zip_addon(package_name, version, target='windows'):
-
-    # subprocess.check_call([sys.executable, 'build.py'])
+    """ Pack addon files to zip archive """
     with zipfile.ZipFile(package_name, 'w') as myzip:
         for src, package_path in enumerate_addon_data(version, target=target):
             print('adding ', package_path)
@@ -227,30 +217,3 @@ def create_zip_addon(package_name, version, target='windows'):
             else:
                 print('  file', src)
                 myzip.write(str(src), arcname=str(Path('rprblender') / package_path))
-
-
-def create_tar_addon(package_name, version):
-    import tarfile
-
-    # subprocess.check_call([sys.executable, 'build.py'])
-    
-    target = 'linux'
-    if 'Darwin' == platform.system():
-        target = 'darwin'
-
-    with tarfile.TarFile(package_name, 'w') as arch:
-        for src, package_path in enumerate_addon_data(version, target='linux'):
-            if isinstance(src, bytes):
-                info = tarfile.TarInfo(name=str(Path('rprblender') / package_path))
-                info.size = len(src)
-                arch.addfile(info, io.BytesIO(src))
-            else:
-                info = arch.gettarinfo(str(src),
-                                       arcname=str(Path('rprblender') / package_path))
-                info.mode = 0o644
-                info.uname = ''
-                info.gname = ''
-                info.uid = 0
-                info.gid = 0
-                with open(str(src), 'rb') as f:
-                    arch.addfile(info, f)
