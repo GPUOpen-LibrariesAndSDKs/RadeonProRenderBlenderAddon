@@ -77,29 +77,3 @@ makeself_cmd = (['makeself']
 
 print(makeself_cmd)
 subprocess.check_call(makeself_cmd)
-
-# archive_path = installer_build_dir / ('RadeonProRenderForMaya.Linux.%s.tar.gz' % plugin_version)
-# with tarfile.open(str(archive_path), 'w') as arch:
-#     arch.add(str(installer_path), arcname=installer_path.name)
-
-
-# TODO:
-# - add build to create installer
-# + checker
-# + register
-# + key
-# - get fresh eula
-# - record blender path for uninstall
-# + skip registration on consequent runs
-
-# + allow blender addon install over installed
-# + remove/readd addon to blender
-# + eula
-# + uninstall
-# + install OpenImageIO
-# + uninstall previous addon, see disableBlenderAddOn
-# + location. ~/.local/share - https://askubuntu.com/a/14536/136352
-# + embree - package
-# + install material library - ~/Documents/Radeon ProRender/Blender/Material Library
-# + don't overwrite material library if present(ask user)
-# + use installed library

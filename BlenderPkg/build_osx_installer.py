@@ -348,6 +348,7 @@ def make_installer_app(appName,appExe,dirpath,signing_str):
         except:
             print("Bundle may already be signed\n")
 
+
 if not buildInstallerApp:
     make_app(str(bld_files_dist_dir),str(support_path / "postinstall"))
     make_app(str(bld_files_dist_dir),str(support_path / "uninstall"))

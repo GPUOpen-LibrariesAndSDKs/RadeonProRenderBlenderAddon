@@ -34,11 +34,14 @@ materialLibraryMaps = "../MaterialLibrary/2.0/Maps"
 
 repo_root = Path('..')
 
+
 def repo_root_pushd():
     os.chdir(str(repo_root))
-	
+
+
 def repo_root_popd():
     os.chdir("BlenderPkg")
+
 
 def Copy(src, dest):
     try:
@@ -65,10 +68,10 @@ def enumerate_addon_data(version, target):
     pyrpr_path = repo_root / 'src/bindings/pyrpr'
 
     repo_root_pushd()
-	
+
     git_commit = subprocess.check_output('git rev-parse HEAD'.split())
     git_tag = subprocess.check_output('git describe --always --tags --match builds/*'.split())
-		
+
     repo_root_popd()
 
     version_text = """version=%r

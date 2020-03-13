@@ -17,19 +17,38 @@ has some specific requirements.
 	- /usr/local/bin/brew install glew
 	- /usr/local/bin/brew install castxml
 
-	- Additionally Python 3.5.2 is required for compatibility with Blender. Install this
+	- Additionally Python 3.7 is required for compatibility with Blender. Install this
 	version of Python and make sure that it comes first in the path when running the 
-	build. On OSX, Python 2.7 is supplied in /usr/bin/python and it is not sufficient
+	build. On OSX, Python 2.7 is supplied in /usr/bin/python, it is not sufficient
 	for building the Blender Radeon ProRender Addon.
 	- Configure python3:
 		- python3 -m pip install cffi # python-cffi
-		- python3 -m pip install pytest
 		- python3 -m pip install imageio
 		- python3 -m pip install numpy
 		- python3 -m pip install pyopengl
 
+
+### ThirdParty libraries
+
 There is ThirdParty repository included to the project as a submodule. Please update submodules:
+
+Plugin includes 4 submodules:
+RadeonProRender SDK:
+git@github.com:Radeon-Pro/RadeonProRenderSDK.git
+
+Shared components
+Image Processing Library:
+git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
+
+ThirdParty components and miscellaneous tools
+git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
+
+All of them are included via SSH protocol. You will need to create and install SSH keys https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh
+
+Once SSH keys are installed update/checkout submodules for active branch
+
 ` git submodule update --init -f --recursive`
+
 
 ### Building
 
@@ -37,22 +56,14 @@ There is ThirdParty repository included to the project as a submodule. Please up
 	- ./build_osx.sh
 
 NOTES:
-1. This assumes that the private repository https://github.com/Radeon-Pro/RadeonProRenderThirdPartyComponents.git
- has been synced to a sibling directory of the Blender addon.
-	- cd ThirdParty
-	- ./unix_update.sh
-	- cd ..
-
-	NOTE: the two repositories are disconnected but must be kept in sync.
-
-2. castxml will be required as the Python bindings are rebuilt everytime.
+1. castxml will be required as the Python bindings are rebuilt everytime.
 
 ### Running
 
-Ensure that the BLENDER_EXE environment variable is set.  For example, add the following to
+Ensure that the BLENDER_28X_EXE environment variable is set.  For example, add the following to
 your ~/.profile with the correct path to the Blender executable:
 
-    export BLENDER_EXE="/Users/amd/Downloads/blender-2.78c-OSX_10.6-x86_64/blender.app/Contents/MacOS/blender"
+    export BLENDER_28X_EXE="/Users/amd/Downloads/blender-2.78c-OSX_10.6-x86_64/blender.app/Contents/MacOS/blender"
 
 To run the local build, use:
 	- ./run_blender_with_rpr_osx.sh
@@ -92,7 +103,7 @@ path is shared with the Maya RadeonProRender OSX plugin.
 2. Searching within the directories with grep can be made easier with the following bash function:
 
 blgrep() {
-    grep -r $1 * --exclude-dir .build --exclude-dir ThirdParty --exclude-dir dist
+    grep -r $1 * --exclude-dir .build --exclude-dir dist
 }
 
 You can place this into your ~/.profile and then invoke searches such as: blgrep ObjectDelete  when in the top level directory of the plugin.

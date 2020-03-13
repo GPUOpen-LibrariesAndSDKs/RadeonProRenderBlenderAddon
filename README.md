@@ -2,26 +2,43 @@
 
 ### Build Requirements
 
-2.80
+2.80+
 ====
-- Blender 2.80
+- Blender 2.80+
 - Python 3.7.1(Blender 2.80 uses 3.7.0) x64(for Core) - all code, addon and misc tested with python3
-- python-cffi. e.g. following works for me on windows - `py -m pip install cffi`
+- python-cffi - `py -3.7 -m pip install cffi`
 - Visual Studio 2015 SP3 / 2017 / 2019 with SDK 8.1 and 2015.3 v140 toolset installed
-- cmake 3.x
+- If you are using Visual studio 2019 you would need to install the Windows SDK 8.1 manually from Microsoft website https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/
+- cmake 3.x. Make sure it's added to the PATH environment variable
 
-Note that the .sln provided is for easy editing and searching of files on Windows.  The blender
-code builds on the command line rather than in the solution file.  Visual Studio does provided
-support for debugging Python when you attach to a process.
+Note that the .sln provided is for easy editing and searching of files on Windows.  The blender code builds on the command line rather than in the solution file.  Visual Studio does provided support for debugging Python when you attach to the running Blender process with loaded addon.
 
-### Software, required for development - to run tests and more:
+### Software, required for development:
 
 - numpy - `py -3.7 -m pip install numpy`
+
 
 ### ThirdParty libraries
 
 There is ThirdParty repository included to the project as a submodule. Please update submodules:
-` git submodule update --init -f --recursive`
+
+Plugin includes 4 submodules:
+RadeonProRender SDK:
+git@github.com:Radeon-Pro/RadeonProRenderSDK.git
+
+Shared components
+Image Processing Library:
+git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
+
+ThirdParty components and miscellaneous tools
+git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
+
+All of them are included via SSH protocol. You will need to create and install SSH keys https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh
+
+Once SSH keys are installed update/checkout submodules for active branch
+
+`git submodule update --init -f --recursive`
+
 
 ## Developing
 
@@ -46,21 +63,24 @@ Also, make more meaningful commits(one commit per feature) the easy way:
 - PyCharm Community Edition - very recommended, possible to enable intellisense(limited) for Blender code and for RPR Core
 - Visual Studio - has a very nice python extension, possible to enable intellisense for Blender and for RPR Core, provides remote debugging in Blender
 
-## Build and Test
+## Build
 
-run `build.py` to build and `test.py` to test. Tests pass on Windows. Please run tests regularly! They take about 10 min - so should be fine to run a couple of times a day.
-
-### Updating RPR to new version
-
-See src/bindings/pyrpr/readme.txt
+run `build.py` to build.
 
 ## Run Addon while developing it(without real installation)
 
-example is here - run_blender_with_rpr.cmd
+- make sure you have no installed addon for Blender version you want to use; remove installed version if needed.
+- set environment variable BLENDER_28x_EXE to blender.exe you want to use via the command line or system environment settings.
+- run run_blender_with_rpr.cmd
+
+Example:
+
+`set BLENDER_28X_EXE="C:\Program Files\Blender Foundation\Blender 2.81\blender.exe" && run_blender_with_rpr.cmd`
 
 ### Debugging
 
 #### log
+
 Using python's 'logging' module underneath, rprblender.utils.logging has functions similar to logging. It also includes callable class Log which provides simplified interface to do logging.
 Example:
     from rprblender.utils import logging
