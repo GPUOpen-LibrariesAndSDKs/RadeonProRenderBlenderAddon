@@ -61,18 +61,23 @@ def sync(rpr_context, image: bpy.types.Image):
 
     log("sync", image)
 
-    if image.source in ('FILE', 'GENERATED'):
+    pixels = image.pixels
+    if hasattr(pixels, 'foreach_get'):
+        data = np.empty(len(pixels), dtype=np.float32)
+        pixels.foreach_get(data)
+        data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
+        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
+
+    elif image.source in ('FILE', 'GENERATED'):
         file_path = cache_image_file(image, rpr_context.blender_data['depsgraph'])
         rpr_image = rpr_context.create_image_file(image_key, file_path)
 
     else:
         # loading image by pixels
-        data = np.fromiter(image.pixels, dtype=np.float32,
+        data = np.fromiter(pixels, dtype=np.float32,
                            count=image.size[0] * image.size[1] * image.channels)
-        pixels = data.reshape(image.size[1], image.size[0], image.channels)
-        pixels = np.flipud(pixels)
-
-        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(pixels))
+        data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
+        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
 
     rpr_image.set_name(image_key)
 
