@@ -1,12 +1,11 @@
 ### Addon Run/Use Linux Ubuntu Requirements
 
-- Install Ubuntu 16.04.03 
-    // I've failed to install 16.04.2 with amd drivers - Ubuntu stopped booting with a crash on Xorg init in amd display driver, 16.04 - fine from the first time
+- Ubuntu 18.04.03
 
 - AMD drivers from web site
     // The instruction is here: http://support.amd.com/en-us/kb-articles/Pages/AMDGPU-PRO-Install.aspx 
 
-- Blender 2.80 - minimal requirement. 
+- Blender 2.80 or later 
     
 - Embree
 
@@ -25,7 +24,26 @@
 - FreeImage
     sudo apt-get install libfreeimage-dev
 
-- There is ThirdParty repository included to the project as a submodule. Please update submodules:
+
+### ThirdParty libraries
+
+There is ThirdParty repository included to the project as a submodule. Please update submodules:
+
+Plugin includes 4 submodules:
+RadeonProRender SDK:
+git@github.com:Radeon-Pro/RadeonProRenderSDK.git
+
+Shared components
+Image Processing Library:
+git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
+
+ThirdParty components and miscellaneous tools
+git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
+
+All of them are included via SSH protocol. You will need to create and install SSH keys https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh
+
+Once SSH keys are installed update/checkout submodules for active branch
+
 ` git submodule update --init -f --recursive`
 
 
@@ -36,7 +54,7 @@
 		makeself patchelf \
 		libpci-dev libdrm-dev opencl-headers
 
-	pip3 install numpy cffi imageio pytest
+	pip3 install numpy cffi imageio
 
 	// The pytest-v must be more then 3.0 it can be checked calling next command: pip3 show pytest
 
@@ -46,11 +64,6 @@
 - Build the pyrpr and RPRHelper
 
 python3 build.py
-
-- run pyrpr tests from ProRenderBlenderPlugin/src/bindings/pyrpr
-
-export LD_LIBRARY_PATH=/usr/lib64
-python3 -m pytest test_.py -v
 
 - run addon from source
 export LD_LIBRARY_PATH=/usr/lib64
