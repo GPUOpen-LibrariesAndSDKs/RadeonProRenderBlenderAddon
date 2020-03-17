@@ -1015,7 +1015,9 @@ class Composite(Object):
         ContextCreateComposite(self.context, in_type, self)
 
     def set_input(self, name, in_value):
-        if isinstance(in_value, int):
+        if name == 'arithmetic.op':
+            CompositeSetInputOp(self, encode(name), in_value)
+        elif isinstance(in_value, int):
             CompositeSetInput1u(self, encode(name), in_value)
         elif isinstance(in_value, tuple) and len(in_value) == 4:
             CompositeSetInput4f(self, encode(name), *in_value)
