@@ -16,6 +16,7 @@ import pyrpr
 import pyhybrid
 
 from . import context
+from rprblender.config import hybrid_unsupported_log_warn
 
 from rprblender.utils import logging
 log = logging.Log(tag='context_hybrid')
@@ -71,11 +72,17 @@ class RPRContext(context.RPRContext):
         self.frame_buffers_aovs[aov_type] = fbs
 
     def create_material_node(self, material_type):
-        if material_type not in pyhybrid.SUPPORTED_MATERIAL_NODES:
-            log.warn("Unsupported RPRContext.create_material_node", material_type)
-            return pyhybrid.EmptyMaterialNode(material_type)
+        try:
+            return super().create_material_node(material_type)
 
-        return super().create_material_node(material_type)
+        except pyrpr.CoreError as e:
+            if e.status == pyrpr.ERROR_UNSUPPORTED:
+                if hybrid_unsupported_log_warn:
+                    log.warn("Unsupported RPRContext.create_material_node", material_type)
+
+                return pyhybrid.EmptyMaterialNode(material_type)
+
+            raise
 
     def create_buffer(self, data, dtype):
         return None
