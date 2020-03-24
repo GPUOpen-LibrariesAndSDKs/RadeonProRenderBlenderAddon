@@ -44,6 +44,7 @@ class ExportEngine(Engine):
         log('Start sync')
 
         depsgraph = context.evaluated_depsgraph_get()
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
         scene = depsgraph.scene
 
         scene.rpr.init_rpr_context(self.rpr_context)
