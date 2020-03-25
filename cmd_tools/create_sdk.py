@@ -82,21 +82,20 @@ def copy_rif_sdk():
     # copying models
     shutil.copytree(str(rif_dir / "models"), str(sdk_rif_dir / "models"))
 
-    # getting rif_os_dir
+    # getting rif bin_dir
     os_str = {
         'Windows': "Windows",
         'Linux': "Ubuntu18",
         'Darwin': "OSX"
     }[OS]
-    rif_os_dir = next(rif_dir.glob(f"radeonimagefilters-*-{os_str}-rel"))
+    bin_dir = rif_dir / os_str
 
     # copying inc files
-    shutil.copytree(str(rif_os_dir / "include"), str(sdk_rif_dir / "inc"))
+    shutil.copytree(str(rif_dir / "include"), str(sdk_rif_dir / "inc"))
 
     # copying bin lib files
     sdk_bin_dir = sdk_rif_dir / "bin"
     sdk_bin_dir.mkdir()
-    bin_dir = rif_os_dir / "bin"
 
     if OS == 'Windows':
         for lib in bin_dir.glob("*.dll"):
@@ -110,9 +109,9 @@ def copy_rif_sdk():
             shutil.copy(str(lib), str(sdk_lib_dir))
 
     elif OS == 'Linux':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters64.so.1.4.3"),
+        shutil.copy(str(bin_dir / "libRadeonImageFilters64.so.1.5.0"),
                     str(sdk_bin_dir / "libRadeonImageFilters64.so"))
-        shutil.copy(str(bin_dir / "libRadeonML-MIOpen.so.1.5.2"),
+        shutil.copy(str(bin_dir / "libRadeonML-MIOpen.so.1.5.4"),
                     str(sdk_bin_dir / "libRadeonML-MIOpen.so"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.so.0.9.0"),
                     str(sdk_bin_dir / "libOpenImageDenoise.so"))
@@ -120,7 +119,7 @@ def copy_rif_sdk():
                     str(sdk_bin_dir / "libMIOpen.so.2"))
 
     elif OS == 'Darwin':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters64.1.4.3.dylib"),
+        shutil.copy(str(bin_dir / "libRadeonImageFilters64.1.5.0.dylib"),
                     str(sdk_bin_dir / "libRadeonImageFilters64.dylib"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.0.9.0.dylib"),
                     str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
