@@ -59,7 +59,6 @@ def class_ignore_unsupported(cls):
 enabled = True
 
 
-# @class_ignore_unsupported
 class Context(pyrpr.Context):
     @ignore_unsupported
     def set_parameter(self, key, param):
@@ -83,32 +82,29 @@ class Context(pyrpr.Context):
         super().detach_aov(aov)
 
 
-class Light(pyrpr.Light):
-    pass
-
-
-class IESLight(pyrpr.PointLight, Light):
+@class_ignore_unsupported
+class IESLight(pyrpr.PointLight):
     # IESLight is not supported, that's why we change it to PointLight
     def set_image_from_file(self, image_path, nx, ny):
         pass
 
 
 @class_ignore_unsupported
-class PointLight(pyrpr.PointLight, Light):
+class PointLight(pyrpr.PointLight):
     pass
 
 
 @class_ignore_unsupported
-class SpotLight(pyrpr.SpotLight, Light):
+class SpotLight(pyrpr.SpotLight):
     pass
 
 
 @class_ignore_unsupported
-class DirectionalLight(pyrpr.DirectionalLight, Light):
+class DirectionalLight(pyrpr.DirectionalLight):
     pass
 
 
-class AreaLight(pyrpr.AreaLight, Light):
+class AreaLight(pyrpr.AreaLight):
     def __init__(self, mesh, material_system):
         self.mesh = mesh
         self.material_system = material_system
@@ -131,7 +127,7 @@ class AreaLight(pyrpr.AreaLight, Light):
 
 
 @class_ignore_unsupported
-class EnvironmentLight(pyrpr.EnvironmentLight, Light):
+class EnvironmentLight(pyrpr.EnvironmentLight):
     def set_color(self, r, g, b):
         img = pyrpr.ImageData(self.context,
                               np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
