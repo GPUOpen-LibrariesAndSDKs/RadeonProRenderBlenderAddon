@@ -174,6 +174,7 @@ class RPREngine(bpy.types.RenderEngine):
                 self.register_pass(scene, layer,
                                    pass_name, pass_channels_size, pass_channel, blender_type)
 
+
 @bpy.app.handlers.persistent
 def on_version_update(*args, **kwargs):
     """ On scene loading update old RPR data to current version """

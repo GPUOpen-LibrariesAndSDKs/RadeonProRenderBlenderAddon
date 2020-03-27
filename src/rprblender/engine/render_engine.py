@@ -336,8 +336,6 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        self.rpr_context.set_transparent_background(scene.render.film_transparent)
-
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # EXPORT OBJECTS
@@ -447,15 +445,12 @@ class RenderEngine(Engine):
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
         # Shadow catcher
-        self.rpr_context.sync_catchers()
+        self.rpr_context.sync_catchers(scene.render.film_transparent)
 
         # Image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings(scene)
         image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
-
-        if self.image_filter and self.rpr_context.is_aov_enabled(pyrpr.AOV_COLOR):
-            self.rpr_engine.add_pass('Color', 4, 'RGBA', layer=view_layer.name)
 
         # SET rpr_context parameters
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)

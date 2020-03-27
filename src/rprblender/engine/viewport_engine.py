@@ -492,6 +492,7 @@ class ViewportEngine(Engine):
         sync_collection = False
         sync_world = False
         is_updated = False
+        is_obj_updated = False
 
         material_override = depsgraph.view_layer.material_override
 
@@ -538,6 +539,7 @@ class ViewportEngine(Engine):
                                                      update.is_updated_geometry, update.is_updated_transform,
                                                      indirect_only=indirect_only,
                                                      material_override=material_override)
+                    is_obj_updated |= is_updated
                     continue
 
                 if isinstance(obj, bpy.types.World):
@@ -556,6 +558,10 @@ class ViewportEngine(Engine):
 
             if sync_collection:
                 is_updated |= self.sync_objects_collection(depsgraph)
+
+            if is_obj_updated:
+                with self.resolve_lock:
+                    self.rpr_context.sync_catchers()
 
         if is_updated:
             self.restart_render_event.set()
