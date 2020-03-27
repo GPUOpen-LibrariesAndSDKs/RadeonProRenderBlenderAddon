@@ -66,7 +66,7 @@ class CameraData:
 
             data.dof_data = (max(focus_distance, 0.001),
                              camera.dof.aperture_fstop,
-                             max(camera.dof.aperture_blades, 4))
+                             camera.dof.aperture_blades)
         else:
             data.dof_data = None
 
