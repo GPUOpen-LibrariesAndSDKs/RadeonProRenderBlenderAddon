@@ -159,6 +159,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'channel': 'Z'
         },
         {
+            'rpr': pyrpr.AOV_COLOR,
+            'name': "Color",
+            'channel': 'RGBA'
+        },
+        {
             'rpr': pyrpr.AOV_UV,
             'name': "UV",
             'channel': 'UVA'
@@ -196,12 +201,12 @@ class RPR_ViewLayerProperites(RPR_Properties):
         {
             'rpr': pyrpr.AOV_SHADOW_CATCHER,
             'name': "Shadow Catcher",
-            'channel': 'RGBA'
+            'channel': 'A'
         },
         {
             'rpr': pyrpr.AOV_REFLECTION_CATCHER,
             'name': "Reflection Catcher",
-            'channel': 'RGBA'
+            'channel': 'A'
         },
         {
             'rpr': pyrpr.AOV_BACKGROUND,

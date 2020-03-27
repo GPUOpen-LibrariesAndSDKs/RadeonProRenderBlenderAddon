@@ -87,5 +87,5 @@ class RPRContext(context.RPRContext):
     def create_buffer(self, data, dtype):
         return None
 
-    def sync_catchers(self):
+    def sync_catchers(self, use_transparent_background=False):
         pass

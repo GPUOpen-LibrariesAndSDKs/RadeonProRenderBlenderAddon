@@ -951,8 +951,8 @@ class FrameBuffer(Object):
     def clear(self):
         FrameBufferClear(self)
 
-    def resolve(self, resolved_fb):
-        ContextResolveFrameBuffer(self.context, self, resolved_fb, True)
+    def resolve(self, resolved_fb, normalize_only=True):
+        ContextResolveFrameBuffer(self.context, self, resolved_fb, normalize_only)
         
     def get_data(self, buf=None):
         if buf:
@@ -1019,6 +1019,8 @@ class Composite(Object):
             CompositeSetInputOp(self, encode(name), in_value)
         elif isinstance(in_value, int):
             CompositeSetInput1u(self, encode(name), in_value)
+        elif isinstance(in_value, float):
+            CompositeSetInput4f(self, encode(name), in_value, in_value, in_value, in_value)
         elif isinstance(in_value, tuple) and len(in_value) == 4:
             CompositeSetInput4f(self, encode(name), *in_value)
         elif isinstance(in_value, Composite):
@@ -1032,6 +1034,101 @@ class Composite(Object):
 
     def compute(self, fb):
         CompositeCompute(self, fb)
+
+    ### MATH OPERATIONS ###
+    def _arithmetic_helper(self, rpr_operation, other1=None, other2=None, reverse=False):
+        result = Composite(self.context, COMPOSITE_ARITHMETIC)
+        result.set_input('arithmetic.op', rpr_operation)
+
+        if other1 is None:
+            result.set_input('arithmetic.color0', self)
+
+        else:
+            if isinstance(other1, (float, tuple)):
+                data = other1
+                other1 = Composite(self.context, COMPOSITE_CONSTANT)
+                other1.set_input('constant.input', data)
+
+            if other2 is None:
+                if reverse:
+                    result.set_input('arithmetic.color0', other1)
+                    result.set_input('arithmetic.color1', self)
+                else:
+                    result.set_input('arithmetic.color0', self)
+                    result.set_input('arithmetic.color1', other1)
+
+            else:
+                if isinstance(other2, (float, tuple)):
+                    data = other2
+                    other2 = Composite(self.context, COMPOSITE_CONSTANT)
+                    other2.set_input('constant.input', data)
+
+                result.set_input('arithmetic.color0', self)
+                result.set_input('arithmetic.color1', other1)
+                result.set_input('arithmetic.color1', other2)
+
+        return result
+
+    def __add__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_ADD, other)
+
+    def __sub__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_SUB, other)
+
+    def __mul__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_MUL, other)
+
+    def __truediv__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_DIV, other)
+
+    def __radd__(self, other):
+        return self + other
+
+    def __rsub__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_SUB, other, None, True)
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __rtruediv__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_DIV, other, None, True)
+
+    def min(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_MIN, other)
+
+    def max(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_MAX, other)
+
+    def get_channel(self, key):
+        rpr_operation = {
+            0: MATERIAL_NODE_OP_SELECT_X,
+            1: MATERIAL_NODE_OP_SELECT_Y,
+            2: MATERIAL_NODE_OP_SELECT_Z,
+            3: MATERIAL_NODE_OP_SELECT_W,
+        }[key]
+
+        return self._arithmetic_helper(rpr_operation)
+
+    def __gt__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_GREATER, other)
+
+    def __ge__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_GREATER_OR_EQUAL, other)
+
+    def __lt__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_LOWER, other)
+
+    def __le__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_LOWER_OR_EQUAL, other)
+
+    def __eq__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_EQUAL, other)
+
+    def __ne__(self, other):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_NOT_EQUAL, other)
+
+    def if_else(self, if_value, else_value):
+        return self._arithmetic_helper(MATERIAL_NODE_OP_TERNARY, if_value, else_value)
 
 
 class MaterialSystem(Object):
