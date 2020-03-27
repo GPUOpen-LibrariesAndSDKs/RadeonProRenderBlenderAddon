@@ -72,6 +72,11 @@ class Engine:
             if p.name == "Combined":
                 if apply_image_filter and self.image_filter:
                     image = self.image_filter.get_data()
+
+                    # copying alpha component from rendered image to final denoised image,
+                    # because image filter changes it to 1.0
+                    image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
+
                 else:
                     image = self.rpr_context.get_image()
 
