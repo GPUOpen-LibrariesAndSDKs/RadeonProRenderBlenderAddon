@@ -184,6 +184,10 @@ class Shape(pyrpr.Shape):
 
         super().set_material(material)
 
+    def set_material_faces(self, material, face_indices: np.array):
+        if not self.materials:
+            self.set_material(material)
+
 
 @class_ignore_unsupported
 class Mesh(pyrpr.Mesh, Shape):
