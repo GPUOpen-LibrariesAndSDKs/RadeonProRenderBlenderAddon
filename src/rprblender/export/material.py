@@ -72,7 +72,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
 
     log(f"sync {material} '{input_socket_key}'; obj {obj}")
 
-    if isinstance(obj, bpy.types.Mesh) and has_uv_map_node(material):
+    if obj and hasattr(obj.data, 'rpr') and has_uv_map_node(material):
         # only Mesh objects have UV mapping and RPR data field
         mat_key = key((material.name, obj.data.rpr.uv_sets_names), input_socket_key=input_socket_key)
     else:
@@ -102,7 +102,7 @@ def sync_update(rpr_context: RPRContext, material: bpy.types.Material, obj: bpy.
 
     log("sync_update", material)
 
-    if isinstance(obj, bpy.types.Mesh) and has_uv_map_node(material):
+    if obj and hasattr(obj.data, 'rpr') and has_uv_map_node(material):
         # only Mesh objects have UV mapping and RPR data field
         mat_key = key((material.name, obj.data.rpr.uv_sets_names),)
     else:
