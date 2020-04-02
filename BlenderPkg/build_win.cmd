@@ -15,26 +15,8 @@ REM  See the License for the specific language governing permissions and
 REM  limitations under the License.
 REM  *******************************************************************
 
-set vs_ver=""
-set vs_dir=""
+pushd ..
+call build.cmd
+popd
 
-if defined VS140COMNTOOLS (
-	set vs_ver=14.0
-)
-
-set VsWhere="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-
-if not exist %VsWhere% goto end
-
-set vs_ver=""
-
-for /f "usebackq tokens=1* delims=: " %%i in (`%VsWhere% -latest -requires Microsoft.VisualStudio.Component.VC.140`) do (
-
-if /i "%%i"=="installationVersion" set vs_ver=%%j
-
-if /i "%%i"=="installationPath" set vs_dir=%%j
-)
-
-:end
-::echo %vs_ver%
-::echo %vs_dir%
+call py -3.7 create_zip_addon.py
