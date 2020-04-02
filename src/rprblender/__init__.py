@@ -30,6 +30,9 @@ bl_info = {
     "category": "Render"
 }
 
+version_build = ""
+
+
 from .utils import logging, version_updater
 from .utils import install_libs
 
