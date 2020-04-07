@@ -167,6 +167,7 @@ class ShadingData:
             if hasattr(shading, "studiolight_intensity"):  # parameter added in Blender 2.81
                 self.studio_light_intensity = shading.studiolight_intensity
 
+
 @dataclass(init=False, eq=True)
 class ViewLayerSettings:
     """
@@ -280,7 +281,7 @@ class ViewportEngine(Engine):
                               indirect_only=indirect_only, material_override=material_override)
 
             # shadow catcher
-            self.rpr_context.sync_catchers()
+            self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
 
             self.is_synced = True
 
@@ -420,9 +421,10 @@ class ViewportEngine(Engine):
         viewport_limits = scene.rpr.viewport_limits
         view_layer = depsgraph.view_layer
         settings = get_user_settings()
+        use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
 
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
-                                   use_gl_interop=settings.use_gl_interop)
+                                   use_gl_interop=use_gl_interop)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 

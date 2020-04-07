@@ -194,13 +194,14 @@ class RPRContext:
         if composite:
             self._enable_catchers()
 
-    def sync_catchers(self, use_transparent_background=False):
+    def sync_catchers(self, use_transparent_background=None):
         prev_state = (self.use_shadow_catcher, self.use_reflection_catcher,
                       self.use_transparent_background)
 
         self.use_shadow_catcher = False
         self.use_reflection_catcher = False
-        self.use_transparent_background = use_transparent_background
+        if self.use_transparent_background is not None:
+            self.use_transparent_background = use_transparent_background
         for obj in self.scene.objects:
             if not self.use_shadow_catcher and isinstance(obj, pyrpr.Shape) and obj.shadow_catcher:
                 self.use_shadow_catcher = True
@@ -287,8 +288,7 @@ class RPRContext:
             self.composite = color
 
         if self.use_transparent_background:
-            self.composite = full_alpha * (0.0, 0.0, 0.0, 1.0) + \
-                             self.composite * (1.0, 1.0, 1.0, 0.0)
+            self.composite = full_alpha * ((0.0, 0.0, 0.0, 1.0) + self.composite * (1.0, 1.0, 1.0, 0.0))
 
     def _disable_catchers(self):
         self.composite = None
