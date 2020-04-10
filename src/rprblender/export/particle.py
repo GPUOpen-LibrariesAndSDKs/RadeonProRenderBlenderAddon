@@ -128,18 +128,22 @@ class CurveData:
         data.points = np.ascontiguousarray(all_points[curve_indices], dtype=np.float32)
 
         if obj.type == 'MESH' and len(obj.data.uv_layers) > 0:
-            # finding corresponded ParticleSystemModifier
-            p_modifier = next(modifier for modifier in obj.modifiers
+            # finding corresponded active ParticleSystemModifier
+            p_modifier = next((modifier for modifier in obj.modifiers
                                        if modifier.type == 'PARTICLE_SYSTEM' and
-                                          modifier.particle_system.name == p_sys.name)
+                                          modifier.show_render and
+                                          modifier.particle_system.name == p_sys.name),
+                              None)
+
+            if not p_modifier:
+                log.warn(f"No active particles modifier found for system {p_sys.name}")
+                return None
 
             # getting all UVs
-            # TODO: p_sys.uv_on_emitter() working now only with 'particle' parameter,
-            #       without it - crash on Blender's side
             all_uvs = np.fromiter(
                 (elem for i in range(start_index, start_index + curves_count)
                       for elem in p_sys.uv_on_emitter(p_modifier,
-                                  particle=p_sys.particles[(i - start_index) % num_parents])),
+                                    particle=p_sys.particles[(i - start_index) % num_parents])),
                 dtype=np.float32
             ).reshape(-1, 2)
 

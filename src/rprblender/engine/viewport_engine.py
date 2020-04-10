@@ -280,6 +280,11 @@ class ViewportEngine(Engine):
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override)
 
+                if len(inst.instance_object.particle_systems):
+                    # export particles
+                    for particle_system in inst.instance_object.particle_systems:
+                        particle.sync(self.rpr_context, particle_system, inst.instance_object)
+
             # shadow catcher
             self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
 

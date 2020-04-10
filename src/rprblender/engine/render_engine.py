@@ -435,6 +435,20 @@ class RenderEngine(Engine):
                     log.warn("Syncing stopped by user termination")
                     return
 
+        # objects linked to scene as a collection are instanced, so walk thru them for particles
+        for entry in self.depsgraph_instances(depsgraph):
+            if len(entry.instance_object.particle_systems) == 0:
+                continue
+
+            for particle_system in entry.instance_object.particle_systems:
+                self.notify_status(0, f"Syncing instance particles: {particle_system.name} on {entry.instance_object.name}")
+
+                particle.sync(self.rpr_context, particle_system, entry.instance_object)
+
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
+
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive)

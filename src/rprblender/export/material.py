@@ -46,6 +46,9 @@ def get_material_nodes_by_type(material, bl_idname):
 
 def has_uv_map_node(material) -> bool:
     """ Check if material has any UV Map node """
+    if not material.node_tree:
+        return False
+
     uv_map_node = next(get_material_nodes_by_type(material, 'ShaderNodeUVMap'), None)
     return uv_map_node is not None
 
