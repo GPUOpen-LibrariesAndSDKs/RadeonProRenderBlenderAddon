@@ -84,6 +84,10 @@ def sync(rpr_context, obj: bpy.types.Object):
         amplify = domain.amplify if domain.use_high_resolution else 0
         x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
 
+    if domain.use_noise:
+        # smoke noise upscale the basic domain resolution
+        x, y, z = (domain.noise_scale * e for e in (x, y, z))
+
     color_grid = np.fromiter(domain.color_grid, dtype=np.float32).reshape(x, y, z, -1)
 
     # set albedo grid
@@ -94,7 +98,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_volume.set_albedo_grid(np.ascontiguousarray(albedo_grid), albedo_lookup)
 
     # set density grid
-    density_grid = color_grid[:, :, :, 3]
+    density_grid = np.fromiter(domain.density_grid, dtype=np.float32).reshape(x, y, z)
     density = data['density']
     density_lookup = np.array([0.0, 0.0, 0.0, density, density, density],
                               dtype=np.float32).reshape(-1, 3)
