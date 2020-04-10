@@ -742,6 +742,7 @@ class RPRShaderNodeLookup(RPRShaderNode):
             ('P_LOCAL', "Object Position", "Object position"),
             ('VERTEX_COLOR', "Vertex Color", "Vertex Color"),
             ('RANDOM_COLOR', "Random Color", "Shape Random Color"),
+            ('OBJECT_ID', "Object ID", "Object ID"),
         ),
         default='UV'
     )
@@ -762,6 +763,7 @@ class RPRShaderNodeLookup(RPRShaderNode):
             'UV1': pyrpr.MATERIAL_NODE_LOOKUP_UV1,
             'P_LOCAL': pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
             'RANDOM_COLOR': pyrpr.MATERIAL_NODE_LOOKUP_SHAPE_RANDOM_COLOR,
+            'OBJECT_ID': pyrpr.MATERIAL_NODE_LOOKUP_OBJECT_ID,
         }
 
         def export(self):
