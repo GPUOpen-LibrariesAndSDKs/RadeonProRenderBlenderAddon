@@ -204,7 +204,7 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
 
         result = self.create_node(pyrpr.MATERIAL_NODE_MICROFACET_ANISOTROPIC_REFLECTION, {
             pyrpr.MATERIAL_INPUT_COLOR: color,
-            pyrpr.MATERIAL_INPUT_ROUGHNESS: roughness * roughness,
+            pyrpr.MATERIAL_INPUT_ROUGHNESS: roughness,
             pyrpr.MATERIAL_INPUT_ANISOTROPIC: anisotropy,
             pyrpr.MATERIAL_INPUT_ROTATION: rotation,
         })
@@ -226,7 +226,7 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
         result = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
             pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
             pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: color,
-            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: roughness * roughness,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: roughness,
             pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY: anisotropy,
             pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION: rotation,
         })
@@ -240,19 +240,11 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
     # inputs: Color, Roughness, Normal
 
     nodes = {
-        "square_roughness": {
-            "type": "*",
-            "params": {
-                pyrpr.MATERIAL_INPUT_COLOR0: "inputs.Roughness",
-                pyrpr.MATERIAL_INPUT_COLOR1: "inputs.Roughness",
-            }
-        },
-
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_DIFFUSE,
             "params": {
                 pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_ROUGHNESS: "inputs.Roughness",
                 pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
             }
         },
@@ -262,7 +254,7 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
             'params': {
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: 'inputs.Color',
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 'nodes.square_roughness',
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 'inputs.Roughness',
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: 'normal:inputs.Normal',
             }
         }
@@ -327,19 +319,11 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
     # inputs: Color, Roughness, Normal
 
     nodes = {
-        "square_roughness": {
-            "type": "*",
-            "params": {
-                pyrpr.MATERIAL_INPUT_COLOR0: "inputs.Roughness",
-                pyrpr.MATERIAL_INPUT_COLOR1: "inputs.Roughness",
-            }
-        },
-
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_MICROFACET,
             "params": {
                 pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_ROUGHNESS: "inputs.Roughness",
                 pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
             }
         },
@@ -349,7 +333,7 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: "inputs.Roughness",
                 pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL: "normal:inputs.Normal",
             }
         }
@@ -362,19 +346,11 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
     # inputs: Color, Roughness, Normal, IOR
 
     nodes = {
-        "square_roughness": {
-            "type": "*",
-            "params": {
-                pyrpr.MATERIAL_INPUT_COLOR0: "inputs.Roughness",
-                pyrpr.MATERIAL_INPUT_COLOR1: "inputs.Roughness",
-            }
-        },
-
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_MICROFACET_REFRACTION,
             "params": {
                 pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_ROUGHNESS: "inputs.Roughness",
                 pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal",
                 pyrpr.MATERIAL_INPUT_IOR: "inputs.IOR"
             }
@@ -385,7 +361,7 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS: "nodes.square_roughness",
+                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS: "inputs.Roughness",
                 pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL: "normal:inputs.Normal",
                 pyrpr.MATERIAL_INPUT_UBER_REFRACTION_IOR: "inputs.IOR"
             }
