@@ -374,7 +374,7 @@ class WorldData:
 
     def export(self, rpr_context):
         def export_override(override_type):
-            pyrpr_key = getattr(pyrpr, f'SCENE_ENVIRONMENT_OVERRIDE_{override_type.upper()}')
+            pyrpr_key = getattr(pyrpr, f'ENVIRONMENT_LIGHT_OVERRIDE_{override_type.upper()}')
             override = self.overrides.get(override_type, None)
             # Backplate background override type is handled by render engine
             if override and not (override.image and override.image_type == 'BACKPLATE'):
