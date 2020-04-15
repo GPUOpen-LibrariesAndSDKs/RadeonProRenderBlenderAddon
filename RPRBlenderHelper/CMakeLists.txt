@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(RPRBlenderHelper)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set (CMAKE_CXX_STANDARD 11)
 
 find_package(OpenMP)
@@ -20,41 +21,46 @@ else()
 endif()
 
 
-set(RPR_SDK_PATH "${CMAKE_SOURCE_DIR}/../.sdk/rpr")
+set(RPR_SDK_DIR ${CMAKE_SOURCE_DIR}/../.sdk/rpr)
+set(RPRTOOLS_DIR ${RPR_SDK_DIR}/rprTools)
+set(OPENVDB_SDK_PATH ${CMAKE_SOURCE_DIR}/../ThirdParty/openvdb)
 
-if (NOT EXISTS "${RPR_SDK_PATH}")
-    message(FATAL_ERROR "No RPR SDK at RPR_SDK_PATH=${RPR_SDK_PATH}")
-endif() 
-
-
-set (RPRTOOLS "${RPR_SDK_PATH}/rprTools")
-
-
-set(src
+set(SOURCES
     RPRBlenderHelper/RPRBlenderHelper.cpp
     RPRBlenderHelper/SkyBuilder.cpp
     RPRBlenderHelper/SkyGen.cpp
     ../FireRender.Components/cpp/SunPosition/SPA.cpp
     RPRBlenderHelper/CitiesDatabase.cpp
-    "${RPRTOOLS}/RprTools.cpp")
+    ${RPRTOOLS_DIR}/RprTools.cpp
+)
+include_directories(
+    ${RPR_SDK_DIR}/inc
+    ${RPRTOOLS_DIR}
+)
 
 if(WIN32)
-    list(APPEND src RPRBlenderHelper/dllmain.cpp)
-    set(RPR64LIB "${RPR_SDK_PATH}/lib/RadeonProRender64.lib")
+    list(APPEND SOURCES
+        RPRBlenderHelper/OpenVdb.cpp
+        RPRBlenderHelper/dllmain.cpp
+    )
+    include_directories(${OPENVDB_SDK_PATH}/include)
+
+    set(LIBS
+        ${RPR_SDK_DIR}/lib/RadeonProRender64.lib
+        ${OPENVDB_SDK_PATH}/lib/openvdb.lib
+        ${OPENVDB_SDK_PATH}/lib/Half-2_3.lib
+        ${OPENVDB_SDK_PATH}/lib/tbb.lib
+    )
 else()
     if (${APPLE})
-	set(RPR64LIB "${RPR_SDK_PATH}/bin/libRadeonProRender64.dylib")
+        set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.dylib)
     else()
-	set(RPR64LIB "${RPR_SDK_PATH}/bin/libRadeonProRender64.so")
+        set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.so)
     endif()
 endif()
 
-add_library(RPRBlenderHelper SHARED ${src})
+add_library(RPRBlenderHelper SHARED ${SOURCES})
 
 add_definitions(-DBLENDER_PLUGIN)
 
-target_link_libraries(RPRBlenderHelper "${RPR64LIB}")
-target_include_directories(RPRBlenderHelper PRIVATE 
-	"${RPR_SDK_PATH}/inc"
-	"${RPRTOOLS}"
-    )
+target_link_libraries(RPRBlenderHelper ${LIBS})

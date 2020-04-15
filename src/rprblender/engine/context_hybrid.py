@@ -43,6 +43,7 @@ class RPRContext(context.RPRContext):
     _Instance = pyhybrid.Instance
     _Curve = pyhybrid.Curve
     _HeteroVolume = pyhybrid.HeteroVolume
+    _Grid = pyhybrid.Grid
 
     _PostEffect = pyhybrid.PostEffect
 

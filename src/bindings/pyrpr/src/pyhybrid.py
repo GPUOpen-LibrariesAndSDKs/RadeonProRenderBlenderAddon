@@ -254,14 +254,24 @@ class HeteroVolume(pyrpr.HeteroVolume):
     def set_transform(self, transform: np.array, transpose=True):  # Blender needs matrix to be transposed
         pass
 
-    def set_emission_grid(self, grid_data: np.array, lookup: np.array):
+    def set_grid(self, grid_type, grid):
         pass
 
-    def set_albedo_grid(self, grid_data: np.array, lookup: np.array):
-        pass
-
-    def set_density_grid(self, grid_data: np.array, lookup: np.array):
+    def set_lookup(self, grid_type, lookup: np.array):
         pass
 
     def set_name(self, name):
         self.name = name
+
+
+class Grid(pyrpr.HeteroVolume):
+    def __init__(self, context):
+        pass
+
+    @staticmethod
+    def init_from_3d_array(context, grid_data: np.ndarray):
+        pass
+
+    @staticmethod
+    def init_from_array_indices(context, x, y, z, grid_data, indices):
+        pass

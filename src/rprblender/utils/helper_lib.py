@@ -18,7 +18,7 @@ import numpy as np
 import math
 import os
 
-from . import package_root_dir
+from . import package_root_dir, IS_WIN
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
@@ -27,33 +27,41 @@ log = logging.Log(tag='utils.helper_lib')
 lib = None
 
 
+class VdbGridData(ctypes.Structure):
+    _fields_ = [('x', ctypes.c_int), ('y', ctypes.c_int), ('z', ctypes.c_int),
+                ('indices', ctypes.c_void_p), ('indicesSize', ctypes.c_int),
+                ('values', ctypes.c_void_p), ('valuesSize', ctypes.c_int)]
+
+
 def init():
     global lib
     root_dir = package_root_dir()
 
-    if platform.system() == 'Windows':
-        paths = (root_dir / "RPRBlenderHelper.dll",
-                 root_dir / "../../RPRBlenderHelper/.build/Release/RPRBlenderHelper.dll")
-    elif 'Darwin' == platform.system():
-        paths = (root_dir / "libRPRBlenderHelper.dylib",
-                 root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.dylib")
+    OS = platform.system()
+
+    paths = [root_dir]
+    if OS == 'Windows':
+        lib_name = "RPRBlenderHelper.dll"
+        paths.append(root_dir / "../../RPRBlenderHelper/.build/Release")
+
+        if (root_dir / "openvdb.dll").is_file():
+            os.environ['PATH'] += ";" + str(root_dir)
+        else:
+            os.environ['PATH'] += ";" + str((root_dir / "../../ThirdParty/openvdb/bin").absolute())
+
+    elif OS == 'Darwin':
+        lib_name = "libRPRBlenderHelper.dylib"
+        paths.append(root_dir / "../../RPRBlenderHelper/.build")
+
     else:
-        paths = (root_dir / "libRPRBlenderHelper.so",
-                 root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.so")
+        lib_name = "libRPRBlenderHelper.so"
+        paths.append(root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.so")
 
-    for path in paths:
-        if not os.path.isfile(path):
-            continue
+    lib_path = next(p / lib_name for p in paths if (p / lib_name).is_file())
+    log('Load lib', lib_path)
+    lib = ctypes.cdll.LoadLibrary(str(lib_path))
 
-        try:
-            log('Load lib', path)
-            lib = ctypes.cdll.LoadLibrary(str(path))
-            break
-        except OSError as e:
-            log.critical('Failed to load', path, e)
-
-    assert lib
-
+    # Sun & Sky functions
     lib.set_sun_horizontal_coordinate.argtypes = [ctypes.c_float, ctypes.c_float]
 
     lib.set_sun_time_location.argtypes = [ctypes.c_float, ctypes.c_float,
@@ -70,6 +78,18 @@ def init():
 
     lib.get_sun_azimuth.restype = ctypes.c_float
     lib.get_sun_altitude.restype = ctypes.c_float
+
+    if IS_WIN:
+        # OpenVdb functions
+        lib.vdb_read_grids_list.argtypes = [ctypes.c_char_p]
+        lib.vdb_read_grids_list.restype = ctypes.c_char_p
+
+        lib.vdb_read_grid_data.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(VdbGridData)]
+        lib.vdb_read_grid_data.restype = ctypes.c_bool
+
+        lib.vdb_free_grid_data.argtypes = [ctypes.POINTER(VdbGridData)]
+
+        lib.vdb_get_last_error.restype = ctypes.c_char_p
 
 
 def set_sun_horizontal_coordinate(azimuth: float, altitude: float):
@@ -114,6 +134,40 @@ def generate_sky_image(width, height) -> np.array:
 
 def get_sun_horizontal_coordinate() -> (float, float):
     return lib.get_sun_azimuth(), lib.get_sun_altitude()
+
+
+def vdb_read_grids_list(vdb_file):
+    grids_list = lib.vdb_read_grids_list(vdb_file.encode('utf8'))
+    if not grids_list:
+        err_str = lib.vdb_get_last_error().decode('utf8')
+        raise RuntimeError(err_str)
+
+    return tuple(grids_list.decode('utf8').split('\n'))
+
+
+def vdb_read_grid_data(vdb_file, grid_name):
+    data = VdbGridData()
+
+    res = lib.vdb_read_grid_data(vdb_file.encode('utf8'), grid_name.encode('utf8'),
+                                 ctypes.byref(data))
+
+    if not res:
+        err_str = lib.vdb_get_last_error().decode('utf8')
+        raise RuntimeError(err_str)
+
+    indices = np.frombuffer((ctypes.c_uint32 * data.indicesSize).from_address(data.indices),
+                            dtype=np.uint32).copy()
+    values = np.frombuffer((ctypes.c_float * data.valuesSize).from_address(data.values),
+                            dtype=np.float32).copy()
+    res = {
+        'size': (data.x, data.y, data.z),
+        'indices': indices.reshape(-1, 3),
+        'values': values
+    }
+
+    lib.vdb_free_grid_data(ctypes.byref(data))
+
+    return res
 
 
 init()

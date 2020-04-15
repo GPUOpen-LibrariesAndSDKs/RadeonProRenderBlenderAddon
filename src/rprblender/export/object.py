@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import bpy
+
 import numpy as np
 
-from . import mesh, light, camera, particle, to_mesh, volume
+import bpy
+
+from . import mesh, light, camera, to_mesh, volume, openvdb
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -45,13 +47,17 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
         to_mesh.sync(rpr_context, obj, **kwargs)
 
+    elif obj.type == 'VOLUME':
+        openvdb.sync(rpr_context, obj)
+
     elif obj.type == 'EMPTY':
         pass
 
     else:
         log.warn("Object to sync not supported", obj, obj.type)
 
-    volume.sync(rpr_context, obj)
+    if obj.type in ('MESH', 'CURVE', 'FONT', 'SURFACE', 'META'):
+        volume.sync(rpr_context, obj)
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
@@ -66,16 +72,20 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     elif obj.type == 'MESH':
         updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
-
+        
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
         updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
     elif obj.type == 'EMPTY':
         pass
 
+    elif obj.type == 'VOLUME':
+        updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+
     else:
         log.warn("Not supported object to sync_update", obj, obj.type)
 
-    updated |= volume.sync_update(rpr_context, obj)
+    if obj.type in ('MESH', 'CURVE', 'FONT', 'SURFACE', 'META'):
+        updated |= volume.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     return updated

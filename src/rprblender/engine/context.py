@@ -38,6 +38,7 @@ class RPRContext:
     _Instance = pyrpr.Instance
     _Curve = pyrpr.Curve
     _HeteroVolume = pyrpr.HeteroVolume
+    _Grid = pyrpr.Grid
 
     _PostEffect = pyrpr.PostEffect
 
@@ -449,6 +450,11 @@ class RPRContext:
 
         return composite
 
+    def create_grid_from_3d_array(self, data):
+        return self._Grid.init_from_3d_array(self.context, data)
+
+    def create_grid_from_array_indices(self, x, y, z, data, indices):
+        return self._Grid.init_from_array_indices(self.context, x, y, z, data, indices)
 
     def set_parameter(self, key, param):
         if param == self.context.parameters.get(key, None):
