@@ -70,6 +70,10 @@ def enumerate_addon_data():
             if f.is_file():
                 yield f, Path("data/models") / f.relative_to(models_dir)
 
+    if OS == 'Windows':
+        for lib in (repo_dir / "ThirdParty/openvdb/bin").glob("*"):
+            yield lib, lib.name
+
 
 def get_version():
     # getting buid version

@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+
 import numpy as np
 import math
 
 import bpy
 from . import object, material
-from rprblender.utils import BLENDER_VERSION
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.volume')
@@ -88,29 +89,35 @@ def sync(rpr_context, obj: bpy.types.Object):
         # smoke noise upscale the basic domain resolution
         x, y, z = (domain.noise_scale * e for e in (x, y, z))
 
-    color_grid = np.fromiter(domain.color_grid, dtype=np.float32).reshape(x, y, z, -1)
+    color_grid = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
 
     # set albedo grid
-    albedo_grid = np.average(color_grid[:, :, :, :3], axis=3)
+    albedo_data = np.average(color_grid[:, :, :, :3], axis=3)
+    albedo_grid = rpr_context.create_grid_from_3d_array(np.ascontiguousarray(albedo_data))
     color = data['color'][:3]
     albedo_lookup = np.array([0.0, 0.0, 0.0, *color],
                              dtype=np.float32).reshape(-1, 3)
-    rpr_volume.set_albedo_grid(np.ascontiguousarray(albedo_grid), albedo_lookup)
+    rpr_volume.set_grid('albedo', albedo_grid)
+    rpr_volume.set_lookup('albedo', albedo_lookup)
 
     # set density grid
-    density_grid = np.fromiter(domain.density_grid, dtype=np.float32).reshape(x, y, z)
+    density_data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+    density_grid = rpr_context.create_grid_from_3d_array(np.ascontiguousarray(density_data))
     density = data['density']
     density_lookup = np.array([0.0, 0.0, 0.0, density, density, density],
                               dtype=np.float32).reshape(-1, 3)
-    rpr_volume.set_density_grid(np.ascontiguousarray(density_grid), density_lookup)
+    rpr_volume.set_grid('density', density_grid)
+    rpr_volume.set_lookup('density', density_lookup)
 
     if not math.isclose(data['emission'], 0.0):
         # set emission grid
         emission_color = np.array(data['emission_color'][:3]) * data['emission']
-        emission_grid = np.fromiter(domain.flame_grid, dtype=np.float32).reshape(x, y, z)
+        emission_data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+        emission_grid = rpr_context.create_grid_from_3d_array(np.ascontiguousarray(emission_data))
         emission_lookup = np.array([0.0, 0.0, 0.0, *emission_color],
                                    dtype=np.float32).reshape(-1, 3)
-        rpr_volume.set_emission_grid(emission_grid, emission_lookup)
+        rpr_volume.set_grid('emission', emission_grid)
+        rpr_volume.set_lookup('emission', emission_lookup)
 
     # set volume transform
     rpr_volume.set_transform(get_transform(obj))
@@ -121,7 +128,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_obj.set_hetero_volume(rpr_volume)
 
 
-def sync_update(rpr_context, obj: bpy.types.Object):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     obj_key = object.key(obj)
 
     def has_volumes():
@@ -139,3 +146,6 @@ def sync_update(rpr_context, obj: bpy.types.Object):
         updated = True
 
     return updated
+
+
+

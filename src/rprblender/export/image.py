@@ -63,8 +63,7 @@ def sync(rpr_context, image: bpy.types.Image):
 
     pixels = image.pixels
     if hasattr(pixels, 'foreach_get'):
-        data = np.empty(len(pixels), dtype=np.float32)
-        pixels.foreach_get(data)
+        data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
 

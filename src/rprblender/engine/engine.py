@@ -36,7 +36,7 @@ from rprblender.utils import logging
 log = logging.Log(tag='Engine')
 
 
-ITERATED_OBJECT_TYPES = ('MESH', 'LIGHT', 'CURVE', 'FONT', 'SURFACE', 'META')
+ITERATED_OBJECT_TYPES = ('MESH', 'LIGHT', 'CURVE', 'FONT', 'SURFACE', 'META', 'VOLUME')
 
 
 class Engine:

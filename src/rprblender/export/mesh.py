@@ -129,8 +129,11 @@ class MeshData:
             elif shape_type in ('DISK', 'ELLIPSE'):
                 bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=segments, radius=0.5)
 
-            elif shape_type in ('SPHERE'):
+            elif shape_type == 'SPHERE':
                 bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+
+            elif shape_type == 'CUBE':
+                bmesh.ops.create_cube(bm, size=size)
 
             else:
                 raise TypeError("Incorrect shape type", shape_type)
@@ -299,7 +302,6 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     )
     rpr_shape.set_name(obj.name)
     rpr_shape.set_id(obj.pass_index)
-
 
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)

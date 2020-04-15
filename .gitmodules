@@ -7,3 +7,6 @@
 [submodule "RadeonProImageProcessingSDK"]
 	path = RadeonProImageProcessingSDK
 	url = git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
+[submodule "RadeonProRenderLibs"]
+	path = RadeonProRenderLibs
+	url = git@github.com:Radeon-Pro/RadeonProRenderLibs.git
