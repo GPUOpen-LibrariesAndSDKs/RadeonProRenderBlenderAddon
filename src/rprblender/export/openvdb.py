@@ -1,0 +1,164 @@
+#**********************************************************************
+# Copyright 2020 Advanced Micro Devices, Inc
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#********************************************************************
+
+import numpy as np
+
+import bpy
+
+import pyrpr
+from rprblender.utils import helper_lib, IS_WIN
+
+from . import mesh, object, material
+
+from rprblender.utils import logging
+log = logging.Log(tag='export.openvdb')
+
+
+def key(obj: bpy.types.Object):
+    return (object.key(obj), 'openvdb')
+
+
+def get_transform(obj: bpy.types.Object):
+    # creating bound transform matrix
+    min_xyz = tuple(min(b[i] for b in obj.bound_box) for i in range(3))
+    max_xyz = tuple(max(b[i] for b in obj.bound_box) for i in range(3))
+    d = tuple(max_xyz[i] - min_xyz[i] for i in range(3))
+    c = tuple((max_xyz[i] + min_xyz[i]) / 2 for i in range(3))
+
+    bound_mat = np.array((d[0], 0, 0, c[0],
+                          0, d[1], 0, c[1],
+                          0, 0, d[2], c[2],
+                          0, 0, 0, 1), dtype=np.float32).reshape(4, 4)
+
+    # result is: object matrix * bound matrix
+    return object.get_transform(obj) @ bound_mat
+
+
+def sync(rpr_context, obj: bpy.types.Object):
+    if not IS_WIN:
+        return
+
+    # getting openvdb grid data
+    volume = obj.data
+    obj_key = object.key(obj)
+    vdb_file = bpy.path.abspath(volume.filepath)
+    grids = helper_lib.vdb_read_grids_list(vdb_file)
+
+    def get_rpr_grid(grid_name):
+        if grid_name not in grids:
+            return None
+
+        data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
+
+        return rpr_context.create_grid_from_array_indices(
+            *data['size'], data['values'], data['indices'])
+
+    density_grid = get_rpr_grid('density')
+    if not density_grid:
+        log.warn(f"No 'density' grid for {vdb_file}")
+        return
+
+    # creating hetero volume
+    volume_key = key(obj)
+    rpr_volume = rpr_context.create_hetero_volume(volume_key)
+    rpr_volume.set_name(str(volume_key))
+
+    rpr_volume.set_grid('density', density_grid)
+    rpr_volume.set_grid('albedo', density_grid)
+
+    # TODO: enable temperature data
+    # temp_grid = get_rpr_grid('temperature')
+    # if not temp_grid:
+    #     temp_grid = density_grid
+    # rpr_volume.set_grid('emission', temp_grid, False)
+
+    assign_material(rpr_context, obj)
+
+    # creating bound box shape
+    mesh_data = mesh.MeshData.init_from_shape_type('CUBE', 1.0, 1.0, 0)
+    rpr_shape = rpr_context.create_mesh(
+        obj_key,
+        mesh_data.vertices, mesh_data.normals, mesh_data.uvs,
+        mesh_data.vertex_indices, mesh_data.normal_indices, mesh_data.uv_indices,
+        mesh_data.num_face_vertices
+    )
+    rpr_shape.set_name(obj.name)
+
+    transform = get_transform(obj)
+    rpr_shape.set_transform(transform)
+
+    mat = rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
+    mat.set_input(pyrpr.MATERIAL_INPUT_COLOR, (1.0, 1.0, 1.0))
+
+    rpr_shape.set_material(mat)
+    rpr_context.scene.attach(rpr_shape)
+
+    # attaching rpr_volume to rpr_shape
+    rpr_volume.set_transform(transform)
+
+    rpr_context.scene.attach(rpr_volume)
+    rpr_shape.set_hetero_volume(rpr_volume)
+
+
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+    if not IS_WIN:
+        return
+
+    obj_key = object.key(obj)
+
+    rpr_mesh = rpr_context.objects.get(obj_key, None)
+
+    if not rpr_mesh:
+        # no such mesh with volume => creating mesh with volume
+        sync(rpr_context, obj)
+        return True
+
+    if is_updated_geometry:
+        # mesh exists, but its settings were changed => recreating mesh with volume
+        rpr_context.remove_object(obj_key)
+        sync(rpr_context, obj)
+        return True
+
+    if is_updated_transform:
+        # updating only mesh and volume transform
+        transform = get_transform(obj)
+        rpr_mesh.set_transform(transform)
+
+        rpr_volume = rpr_context.volumes[key(obj)]
+        rpr_volume.set_transform(transform)
+
+    assign_material(rpr_context, obj)
+
+    return True
+
+
+def assign_material(rpr_context, obj):
+    volume = obj.data
+
+    material_data = None
+    if obj.material_slots and obj.material_slots[0].material:
+        mat = material.sync(rpr_context, obj.material_slots[0].material, 'Volume')
+        if mat:
+            material_data = mat.data
+
+    rpr_volume = rpr_context.volumes[key(obj)]
+
+    d = material_data['density'] if material_data else volume.display.density
+    rpr_volume.set_lookup('density', np.array([0.0, 0.0, 0.0, d, d, d],
+                                              dtype=np.float32).reshape(-1, 3))
+
+    color = material_data['color'][:3] if material_data else (d, d, d)
+    rpr_volume.set_lookup('albedo', np.array([0.0, 0.0, 0.0, *color],
+                                             dtype=np.float32).reshape(-1, 3))

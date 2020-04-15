@@ -213,6 +213,7 @@ def get_data_from_collection(collection, attribute, size, dtype=np.float32):
     collection.foreach_get(attribute, data)
     return data.reshape(size)
 
+
 def has_denoise_node():
     ''' returns true if compositor node in the tree '''
     composite_tree = bpy.context.scene.node_tree
@@ -222,3 +223,13 @@ def has_denoise_node():
         if isinstance(node, bpy.types.CompositorNodeDenoise):
             return True
     return False
+
+
+def get_prop_array_data(arr, dtype=np.float32):
+    if hasattr(arr, 'foreach_get'):
+        data = np.empty(len(arr), dtype=dtype)
+        arr.foreach_get(data)
+    else:
+        data = np.fromiter(arr, dtype=dtype)
+
+    return data

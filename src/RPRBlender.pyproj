@@ -27,7 +27,6 @@
     <Compile Include="bindings\pyrpr\pyrprimagefilterswrap_make.py" />
     <Compile Include="bindings\pyrpr\pyrprwrap_make.py" />
     <Compile Include="bindings\pyrpr\rpr.py" />
-    <Compile Include="bindings\pyrpr\rprinfo.py" />
     <Compile Include="bindings\pyrpr\rpr_load_store.py" />
     <Compile Include="bindings\pyrpr\src\pyhybrid.py" />
     <Compile Include="bindings\pyrpr\src\pyrpr.py" />
@@ -61,6 +60,7 @@
     <Compile Include="rprblender\export\material.py" />
     <Compile Include="rprblender\export\mesh.py" />
     <Compile Include="rprblender\export\object.py" />
+    <Compile Include="rprblender\export\openvdb.py" />
     <Compile Include="rprblender\export\particle.py" />
     <Compile Include="rprblender\export\volume.py" />
     <Compile Include="rprblender\export\to_mesh.py" />
@@ -109,6 +109,7 @@
     <Compile Include="rprblender\utils\conversion.py" />
     <Compile Include="rprblender\utils\gl.py" />
     <Compile Include="rprblender\utils\helper_lib.py" />
+    <Compile Include="rprblender\utils\install_libs.py" />
     <Compile Include="rprblender\utils\logging.py" />
     <Compile Include="rprblender\utils\render_stamp.py" />
     <Compile Include="rprblender\utils\user_settings.py" />
@@ -176,7 +177,6 @@
     <Content Include="bindings\pyrpr\baseline\test_subdivision_stress.png" />
     <Content Include="bindings\pyrpr\baseline\test_ward.png" />
     <Content Include="bindings\pyrpr\baseline\test_ward_degenerate_uv.png" />
-    <Content Include="bindings\pyrpr\readme.txt" />
     <Content Include="bindings\pyrpr\test_trace\CMakeLists.txt" />
     <Content Include="rprblender\nodes\rpr_nodes\ao.json" />
     <Content Include="rprblender\nodes\rpr_nodes\diffuse.json" />

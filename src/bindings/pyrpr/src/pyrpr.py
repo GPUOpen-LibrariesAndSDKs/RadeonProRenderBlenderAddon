@@ -798,9 +798,13 @@ class Grid(Object):
     """ HeteroVolume grid data """
     core_type_name = 'rpr_grid'
 
-    def __init__(self, context, grid_data: np.array):
+    def __init__(self, context):
         super().__init__()
         self.context = context
+
+    @staticmethod
+    def init_from_3d_array(context, grid_data: np.ndarray):
+        grid = Grid(context)
 
         x, y, z = grid_data.shape
         grid_data = grid_data.reshape(-1)
@@ -809,7 +813,7 @@ class Grid(Object):
         data = np.ascontiguousarray(grid_data[indices])
 
         ContextCreateGrid(
-            self.context, self,
+            grid.context, grid,
             x, y, z,
             ffi.cast('const size_t *', indices.ctypes.data), len(indices),
             GRID_INDICES_TOPOLOGY_I_U64,
@@ -817,10 +821,34 @@ class Grid(Object):
             0
         )
 
+        return grid
+
+    @staticmethod
+    def init_from_array_indices(context, x, y, z, grid_data, indices):
+        grid = Grid(context)
+
+        ContextCreateGrid(
+            grid.context, grid,
+            x, y, z,
+            ffi.cast('const unsigned int *', indices.ctypes.data), len(indices),
+            GRID_INDICES_TOPOLOGY_XYZ_U32,
+            ffi.cast('const float *', grid_data.ctypes.data), grid_data.nbytes,
+            0
+        )
+
+        return grid
+
 
 class HeteroVolume(Object):
     """ Heterogeneous volume voxels grid object to scatter and emit light """
     core_type_name = 'rpr_hetero_volume'
+
+    set_grid_func = {'density': HeteroVolumeSetDensityGrid,
+                     'albedo': HeteroVolumeSetAlbedoGrid,
+                     'emission': HeteroVolumeSetEmissionGrid}
+    set_lookup_func = {'density': HeteroVolumeSetDensityLookup,
+                       'albedo': HeteroVolumeSetAlbedoLookup,
+                       'emission': HeteroVolumeSetEmissionLookup}
 
     def __init__(self, context):
         super().__init__()
@@ -833,23 +861,13 @@ class HeteroVolume(Object):
     def set_transform(self, transform: np.array, transpose=True):  # Blender needs matrix to be transposed
         HeteroVolumeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
-    def set_emission_grid(self, grid_data: np.array, lookup: np.array):
-        grid = Grid(self.context, grid_data)
-        HeteroVolumeSetEmissionGrid(self, grid)
-        HeteroVolumeSetEmissionLookup(self, ffi.cast('const float *', lookup.ctypes.data), len(lookup))
-        self.grids['emission'] = grid
+    def set_grid(self, grid_type, grid):
+        self.set_grid_func[grid_type](self, grid)
+        self.grids[grid_type] = grid
 
-    def set_albedo_grid(self, grid_data: np.array, lookup: np.array):
-        grid = Grid(self.context, grid_data)
-        HeteroVolumeSetAlbedoGrid(self, grid)
-        HeteroVolumeSetAlbedoLookup(self, ffi.cast('const float *', lookup.ctypes.data), len(lookup))
-        self.grids['albedo'] = grid
-
-    def set_density_grid(self, grid_data: np.array, lookup: np.array):
-        grid = Grid(self.context, grid_data)
-        HeteroVolumeSetDensityGrid(self, grid)
-        HeteroVolumeSetDensityLookup(self, ffi.cast('const float *', lookup.ctypes.data), len(lookup))
-        self.grids['density'] = grid
+    def set_lookup(self, grid_type, lookup: np.array):
+        self.set_lookup_func[grid_type](self, ffi.cast('const float *', lookup.ctypes.data),
+                                        len(lookup))
 
 
 class Camera(Object):
