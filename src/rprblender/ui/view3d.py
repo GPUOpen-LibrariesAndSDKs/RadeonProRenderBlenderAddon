@@ -42,7 +42,7 @@ class RPR_VIEW3D_PT_panel(RPR_Panel):
             layout.prop(rpr, 'render_quality')
 
         row = layout.row()
-        row.enabled = not rpr.is_hybrid
+        row.enabled = len(rpr.render_quality_items) > 1
         row.prop(rpr, 'render_mode')
 
 
