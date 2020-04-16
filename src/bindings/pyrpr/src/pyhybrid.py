@@ -188,6 +188,9 @@ class Shape(pyrpr.Shape):
         if not self.materials:
             self.set_material(material)
 
+    def set_hetero_volume(self, hetero_volume):
+        pass
+
 
 @class_ignore_unsupported
 class Mesh(pyrpr.Mesh, Shape):
@@ -202,7 +205,7 @@ class Instance(pyrpr.Instance, Shape):
 @class_ignore_unsupported
 class Scene(pyrpr.Scene):
     def attach(self, obj):
-        if isinstance(obj, (pyrpr.Curve, pyrpr.HeteroVolume)):
+        if isinstance(obj, (Curve, HeteroVolume)):
             return
 
         super().attach(obj)
@@ -230,7 +233,7 @@ class PostEffect:
         pass
 
 
-class Curve(pyrpr.Curve):
+class Curve:
     def __init__(self, context, control_points, uvs, root_radius, tip_radius):
         pass
 
@@ -247,7 +250,7 @@ class Curve(pyrpr.Curve):
         self.name = name
 
 
-class HeteroVolume(pyrpr.HeteroVolume):
+class HeteroVolume:
     def __init__(self, context):
         pass
 

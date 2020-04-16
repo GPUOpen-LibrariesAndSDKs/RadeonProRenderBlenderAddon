@@ -24,6 +24,7 @@ hybrid_unsupported_log_warn = False
 material_library_path = None
 
 enable_hybrid = True
+enable_rpr2 = True
 
 try:
     # configdev.py example for logging setup:

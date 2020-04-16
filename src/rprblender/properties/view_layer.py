@@ -137,9 +137,10 @@ class RPR_DenoiserProperties(RPR_Properties):
         }
 
     def is_available(self, scene, is_final_engine=True):
-        return not USE_BLENDER_DENOISER and (self.filter_type != 'ML' or 
-                                             (scene.rpr.get_devices(is_final_engine).has_gpu()
-                                                and scene.rpr.render_quality == 'FULL'))
+        return not USE_BLENDER_DENOISER and \
+               (self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
+                                             and scene.rpr.render_quality == 'FULL')) and \
+               (scene.rpr.render_quality != 'FULL2')
 
 
 class RPR_ViewLayerProperites(RPR_Properties):

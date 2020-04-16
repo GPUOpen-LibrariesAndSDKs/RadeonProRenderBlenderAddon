@@ -45,10 +45,10 @@ from . import (
     material_library,
 )
 
-from .engine.render_engine import RenderEngine
+from .engine.render_engine import RenderEngine, RenderEngine2
 from .engine.preview_engine import PreviewEngine
-from .engine.viewport_engine import ViewportEngine
-from .engine.animation_engine import AnimationEngine
+from .engine.viewport_engine import ViewportEngine, ViewportEngine2
+from .engine.animation_engine import AnimationEngine, AnimationEngine2
 
 from .engine.render_engine_hybrid import RenderEngine as RenderEngineHybrid
 from .engine.viewport_engine_hybrid import ViewportEngine as ViewportEngineHybrid
@@ -56,6 +56,29 @@ from .engine.animation_engine_hybrid import AnimationEngine as AnimationEngineHy
 
 log = logging.Log(tag='init')
 log("Loading RPR addon {}".format(bl_info['version']))
+
+
+render_engine_cls = {
+    'FULL': RenderEngine,
+    'HIGH': RenderEngineHybrid,
+    'MEDIUM': RenderEngineHybrid,
+    'LOW': RenderEngineHybrid,
+    'FULL2': RenderEngine2,
+}
+animation_engine_cls = {
+    'FULL': AnimationEngine,
+    'HIGH': AnimationEngineHybrid,
+    'MEDIUM': AnimationEngineHybrid,
+    'LOW': AnimationEngineHybrid,
+    'FULL2': AnimationEngine2,
+}
+viewport_engine_cls = {
+    'FULL': ViewportEngine,
+    'HIGH': ViewportEngineHybrid,
+    'MEDIUM': ViewportEngineHybrid,
+    'LOW': ViewportEngineHybrid,
+    'FULL2': ViewportEngine2,
+}
 
 
 class RPREngine(bpy.types.RenderEngine):
@@ -84,22 +107,16 @@ class RPREngine(bpy.types.RenderEngine):
 
         # TODO: We create for every view layer separate Engine. We should improve this by implementing sync_update()
         try:
-            is_hybrid = depsgraph.scene.rpr.is_hybrid
             if self.is_preview:
-                self.engine = PreviewEngine(self)
+                engine_cls = PreviewEngine
 
             elif self.is_animation:
-                if is_hybrid:
-                    self.engine = AnimationEngineHybrid(self)
-                else:
-                    self.engine = AnimationEngine(self)
+                engine_cls = animation_engine_cls[depsgraph.scene.rpr.render_quality]
 
             else:
-                if is_hybrid:
-                    self.engine = RenderEngineHybrid(self)
-                else:
-                    self.engine = RenderEngine(self)
+                engine_cls = render_engine_cls[depsgraph.scene.rpr.render_quality]
 
+            self.engine = engine_cls(self)
             self.engine.sync(depsgraph)
 
         except Exception as e:
@@ -123,18 +140,16 @@ class RPREngine(bpy.types.RenderEngine):
 
         try:
             # if there is no engine set, create it and do the initial sync
-            is_hybrid = depsgraph.scene.rpr.is_hybrid
-            if self.engine and is_hybrid ^ isinstance(self.engine, ViewportEngineHybrid) == 0:
+            engine_cls = viewport_engine_cls[depsgraph.scene.rpr.render_quality]
+
+            if self.engine and type(self.engine) == engine_cls:
                 self.engine.sync_update(context, depsgraph)
                 return
 
             if self.engine:
                 self.engine.stop_render()
 
-            if is_hybrid:
-                self.engine = ViewportEngineHybrid(self)
-            else:
-                self.engine = ViewportEngine(self)
+            self.engine = engine_cls(self)
             self.engine.sync(context, depsgraph)
 
         except Exception as e:
