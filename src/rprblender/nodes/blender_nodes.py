@@ -1861,9 +1861,6 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
         return rpr_node
 
-    def export_hybrid(self):
-        return self.create_node(pyrpr.MATERIAL_NODE_VOLUME)
-
 
 class ShaderNodeCombineHSV(NodeParser):
     """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """

@@ -13,6 +13,7 @@
 # limitations under the License.
 #********************************************************************
 from .render_engine import RenderEngine
+from .render_engine import RenderEngine, RenderEngine2
 from .image_filter import ImageFilter
 
 
@@ -54,3 +55,7 @@ class AnimationEngine(RenderEngine):
         self.image_filter = AnimationEngine.image_filter
         super().setup_image_filter(settings)
         AnimationEngine.image_filter = self.image_filter
+
+
+class AnimationEngine2(RenderEngine2, AnimationEngine):
+    pass

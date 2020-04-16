@@ -55,7 +55,7 @@ def init():
 
     else:
         lib_name = "libRPRBlenderHelper.so"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build/libRPRBlenderHelper.so")
+        paths.append(root_dir / "../../RPRBlenderHelper/.build")
 
     lib_path = next(p / lib_name for p in paths if (p / lib_name).is_file())
     log('Load lib', lib_path)

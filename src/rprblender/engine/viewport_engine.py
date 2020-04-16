@@ -945,3 +945,9 @@ class ViewportEngine(Engine):
                 continue
 
             yield obj
+
+
+from .context import RPRContext2
+
+class ViewportEngine2(ViewportEngine):
+    _RPRContext = RPRContext2

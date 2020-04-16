@@ -18,6 +18,7 @@ import os
 import bpy
 import pyrpr
 import pyhybrid
+import pyrpr2
 
 from bpy.props import (
     BoolProperty,
@@ -267,7 +268,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     @property
     def is_tile_render_available(self):
-        return self.use_tile_render and not self.is_hybrid
+        return self.use_tile_render and self.render_quality in ('FULL', 'FULL2')
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
@@ -378,6 +379,20 @@ class RPR_RenderProperties(RPR_Properties):
         default=1.5,
     )
 
+    render_quality_items = [
+        ('FULL', "Full", "Full render quality. If using CPU this is the only mode available")
+    ]
+    if pyhybrid.enabled:
+        render_quality_items += [
+            ('HIGH', "High", "High render quality"),
+            ('MEDIUM', "Medium", "Medium render quality"),
+            ('LOW', "Low", "Low render quality"),
+        ]
+    if pyrpr2.enabled:
+        render_quality_items += [
+            ('FULL2', "Full (Experimental)", "Full render quality with RPR 2 (Experimental)")
+        ]
+
     def update_render_quality(self, context):
         if self.render_quality == 'FULL':
             return
@@ -389,20 +404,10 @@ class RPR_RenderProperties(RPR_Properties):
     render_quality: EnumProperty(
         name="Render Quality",
         description="RPR render quality",
-        items=(
-            ('FULL', "Full", "Full render quality. If using CPU this is the only mode available"),
-            # ('ULTRA', "Ultra", "Ultra"),
-            ('HIGH', "High", "High render quality"),
-            ('MEDIUM', "Medium", "Medium render quality"),
-            ('LOW', "Low", "Low render quality"),
-        ),
+        items=render_quality_items,
         default='FULL',
         update=update_render_quality
     )
-
-    @property
-    def is_hybrid(self):
-        return pyhybrid.enabled and self.render_quality != 'FULL'
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         """ Initializes rpr_context by device settings """
