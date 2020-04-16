@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-from __future__ import annotations # this is needed to use the same class type hints
 import math
 
 import pyrpr
@@ -359,3 +358,16 @@ class NodeItem:
     def cos(self):
         return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_COS,
                                        lambda a: math.cos(a))
+
+    def is_zero(self):
+        """ Check if numerical value is close to zero """
+        if isinstance(self.data, float) and math.isclose(self.data, 0.0):
+            return True
+
+        if isinstance(self.data, tuple) and \
+           math.isclose(self.data[0], 0.0) and \
+           math.isclose(self.data[1], 0.0) and \
+           math.isclose(self.data[2], 0.0):
+            return True
+
+        return False

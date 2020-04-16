@@ -269,16 +269,7 @@ class ShaderNodeBsdfGlass(NodeParser):
             if val is None:
                 return False
 
-            if isinstance(val.data, float) and math.isclose(val.data, 0.0):
-                return False
-
-            if isinstance(val.data, tuple) and \
-               math.isclose(val.data[0], 0.0) and \
-               math.isclose(val.data[1], 0.0) and \
-               math.isclose(val.data[2], 0.0):
-                return False
-
-            return True
+            return not val.is_zero()
 
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
         base_color = self.get_input_value('Color')
@@ -1824,12 +1815,31 @@ class ShaderNodeUVMap(NodeParser):
 
 class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
+        def rgba(temperature):
+            if isinstance(temperature, NodeItem):
+                t = temperature.data
+            if isinstance(t, tuple):
+                t = t[0]
+            return (*convert_kelvins_to_rgb(t), 1.0)
+
+        using_blackbody = False
+
         color = self.get_input_value('Color')
         density = self.get_input_value('Density')
         anisotropy = self.get_input_value('Anisotropy')
         absorption_color = self.get_input_value('Absorption Color')
         emission_strength = self.get_input_value('Emission Strength')
         emission_color = self.get_input_value('Emission Color')
+        blackbody_intensity = self.get_input_value('Blackbody Intensity')
+        blackbody_tint = self.get_input_value('Blackbody Tint')
+        blackbody_temperature = self.get_input_scalar('Temperature')
+        blackbody_temperature_attribute = str(self.node.inputs['Temperature Attribute'].default_value)
+
+        if emission_strength.is_zero() and not blackbody_intensity.is_zero():
+            using_blackbody = True
+
+            emission_strength = blackbody_intensity
+            emission_color = blackbody_tint * rgba(blackbody_temperature)
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
             pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
@@ -1845,18 +1855,34 @@ class ShaderNodeVolumePrincipled(NodeParser):
         if isinstance(density, tuple):
             density = density[0]
 
-        emission = self.get_input_scalar('Emission Strength')
-        if isinstance(emission, tuple):
-            emission = emission[0]
+        if using_blackbody:
+            if isinstance(blackbody_intensity, NodeItem):
+                emission = blackbody_intensity.data
 
-        emission_color = self.get_input_scalar('Emission Color')
+            if isinstance(blackbody_intensity, tuple):
+                emission = blackbody_intensity[0]
+            elif isinstance(blackbody_intensity, (float, int)):
+                emission = blackbody_intensity
+
+            emission_color = blackbody_tint * rgba(blackbody_temperature)
+        else:
+            emission = self.get_input_scalar('Emission Strength')
+            if isinstance(emission, tuple):
+                emission = emission[0]
+
+            emission_color = self.get_input_scalar('Emission Color')
+
+        if isinstance(emission, NodeItem):
+            emission = emission.data
+        if isinstance(emission_color, NodeItem):
+            emission_color = emission_color.data
 
         # storing hetero volume data as an additional field 'data' of MatrialNode object
         rpr_node.data.data = {
             'color': color.data,
             'density': density.data,
-            'emission': emission.data,
-            'emission_color': emission_color.data,
+            'emission': emission,
+            'emission_color': emission_color,
         }
 
         return rpr_node
