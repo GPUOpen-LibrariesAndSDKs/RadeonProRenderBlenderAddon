@@ -874,7 +874,7 @@ class ViewportEngine(Engine):
 
     def get_object_rpr_materials(self, obj, active_mat, has_uv_map):
         """ Get existing materials for shape; create new if UV map present in material """
-        if hasattr(obj.data, 'rpr'):  # only true meshes have rpr data field
+        if obj.type=='MESH':  # only true meshes have rpr data field
             mat_name_key = (active_mat.name, obj.data.rpr.uv_sets_names) if has_uv_map else active_mat.name
         else:
             mat_name_key = active_mat.name
