@@ -1816,73 +1816,61 @@ class ShaderNodeUVMap(NodeParser):
 class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
         def rgba(temperature):
-            if isinstance(temperature, NodeItem):
-                t = temperature.data
+            t = temperature.data
             if isinstance(t, tuple):
                 t = t[0]
             return (*convert_kelvins_to_rgb(t), 1.0)
 
-        using_blackbody = False
-
+        # textures can be used by the RPR_MATERIAL_NODE_VOLUME shader node
         color = self.get_input_value('Color')
         density = self.get_input_value('Density')
         anisotropy = self.get_input_value('Anisotropy')
-        absorption_color = self.get_input_value('Absorption Color')
+        absorption_color = self.get_input_scalar('Absorption Color')
         emission_strength = self.get_input_value('Emission Strength')
-        emission_color = self.get_input_value('Emission Color')
+        emission_color = self.get_input_value('Emission Color') * emission_strength
         blackbody_intensity = self.get_input_value('Blackbody Intensity')
-        blackbody_tint = self.get_input_value('Blackbody Tint')
-        blackbody_temperature = self.get_input_scalar('Temperature')
-        blackbody_temperature_attribute = str(self.node.inputs['Temperature Attribute'].default_value)
 
         if emission_strength.is_zero() and not blackbody_intensity.is_zero():
-            using_blackbody = True
-
-            emission_strength = blackbody_intensity
-            emission_color = blackbody_tint * rgba(blackbody_temperature)
+            blackbody_tint = self.get_input_value('Blackbody Tint')
+            blackbody_temperature = self.get_input_scalar('Temperature')
+            emission_color = blackbody_intensity * blackbody_tint * rgba(blackbody_temperature)
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
             pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
             pyrpr.MATERIAL_INPUT_ABSORBTION: absorption_color * density,
             pyrpr.MATERIAL_INPUT_G: anisotropy,
-            pyrpr.MATERIAL_INPUT_EMISSION: emission_color * emission_strength,
+            pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
             pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
         })
 
-        # getting hetero volume data
+        # getting scalar data for hetero volume data since it does not work with textures
         color = self.get_input_scalar('Color')
-        density = self.get_input_scalar('Density')
+
+        density = self.get_input_scalar('Density').data
         if isinstance(density, tuple):
             density = density[0]
 
-        if using_blackbody:
-            if isinstance(blackbody_intensity, NodeItem):
-                emission = blackbody_intensity.data
+        emission_strength = self.get_input_scalar('Emission Strength')
+        emission_color = self.get_input_scalar('Emission Color')
+        blackbody_intensity = self.get_input_scalar('Blackbody Intensity')
 
-            if isinstance(blackbody_intensity, tuple):
-                emission = blackbody_intensity[0]
-            elif isinstance(blackbody_intensity, (float, int)):
-                emission = blackbody_intensity
-
+        # scalar emission values can be different from linked, make check again
+        if emission_strength.is_zero() and not blackbody_intensity.is_zero():
+            emission_strength = blackbody_intensity
+            blackbody_tint = self.get_input_scalar('Blackbody Tint')
+            blackbody_temperature = self.get_input_scalar('Temperature')
             emission_color = blackbody_tint * rgba(blackbody_temperature)
-        else:
-            emission = self.get_input_scalar('Emission Strength')
-            if isinstance(emission, tuple):
-                emission = emission[0]
 
-            emission_color = self.get_input_scalar('Emission Color')
+        emission_strength = emission_strength.data
+        if isinstance(emission_strength, tuple):
+            emission_strength = emission_strength[0]
 
-        if isinstance(emission, NodeItem):
-            emission = emission.data
-        if isinstance(emission_color, NodeItem):
-            emission_color = emission_color.data
-
-        # storing hetero volume data as an additional field 'data' of MatrialNode object
+        # storing hetero volume data as an additional field 'data' of MaterialNode object
         rpr_node.data.data = {
             'color': color.data,
-            'density': density.data,
-            'emission': emission,
-            'emission_color': emission_color,
+            'density': density,
+            'emission': emission_strength,
+            'emission_color': emission_color.data,
         }
 
         return rpr_node
