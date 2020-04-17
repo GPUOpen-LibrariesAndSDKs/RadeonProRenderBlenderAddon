@@ -37,7 +37,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
             col = layout.column(align=True)
             row = col.row()
             row.enabled = False
-            row.prop(devices, 'cpu_state')
+            row.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
             col.prop(devices, 'cpu_threads')
 
         else:
@@ -45,7 +45,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
                 col = layout.column(align=True)
                 col.enabled = context.scene.rpr.render_quality == 'FULL'
 
-                col.prop(devices, 'cpu_state')
+                col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
                 row.enabled = devices.cpu_state
                 row.prop(devices, 'cpu_threads')
@@ -53,8 +53,8 @@ class RPR_RENDER_PT_devices(RPR_Panel):
                 layout.separator()
 
             col = layout.column(align=True)
-            for i in range(len(devices.gpu_states)):
-                col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
+            for i, gpu_device in enumerate(pyrpr.Context.gpu_devices):
+                col.prop(devices, 'gpu_states', index=i, text=gpu_device['name'])
 
 
 class RPR_RENDER_PT_viewport_devices(RPR_Panel):
@@ -80,11 +80,11 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
         layout.use_property_decorate = False
         self.layout.enabled = settings.separate_viewport_devices
 
-        if len(pyrpr.Context.gpu_devices) == 0:
+        if not pyrpr.Context.gpu_devices:
             col = layout.column(align=True)
             row = col.row()
             row.enabled = False
-            row.prop(devices, 'cpu_state')
+            row.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
             col.prop(devices, 'cpu_threads')
 
         else:
@@ -92,7 +92,7 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
                 col = layout.column(align=True)
                 col.enabled = context.scene.rpr.render_quality == 'FULL'
 
-                col.prop(devices, 'cpu_state')
+                col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
                 row.enabled = devices.cpu_state
                 row.prop(devices, 'cpu_threads')
@@ -100,8 +100,8 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
                 layout.separator()
 
             col = layout.column(align=True)
-            for i in range(len(devices.gpu_states)):
-                col.prop(devices, 'gpu_states', index=i, text=pyrpr.Context.gpu_devices[i]['name'])
+            for i, gpu_device in enumerate(pyrpr.Context.gpu_devices):
+                col.prop(devices, 'gpu_states', index=i, text=gpu_device['name'])
 
 
 class RPR_RENDER_PT_limits(RPR_Panel):
