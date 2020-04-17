@@ -157,10 +157,10 @@ def tile_iterator(tile_order, width, height, tile_width, tile_height):
 # saving current process id
 PID = os.getpid()
 
-
-IS_WIN = platform.system() == 'Windows'
-IS_MAC = platform.system() == 'Darwin'
-IS_LINUX = platform.system() == 'Linux'
+OS = platform.system()
+IS_WIN = OS == 'Windows'
+IS_MAC = OS == 'Darwin'
+IS_LINUX = OS == 'Linux'
 
 BLENDER_VERSION = f'{bpy.app.version[0]}.{bpy.app.version[1]}'
 USE_BLENDER_DENOISER = IS_MAC and BLENDER_VERSION >= '2.81'

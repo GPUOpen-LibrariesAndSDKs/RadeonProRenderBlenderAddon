@@ -132,19 +132,18 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         from rprblender.engine.preview_engine import PreviewEngine
         PreviewEngine.reset()
 
-    if len(pyrpr.Context.gpu_devices) > 0:
-        gpu_states: BoolVectorProperty(
-            name="",
-            description="Use GPU device for rendering",
-            size=len(pyrpr.Context.gpu_devices),
-            default=tuple(i == 0 for i in range(len(pyrpr.Context.gpu_devices))), # Only first GPU is enabled by default
-            update=update_states
-        )
-
+    gpu_states: BoolVectorProperty(
+        name="",
+        description="Use GPU device for rendering",
+        size=16,
+        # Only first GPU is enabled by default
+        default=tuple(i == 0 and bool(pyrpr.Context.gpu_devices) for i in range(16)),
+        update=update_states
+    )
     cpu_state: BoolProperty(
-        name=pyrpr.Context.cpu_device['name'] if pyrpr.Context.cpu_device else "",
+        name="",
         description="Use CPU device for rendering",
-        default=len(pyrpr.Context.gpu_devices) == 0, # True if no GPUs are available
+        default=not pyrpr.Context.gpu_devices, # True if no GPUs are available
         update=update_states
     )
     cpu_threads: IntProperty(

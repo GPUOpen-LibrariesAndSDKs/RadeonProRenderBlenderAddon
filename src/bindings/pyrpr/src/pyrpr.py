@@ -266,20 +266,21 @@ class Context(Object):
     ''' Context wraps the rpr_context type with useful methods '''
     core_type_name = 'rpr_context'
 
-    plugins = None
+    plugin_id = None
     cache_path = None
     cpu_device = None
     gpu_devices = []
 
     @classmethod
     def register_plugin(cls, dll_path, cache_path):
-        plugin_id = RegisterPlugin(encode(dll_path))
-        if plugin_id == -1:
+        cls.plugin_id = RegisterPlugin(encode(str(dll_path)))
+        if cls.plugin_id == -1:
             raise RuntimeError("Plugin is not registered", dll_path)
 
-        cls.plugins = [plugin_id, ]
-        cls.cache_path = cache_path
+        cls.cache_path = str(cache_path)
 
+    @classmethod
+    def load_devices(cls):
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
@@ -324,7 +325,7 @@ class Context(Object):
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
-        CreateContext(API_VERSION, self.plugins, len(self.plugins), flags,
+        CreateContext(API_VERSION, [self.plugin_id], 1, flags,
             props_ptr, encode(self.cache_path) if use_cache and self.cache_path else ffi.NULL,
             self)
 
