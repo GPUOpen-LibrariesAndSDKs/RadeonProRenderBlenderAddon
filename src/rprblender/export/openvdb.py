@@ -18,7 +18,7 @@ import numpy as np
 import bpy
 
 import pyrpr
-from rprblender.utils import helper_lib, IS_WIN
+from rprblender.utils import helper_lib, IS_WIN, is_zero
 
 from . import mesh, object, material
 
@@ -62,12 +62,19 @@ def sync(rpr_context, obj: bpy.types.Object):
 
         data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
 
-        return rpr_context.create_grid_from_array_indices(
-            *data['size'], data['values'], data['indices'])
+        values = data['values']
+        m = values.max()
+        if m > 1.0:
+            values /= m
 
-    density_grid = get_rpr_grid('density')
+        return rpr_context.create_grid_from_array_indices(
+            *data['size'], values, data['indices'])
+
+    material_data = get_material_data(rpr_context, obj)
+
+    density_grid = get_rpr_grid(material_data['density_attr'])
     if not density_grid:
-        log.warn(f"No 'density' grid for {vdb_file}")
+        log.warn(f"No '{material_data['density_attr']}' grid in {vdb_file}.", obj)
         return
 
     # creating hetero volume
@@ -78,13 +85,19 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_volume.set_grid('density', density_grid)
     rpr_volume.set_grid('albedo', density_grid)
 
-    # TODO: enable temperature data
-    # temp_grid = get_rpr_grid('temperature')
-    # if not temp_grid:
-    #     temp_grid = density_grid
-    # rpr_volume.set_grid('emission', temp_grid, False)
+    emission_color = material_data['emission_color']
+    if not is_zero(emission_color):
+        emission_grid = density_grid
+        if material_data['temperature_attr'] != material_data['density_attr']:
+            emission_grid = get_rpr_grid(material_data['temperature_attr'])
+            if not emission_grid:
+                log.warn(f"No '{material_data['temperature_attr']}' grid in {vdb_file} for "
+                         f"emission, '{material_data['density_attr']}' grid will be used.", obj)
+                emission_grid = density_grid
 
-    assign_material(rpr_context, obj)
+        rpr_volume.set_grid('emission', emission_grid)
+
+    assign_material(rpr_volume, material_data)
 
     # creating bound box shape
     mesh_data = mesh.MeshData.init_from_shape_type('CUBE', 1.0, 1.0, 0)
@@ -125,7 +138,11 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         sync(rpr_context, obj)
         return True
 
-    if is_updated_geometry:
+    material_data = get_material_data(rpr_context, obj)
+    rpr_volume = rpr_context.volumes[key(obj)]
+
+    emission_changed = ('emission' in rpr_volume.grids) == is_zero(material_data['emission_color'])
+    if is_updated_geometry or emission_changed:
         # mesh exists, but its settings were changed => recreating mesh with volume
         rpr_context.remove_object(obj_key)
         sync(rpr_context, obj)
@@ -136,29 +153,39 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         transform = get_transform(obj)
         rpr_mesh.set_transform(transform)
 
-        rpr_volume = rpr_context.volumes[key(obj)]
         rpr_volume.set_transform(transform)
 
-    assign_material(rpr_context, obj)
+    assign_material(rpr_volume, material_data)
 
     return True
 
 
-def assign_material(rpr_context, obj):
-    volume = obj.data
-
-    material_data = None
+def get_material_data(rpr_context, obj):
     if obj.material_slots and obj.material_slots[0].material:
         mat = material.sync(rpr_context, obj.material_slots[0].material, 'Volume')
         if mat:
-            material_data = mat.data
+            return mat.data
 
-    rpr_volume = rpr_context.volumes[key(obj)]
+    d = obj.data.display.density
+    return {
+        'color': (d, d, d),
+        'density': d,
+        'density_attr': "density",
+        'emission_color': (0.0, 0.0, 0.0),
+        'temperature_attr': "temperature",
+    }
 
-    d = material_data['density'] if material_data else volume.display.density
+
+def assign_material(rpr_volume, material_data):
+    d = material_data['density']
     rpr_volume.set_lookup('density', np.array([0.0, 0.0, 0.0, d, d, d],
                                               dtype=np.float32).reshape(-1, 3))
 
-    color = material_data['color'][:3] if material_data else (d, d, d)
+    color = material_data['color']
     rpr_volume.set_lookup('albedo', np.array([0.0, 0.0, 0.0, *color],
                                              dtype=np.float32).reshape(-1, 3))
+
+    emission_color = material_data['emission_color']
+    if not is_zero(emission_color):
+        rpr_volume.set_lookup('emission', np.array([0.0, 0.0, 0.0, *emission_color],
+                                                 dtype=np.float32).reshape(-1, 3))

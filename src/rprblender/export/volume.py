@@ -18,7 +18,7 @@ import math
 
 import bpy
 from . import object, material
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.volume')
@@ -94,7 +94,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     # set albedo grid
     albedo_data = np.average(color_grid[:, :, :, :3], axis=3)
     albedo_grid = rpr_context.create_grid_from_3d_array(np.ascontiguousarray(albedo_data))
-    color = data['color'][:3]
+    color = data['color']
     albedo_lookup = np.array([0.0, 0.0, 0.0, *color],
                              dtype=np.float32).reshape(-1, 3)
     rpr_volume.set_grid('albedo', albedo_grid)
@@ -109,9 +109,9 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_volume.set_grid('density', density_grid)
     rpr_volume.set_lookup('density', density_lookup)
 
-    if not math.isclose(data['emission'], 0.0):
+    emission_color = data['emission_color']
+    if not is_zero(emission_color):
         # set emission grid
-        emission_color = np.array(data['emission_color'][:3]) * data['emission']
         emission_data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
         emission_grid = rpr_context.create_grid_from_3d_array(np.ascontiguousarray(emission_data))
         emission_lookup = np.array([0.0, 0.0, 0.0, *emission_color],
