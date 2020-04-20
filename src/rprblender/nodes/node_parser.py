@@ -114,6 +114,9 @@ class BaseNodeParser(metaclass=ABCMeta):
         if len(val) in (3, 4):
             return tuple(val)
 
+        if isinstance(val, str):
+            return val
+
         raise TypeError("Unknown value type to pass to rpr", val)
 
     # HELPER FUNCTIONS

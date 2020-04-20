@@ -233,3 +233,7 @@ def get_prop_array_data(arr, dtype=np.float32):
         data = np.fromiter(arr, dtype=dtype)
 
     return data
+
+
+def is_zero(val):
+    return np.all(np.isclose(val, 0.0))
