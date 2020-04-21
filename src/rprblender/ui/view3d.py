@@ -13,7 +13,6 @@
 # limitations under the License.
 #********************************************************************
 import bpy
-import pyhybrid
 
 from . import RPR_Panel
 
@@ -38,7 +37,7 @@ class RPR_VIEW3D_PT_panel(RPR_Panel):
 
         rpr = context.scene.rpr
 
-        if pyhybrid.enabled:
+        if len(rpr.render_quality_items) > 1:
             layout.prop(rpr, 'render_quality')
 
         row = layout.row()
