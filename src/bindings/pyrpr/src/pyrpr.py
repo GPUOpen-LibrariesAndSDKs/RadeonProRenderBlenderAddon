@@ -45,27 +45,24 @@ class CoreError(Exception):
                 status = "%s<%d>" % (name, value)
                 break
        
-        self.error_message = self.get_last_error_message(argv[0]) if len(argv) > 0 else ""
+        self.error_message = self.get_last_error_message()
 
     def __str__(self):
         return "%s call %s(%s) returned error code <%s> with error message: '%s'" % \
                     (self.module_name, self.func_name, ', '.join(str(a) for a in self.argv), self.status, self.error_message)
 
-    def get_last_error_message(self, context):
-        if not isinstance(context, Context):
-            return ""
-
+    @staticmethod
+    def get_last_error_message():
         ffi = pyrprwrap.ffi
         lib = pyrprwrap.lib
-        rpr_context = context._get_handle() if context else ffi.NULL
         sizeParamPtr = ffi.new('size_t *', 0)
 
         # bypass calling ContextGetInfo through wrappers, that's why calling it directly to the lib
-        state = lib.rprContextGetInfo(rpr_context, CONTEXT_LAST_ERROR_MESSAGE, 0, ffi.NULL, sizeParamPtr)
+        state = lib.rprContextGetInfo(ffi.NULL, CONTEXT_LAST_ERROR_MESSAGE, 0, ffi.NULL, sizeParamPtr)
         sizeParam = sizeParamPtr[0]
         if state == SUCCESS and sizeParam >= 1:
             strData = ffi.new('char[%d]' % sizeParam)
-            state = lib.rprContextGetInfo(rpr_context, CONTEXT_LAST_ERROR_MESSAGE, sizeParam, strData, ffi.NULL)
+            state = lib.rprContextGetInfo(ffi.NULL, CONTEXT_LAST_ERROR_MESSAGE, sizeParam, strData, ffi.NULL)
             if state == SUCCESS:
                 return ffi.string(strData)
 
@@ -80,6 +77,7 @@ def wrap_core_check_success(f, module_name):
             raise CoreError(status, f.__name__, argv, module_name)
         return status
     return wrapped
+
 
 def wrap_core_log_call(f, log_fun, module_name):
     signature = inspect.signature(f)
@@ -272,10 +270,14 @@ class Context(Object):
     gpu_devices = []
 
     @classmethod
-    def register_plugin(cls, dll_path, cache_path):
-        cls.plugin_id = RegisterPlugin(encode(str(dll_path)))
+    def register_plugin(cls, lib_path, cache_path):
+        cls.plugin_id = RegisterPlugin(encode(str(lib_path)))
         if cls.plugin_id == -1:
-            raise RuntimeError("Plugin is not registered", dll_path)
+            error_msg = CoreError.get_last_error_message()
+            raise RuntimeError("Plugin is not registered", lib_path, error_msg)
+
+        if not cache_path.is_dir():
+            cache_path.mkdir(parents=True)
 
         cls.cache_path = str(cache_path)
 

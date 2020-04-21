@@ -95,9 +95,6 @@ import pyrpr2
 
 def register_plugins():
     def register_plugin(ContextCls, lib_name, cache_path):
-        if not cache_path.is_dir():
-            cache_path.mkdir(parents=True)
-
         lib_path = rprsdk_bin_path / lib_name
         ContextCls.register_plugin(lib_path, cache_path)
         log(f"Registered plugin: plugin_id={ContextCls.plugin_id}, "
@@ -114,17 +111,25 @@ def register_plugins():
     # enabling hybrid only for Windows and Linux
     pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
     if pyhybrid.enabled:
-        register_plugin(pyhybrid.Context,
-                        {'Windows': 'Hybrid.dll',
-                         'Linux': 'Hybrid.so'}[utils.OS],
-                        cache_path / f"{hex(pyrpr.API_VERSION)}_hybrid")
+        try:
+            register_plugin(pyhybrid.Context,
+                            {'Windows': 'Hybrid.dll',
+                             'Linux': 'Hybrid.so'}[utils.OS],
+                            cache_path / f"{hex(pyrpr.API_VERSION)}_hybrid")
+        except RuntimeError as err:
+            log.warn(err)
+            pyhybrid.enabled = False
 
     # enabling RPR 2 only for Windows
     pyrpr2.enabled = config.enable_rpr2 and utils.IS_WIN
     if pyrpr2.enabled:
-        register_plugin(pyrpr2.Context,
-                        "Northstar64.dll",
-                        cache_path / f"{hex(pyrpr.API_VERSION)}_rpr2")
+        try:
+            register_plugin(pyrpr2.Context,
+                            "Northstar64.dll",
+                            cache_path / f"{hex(pyrpr.API_VERSION)}_rpr2")
+        except RuntimeError as err:
+            log.warn(err)
+            pyrpr2.enabled = False
 
 
 # we do import of helper_lib just to load RPRBlenderHelper.dll at this stage
