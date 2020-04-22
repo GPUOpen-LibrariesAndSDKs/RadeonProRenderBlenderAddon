@@ -72,6 +72,10 @@ class ExportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
 
+        # adaptive subdivision will be limited to the current scene render size
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.sync_auto_adapt_subdivision(self.rpr_context.width, self.rpr_context.height)
+
         self.rpr_context.sync_portal_lights()
 
         # Exported scene will be rendered vertically flipped, flip it back
