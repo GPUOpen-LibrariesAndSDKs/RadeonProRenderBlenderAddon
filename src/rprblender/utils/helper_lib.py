@@ -47,7 +47,8 @@ def init():
         if (root_dir / "openvdb.dll").is_file():
             os.environ['PATH'] += ";" + str(root_dir)
         else:
-            os.environ['PATH'] += ";" + str((root_dir / "../../ThirdParty/openvdb/bin").absolute())
+            os.environ['PATH'] += ";" + str((root_dir / "../../RadeonProRenderSharedComponents/OpenVdb/Windows/bin")
+                                            .absolute())
 
     elif OS == 'Darwin':
         lib_name = "libRPRBlenderHelper.dylib"

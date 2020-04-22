@@ -21,7 +21,7 @@ setlocal enabledelayedexpansion
 rmdir /S /Q RPRBlenderHelper\.build src\bindings\pyrpr\.build src\bindings\pyrpr\src\__pycache__
 
 :check_castxml
-set castxml=ThirdParty\castxml\win\bin\castxml.exe
+set castxml=RadeonProRenderSharedComponents\castxml\win\bin\castxml.exe
 
 if not exist %castxml% (
 	echo Castxml tool is not found.
