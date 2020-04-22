@@ -15,7 +15,7 @@
 #include "stdafx.h"
 #include "SkyBuilder.h"
 #include "SkyGen.h"
-#include "../../FireRender.Components/cpp/SunPosition/SPA.h"
+#include "SPA.h"
 #include <vector>
 #include <assert.h>
 

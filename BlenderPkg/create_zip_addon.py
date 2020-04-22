@@ -71,7 +71,7 @@ def enumerate_addon_data():
                 yield f, Path("data/models") / f.relative_to(models_dir)
 
     if OS == 'Windows':
-        for lib in (repo_dir / "ThirdParty/openvdb/bin").glob("*"):
+        for lib in (repo_dir / "RadeonProRenderSharedComponents/OpenVdb/Windows/bin").glob("*"):
             yield lib, lib.name
 
 
