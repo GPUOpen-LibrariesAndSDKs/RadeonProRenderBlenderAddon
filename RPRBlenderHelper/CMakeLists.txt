@@ -23,19 +23,21 @@ endif()
 
 set(RPR_SDK_DIR ${CMAKE_SOURCE_DIR}/../.sdk/rpr)
 set(RPRTOOLS_DIR ${RPR_SDK_DIR}/rprTools)
-set(OPENVDB_SDK_PATH ${CMAKE_SOURCE_DIR}/../ThirdParty/openvdb)
+set(SHARED_DIR ${CMAKE_SOURCE_DIR}/../RadeonProRenderSharedComponents)
+set(OPENVDB_SDK_PATH ${SHARED_DIR}/OpenVdb)
 
 set(SOURCES
     RPRBlenderHelper/RPRBlenderHelper.cpp
     RPRBlenderHelper/SkyBuilder.cpp
     RPRBlenderHelper/SkyGen.cpp
-    ../FireRender.Components/cpp/SunPosition/SPA.cpp
+    ${SHARED_DIR}/src/SunPosition/SPA.cpp
     RPRBlenderHelper/CitiesDatabase.cpp
     ${RPRTOOLS_DIR}/RprTools.cpp
 )
 include_directories(
     ${RPR_SDK_DIR}/inc
     ${RPRTOOLS_DIR}
+    ${SHARED_DIR}/src/SunPosition
 )
 
 if(WIN32)
@@ -43,13 +45,16 @@ if(WIN32)
         RPRBlenderHelper/OpenVdb.cpp
         RPRBlenderHelper/dllmain.cpp
     )
-    include_directories(${OPENVDB_SDK_PATH}/include)
+    include_directories(
+        ${OPENVDB_SDK_PATH}/include
+        ${SHARED_DIR}/RadeonProRenderLibs/rprLibs
+	)
 
     set(LIBS
         ${RPR_SDK_DIR}/lib/RadeonProRender64.lib
-        ${OPENVDB_SDK_PATH}/lib/openvdb.lib
-        ${OPENVDB_SDK_PATH}/lib/Half-2_3.lib
-        ${OPENVDB_SDK_PATH}/lib/tbb.lib
+        ${OPENVDB_SDK_PATH}/Windows/lib/openvdb.lib
+        ${OPENVDB_SDK_PATH}/Windows/lib/Half-2_3.lib
+        ${OPENVDB_SDK_PATH}/Windows/lib/tbb.lib
     )
 else()
     if (${APPLE})

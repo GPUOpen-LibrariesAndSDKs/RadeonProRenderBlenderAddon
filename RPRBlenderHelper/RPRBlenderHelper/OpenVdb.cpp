@@ -14,7 +14,7 @@
 ********************************************************************/
 
 #include "stdafx.h"
-#include "../../RadeonProRenderLibs/rprLibs/pluginUtils.hpp"
+#include "pluginUtils.hpp"
 
 
 ////////////////////////////////////////////////////////////////////////////////////
