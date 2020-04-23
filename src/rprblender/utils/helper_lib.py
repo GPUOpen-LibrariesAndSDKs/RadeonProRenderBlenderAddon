@@ -18,7 +18,7 @@ import numpy as np
 import math
 import os
 
-from . import package_root_dir, IS_WIN
+from . import package_root_dir, IS_WIN, IS_MAC
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
@@ -80,7 +80,7 @@ def init():
     lib.get_sun_azimuth.restype = ctypes.c_float
     lib.get_sun_altitude.restype = ctypes.c_float
 
-    if IS_WIN:
+    if IS_WIN or IS_MAC:
         # OpenVdb functions
         lib.vdb_read_grids_list.argtypes = [ctypes.c_char_p]
         lib.vdb_read_grids_list.restype = ctypes.c_char_p

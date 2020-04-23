@@ -18,7 +18,7 @@ import numpy as np
 import bpy
 
 import pyrpr
-from rprblender.utils import helper_lib, IS_WIN, is_zero
+from rprblender.utils import helper_lib, IS_WIN, IS_MAC, is_zero
 
 from . import mesh, object, material
 
@@ -47,7 +47,7 @@ def get_transform(obj: bpy.types.Object):
 
 
 def sync(rpr_context, obj: bpy.types.Object):
-    if not IS_WIN:
+    if not (IS_WIN or IS_MAC):
         return
 
     # getting openvdb grid data
@@ -126,7 +126,7 @@ def sync(rpr_context, obj: bpy.types.Object):
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
-    if not IS_WIN:
+    if not (IS_WIN or IS_MAC):
         return
 
     obj_key = object.key(obj)

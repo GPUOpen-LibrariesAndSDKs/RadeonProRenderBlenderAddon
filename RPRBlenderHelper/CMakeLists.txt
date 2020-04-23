@@ -56,12 +56,29 @@ if(WIN32)
         ${OPENVDB_SDK_PATH}/Windows/lib/Half-2_3.lib
         ${OPENVDB_SDK_PATH}/Windows/lib/tbb.lib
     )
+
+elseif(${APPLE})
+    list(APPEND SOURCES
+        RPRBlenderHelper/OpenVdb.cpp
+    )
+    include_directories(
+        ${OPENVDB_SDK_PATH}/include
+        ${SHARED_DIR}/RadeonProRenderLibs/rprLibs
+    )
+
+    set(LIBS
+        ${RPR_SDK_DIR}/bin/libRadeonProRender64.dylib
+        ${OPENVDB_SDK_PATH}/OSX/lib/libopenvdb.a
+        ${OPENVDB_SDK_PATH}/OSX/lib/libz.a
+        ${OPENVDB_SDK_PATH}/OSX/lib/libblosc.a
+        ${OPENVDB_SDK_PATH}/OSX/lib/libsnappy.a
+        ${OPENVDB_SDK_PATH}/OSX/lib/libboost_iostreams.a
+        ${OPENVDB_SDK_PATH}/OSX/lib/libtbb.a
+    )
+
 else()
-    if (${APPLE})
-        set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.dylib)
-    else()
-        set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.so)
-    endif()
+    set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.so)
+
 endif()
 
 add_library(RPRBlenderHelper SHARED ${SOURCES})
