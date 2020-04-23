@@ -859,6 +859,7 @@ class ShaderNodeBsdfHair(NodeParser):
         component = self.node.component
         base_color = self.get_input_value('Color')
 
+        rotation_angle = self.get_input_value('Offset')
         roughness_u = self.get_input_value('RoughnessU')
         roughness_v = self.get_input_value('RoughnessV')
 
@@ -869,11 +870,19 @@ class ShaderNodeBsdfHair(NodeParser):
             rpr_node = self.create_node(pyrpr.MATERIAL_NODE_WARD)
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_X, roughness_u)
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_Y, roughness_v)
-        else:
-            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROTATION, rotation_angle)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, base_color)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, base_color)
-        
+        else:
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: base_color,
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT: 1.0,
+                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR: base_color,
+            })
+
         return rpr_node
 
     def export_hybrid(self):
