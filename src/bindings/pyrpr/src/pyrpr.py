@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import math
 import platform
 import traceback
 import inspect
@@ -651,7 +652,7 @@ class Shape(Object):
 class Curve(Object):
     core_type_name = 'rpr_curve'
 
-    def __init__(self, context, control_points, uvs, root_radius, tip_radius):
+    def __init__(self, context, control_points, points_radii, uvs):
         def to_segments(n):
             """Index iterator which splits curve with n points to segments by 4"""
             m = n - 1
@@ -660,6 +661,12 @@ class Curve(Object):
                 yield s + 1
                 yield min(s + 2, m)
                 yield min(s + 3, m)
+
+        def iter_segments_radii():
+            """ Get root and tip radii for each curve segment """
+            for e in range(0, curve_length, 4):
+                yield points_radii[segment_steps[e]]
+                yield points_radii[segment_steps[e + 3]]
 
         super().__init__()
         self.context = context
@@ -685,19 +692,12 @@ class Curve(Object):
         segments_per_curve = curve_length // 4
         # create list of indices 0-control_points length
         indices = np.arange(len(points), dtype=np.uint32)
-        # create list of full radius values for each curve
-        if root_radius == tip_radius:
-            is_tapered = 0
-            radii = np.full(num_curves, root_radius, dtype=np.float32)
-        else:
-            # tapered curves create list of radii per curve by linear interp
-            radius_delta = tip_radius - root_radius
-            is_tapered = 1
-            curve_radii = []
-            for seg in range(segments_per_curve):
-                curve_radii.extend([root_radius + (seg / segments_per_curve) * radius_delta, 
-                                    root_radius + ((seg + 1) / segments_per_curve) * radius_delta])
-            radii = np.full((num_curves, len(curve_radii)), curve_radii, dtype=np.float32)
+
+        # list full radius values for each curve
+        curve_radii = np.fromiter(iter_segments_radii(), dtype=np.float32)
+        radii = np.full((num_curves, len(curve_radii)), curve_radii, dtype=np.float32)
+
+        is_tapered = not np.all(radii == curve_radii[0])
 
         # create list of segments per curve num_segments = length / 4
         segments = np.full(num_curves, segments_per_curve, dtype=np.int32)
@@ -707,7 +707,8 @@ class Curve(Object):
             len(indices), num_curves,
             ffi.cast('rpr_uint*', indices.ctypes.data), ffi.cast("float *", radii.ctypes.data),
             uvs_ptr,
-            ffi.cast('rpr_int*', segments.ctypes.data), is_tapered)
+            ffi.cast('rpr_int*', segments.ctypes.data),
+            1 if is_tapered else 0)
         
     def delete(self):
         self.set_material(None)
