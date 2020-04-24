@@ -136,6 +136,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_max_ray_depth,
     render.RPR_RENDER_PT_pixel_filter,
     render.RPR_RENDER_PT_light_clamping,
+    render.RPR_RENDER_PT_bake_textures,
     render.RPR_RENDER_PT_motion_blur,
     render.RPR_RENDER_PT_render_stamp,
     render.RPR_RENDER_PT_film_transparency,
@@ -156,6 +157,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     material.RPR_MATERIAL_PT_volume,
     material_browser.RPR_MATERIL_PT_material_browser,
     material.RPR_MATERIAL_PT_node_arrange,
+    material.RPR_MATERIAL_PT_node_bake,
 
     camera.RPR_CAMERA_PT_dof,
     camera.RPR_CAMERA_PT_dof_aperture,
