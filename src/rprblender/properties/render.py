@@ -196,6 +196,21 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
+    bake_resolution: EnumProperty(
+        name="Texture Resolution",
+        description="Texture resolution to use for nodes baking.",
+        items=(
+            ('64', '64', '64'),
+            ('128', '128', '128'),
+            ('256', '256', '256'),
+            ('512', '512', '512'),
+            ('1024', '1024', '1024'),
+            ('2048', '2048', '2048'),
+            ('4096', '4096', '4096')
+        ),
+        default='2048',
+    )
+
 
 class RPR_RenderProperties(RPR_Properties):
     """ Main render properties. Available from scene.rpr """
