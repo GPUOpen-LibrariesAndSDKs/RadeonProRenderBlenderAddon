@@ -86,18 +86,30 @@ def sync_particles(rpr_context, particle_system, master_shape, master_key):
 class CurveData:
     points: np.array
     uvs: np.array
-    root_radius: float
-    tip_radius: float
+    points_radii: np.array
 
     @staticmethod
-    def init(p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, is_preview: bool):
+    def init(p_sys: bpy.types.ParticleSystem, obj: bpy.types.Object, use_viewport_settings: bool):
+        def shape_f(x, shape):
+            """
+            Adjust hair radius by Hair Shape
+            f(0, shape) = 0, f(1, shape) = 1, f(x, 0) - linear
+            shape > 0 - curved up, shape < 0 - curved down
+            """
+            return x ** (10.0 ** -shape)
+
         # render_steps is number of segments to render in power of 2
-        render_step = p_sys.settings.display_step if is_preview else p_sys.settings.render_step
+        settings = p_sys.settings
+
+        if use_viewport_settings:
+            render_step = settings.display_step
+        else:
+            render_step = settings.render_step
         length = 2 ** render_step + 1
 
         num_parents = len(p_sys.particles)
         start_index, curves_count = \
-            (0, num_parents) if p_sys.settings.child_type == 'NONE' else \
+            (0, num_parents) if settings.child_type == 'NONE' else \
             (num_parents, len(p_sys.child_particles))
 
         # getting all points of all curves
@@ -124,6 +136,20 @@ class CurveData:
             return None
 
         data = CurveData()
+
+        # calculating curve radii
+        radius_scale = settings.radius_scale * sum(abs(x) for x in obj.matrix_world.to_scale()) / 3
+        # Blender "radius" field value is in fact Diameter. Divide it by 2
+        root = settings.root_radius * radius_scale / 2.
+        tip = settings.tip_radius * radius_scale / 2.
+
+        data.points_radii = np.fromiter(
+            (root + (tip - root) * shape_f(i / (length - 1), settings.shape) for i in range(length)),
+            dtype=np.float32)
+
+        if settings.use_close_tip:
+            data.points_radii[length-1] = 0.0
+
         # getting final curve points
         data.points = np.ascontiguousarray(all_points[curve_indices], dtype=np.float32)
 
@@ -153,17 +179,13 @@ class CurveData:
         else:
             data.uvs = None
 
-        settings = p_sys.settings
-        radius_scale = settings.radius_scale * sum(abs(x) for x in obj.matrix_world.to_scale()) / 3
-        data.root_radius = settings.root_radius * radius_scale
-        data.tip_radius = 0.0 if settings.use_close_tip else settings.tip_radius * radius_scale
-
         return data
 
 
 def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object):
     """ sync the particle system """
     from rprblender.engine.preview_engine import PreviewEngine
+    from rprblender.engine.viewport_engine import ViewportEngine
 
     log("sync", p_sys, emitter)
 
@@ -172,12 +194,13 @@ def sync(rpr_context, p_sys: bpy.types.ParticleSystem, emitter: bpy.types.Object
     
     if p_sys.settings.type == 'HAIR':
         # hair does not have motion blur
-        curve_data = CurveData.init(p_sys, emitter, rpr_context.engine_type == PreviewEngine.TYPE)
+        curve_data = CurveData.init(p_sys, emitter,
+                                    rpr_context.engine_type in (PreviewEngine.TYPE, ViewportEngine.TYPE))
         if not curve_data:
             return
         
-        rpr_hair = rpr_context.create_curve(particle_key, curve_data.points,
-                                            curve_data.uvs, curve_data.root_radius, curve_data.tip_radius)
+        rpr_hair = rpr_context.create_curve(particle_key, curve_data.points, curve_data.points_radii,
+                                            curve_data.uvs)
         rpr_hair.set_name(str(particle_key))
         rpr_context.scene.attach(rpr_hair)
 
