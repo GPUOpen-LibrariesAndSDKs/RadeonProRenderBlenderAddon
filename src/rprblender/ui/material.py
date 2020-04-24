@@ -168,3 +168,22 @@ class RPR_MATERIAL_PT_node_arrange(RPR_Panel):
     def draw(self, context):
         self.layout.operator('rpr.arrange_material_nodes', text='Arrange')
 
+
+class RPR_MATERIAL_PT_node_bake(RPR_Panel):
+    bl_label = "RPR Node Bake"
+    bl_context = "material"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object and\
+               context.active_object.type == 'MESH' and\
+               len(context.selected_objects) == 1 and\
+               context.active_object in context.selected_objects and\
+               context.active_object.active_material and\
+               context.active_object.active_material.use_nodes and\
+               RPR_Panel.poll(context)
+
+    def draw(self, context):
+        self.layout.operator('rpr.bake_selected_nodes', text='Bake Selected Nodes')

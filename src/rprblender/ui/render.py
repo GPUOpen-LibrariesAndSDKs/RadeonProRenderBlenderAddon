@@ -203,6 +203,20 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
 
 
+class RPR_RENDER_PT_bake_textures(RPR_Panel):
+    bl_label = "Nodes Baking"
+    bl_parent_id = 'RPR_RENDER_PT_quality'
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        settings = get_user_settings()
+
+        self.layout.prop(settings, 'bake_resolution')
+        self.layout.operator('rpr.bake_all_nodes')
+
+
 class RPR_RENDER_PT_pixel_filter(RPR_Panel):
     bl_label = "Pixel Filter"
     bl_parent_id = 'RPR_RENDER_PT_quality'

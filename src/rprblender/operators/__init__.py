@@ -43,6 +43,8 @@ register_operators, unregister_operators = bpy.utils.register_classes_factory([
 
     nodes.RPR_MATERIAL_LIBRARY_OP_arrage_nodes,
     nodes.RPR_MATERIAL_OP_principled_to_uber,
+    nodes.RPR_NODE_OP_bake_selected_nodes,
+    nodes.RPR_NODE_OP_bake_all_nodes,
 
     material_library.RPR_MATERIAL_LIBRARY_OP_import_material,
 
@@ -58,10 +60,19 @@ def add_rpr_export_menu_item(self, context):
 
 
 def register():
+    # property needed for baked nodes operator
+    bpy.types.ShaderNode.rpr_baked_node_name = bpy.props.StringProperty(
+            name="Baked Node Name",
+            description="Baked Node Name",
+            default='',
+        )
     register_operators()
     bpy.types.TOPBAR_MT_file_export.append(add_rpr_export_menu_item)
+
+
 
 
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(add_rpr_export_menu_item)
     unregister_operators()
+    del bpy.types.ShaderNode.rpr_baked_node_name

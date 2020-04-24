@@ -13,13 +13,159 @@
 # limitations under the License.
 #********************************************************************
 from collections import defaultdict
-from bpy.props import FloatProperty
+from bpy.props import FloatProperty, EnumProperty
+
+from rprblender.utils.user_settings import get_user_settings
 from . import RPR_Operator
 from rprblender.export.material import get_material_output_node
 from rprblender.utils.logging import Log
 import math 
+import bpy
+from rprblender.nodes.node_parser import get_node_parser_class
 
 log = Log(tag='material.nodes.operator', level='info')
+
+
+def bake_nodes(node_tree, nodes, material, resolution, obj):
+    ''' bakes all nodes to a texture of resolution and makes texture nodes to replace them '''
+    ''' TODO this could possibly be made faster by doing in multiple subproceses '''
+    # setup
+    bpy.context.view_layer.objects.active = obj
+    obj.active_material = material
+
+    # find output node
+    output_node = get_material_output_node(material)
+    surface_socket = output_node.inputs['Surface']
+    surface_node = surface_socket.links[0].from_node if surface_socket.is_linked else None
+
+    # create emission node and hookup.  Emission node is needed to bake through
+    emission_node = node_tree.nodes.new(type='ShaderNodeEmission')
+    node_tree.links.new(emission_node.outputs[0], surface_socket)
+
+    # for each selected node create a texture and bake
+    for node in nodes:
+        for output in node.outputs:
+            # only bake connected outputs
+            if not output.is_linked:
+                continue
+
+            # create texture node if not already one
+            baked_texture_node_name = node.name + " Baked " + output.name
+            if hasattr(node, 'rpr_baked_node_name') \
+                    and node.rpr_baked_node_name == baked_texture_node_name \
+                    and node.rpr_baked_node_name in node_tree.nodes:
+                texture_node = node_tree.nodes[node.rpr_baked_node_name]
+            else:
+                texture_node = node_tree.nodes.new(type='ShaderNodeTexImage')
+                texture_node.location = [node.location[0], node.location[1] - node.height]
+                texture_node.name = node.name + " Baked " + output.name
+
+                # create input texture
+                image = bpy.data.images.new(name=texture_node.name, width=resolution, height=resolution)
+                texture_node.image = image
+
+            # hookup node to emission
+            temp_link = node_tree.links.new(output, emission_node.inputs[0])
+
+            # bake
+            node_tree.nodes.active = texture_node
+            rpr = bpy.context.scene.render.engine
+            bpy.context.scene.render.engine = 'CYCLES'
+            bpy.ops.object.bake(type='EMIT')
+            bpy.context.scene.render.engine = rpr
+
+            # hookup outputs
+            node_tree.links.remove(temp_link)
+            for link in output.links:
+                node_tree.links.new(texture_node.outputs[0], link.to_socket)
+            log.info("Baked Node ", node.name)
+
+            # save setting of texture node name for reuse
+            node.rpr_baked_node_name = texture_node.name
+
+    # remove emission
+    node_tree.nodes.remove(emission_node)      
+    if surface_node is not None:
+        node_tree.links.new(surface_node.outputs[0], surface_socket)
+
+
+class RPR_NODE_OP_bake_all_nodes(RPR_Operator):
+    bl_idname = "rpr.bake_all_nodes"
+    bl_label = "Bake All Nodes to Texture"
+    bl_description = "Bake all mesh objects material nodes to Textures"
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context)
+
+    def execute(self, context):
+        # iterate over all objects and find unsupported nodes
+        baked_materials = []
+        selected_object = context.active_object
+
+        for obj in context.scene.objects:
+            if obj.type != 'MESH':
+                continue
+
+            for material_slot in obj.material_slots:
+                if material_slot.material.name in baked_materials:
+                    continue
+                nt = material_slot.material.node_tree
+                if nt is None:
+                    continue
+
+                nodes_to_bake = []
+                for node in nt.nodes:
+                    if not get_node_parser_class(node.bl_idname):
+                        nodes_to_bake.append(node)
+
+                settings = get_user_settings()
+                resolution = settings.bake_resolution
+
+                old_selection = obj.select_get()
+                obj.select_set(True)
+                bake_nodes(nt, nodes_to_bake, material_slot.material, int(resolution), obj)
+                obj.select_set(old_selection)
+
+                baked_materials.append(material_slot.material.name)
+
+        selected_object.select_set(True)
+
+        return {'FINISHED'}      
+
+
+class RPR_NODE_OP_bake_selected_nodes(RPR_Operator):
+    bl_idname = "rpr.bake_selected_nodes"
+    bl_label = "Bake Selected Nodes to Texture"
+    bl_description = "Bake selected nodes to Texture"
+
+    resolution: EnumProperty(items=(('64', '64', '64'),
+                              ('128', '128', '128'),
+                              ('256', '256', '256'),
+                              ('512', '512', '512'),
+                              ('1024', '1024', '1024'),
+                              ('2048', '2048', '2048'),
+                              ('4096', '4096', '4096')),
+                            default='2048',
+                            name="Texture Resolution"
+                            )
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.object \
+               and context.object.active_material and context.object.active_material.node_tree
+
+    def execute(self, context):
+        space = context.space_data
+        nt = space.node_tree
+        nodes_selected = context.selected_nodes
+
+        settings = get_user_settings()
+        resolution = settings.bake_resolution
+
+        bake_nodes(nt, nodes_selected, context.material, int(resolution), bpy.context.active_object)
+
+        return {'FINISHED'}
 
 
 class RPR_MATERIAL_LIBRARY_OP_arrage_nodes(RPR_Operator):
