@@ -204,7 +204,7 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
 
 
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
-    bl_label = "Nodes Baking"
+    bl_label = "Node Baking"
     bl_parent_id = 'RPR_RENDER_PT_quality'
 
     def draw(self, context):
@@ -291,7 +291,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
 
         col = layout.column()
         col.enabled = context.scene.render.use_motion_blur
-        col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Camera Exposure", slider=True)
+        col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
 
 class RPR_RENDER_PT_film_transparency(RPR_Panel):

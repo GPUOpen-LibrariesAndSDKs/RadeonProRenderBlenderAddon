@@ -100,8 +100,8 @@ def bake_nodes(node_tree, nodes, material, resolution, obj):
 
 class RPR_NODE_OP_bake_all_nodes(RPR_Operator):
     bl_idname = "rpr.bake_all_nodes"
-    bl_label = "Bake All Nodes to Texture"
-    bl_description = "Bake all mesh objects material nodes to Textures"
+    bl_label = "Bake All Unsupported Nodes to Texture"
+    bl_description = "Bake all mesh objects material nodes that RPR does not handle natively to textures"
 
     @classmethod
     def poll(cls, context):
