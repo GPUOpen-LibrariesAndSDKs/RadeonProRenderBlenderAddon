@@ -69,19 +69,28 @@ def bake_nodes(node_tree, nodes, material, resolution, obj):
 
             # bake
             node_tree.nodes.active = texture_node
-            rpr = bpy.context.scene.render.engine
             bpy.context.scene.render.engine = 'CYCLES'
-            bpy.ops.object.bake(type='EMIT')
-            bpy.context.scene.render.engine = rpr
+            cycles_samples = bpy.context.scene.cycles.samples
+            bpy.context.scene.cycles.samples = 1  # only one sample needed
+            bake_succeeded = True
+            try:
+                bpy.ops.object.bake(type='EMIT')
+            except Exception:
+                bake_succeeded = False
+                log.error(f"Bake of node {node.name} in material {material.name} failed.")
 
-            # hookup outputs
-            node_tree.links.remove(temp_link)
-            for link in output.links:
-                node_tree.links.new(texture_node.outputs[0], link.to_socket)
-            log.info("Baked Node ", node.name)
+            bpy.context.scene.render.engine = 'RPR'
+            bpy.context.scene.cycles.samples = cycles_samples
 
-            # save setting of texture node name for reuse
-            node.rpr_baked_node_name = texture_node.name
+            if bake_succeeded:
+                # hookup outputs
+                node_tree.links.remove(temp_link)
+                for link in output.links:
+                    node_tree.links.new(texture_node.outputs[0], link.to_socket)
+                log.info("Baked Node", node.name)
+
+                # save setting of texture node name for reuse
+                node.rpr_baked_node_name = texture_node.name
 
     # remove emission
     node_tree.nodes.remove(emission_node)      
@@ -148,7 +157,7 @@ class RPR_NODE_OP_bake_selected_nodes(RPR_Operator):
                               ('4096', '4096', '4096')),
                             default='2048',
                             name="Texture Resolution"
-                            )
+                            )       
 
     @classmethod
     def poll(cls, context):
