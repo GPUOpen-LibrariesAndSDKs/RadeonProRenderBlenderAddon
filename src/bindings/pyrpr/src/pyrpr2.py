@@ -20,7 +20,7 @@ class Scene(pyrpr.Scene):
 
 
 class Curve(pyrpr.Curve):
-    def __init__(self, context, control_points, uvs, root_radius, tip_radius):
+    def __init__(self, context, control_points, points_radii, uvs):
         pass
 
     def delete(self):
