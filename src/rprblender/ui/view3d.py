@@ -40,9 +40,7 @@ class RPR_VIEW3D_PT_panel(RPR_Panel):
         if len(rpr.render_quality_items) > 1:
             layout.prop(rpr, 'render_quality')
 
-        row = layout.row()
-        row.enabled = len(rpr.render_quality_items) > 1
-        row.prop(rpr, 'render_mode')
+        layout.prop(rpr, 'render_mode')
 
 
 def draw_menu(self, context):
