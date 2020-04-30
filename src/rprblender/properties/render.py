@@ -55,7 +55,7 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     max_samples: IntProperty(
         name="Max Samples",
         description="Number of iterations to render for each pixel.",
-        min=16, default=64,
+        min=16, default=128,
     )
 
     noise_threshold: FloatProperty(
