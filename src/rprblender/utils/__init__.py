@@ -35,6 +35,10 @@ def package_root_dir():
     return Path(rprblender.__file__).parent
 
 
+def core_cache_dir():
+    return package_root_dir() / ".cache"
+
+
 def blender_root_dir():
     if IS_MAC:
         return Path(sys.executable).parent / '../Resources'
@@ -163,7 +167,6 @@ IS_MAC = OS == 'Darwin'
 IS_LINUX = OS == 'Linux'
 
 BLENDER_VERSION = f'{bpy.app.version[0]}.{bpy.app.version[1]}'
-USE_BLENDER_DENOISER = IS_MAC and BLENDER_VERSION >= '2.81'
 
 from . import logging
 log = logging.Log(tag='utils')

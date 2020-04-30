@@ -100,13 +100,13 @@ def register_plugins():
         log(f"Registered plugin: plugin_id={ContextCls.plugin_id}, "
                   f"lib_path={lib_path}, cache_path={cache_path}")
 
-    cache_path = utils.package_root_dir() / '.cache'
+    cache_dir = utils.core_cache_dir()
 
     register_plugin(pyrpr.Context,
                     {'Windows': 'Tahoe64.dll',
                      'Linux': 'libTahoe64.so',
                      'Darwin': 'libTahoe64.dylib'}[utils.OS],
-                    cache_path / f"{hex(pyrpr.API_VERSION)}_rpr")
+                    cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr")
 
     # enabling hybrid only for Windows and Linux
     pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
@@ -115,7 +115,7 @@ def register_plugins():
             register_plugin(pyhybrid.Context,
                             {'Windows': 'Hybrid.dll',
                              'Linux': 'Hybrid.so'}[utils.OS],
-                            cache_path / f"{hex(pyrpr.API_VERSION)}_hybrid")
+                            cache_dir / f"{hex(pyrpr.API_VERSION)}_hybrid")
         except RuntimeError as err:
             log.warn(err)
             pyhybrid.enabled = False
@@ -126,7 +126,7 @@ def register_plugins():
         try:
             register_plugin(pyrpr2.Context,
                             "Northstar64.dll",
-                            cache_path / f"{hex(pyrpr.API_VERSION)}_rpr2")
+                            cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr2")
         except RuntimeError as err:
             log.warn(err)
             pyrpr2.enabled = False

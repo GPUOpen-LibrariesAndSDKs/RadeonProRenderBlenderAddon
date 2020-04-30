@@ -63,12 +63,11 @@ def enumerate_addon_data():
     for lib in (repo_dir / ".sdk/rif/bin").glob("*"):
         yield lib, lib.name
 
-    if OS in ('Windows', 'Linux'):
-        # copy ML denoiser model data
-        models_dir = repo_dir / ".sdk/rif/models"
-        for f in models_dir.glob("**/*"):
-            if f.is_file():
-                yield f, Path("data/models") / f.relative_to(models_dir)
+    # copy ML denoiser model data
+    models_dir = repo_dir / ".sdk/rif/models"
+    for f in models_dir.glob("**/*"):
+        if f.is_file():
+            yield f, Path("data/models") / f.relative_to(models_dir)
 
     if OS == 'Windows':
         for lib in (repo_dir / "RadeonProRenderSharedComponents/OpenVdb/Windows/bin").glob("*"):

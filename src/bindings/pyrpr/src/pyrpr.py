@@ -109,7 +109,7 @@ def init(log_fun, rprsdk_bin_path=None):
         alternate_relative_paths += ["../../rif/bin"]
         lib_names = [
             'RadeonProRender64.dll',
-            'RadeonImageFilters64.dll',
+            'RadeonImageFilters.dll',
         ]
 
     elif platform.system() == "Linux":
@@ -277,10 +277,7 @@ class Context(Object):
             error_msg = CoreError.get_last_error_message()
             raise RuntimeError("Plugin is not registered", lib_path, error_msg)
 
-        if not cache_path.is_dir():
-            cache_path.mkdir(parents=True)
-
-        cls.cache_path = str(cache_path)
+        cls.cache_path = cache_path
 
     @classmethod
     def load_devices(cls):
@@ -328,8 +325,11 @@ class Context(Object):
             props_ptr = ffi.new("rpr_context_properties[]",
                                 [ffi.cast("rpr_context_properties", entry) for entry in props])
 
+        if not self.cache_path.is_dir():
+            self.cache_path.mkdir(parents=True)
+
         CreateContext(API_VERSION, [self.plugin_id], 1, flags,
-            props_ptr, encode(self.cache_path) if use_cache and self.cache_path else ffi.NULL,
+            props_ptr, encode(str(self.cache_path)) if use_cache and self.cache_path else ffi.NULL,
             self)
 
     def set_parameter(self, key, param):
