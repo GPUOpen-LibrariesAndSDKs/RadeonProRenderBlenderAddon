@@ -601,7 +601,7 @@ class RenderEngine(Engine):
 
             # Write stamp pixels to the RenderResult
             result = self.rpr_engine.begin_result(self.width - width, 0,
-                                                  width, height)
+                                                  width, height, layer=self.render_layer_name)
 
             for p in result.layers[0].passes:
                 p.rect = [e[:p.channels] for e in ordered_text_bytes]
@@ -610,6 +610,7 @@ class RenderEngine(Engine):
 
 
 from .context import RPRContext2
+
 
 class RenderEngine2(RenderEngine):
     _RPRContext = RPRContext2
