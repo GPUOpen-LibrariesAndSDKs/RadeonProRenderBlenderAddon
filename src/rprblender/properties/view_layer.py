@@ -23,9 +23,8 @@ from bpy.props import (
 )
 
 import pyrpr
-from rprblender.utils import logging, USE_BLENDER_DENOISER
+from rprblender.utils import logging
 from . import RPR_Properties
-import platform
 
 
 log = logging.Log(tag='properties.view_layer')
@@ -137,8 +136,7 @@ class RPR_DenoiserProperties(RPR_Properties):
         }
 
     def is_available(self, scene, is_final_engine=True):
-        return not USE_BLENDER_DENOISER and \
-               (self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
+        return (self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
                                              and scene.rpr.render_quality == 'FULL')) and \
                (scene.rpr.render_quality != 'FULL2')
 

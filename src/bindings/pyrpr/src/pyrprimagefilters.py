@@ -40,9 +40,9 @@ def init(log_fun, rprsdk_bin_path):
     rel_path = "../../rif/bin"
 
     lib_name = {
-        'Windows': "RadeonImageFilters64.dll",
-        'Linux': "libRadeonImageFilters64.so",
-        'Darwin': "libRadeonImageFilters64.dylib"
+        'Windows': "RadeonImageFilters.dll",
+        'Linux': "libRadeonImageFilters.so",
+        'Darwin': "libRadeonImageFilters.dylib"
     }[platform.system()]
 
     import __imagefilters
@@ -119,16 +119,23 @@ def get_device_count(backend_api_type):
         
 class Context(Object, metaclass=ABCMeta):
     core_type_name = 'rif_context'
+    cache_path = None
 
-    def __init__(self, rpr_context: pyrpr.Context):
+    @classmethod
+    def set_cache_path(cls, cache_path):
+        cls.cache_path = cache_path
+        if not cls.cache_path.is_dir():
+            cls.cache_path.mkdir(parents=True)
+
+    def __init__(self, rpr_context):
         super().__init__()
         if not self._check_devices():
             raise RuntimeError("No compatible devices to create image filter")
+
         self._create(rpr_context)
 
     def _create(self, rpr_context):
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(cache_path), self)
+        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(str(self.cache_path)), self)
 
     def _check_devices(self):
         return get_device_count(BACKEND_API_OPENCL) > 0
@@ -154,9 +161,9 @@ class ContextOpenCL(Context):
         cl_context = rpr_context.get_cl_context()
         cl_device = rpr_context.get_cl_device()
         cl_command_queue = rpr_context.get_cl_command_queue()
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
 
-        CreateContextFromOpenClContext(API_VERSION, cl_context, cl_device, cl_command_queue, pyrpr.encode(cache_path), self)
+        CreateContextFromOpenClContext(API_VERSION, cl_context, cl_device, cl_command_queue,
+                                       pyrpr.encode(str(self.cache_path)), self)
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageCL(self, frame_buffer)
@@ -164,9 +171,9 @@ class ContextOpenCL(Context):
 
 class ContextMetal(Context):
     def _create(self, rpr_context):
-        cache_path = rpr_context.get_info_str(pyrpr.CONTEXT_CACHE_PATH)
         metal_device = pyrpr.get_first_gpu_id_used(rpr_context.get_creation_flags())
-        CreateContext(API_VERSION, BACKEND_API_METAL, metal_device, pyrpr.encode(cache_path), self)
+        CreateContext(API_VERSION, BACKEND_API_METAL, metal_device,
+                      pyrpr.encode(str(self.cache_path)), self)
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageMetal(self, frame_buffer)

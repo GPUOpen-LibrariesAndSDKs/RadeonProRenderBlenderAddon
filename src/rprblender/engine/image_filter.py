@@ -16,7 +16,9 @@ from abc import ABCMeta, abstractmethod
 
 import pyrpr
 import pyhybrid
+import pyrpr2
 import pyrprimagefilters as rif
+
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
@@ -27,15 +29,18 @@ class ImageFilter(metaclass=ABCMeta):
         # field for custom external settings
         self.settings = None
 
+        rif.Context.set_cache_path(utils.core_cache_dir() / f"{hex(rif.API_VERSION)}_rif")
+
         # creating context
         creation_flags = rpr_context.get_creation_flags()
         if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
             self.context = rif.ContextMetal(rpr_context)
-        elif pyrpr.is_gpu_enabled(creation_flags) and not isinstance(rpr_context, pyhybrid.Context):
+        elif pyrpr.is_gpu_enabled(creation_flags) and \
+                not isinstance(rpr_context, (pyhybrid.Context, pyrpr2.Context)):
             self.context = rif.ContextOpenCL(rpr_context)
         else:
             self.context = rif.Context(rpr_context)
-
+        
         self.width = width
         self.height = height
         self.filter = None
@@ -154,7 +159,7 @@ class ImageFilterML(ImageFilter):
         as well as an albedo '''
     def _create_filter(self):
         devices = self.get_devices()
-        use_oidn = (utils.IS_WIN and devices.cpu_state) or utils.IS_MAC
+        use_oidn = (utils.IS_WIN and devices.cpu_state) 
         if use_oidn:
             self.filter = self.context.create_filter(rif.IMAGE_FILTER_OPENIMAGE_DENOISE)
         else:
@@ -162,13 +167,12 @@ class ImageFilterML(ImageFilter):
 
         self.filter.set_parameter('useHDR', True)
 
-        if utils.IS_WIN or utils.IS_LINUX:
-            models_path = utils.package_root_dir() / 'data/models'
-            if not models_path.is_dir():
-                # set alternative path
-                models_path = utils.package_root_dir() / '../../.sdk/rif/models'
-            self.filter.set_parameter('modelPath', str(models_path))
-
+        models_path = utils.package_root_dir() / 'data/models'
+        if not models_path.is_dir():
+            # set alternative path
+            models_path = utils.package_root_dir() / '../../.sdk/rif/models'
+        self.filter.set_parameter('modelPath', str(models_path))
+        
         ml_output_image = self.context.create_image(self.width, self.height, 3)
 
         use_color_only = 'normal' not in self.inputs
