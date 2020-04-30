@@ -42,7 +42,7 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RadeonImageFilters64', 'python37']
+    lib_names = ['RadeonProRender64', 'RadeonImageFilters', 'python37']
 
     inc_dir = [str(base / "src/bindings/pyrpr"),
                str(rpr_sdk['inc']),

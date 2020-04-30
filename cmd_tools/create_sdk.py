@@ -109,9 +109,9 @@ def copy_rif_sdk():
             shutil.copy(str(lib), str(sdk_lib_dir))
 
     elif OS == 'Linux':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters64.so.1.5.0"),
-                    str(sdk_bin_dir / "libRadeonImageFilters64.so"))
-        shutil.copy(str(bin_dir / "libRadeonML-MIOpen.so.1.5.4"),
+        shutil.copy(str(bin_dir / "libRadeonImageFilters.so.1.5.1"),
+                    str(sdk_bin_dir / "libRadeonImageFilters.so"))
+        shutil.copy(str(bin_dir / "libRadeonML-MIOpen.so.0.9.2"),
                     str(sdk_bin_dir / "libRadeonML-MIOpen.so"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.so.0.9.0"),
                     str(sdk_bin_dir / "libOpenImageDenoise.so"))
@@ -119,14 +119,17 @@ def copy_rif_sdk():
                     str(sdk_bin_dir / "libMIOpen.so.2"))
 
     elif OS == 'Darwin':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters64.1.5.0.dylib"),
-                    str(sdk_bin_dir / "libRadeonImageFilters64.dylib"))
+        shutil.copy(str(bin_dir / "libRadeonImageFilters.1.5.1.dylib"),
+                    str(sdk_bin_dir / "libRadeonImageFilters.dylib"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.0.9.0.dylib"),
                     str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
+        shutil.copy(str(bin_dir / "libRadeonML-MPS.0.9.2.dylib"),
+                    str(sdk_bin_dir / "libRadeonML-MPS.dylib"))
 
         # adjusting id of RIF libs
-        install_name_tool('-id', "@rpath/libRadeonImageFilters64.dylib", sdk_bin_dir / "libRadeonImageFilters64.dylib")
+        install_name_tool('-id', "@rpath/libRadeonImageFilters.dylib", sdk_bin_dir / "libRadeonImageFilters.dylib")
         install_name_tool('-id', "@rpath/libOpenImageDenoise.dylib", sdk_bin_dir / "libOpenImageDenoise.dylib")
+        install_name_tool('-id', "@rpath/libRadeonML-MPS.dylib", sdk_bin_dir / "libRadeonML-MPS.dylib")
 
     else:
         raise KeyError("Unsupported OS", OS)
