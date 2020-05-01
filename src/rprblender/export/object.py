@@ -17,7 +17,7 @@ import numpy as np
 
 import bpy
 
-from . import mesh, light, camera, to_mesh, volume, openvdb
+from . import mesh, light, camera, to_mesh, volume, openvdb, particle, hair
 from rprblender.utils import logging
 log = logging.Log(tag='export.object')
 
@@ -32,6 +32,8 @@ def get_transform(obj: bpy.types.Object):
 
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     """ sync the object and any data attached """
+
+    from rprblender.engine.render_engine import RenderEngine
 
     log("sync", obj, obj.type)
 
@@ -58,6 +60,12 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
 
     if obj.type in ('MESH', 'CURVE', 'FONT', 'SURFACE', 'META'):
         volume.sync(rpr_context, obj)
+        hair.sync(rpr_context, obj)
+
+        # Note: particles should be exported separately in final render engine
+        #       after motion blur, otherwise prev_location of particle will be (0, 0, 0)
+        if rpr_context.engine_type != RenderEngine.TYPE:
+            particle.sync(rpr_context, obj)
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
@@ -87,5 +95,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     if obj.type in ('MESH', 'CURVE', 'FONT', 'SURFACE', 'META'):
         updated |= volume.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= hair.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= particle.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     return updated

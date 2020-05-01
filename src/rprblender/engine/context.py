@@ -57,7 +57,7 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
-        self.particles = {}
+        self.curves = {}
         self.volumes = {}
 
         self.do_motion_blur = False
@@ -110,7 +110,7 @@ class RPRContext:
         self.scene.clear()
 
         self.objects = {}
-        self.particles = {}
+        self.curves = {}
         self.volumes = {}
 
         self.material_nodes = {}
@@ -405,7 +405,7 @@ class RPRContext:
 
     def create_curve(self, key, control_points, points_radii, uvs):
         curve = self._Curve(self.context, control_points, points_radii, uvs)
-        self.particles[key] = curve
+        self.curves[key] = curve
         return curve
 
     def create_hetero_volume(self, key):
@@ -487,7 +487,7 @@ class RPRContext:
                 instance = self.objects.pop(k)
                 self.scene.detach(instance)
 
-        self.remove_particles(key)
+        self.remove_curves(key)
         self.remove_volumes(key)
 
         if isinstance(obj, pyrpr.Mesh):
@@ -504,17 +504,23 @@ class RPRContext:
 
         del self.objects[key]
 
-    def remove_particles(self, base_obj_key):
-        keys = tuple(k for k in self.particles.keys() if k[0] == base_obj_key)
+    def remove_curves(self, base_obj_key):
+        keys = tuple(k for k in self.curves.keys() if k[0] == base_obj_key)
         for k in keys:
-            particle = self.particles.pop(k)
+            particle = self.curves.pop(k)
             self.scene.detach(particle)
+
+    def has_curves(self, base_obj_key):
+        return bool(next((k for k in self.curves.keys() if k[0] == base_obj_key), None))
 
     def remove_volumes(self, base_obj_key):
         keys = tuple(k for k in self.volumes.keys() if k[0] == base_obj_key)
         for k in keys:
             volume = self.volumes.pop(k)
             self.scene.detach(volume)
+
+    def has_volumes(self, base_obj_key):
+        return bool(next((k for k in self.volumes.keys() if k[0] == base_obj_key), None))
 
     def remove_image(self, key):
         del self.images[key]

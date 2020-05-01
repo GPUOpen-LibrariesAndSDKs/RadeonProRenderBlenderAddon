@@ -369,6 +369,7 @@ class RenderEngine(Engine):
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
                 return
+
         self.notify_status(0, "Syncing instances 100%")
 
         # EXPORT CAMERA
@@ -421,32 +422,13 @@ class RenderEngine(Engine):
         # EXPORT PARTICLES
         # Note: particles should be exported after motion blur,
         #       otherwise prev_location of particle will be (0, 0, 0)
+        self.notify_status(0, "Syncing particles")
         for obj in self.depsgraph_objects(depsgraph):
-            if len(obj.particle_systems) == 0:
-                continue
-
-            for particle_system in obj.particle_systems:
-                self.notify_status(0, f"Syncing particles: {particle_system.name} on {obj.name}")
-
-                particle.sync(self.rpr_context, particle_system, obj)
-
-                if self.rpr_engine.test_break():
-                    log.warn("Syncing stopped by user termination")
-                    return
+            particle.sync(self.rpr_context, obj)
 
         # objects linked to scene as a collection are instanced, so walk thru them for particles
         for entry in self.depsgraph_instances(depsgraph):
-            if len(entry.instance_object.particle_systems) == 0:
-                continue
-
-            for particle_system in entry.instance_object.particle_systems:
-                self.notify_status(0, f"Syncing instance particles: {particle_system.name} on {entry.instance_object.name}")
-
-                particle.sync(self.rpr_context, particle_system, entry.instance_object)
-
-                if self.rpr_engine.test_break():
-                    log.warn("Syncing stopped by user termination")
-                    return
+            particle.sync(self.rpr_context, entry.instance_object)
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0

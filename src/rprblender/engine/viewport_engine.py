@@ -257,11 +257,6 @@ class ViewportEngine(Engine):
                 object.sync(self.rpr_context, obj,
                             indirect_only=indirect_only, material_override=material_override)
 
-                if len(obj.particle_systems):
-                    # export particles
-                    for particle_system in obj.particle_systems:
-                        particle.sync(self.rpr_context, particle_system, obj)
-
             # exporting instances
             instances_len = len(depsgraph.object_instances)
             last_instances_percent = 0
@@ -279,11 +274,6 @@ class ViewportEngine(Engine):
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override)
-
-                if len(inst.instance_object.particle_systems):
-                    # export particles
-                    for particle_system in inst.instance_object.particle_systems:
-                        particle.sync(self.rpr_context, particle_system, inst.instance_object)
 
             # shadow catcher
             self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
