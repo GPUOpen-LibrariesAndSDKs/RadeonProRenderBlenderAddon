@@ -131,21 +131,15 @@ def sync(rpr_context, obj: bpy.types.Object):
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
     obj_key = object.key(obj)
 
-    def has_volumes():
-        return bool(next((k for k in rpr_context.particles.keys() if k[0] == obj_key), None))
-
     updated = False
 
-    if has_volumes():
+    if rpr_context.has_volumes(obj_key):
         rpr_context.remove_volumes(obj_key)
         updated = True
 
     sync(rpr_context, obj)
 
-    if has_volumes():
+    if rpr_context.has_volumes(obj_key):
         updated = True
 
     return updated
-
-
-

@@ -98,11 +98,6 @@ class PreviewEngine(Engine):
         for obj in self.depsgraph_objects(depsgraph):
             object.sync(self.rpr_context, obj)
 
-            if len(obj.particle_systems):
-                # export particles
-                for particle_system in obj.particle_systems:
-                    particle.sync(self.rpr_context, particle_system, obj)
-
         # export camera
         camera.sync(self.rpr_context, depsgraph.objects[depsgraph.scene.camera.name])
 

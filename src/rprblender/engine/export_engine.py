@@ -60,9 +60,6 @@ class ExportEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
             object.sync(self.rpr_context, obj, indirect_only=indirect_only)
 
-            for particle_system in obj.particle_systems:
-                particle.sync(self.rpr_context, particle_system, obj)
-
         # instances
         for inst in self.depsgraph_instances(depsgraph):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
