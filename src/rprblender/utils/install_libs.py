@@ -12,64 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import bpy
+import sys
+import site
+import subprocess
 
-import platform
+import bpy
+from . import IS_MAC, IS_LINUX
 
 from rprblender.utils.logging import Log
 log = Log(tag="install_libs")
 
 
-PYTHON_PATH = bpy.app.binary_path_python
+# adding user site-packages path to sys.path
+if site.getusersitepackages() not in sys.path:
+    sys.path.append(site.getusersitepackages())
 
 
-def run_python_call(*args) -> bool:
-    """
-    Run Blender Python with arguments on user access level
-    """
-    import subprocess
+def run_module_call(*args):
+    """Run Blender Python with arguments on user access level"""
+    module_args = ('-m', *args, '--user')
+    log(f"Running subprocess.check_call {module_args}")
 
-    log(f"Running the subprocess.call '{args} --user'")
-
-    try:
-        subprocess.check_call([PYTHON_PATH, '-m', *args, '--user'])
-        return True
-    except subprocess.CalledProcessError as e:
-        log.warn(f"\nSubprocess call '{args}' failed:\n\t{e}")
-
-    return False
+    subprocess.check_call([bpy.app.binary_path_python, *module_args], timeout=60.0)
 
 
 def run_pip(*args):
-    """
-    Run 'pip install' with current user access level
-    """
-    return run_python_call('pip', 'install', *args)
+    """Run 'pip install' with current user access level"""
+    return run_module_call('pip', 'install', *args)
 
 
-def ensure_boto3() -> None:
+def ensure_boto3():
     """
-    Try to install boto3 library at the addon launch time
+    Try to install boto3 library at the addon launch time.
+    Use this snippet to install boto3 library with all the dependencies if absent at the addon launch time
+    Note: still it will be available at the next Blender launch only
     """
-    # use this snippet to install boto3 library with all the dependencies if absent at the addon launch time
-    # note: still it will be available at the next Blender launch only
     try:
         import boto3
-    except (ImportError, ModuleNotFoundError):
+
+    except ImportError:
         log.info("Installing boto3 library...")
-        running_os = platform.system()
-        if running_os in ('Linux', 'Darwin'):  # Blender for Linux and MacOS have ensurepip module. Linux has no pip
-            if run_python_call('ensurepip', '--upgrade') and run_pip("--upgrade", "pip") and run_pip('boto3'):
-                log.info("Library boto3 installed and ready to use.")
-                return
-        elif run_pip("--upgrade", "pip") and run_pip("boto3"):  # Blender for Windows has pip and no ensurepip module
-            # Note: at this point library can be loaded by direct path usage, for example:
-            # hardcoded_path = "C:\\Users\\<user_name>\\AppData\\Roaming\\Python\\Python37\\site-packages"
-            # importlib.sys.path.append(hardcoded_path)
-            # globals()['boto3'] = importlib.import_module('boto3')
+        try:
+            if IS_MAC or IS_LINUX:
+                # Blender for Linux and MacOS have ensurepip module. Linux has no pip
+                run_module_call('ensurepip', '--upgrade')
 
-            # after Blender restart no path modification would be needed. Report and let it be.
-            log.info("Library boto3 should be available after Blender restart.")
-            return
+            run_pip("--upgrade", "pip")
+            run_pip("wheel")
+            run_pip('boto3')
+            log.info("Library boto3 installed and ready to use.")
 
-        log.warn("Something went wrong, unable to install boto3 library.")
+        except subprocess.SubprocessError as e:
+            log.warn("Something went wrong, unable to install boto3 library.", e)
