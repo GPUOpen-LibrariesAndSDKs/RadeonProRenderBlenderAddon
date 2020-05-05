@@ -1293,24 +1293,33 @@ class ShaderNodeBump(NodeParser):
         height = self.get_input_link('Height')
         normal = self.get_input_link('Normal')
 
-        if height:
-            distance *= height
+        if not height or strength.is_zero():
+            # nothing hooked up to height?  Just use normal
+            return self.get_input_normal('Normal')
+
+        # mix normal with bump over normal via strength factor
+        # strength is named "factor" in other nodes
 
         if self.node.invert:
             distance = -distance
 
-        node = self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
-            pyrpr.MATERIAL_INPUT_COLOR: distance,
+        bump_node = self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
+            pyrpr.MATERIAL_INPUT_COLOR: height * distance,
             pyrpr.MATERIAL_INPUT_SCALE: strength
         })
 
-        if normal:
-            log.warn("Normal input is not supported by ShaderNodeBump node")
+        # use surface normal if not hooked up
+        if normal is None:
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N
+            })
+        else:
+            # RPR normal map seems stronger than cycles here.  But this is expected?
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_NORMAL_MAP, {
+                pyrpr.MATERIAL_INPUT_COLOR: normal,
+            })
 
-        return node
-
-    def export_hybrid(self):
-        return None
+        return strength.blend(normal_node, bump_node + normal_node)
 
 
 class ShaderNodeValue(NodeParser):
