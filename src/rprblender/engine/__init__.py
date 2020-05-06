@@ -34,7 +34,9 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         import pyhybrid
         import pyrpr2
 
-        log.info("RPR Core version", hex(pyrpr.API_VERSION))
+        rpr_version = utils.core_ver_str(full=True)
+
+        log.info(f"RPR Core version: {rpr_version}")
         pyrpr.lib_wrapped_log_calls = config.pyrpr_log_calls
         pyrpr.init(logging.Log(tag='core'), rprsdk_bin_path=rprsdk_bin_path)
 
@@ -42,7 +44,8 @@ def pyrpr_init(bindings_import_path, rprsdk_bin_path):
         pyrpr_load_store.init(rprsdk_bin_path)
 
         import pyrprimagefilters
-        log.info("Image Filters version", hex(pyrprimagefilters.API_VERSION))
+        rif_version = utils.rif_ver_str(full=True)
+        log.info(f"Image Filters version {rif_version}")
         pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
         pyrprimagefilters.init(log, rprsdk_bin_path=rprsdk_bin_path)
 
