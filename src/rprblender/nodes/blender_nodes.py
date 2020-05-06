@@ -999,9 +999,8 @@ class ShaderNodeTexCoord(RuleNodeParser):
         "Object": {
             "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
             "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P,
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
             },
-            "warn": "TexCoord Object output is not supported, world coordinate will be used"
         },
 
         "hybrid:Generated": None,
@@ -1032,6 +1031,7 @@ class ShaderNodeMixRGB(NodeParser):
 
         # these mix types are copied from cycles OSL
         blend_type = self.node.blend_type
+
         if blend_type in ('MIX', 'COLOR'):
             rpr_node = fac.blend(color1, color2)
 
@@ -1053,13 +1053,38 @@ class ShaderNodeMixRGB(NodeParser):
         elif blend_type == 'DARKEN':
             rpr_node = fac.blend(color1, color1.min(color2))
 
+        elif blend_type == 'LIGHTEN':
+            rpr_node = fac.blend(color1, color1.max(color2))
+
         elif blend_type == 'VALUE':
             rpr_node = color1
 
+        elif blend_type == 'OVERLAY':
+            test_val = color1 < 0.5
+
+            rpr_node = fac.blend(color1, test_val.if_else(2.0 * color1 * color2,
+                (1.0 - (1.0 - color1) * (1.0 - color2))))
+
+        elif blend_type == 'SCREEN':
+            tm = 1.0 - fac
+            rpr_node = 1.0 - (tm + fac * (1.0 - color2)) * (1.0 - color1)
+
+        elif blend_type == 'SOFT_LIGHT':
+            tm = 1.0 - fac
+            scr = 1.0 - (1.0 - color2) * (1.0 - color1)
+            rpr_node = tm * color1 + fac * ((1.0 - color1) * color2 * color1 + color1 * scr)
+
+        elif blend_type == 'LINEAR_LIGHT':
+            test_val = color2 > 0.5
+            rpr_node = test_val.if_else(color1 + fac * (2.0 * (color2 - 0.5)),
+                                        color1 + fac * (2.0 * color2 - 1.0))
+
+
         else:
-            # TODO: finish other mix types: SATURATION, HUE, LINEAR_LIGHT, SOFT_LIGHT, OVERLAY, DODGE, SCREEN, LIGHTEN, BURN
-            log.warn("Ignoring unsupported Blend Type", blend_type, self.node, self.material)
-            return None
+            # TODO: finish other mix types: SATURATION, HUE, SCREEN, BURN
+            log.warn("Ignoring unsupported Blend Type", blend_type, self.node, self.material, 
+                     "mix will be used")
+            rpr_node = fac.blend(color1, color2)
 
         if self.node.use_clamp:
             rpr_node = rpr_node.clamp()
