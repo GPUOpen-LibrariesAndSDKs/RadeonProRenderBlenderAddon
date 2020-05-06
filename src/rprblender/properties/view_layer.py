@@ -23,6 +23,8 @@ from bpy.props import (
 )
 
 import pyrpr
+from rprblender import utils
+
 from rprblender.utils import logging
 from . import RPR_Properties
 
@@ -39,12 +41,11 @@ class RPR_DenoiserProperties(RPR_Properties):
 
     # only enable ML denoiser on windows
     items = (
-            ('BILATERAL', "Bilateral", "Bilateral", 0),
-            ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
-            ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
-            ('ML', "Machine Learning", "Machine Learning. Available with GPU and "
-                                       "Full render quality", 3)
-        )
+        ('BILATERAL', "Bilateral", "Bilateral", 0),
+        ('LWR', "Local Weighted Regression", "Local Weighted Regression", 1),
+        ('EAW', "Edge Avoiding Wavelets", "Edge Avoiding Wavelets", 2),
+        ('ML', "Machine Learning", "Machine Learning", 3)
+    )
 
     filter_type: EnumProperty(
         name="Filter Type",
@@ -136,9 +137,7 @@ class RPR_DenoiserProperties(RPR_Properties):
         }
 
     def is_available(self, scene, is_final_engine=True):
-        return (self.filter_type != 'ML' or (scene.rpr.get_devices(is_final_engine).has_gpu()
-                                             and scene.rpr.render_quality == 'FULL')) and \
-               (scene.rpr.render_quality != 'FULL2')
+        return scene.rpr.render_quality != 'FULL2'
 
 
 class RPR_ViewLayerProperites(RPR_Properties):

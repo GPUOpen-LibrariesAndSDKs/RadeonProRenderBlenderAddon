@@ -398,19 +398,10 @@ class Context(Object):
         ContextGetInfo(self, CONTEXT_CREATION_FLAGS, sys.getsizeof(creation_flags), creation_flags, ffi.NULL)
         return creation_flags[0]
 
-    def _get_cl_info(self, cl_type, cl_str_type):
-        val = ffi.new('%s *' % cl_str_type)
-        ContextGetInfo(self, cl_type, sys.getsizeof(val), val, ffi.NULL)
+    def get_info(self, context_info, str_type):
+        val = ffi.new('%s *' % str_type)
+        ContextGetInfo(self, context_info, sys.getsizeof(val), val, ffi.NULL)
         return val[0]
-
-    def get_cl_context(self):
-        return self._get_cl_info(CL_CONTEXT, 'rpr_cl_context')
-
-    def get_cl_device(self):
-        return self._get_cl_info(CL_DEVICE, 'rpr_cl_device')
-
-    def get_cl_command_queue(self):
-        return self._get_cl_info(CL_COMMAND_QUEUE, 'rpr_cl_command_queue')
 
 
 class Scene(Object):

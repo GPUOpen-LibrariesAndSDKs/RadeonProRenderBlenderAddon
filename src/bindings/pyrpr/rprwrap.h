@@ -19,3 +19,7 @@
 #if defined(_WIN32) || defined(__linux__)
 #include "RadeonProRender_Baikal.h"
 #endif
+
+#if defined(__APPLE__)
+#include "RadeonProRender_Metal.h"
+#endif
