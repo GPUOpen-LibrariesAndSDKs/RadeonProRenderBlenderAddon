@@ -54,9 +54,28 @@ def get_cpu_threads_number():
     return multiprocessing.cpu_count()
 
 
-def core_ver_str():
+def core_ver_str(full: bool = False) -> str:
+    """
+    Return readable core SDK version as #.#.#
+    Add build version hex number in full mode
+    """
     import pyrpr
-    return f"{pyrpr.VERSION_MAJOR}.{pyrpr.VERSION_MINOR}.{pyrpr.VERSION_REVISION}"
+    version = f"{pyrpr.VERSION_MAJOR}.{pyrpr.VERSION_MINOR}.{pyrpr.VERSION_REVISION}"
+    if full and pyrpr.VERSION_BUILD > 0:
+        version += f" build {hex(pyrpr.VERSION_BUILD)}"
+    return version
+
+
+def rif_ver_str(full: bool = False) -> str:
+    """
+    Return readable RIF version as #.#.#
+    Add build version hex number in full mode
+    """
+    import pyrprimagefilters
+    version = f"{pyrprimagefilters.VERSION_MAJOR}.{pyrprimagefilters.VERSION_MINOR}.{pyrprimagefilters.VERSION_REVISION}"
+    if full and pyrprimagefilters.COMMIT_INFO:
+        version += f" build {hex(pyrprimagefilters.COMMIT_INFO)}"
+    return version
 
 
 def tile_iterator(tile_order, width, height, tile_width, tile_height):

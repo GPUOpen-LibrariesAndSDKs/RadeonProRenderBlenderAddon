@@ -326,9 +326,8 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
         # Drawing info about plugin
         col = layout.column(align=True)
         version = bl_info['version']
-        label_center(col, "%s for Blender %d.%d.%d (core %s)" % (
-            bl_info['name'], version[0], version[1], version[2], utils.core_ver_str()
-        ))
+        label_center(col, f"{bl_info['name']} for Blender {version[0]}.{version[1]}.{version[2]}")
+        label_center(col, f"(core {utils.core_ver_str()}, RIF {utils.rif_ver_str()})")
         label_center(col, "© 2016 Advanced Micro Devices, Inc. (AMD)")
         label_center(col, "Portions of this software are created")
         label_center(col, "and copyrighted to other third parties.")
