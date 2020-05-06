@@ -75,6 +75,7 @@ def init(log_fun, rprsdk_bin_path):
 
 
 API_VERSION = (VERSION_MAJOR << 58) | (VERSION_MINOR << 50) | (VERSION_REVISION << 32) | COMMIT_INFO
+BACKEND_API = BACKEND_API_METAL if platform.system() == 'Darwin' else BACKEND_API_OPENCL
 
 
 class Object:
@@ -127,7 +128,7 @@ class Context(Object, metaclass=ABCMeta):
         if not cls.cache_path.is_dir():
             cls.cache_path.mkdir(parents=True)
 
-    def __init__(self, rpr_context):
+    def __init__(self, rpr_context: pyrpr.Context):
         super().__init__()
         if not self._check_devices():
             raise RuntimeError("No compatible devices to create image filter")
@@ -135,10 +136,11 @@ class Context(Object, metaclass=ABCMeta):
         self._create(rpr_context)
 
     def _create(self, rpr_context):
-        CreateContext(API_VERSION, BACKEND_API_OPENCL, 0, pyrpr.encode(str(self.cache_path)), self)
+        CreateContext(API_VERSION, BACKEND_API,
+                      0, pyrpr.encode(str(self.cache_path)), self)
 
     def _check_devices(self):
-        return get_device_count(BACKEND_API_OPENCL) > 0
+        return get_device_count(BACKEND_API) > 0
 
     def create_image(self, width, height, components=4):
         return Image(self, width, height, components)
@@ -158,9 +160,9 @@ class Context(Object, metaclass=ABCMeta):
 
 class ContextOpenCL(Context):
     def _create(self, rpr_context):
-        cl_context = rpr_context.get_cl_context()
-        cl_device = rpr_context.get_cl_device()
-        cl_command_queue = rpr_context.get_cl_command_queue()
+        cl_context = rpr_context.get_info(pyrpr.CL_CONTEXT, 'rpr_cl_context')
+        cl_device = rpr_context.get_info(pyrpr.CL_DEVICE, 'rpr_cl_device')
+        cl_command_queue = rpr_context.get_info(pyrpr.CL_COMMAND_QUEUE, 'rpr_cl_command_queue')
 
         CreateContextFromOpenClContext(API_VERSION, cl_context, cl_device, cl_command_queue,
                                        pyrpr.encode(str(self.cache_path)), self)
@@ -171,15 +173,13 @@ class ContextOpenCL(Context):
 
 class ContextMetal(Context):
     def _create(self, rpr_context):
-        metal_device = pyrpr.get_first_gpu_id_used(rpr_context.get_creation_flags())
-        CreateContext(API_VERSION, BACKEND_API_METAL, metal_device,
-                      pyrpr.encode(str(self.cache_path)), self)
+        metal_device = rpr_context.get_info(pyrpr.METAL_DEVICE, 'rpr_metal_device')
+        metal_command_queue = rpr_context.get_info(pyrpr.METAL_COMMAND_QUEUE, 'rpr_metal_command_queue')
+        CreateContextFromMetalContext(API_VERSION, metal_device, metal_command_queue,
+                                      pyrpr.encode(str(self.cache_path)), self)
 
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImageMetal(self, frame_buffer)
-
-    def _check_devices(self):
-        return get_device_count(BACKEND_API_METAL) > 0
 
 
 class Image(Object):
