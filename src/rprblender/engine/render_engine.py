@@ -473,9 +473,8 @@ class RenderEngine(Engine):
         devices = settings.final_devices
 
         data['CPU Enabled'] = devices.cpu_state
-        if hasattr(devices, 'gpu_states'):
-            for i, gpu_state in enumerate(devices.gpu_states):
-                data[f'GPU{i} Enabled'] = gpu_state
+        for i, gpu_state in enumerate(devices.available_gpu_states):
+            data[f'GPU{i} Enabled'] = gpu_state
 
         data['Resolution'] = (self.width, self.height)
         quality = -1 if utils.IS_MAC else self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
@@ -536,7 +535,7 @@ class RenderEngine(Engine):
         selected_gpu_names = ''
         settings = get_user_settings()
         devices = settings.final_devices
-        for i, gpu_state in enumerate(devices.gpu_states):
+        for i, gpu_state in enumerate(devices.available_gpu_states):
             if gpu_state:
                 name = pyrpr.Context.gpu_devices[i]['name']
                 if selected_gpu_names:

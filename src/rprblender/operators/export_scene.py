@@ -196,9 +196,8 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         device_settings['cpu'] = int(devices.cpu_state)
         device_settings['threads'] = devices.cpu_threads
         
-        if hasattr(devices, 'gpu_states'):
-            for i, gpu_state in enumerate(devices.gpu_states):
-                device_settings[f'gpu{i}'] = int(gpu_state)
+        for i, gpu_state in enumerate(devices.available_gpu_states):
+            device_settings[f'gpu{i}'] = int(gpu_state)
 
         data['context'] = device_settings
 
