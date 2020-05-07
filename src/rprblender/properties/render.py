@@ -154,14 +154,17 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
+    @property
+    def available_gpu_states(self):
+        return (self.gpu_states[i] for i in range(len(pyrpr.Context.gpu_devices)))
+
     def count(self):
         res = int(self.cpu_state)
-        if hasattr(self, 'gpu_states'):
-            res += sum(bool(state) for state in self.gpu_states)
+        res += sum(int(state) for state in self.available_gpu_states)
         return res
 
     def has_gpu(self):
-        return hasattr(self, 'gpu_states') and any(bool(state) for state in self.gpu_states)
+        return any(bool(state) for state in self.available_gpu_states)
 
 
 class RPR_UserSettings(bpy.types.PropertyGroup):
@@ -440,17 +443,16 @@ class RPR_RenderProperties(RPR_Properties):
             context_props.extend([pyrpr.CONTEXT_CPU_THREAD_LIMIT, devices.cpu_threads])
 
         metal_enabled = False
-        if hasattr(devices, 'gpu_states'):
-            for i, gpu_state in enumerate(devices.gpu_states):
-                if gpu_state:
-                    context_flags |= {pyrpr.Context.gpu_devices[i]['flag']}
-                    if use_gl_interop:
-                        context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-                
-                    if not metal_enabled and platform.system() == 'Darwin':
-                        # only enable metal once and if a GPU is turned on
-                        metal_enabled = True
-                        context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
+        for i, gpu_state in enumerate(devices.available_gpu_states):
+            if gpu_state:
+                context_flags |= {pyrpr.Context.gpu_devices[i]['flag']}
+                if use_gl_interop:
+                    context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
+
+                if not metal_enabled and platform.system() == 'Darwin':
+                    # only enable metal once and if a GPU is turned on
+                    metal_enabled = True
+                    context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
                         
         context_props.append(0) # should be followed by 0
 

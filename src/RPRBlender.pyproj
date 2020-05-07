@@ -54,6 +54,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="rprblender\export\camera.py" />
+    <Compile Include="rprblender\export\hair.py" />
     <Compile Include="rprblender\export\image.py" />
     <Compile Include="rprblender\export\instance.py" />
     <Compile Include="rprblender\export\light.py" />
