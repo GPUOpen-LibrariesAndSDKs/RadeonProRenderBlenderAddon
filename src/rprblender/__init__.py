@@ -77,7 +77,7 @@ viewport_engine_cls = {
     'HIGH': ViewportEngineHybrid,
     'MEDIUM': ViewportEngineHybrid,
     'LOW': ViewportEngineHybrid,
-    'FULL2': ViewportEngine2,
+    'FULL2': ViewportEngine,
 }
 
 
