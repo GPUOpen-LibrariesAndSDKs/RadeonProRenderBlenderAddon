@@ -179,6 +179,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     view3d.RPR_VIEW3D_MT_menu,
     view3d.RPR_VIEW3D_PT_panel,
     view3d.RPR_VIEW3D_PT_shading_lighting,
+    view3d.RPR_VIEW3D_PT_shading_render_pass,
 
     mesh.RPR_DATA_PT_mesh,
 ])

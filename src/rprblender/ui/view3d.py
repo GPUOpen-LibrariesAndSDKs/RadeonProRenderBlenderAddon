@@ -49,6 +49,7 @@ def draw_menu(self, context):
         layout = self.layout
         layout.popover('RPR_VIEW3D_PT_panel')
 
+
 class RPR_VIEW3D_PT_shading_lighting(RPR_Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
@@ -87,3 +88,20 @@ class RPR_VIEW3D_PT_shading_lighting(RPR_Panel):
             col.prop(shading, "studiolight_intensity")
             col.prop(shading, "studiolight_background_alpha")
 
+
+class RPR_VIEW3D_PT_shading_render_pass(RPR_Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Render Pass"
+    bl_parent_id = 'VIEW3D_PT_shading'
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES
+            and context.space_data.shading.type == 'RENDERED')
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        self.layout.prop(context.scene.rpr, 'render_mode', text='')

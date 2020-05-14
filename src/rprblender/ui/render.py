@@ -373,3 +373,4 @@ class RPR_RENDER_PT_debug(RPR_Panel):
         row.enabled = rpr.trace_dump
         row.use_property_split = False
         row.prop(rpr, 'trace_dump_folder', text="")
+
