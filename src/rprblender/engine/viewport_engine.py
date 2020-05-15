@@ -153,10 +153,12 @@ class ShadingData:
 
         self.type = shading.type
         if self.type == 'RENDERED':
-            return
+            self.use_scene_lights = shading.use_scene_lights_render
+            self.use_scene_world = shading.use_scene_world_render
+        else:
+            self.use_scene_lights = shading.use_scene_lights
+            self.use_scene_world = shading.use_scene_world
 
-        self.use_scene_lights = shading.use_scene_lights
-        self.use_scene_world = shading.use_scene_world
         if not self.use_scene_world:
             self.studio_light = shading.selected_studio_light.path
             if not self.studio_light:
