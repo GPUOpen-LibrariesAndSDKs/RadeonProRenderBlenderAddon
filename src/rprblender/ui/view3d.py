@@ -48,3 +48,60 @@ def draw_menu(self, context):
     if context.engine == 'RPR':
         layout = self.layout
         layout.popover('RPR_VIEW3D_PT_panel')
+
+
+class RPR_VIEW3D_PT_shading_lighting(RPR_Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Lighting"
+    bl_parent_id = 'VIEW3D_PT_shading'
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES
+            and context.space_data.shading.type == 'RENDERED')
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        split = col.split(factor=0.9)
+
+        shading = context.space_data.shading
+        col.prop(shading, "use_scene_lights_render")
+        col.prop(shading, "use_scene_world_render")
+
+        if not shading.use_scene_world_render:
+            col = layout.column()
+            split = col.split(factor=0.9)
+
+            col = split.column()
+            sub = col.row()
+            sub.scale_y = 0.6
+            sub.template_icon_view(shading, "studio_light", scale_popup=3)
+
+            col = split.column()
+            col.operator("preferences.studiolight_show", emboss=False, text="", icon='PREFERENCES')
+
+            split = layout.split(factor=0.9)
+            col = split.column()
+            col.prop(shading, "studiolight_rotate_z", text="Rotation")
+            col.prop(shading, "studiolight_intensity")
+            col.prop(shading, "studiolight_background_alpha")
+
+
+class RPR_VIEW3D_PT_shading_render_pass(RPR_Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_label = "Render Pass"
+    bl_parent_id = 'VIEW3D_PT_shading'
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES
+            and context.space_data.shading.type == 'RENDERED')
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        self.layout.prop(context.scene.rpr, 'render_mode', text='')
