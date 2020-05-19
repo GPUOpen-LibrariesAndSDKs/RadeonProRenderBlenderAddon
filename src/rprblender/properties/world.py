@@ -238,6 +238,11 @@ class RPR_EnvironmentProperties(RPR_Properties):
         description="Background override type",
         default='SPHERE',
     )
+    backplate_crop: bpy.props.BoolProperty(
+        name="Crop",
+        description="Crop backplate image to render size",
+        default=True,
+    )
 
     # reflection override
     reflection_override: bpy.props.BoolProperty(

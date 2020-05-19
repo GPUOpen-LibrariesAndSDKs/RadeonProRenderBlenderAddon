@@ -662,6 +662,9 @@ class ViewportEngine(Engine):
                         image_filter_settings['resolution'] = resolution
                         self.setup_image_filter(image_filter_settings)
 
+                    if self.world_settings.backplate:
+                        self.world_settings.backplate.export(self.rpr_context, resolution)
+
                     self.is_resized = True
 
                 self.restart_render_event.set()
