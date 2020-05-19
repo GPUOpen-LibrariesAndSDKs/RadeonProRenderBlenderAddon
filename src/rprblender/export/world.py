@@ -13,7 +13,6 @@
 # limitations under the License.
 #********************************************************************
 from dataclasses import dataclass, field
-import math
 from typing import Tuple
 
 import numpy as np
@@ -23,9 +22,9 @@ import bpy
 import mathutils
 
 import pyrpr
-import pyhybrid
 
 from . import image
+from .image import ImagePixels
 from rprblender.engine.context import RPRContext
 from rprblender.utils import helper_lib
 
@@ -82,125 +81,6 @@ def set_light_rotation(rpr_light, rotation: Tuple[float]) -> np.array:
     return matrix
 
 
-@dataclass(init=True, eq=False)
-class RenderRegion:
-    x1: int = 0
-    y1: int = 0
-    x2: int = 0
-    y2: int = 0
-
-    def is_empty(self):
-        return self.x2 <= self.x1 and self.y2 <= self.y1
-
-
-@dataclass(init=False, eq=True)
-class Backplate:
-    """
-    Environment backplate class is a handler of flat background image.
-    Used as an alternative to the 360 degrees IBL-kind Background Override.
-
-    Stores source image pixels cropped to render size as numpy array
-    Exports
-    """
-
-    enabled: bool = False
-    name: str = None
-
-    source_pixels: image.ImagePixels = field(default=None, repr=False)
-    source_size: Tuple[int, int, int, int] = field(default=None, repr=True)
-
-    def __init__(self, world_data, render_size):
-        self.enabled = bool(world_data.background_image)
-        if not world_data.background_image:
-            return
-
-        self.name = world_data.background_image.name
-
-        self.source_pixels, self.source_size = self.get_cropped_image(
-            world_data.background_image, render_size
-        )
-
-    @staticmethod
-    def calculate_cropped_size(x1: int, y1: int, x2: int, y2: int) -> tuple:
-        """ Calculate cropped source region size to fit target region aspect ratio """
-        ratio_image = x1 / y1
-        ratio_render = x2 / y2
-
-        # close ratios - no cropping required
-        if math.isclose(ratio_image, ratio_render):
-            return x1, y1
-
-        # crop horizontal size
-        if ratio_image > ratio_render:
-            return y1 * x2 / y2, y1
-
-        # crop vertical size
-        return x1, x1 * y2 / x2
-
-    @staticmethod
-    def calculate_cropped_region(size_x, size_y, target_x, target_y) -> tuple:
-        """ Get region coordinates for cropped image size """
-        x1 = 0
-        y1 = 0
-        x2 = size_x - 1
-        y2 = size_y - 1
-
-        if size_x > target_x:
-            half_size = size_x / 2
-            half_target = target_x / 2
-            x1 = half_size - half_target
-            x2 = half_size + half_target
-        elif size_y > target_y:
-            half_size = size_y / 2
-            half_target = target_y / 2
-            y1 = half_size - half_target
-            y2 = half_size + half_target
-
-        x1 = max(0, int(x1))
-        y1 = max(0, int(y1))
-        x2 = min(size_x, int(x2))
-        y2 = min(size_y, int(y2))
-
-        return x1, y1, x2, y2
-
-    def get_cropped_image(self, texture: bpy.types.Image, render_size: Tuple[int]) \
-            -> Tuple[image.ImagePixels, tuple]:
-        """ Crop source image to render size aspect ration, store pixels and result size """
-        # crop source image size to fit target aspect ratio
-        size = self.calculate_cropped_size(
-            texture.size[0], texture.size[1],
-            render_size[0], render_size[1],
-        )
-
-        # get pixels region for cropped size
-        region = self.calculate_cropped_region(texture.size[0], texture.size[1], size[0], size[1])
-
-        # extract pixels region from source image
-        pixels = image.ImagePixels(texture, region)
-
-        return pixels, pixels.size
-
-    def export_full(self, rpr_context):
-        if not self.source_size:
-            return
-
-        rpr_image = self.source_pixels.export_full(rpr_context)
-        rpr_context.scene.set_background_image(rpr_image)
-
-    def export_tile(self, rpr_context, x1: float, y1: float, x2: float, y2: float):
-        if not self.source_size:
-            return
-
-        # convert float tile coordinate to int pixel coordinates
-        region = (
-            int(x1 * self.source_size[0]), int(y1 * self.source_size[1]),
-            int(x2 * self.source_size[0]), int(y2 * self.source_size[1]),
-        )
-
-        rpr_image = self.source_pixels.export_region(rpr_context, *region)
-        rpr_context.scene.set_background_image(rpr_image)
-
-
 @dataclass(init=False, eq=True, repr=True)
 class WorldData:
     """ Comparable dataclass which holds all environment settings """
@@ -210,9 +90,40 @@ class WorldData:
         """ Store and compare single Environment Override category settings """
         color: tuple = None
         image: str = None
-        image_type: str = 'SPHERE'
         studio_light: str = None
         intensity: float = 1.0
+
+    @dataclass(init=False, eq=True)
+    class BackplateData:
+        """ Store and compare single Environment Override category settings """
+        color: tuple = None
+        image: str = None
+        crop: bool = False
+        pixels: ImagePixels = field(default=None, compare=False)
+
+        def __init__(self, rpr):
+            if rpr.background_image:
+                image_obj = bpy.data.images[rpr.background_image.name]
+                try:
+                    self.pixels = ImagePixels(image_obj)
+                except ValueError as e:
+                    log.warn(e)
+                    self.color = WARNING_IMAGE_NOT_DEFINED_COLOR
+                else:
+                    self.image = rpr.background_image.name
+                    self.crop = rpr.backplate_crop
+
+            else:
+                self.color = tuple(rpr.background_color)
+
+        def export(self, rpr_context, render_size, tile=((0, 0), (1, 1))):
+            if self.image:
+                rpr_image = self.pixels.export(rpr_context,
+                                               render_size if self.crop else None, tile)
+                rpr_context.scene.set_background_image(rpr_image)
+
+            else:
+                rpr_context.scene.set_background_color(*self.color)
 
     @dataclass(eq=True)
     class IblData:
@@ -307,6 +218,7 @@ class WorldData:
     ibl: IblData = None
     sun_sky: SunSkyData = None
     overrides: {str: OverrideData} = None
+    backplate: BackplateData = None
     gizmo_rotation: tuple = None
 
     @staticmethod
@@ -333,8 +245,6 @@ class WorldData:
             else:
                 override_data.color = tuple(color)
 
-            override_data.image_type = getattr(rpr, f'{override_type}_image_type', 'SPHERE')
-
             data.overrides[override_type] = override_data
 
         data.intensity = rpr.intensity
@@ -347,7 +257,11 @@ class WorldData:
         data.gizmo_rotation = tuple(rpr.gizmo_rotation)
 
         data.overrides = {}
-        set_override('background')
+        if rpr.background_image_type == 'SPHERE':
+            set_override('background')
+        elif rpr.background_override:
+            data.backplate = WorldData.BackplateData(rpr)
+
         set_override('reflection')
         set_override('refraction')
         set_override('transparency')
@@ -372,12 +286,11 @@ class WorldData:
 
         return data
 
-    def export(self, rpr_context):
+    def export(self, rpr_context, use_backplate=True):
         def export_override(override_type):
             pyrpr_key = getattr(pyrpr, f'ENVIRONMENT_LIGHT_OVERRIDE_{override_type.upper()}')
             override = self.overrides.get(override_type, None)
-            # Backplate background override type is handled by render engine
-            if override and not (override.image and override.image_type == 'BACKPLATE'):
+            if override:
                 rpr_light = rpr_context.scene.environment_overrides.get(pyrpr_key, None)
                 if not rpr_light:
                     rpr_light = rpr_context.create_environment_light()
@@ -408,6 +321,12 @@ class WorldData:
         else:
             self.sun_sky.export(rpr_context, self.gizmo_rotation)
 
+        if use_backplate:
+            if self.backplate:
+                self.backplate.export(rpr_context, (rpr_context.width, rpr_context.height))
+            else:
+                rpr_context.scene.set_background_image(None)
+
         export_override('background')
         export_override('reflection')
         export_override('refraction')
@@ -420,3 +339,4 @@ class WorldData:
 def sync(rpr_context: RPRContext, world: bpy.types.World):
     data = WorldData.init_from_world(world)
     data.export(rpr_context)
+    return data
