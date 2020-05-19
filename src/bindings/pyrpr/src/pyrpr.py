@@ -467,7 +467,6 @@ class Scene(Object):
         self.subdivision_camera = None
         self.objects = set()
 
-
     def set_camera(self, camera):
         self.camera = camera
         SceneSetCamera(self, self.camera)
@@ -487,6 +486,10 @@ class Scene(Object):
     def set_background_image(self, image):
         self.background_image = image
         SceneSetBackgroundImage(self, image)
+
+    def set_background_color(self, r, g, b):
+        self.set_background_image(
+            ImageData(self.context, np.full((2, 2, 4), (r, g, b, 1.0), dtype=np.float32)))
 
     def add_environment_override(self, core_id, light):
         self.environment_overrides[core_id] = light
