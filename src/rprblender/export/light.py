@@ -198,8 +198,13 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
         return True
 
     if is_updated_transform:
-        # updating only light transform
-        rpr_light.set_transform(object.get_transform(obj))
+        if light.type == 'AREA' and light.rpr.intensity_normalization:
+            # the normalized are light should be recreated to apply scale correctly
+            rpr_context.remove_object(light_key)
+            sync(rpr_context, obj)
+        else:
+            # updating only light transform
+            rpr_light.set_transform(object.get_transform(obj))
         return True
 
     return False
