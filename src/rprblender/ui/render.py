@@ -43,7 +43,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+                col.enabled = context.scene.rpr.render_quality == 'FULL'
 
                 col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
@@ -90,7 +90,7 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+                col.enabled = context.scene.rpr.render_quality == 'FULL'
 
                 col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
