@@ -407,11 +407,11 @@ class RPR_RenderProperties(RPR_Properties):
         ]
     if pyrpr2.enabled:
         render_quality_items += [
-            ('FULL2', "Full (Experimental)", "Full render quality with RPR 2 (Experimental)")
+            ('FULL2', "RPR 2.0 (Beta)", "Full render quality with RPR 2 (Beta)")
         ]
 
     def update_render_quality(self, context):
-        if self.render_quality == 'FULL':
+        if self.render_quality in ('FULL', 'FULL2'):
             return
 
         settings = get_user_settings()
