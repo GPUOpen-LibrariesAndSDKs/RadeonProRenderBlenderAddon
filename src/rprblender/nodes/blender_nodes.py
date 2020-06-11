@@ -1148,7 +1148,11 @@ class ShaderNodeMath(NodeParser):
             elif op == 'MODULO':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_MOD, in1, in2)
             else:
-                raise ValueError("Incorrect math operation", op)
+                in3 = self.get_input_value(2)
+                if op == 'MULTIPLY_ADD':
+                    res = in1 * in2 + in3
+                else:
+                    raise ValueError("Incorrect math operation", op)
 
         if self.node.use_clamp:
             res = res.clamp()

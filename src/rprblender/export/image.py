@@ -40,19 +40,23 @@ IMAGE_FORMATS = {
 DEFAULT_FORMAT = ('PNG', 'png')
 
 
-def key(image: bpy.types.Image):
+def key(image: bpy.types.Image, color_space):
     """ Generate image key for RPR """
-    return image.name
+    return (image.name, color_space)
 
 
-def sync(rpr_context, image: bpy.types.Image):
+def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
     """ Creates pyrpr.Image from bpy.types.Image """
 
     if image.size[0] * image.size[1] * image.channels == 0:
         log.warn("Image has no data", image)
         return None
 
-    image_key = key(image)
+    color_space = image.colorspace_settings.name
+    if use_color_space:
+        color_space = use_color_space
+
+    image_key = key(image, color_space)
 
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
@@ -76,15 +80,15 @@ def sync(rpr_context, image: bpy.types.Image):
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
 
-    rpr_image.set_name(image_key)
+    rpr_image.set_name(str(image_key))
 
     # TODO: implement more correct support of image color space types
-    if image.colorspace_settings.name in ('sRGB', 'BD16', 'Filmic Log'):
+    # RPRImageTexture node color space names are in caps, unlike in Blender
+    if color_space in ('sRGB', 'BD16', 'Filmic Log', 'SRGB'):
         rpr_image.set_gamma(2.2)
-    else:
-        if image.colorspace_settings.name not in ('Non-Color', 'Raw', 'Linear'):
-            log.warn("Ignoring unsupported image color space type",
-                     image.colorspace_settings.name, image)
+    elif color_space not in ('Non-Color', 'Raw', 'Linear', 'LINEAR'):
+        log.warn("Ignoring unsupported image color space type",
+                 color_space, image)
 
     return rpr_image
 
