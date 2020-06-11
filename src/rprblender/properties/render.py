@@ -411,7 +411,7 @@ class RPR_RenderProperties(RPR_Properties):
         ]
 
     def update_render_quality(self, context):
-        if self.render_quality in ('FULL', 'FULL2'):
+        if self.render_quality == 'FULL':
             return
 
         settings = get_user_settings()
