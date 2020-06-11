@@ -701,13 +701,13 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
     class Exporter(NodeParser):
         def export(self):
             if not self.node.image:
-                return ERROR_IMAGE_COLOR
+                return self.node_item(ERROR_IMAGE_COLOR)
 
-            rpr_image = image_export.sync(self.rpr_context, self.node.image)
+            rpr_image = image_export.sync(self.rpr_context, self.node.image, use_color_space=self.node.color_space)
+
             if not rpr_image:
-                return None
+                return self.node_item(ERROR_IMAGE_COLOR)
 
-            # get image wrap type and set
             image_wrap_val = getattr(pyrpr, 'IMAGE_WRAP_TYPE_' + self.node.wrap)
             rpr_image.set_wrap(image_wrap_val)
 
@@ -718,10 +718,6 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
             uv = self.get_input_link('UV')
             if uv:
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV, uv)
-
-            # apply gamma correction if needed
-            if self.node.color_space == 'SRGB':
-                rpr_node **= COLOR_GAMMA
 
             return rpr_node
 
