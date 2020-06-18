@@ -20,6 +20,7 @@ import bpy
 import bpy_extras
 
 from rprblender import utils
+from rprblender.engine.export_engine import ExportEngine
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.image')
@@ -64,7 +65,7 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
     log("sync", image)
 
     pixels = image.pixels
-    if hasattr(pixels, 'foreach_get'):
+    if rpr_context.engine_type != ExportEngine.TYPE and hasattr(pixels, 'foreach_get'):
         data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
@@ -75,8 +76,7 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
 
     else:
         # loading image by pixels
-        data = np.fromiter(pixels, dtype=np.float32,
-                           count=image.size[0] * image.size[1] * image.channels)
+        data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
 
