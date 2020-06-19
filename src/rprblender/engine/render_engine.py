@@ -24,6 +24,7 @@ from rprblender import utils
 from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
+from rprblender.utils.conversion import perfcounter_to_str
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
 
@@ -50,6 +51,7 @@ class RenderEngine(Engine):
         self.render_update_samples = 1
         self.render_time = 0
         self.current_render_time = 0
+        self.sync_time = 0
 
         self.status_title = ""
 
@@ -154,6 +156,8 @@ class RenderEngine(Engine):
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = self.current_sample
 
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
         self.athena_send(athena_data)
 
     def _render_tiles(self):
@@ -310,6 +314,8 @@ class RenderEngine(Engine):
         # Preparations for syncing
         self.is_synced = False
 
+        self.sync_time = time.perf_counter()
+
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
         material_override = view_layer.material_override
@@ -452,6 +458,8 @@ class RenderEngine(Engine):
 
         if scene.rpr.use_render_stamp:
             self.render_stamp_text = self.prepare_scene_stamp_text(scene)
+
+        self.sync_time = time.perf_counter() - self.sync_time
 
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
