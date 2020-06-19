@@ -14,6 +14,7 @@
 #********************************************************************
 import math
 
+
 def convert_kelvins_to_rgb_bartlett(color_temperature: float) -> tuple:
     """
     Convert Kelvin temperature to black body emission RGB color using approximation by Neil Bartlett
@@ -66,3 +67,7 @@ def convert_kelvins_to_rgb_bartlett(color_temperature: float) -> tuple:
 # Use this conversion method for all calls
 convert_kelvins_to_rgb = convert_kelvins_to_rgb_bartlett
 
+
+def perfcounter_to_str(val):
+    """ Convert perfcounter difference to time string minutes-seconds-milliseconds """
+    return f"{math.floor(val / 60)}m {math.floor(val % 60)}s {math.floor((val % 1) * 1000)}ms"
