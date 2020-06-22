@@ -20,7 +20,6 @@ import bpy
 import bpy_extras
 
 from rprblender import utils
-from rprblender.engine.export_engine import ExportEngine
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.image')
@@ -48,6 +47,7 @@ def key(image: bpy.types.Image, color_space):
 
 def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
     """ Creates pyrpr.Image from bpy.types.Image """
+    from rprblender.engine.export_engine import ExportEngine
 
     if image.size[0] * image.size[1] * image.channels == 0:
         log.warn("Image has no data", image)
