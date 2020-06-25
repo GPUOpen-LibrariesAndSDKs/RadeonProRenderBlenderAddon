@@ -23,7 +23,7 @@ log = logging.Log(tag='export.Material')
 
 def key(material: bpy.types.Material, obj=None, input_socket_key='Surface'):
     mat_key = material.name_full
-    if obj and obj.type=='MESH' and has_uv_map_node(material):
+    if obj and obj.type == 'MESH' and has_uv_map_node(material):
         mat_key = (mat_key, obj.data.rpr.uv_sets_names)
     if input_socket_key != 'Surface':
         mat_key = (mat_key, input_socket_key)
