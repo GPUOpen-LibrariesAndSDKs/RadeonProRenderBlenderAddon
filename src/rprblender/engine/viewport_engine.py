@@ -845,12 +845,11 @@ class ViewportEngine(Engine):
                             if mat.name in obj.material_slots.keys())
             active_mat = mat
 
-        has_uv_map = material.has_uv_map_node(active_mat)
-
         updated = False
         for obj in objects:
-            rpr_material, rpr_volume, rpr_displacement = \
-                self.get_object_rpr_materials(obj, active_mat, has_uv_map)
+            rpr_material = material.sync(self.rpr_context, active_mat, obj=obj)
+            rpr_volume = material.sync(self.rpr_context, active_mat, 'Volume', obj=obj)
+            rpr_displacement = material.sync(self.rpr_context, active_mat, 'Displacement', obj=obj)
 
             if not rpr_material and not rpr_volume and not rpr_displacement:
                 continue
@@ -866,33 +865,6 @@ class ViewportEngine(Engine):
                                           indirect_only=indirect_only, material_override=material_override)
 
         return updated
-
-    def get_object_rpr_materials(self, obj, active_mat, has_uv_map):
-        """ Get existing materials for shape; create new if UV map present in material """
-        if obj.type=='MESH':  # only true meshes have rpr data field
-            mat_name_key = (active_mat.name, obj.data.rpr.uv_sets_names) if has_uv_map else active_mat.name
-        else:
-            mat_name_key = active_mat.name
-
-        rpr_material = self.rpr_context.materials.get(
-            material.key(mat_name_key,),
-            None)
-        rpr_volume = self.rpr_context.materials.get(
-            material.key(mat_name_key, input_socket_key='Volume'),
-            None)
-        rpr_displacement = self.rpr_context.materials.get(
-            material.key(mat_name_key, input_socket_key='Displacement'),
-            None)
-
-        if has_uv_map:
-            if not rpr_material:
-                rpr_material = material.sync(self.rpr_context, active_mat, obj=obj)
-            if not rpr_volume:
-                rpr_volume = material.sync(self.rpr_context, active_mat, input_socket_key='Volume', obj=obj)
-            if not rpr_displacement:
-                rpr_displacement = material.sync(self.rpr_context, active_mat, input_socket_key='Displacement', obj=obj)
-
-        return rpr_material, rpr_volume, rpr_displacement
 
     def update_render(self, scene: bpy.types.Scene, view_layer: bpy.types.ViewLayer):
         ''' update settings if changed while live returns True if restart needed '''
