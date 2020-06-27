@@ -472,6 +472,7 @@ class ViewportEngine(Engine):
         self.is_finished = False
         self.restart_render_event.clear()
 
+        self.space_data = context.space_data
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
         self.sync_render_thread.start()
 
@@ -910,9 +911,20 @@ class ViewportEngine(Engine):
         for obj in super().depsgraph_objects(depsgraph, with_camera):
             if obj.type == 'LIGHT' and not self.shading_data.use_scene_lights:
                 continue
+            
+            # check for local view visability
+            if not obj.visible_in_viewport_get(self.space_data):
+                continue
 
             yield obj
 
+    def depsgraph_instances(self, depsgraph):
+        for instance in super().depsgraph_instances(depsgraph):
+            # check for local view visability
+            if not instance.parent.visible_in_viewport_get(self.space_data):
+                continue
+
+            yield instance
 
 from .context import RPRContext2
 
