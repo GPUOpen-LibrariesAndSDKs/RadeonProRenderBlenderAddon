@@ -472,6 +472,7 @@ class ViewportEngine(Engine):
         self.is_finished = False
         self.restart_render_event.clear()
 
+        self.view_mode = context.mode
         self.space_data = context.space_data
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
         self.sync_render_thread.start()
@@ -507,6 +508,12 @@ class ViewportEngine(Engine):
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
+        # if view mode changed need to sync collections
+        mode_updated = False
+        if self.view_mode != context.mode:
+            self.view_mode = context.mode
+            mode_updated = True
+
         with self.render_lock:
             for update in updates:
                 obj = update.id
@@ -535,8 +542,10 @@ class ViewportEngine(Engine):
                         continue
 
                     indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                    active_and_mode_changed = mode_updated and context.active_object == obj.original
                     is_updated |= object.sync_update(self.rpr_context, obj,
-                                                     update.is_updated_geometry, update.is_updated_transform,
+                                                     update.is_updated_geometry or active_and_mode_changed, 
+                                                     update.is_updated_transform,
                                                      indirect_only=indirect_only,
                                                      material_override=material_override)
                     is_obj_updated |= is_updated
