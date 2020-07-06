@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import pyrpr
+
 from . import render_engine
 from . import context_hybrid
 
@@ -36,3 +38,10 @@ class RenderEngine(render_engine.RenderEngine):
                 continue
 
             yield obj
+
+    def _update_athena_data(self, data):
+        data['Quality'] = {
+            pyrpr.RENDER_QUALITY_HIGH: "high",
+            pyrpr.RENDER_QUALITY_MEDIUM: "medium",
+            pyrpr.RENDER_QUALITY_LOW: "low"
+        }[self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY)]

@@ -480,13 +480,8 @@ class RenderEngine(Engine):
             data[f'GPU{i} Enabled'] = gpu_state
 
         data['Resolution'] = (self.width, self.height)
-        quality = -1 if utils.IS_MAC else self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
-        data['Quality'] = "full" if utils.IS_MAC else {-1: "full",
-                           pyrpr.RENDER_QUALITY_HIGH: "high",
-                           pyrpr.RENDER_QUALITY_MEDIUM: "medium",
-                           pyrpr.RENDER_QUALITY_LOW: "low"}[quality]
         data['Number Lights'] = sum(1 for o in self.rpr_context.scene.objects
-                                 if isinstance(o, pyrpr.Light))
+                                    if isinstance(o, pyrpr.Light))
         data['AOVs Enabled'] = tuple(
             f'RPR_{v}' for v in dir(pyrpr) if v.startswith('AOV_')
             and getattr(pyrpr, v) in self.rpr_context.frame_buffers_aovs
@@ -511,9 +506,14 @@ class RenderEngine(Engine):
 
         data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
 
+        self._update_athena_data(data)
+
         # sending data
         from rprblender.utils import athena
         athena.send_data(data)
+
+    def _update_athena_data(self, data):
+        data['Quality'] = "full"
 
     def prepare_scene_stamp_text(self, scene):
         """ Fill stamp with static scene and render devices info that user can ask for """
@@ -598,3 +598,6 @@ from .context import RPRContext2
 
 class RenderEngine2(RenderEngine):
     _RPRContext = RPRContext2
+
+    def _update_athena_data(self, data):
+        data['Quality'] = "rpr2"
