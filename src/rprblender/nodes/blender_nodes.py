@@ -972,6 +972,39 @@ class ShaderNodeAddShader(NodeParser):
         return shader2
 
 
+class ShaderNodeObjectInfo(NodeParser):
+
+    def export(self):
+        if self.socket_out.name == 'Location':
+            if self.object:
+                return self.node_item(tuple(self.object.location))
+            else:
+                return self.node_item((0.0, 0.0, 0.0, 0.0))
+        elif self.socket_out.name == 'Color':
+            if self.object:
+                return self.node_item(tuple(self.object.color))
+            else:
+                return self.node_item((1.0, 1.0, 1.0, 1.0))
+        elif self.socket_out.name == 'Object Index':
+            if self.object:
+                return self.node_item(self.object.pass_index)
+            else:
+                return self.node_item(0)
+        elif self.socket_out.name == 'Material Index':
+            return self.node_item(self.material.pass_index)
+        elif self.socket_out.name == 'Random':
+            return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+                                    {pyrpr.MATERIAL_INPUT_VALUE:
+                                     pyrpr.MATERIAL_NODE_LOOKUP_SHAPE_RANDOM_COLOR})
+
+    def export_hybrid(self):
+        if self.socket_out.name == 'Random':
+            log.warn(f"Unsupported random object info in Hybrid modes")
+            return self.node_item(self.object.pass_index)
+        else:
+            return self.export()
+
+
 class ShaderNodeTexCoord(RuleNodeParser):
     # outputs: Generated, Normal, UV, Object, Camera, Window, Reflection
     # Supported outputs by RPR: Normal, UV
