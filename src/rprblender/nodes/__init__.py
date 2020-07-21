@@ -38,6 +38,7 @@ node_categories = [
         NodeItem('ShaderNodeAmbientOcclusion'),
         NodeItem('ShaderNodeFresnel'),
         NodeItem('ShaderNodeLayerWeight'),
+        NodeItem('ShaderNodeObjectInfo'),
         NodeItem('ShaderNodeRGB'),
         NodeItem('ShaderNodeTexCoord'),
         NodeItem('ShaderNodeValue'),
