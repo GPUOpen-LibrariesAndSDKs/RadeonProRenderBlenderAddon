@@ -155,8 +155,16 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row.prop(limits, 'min_samples')
         col.prop(limits, 'max_samples')
         row = col.row()
-        row.prop(limits, 'noise_threshold', slider = True)
-        col.prop(limits, 'limit_viewport_resolution')
+        row.prop(limits, 'noise_threshold', slider=True)
+        
+        col.prop(limits, 'adapt_viewport_resolution')
+        row = col.row()
+        row.prop(limits, 'viewport_samples_per_sec', slider=True)
+        row.enabled = limits.adapt_viewport_resolution
+        row = col.row()
+        row.prop(limits, 'viewport_resolution')
+        row.enabled = not limits.adapt_viewport_resolution
+        
         col.prop(settings, 'use_gl_interop')
 
         col.separator()

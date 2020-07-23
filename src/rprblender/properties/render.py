@@ -28,6 +28,7 @@ from bpy.props import (
     BoolVectorProperty,
     EnumProperty,
     StringProperty,
+    IntVectorProperty
 )
 import platform
 
@@ -67,7 +68,7 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     adaptive_tile_size: IntProperty(
         name="Adaptive tile size",
-        min=4, default=32, max=64
+        min=4, default=16, max=64
     )
 
     update_samples: IntProperty(
@@ -96,10 +97,23 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, default=4,
     )
 
-    limit_viewport_resolution: BoolProperty(
-        name="Limit Viewport Resolution",
-        description="Limits viewport resolution to final render resolution",
+    adapt_viewport_resolution: BoolProperty(
+        name="Adapt Viewport Resolution",
+        description="Adapts Viewport Resolution for interactivity",
         default=True,
+    )
+
+    viewport_samples_per_sec: IntProperty(
+        name="Samples Per Second",
+        description="Viewport samples per second",
+        default=15,
+    )
+
+    viewport_resolution: IntVectorProperty(
+        name="Viewport Resolution",
+        description="Viewport resolution (may be adaptively set if enabled)",
+        size=2,
+        default=[1980, 1080],
     )
 
     def set_adaptive_params(self, rpr_context):
