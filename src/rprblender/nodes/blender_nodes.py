@@ -21,6 +21,7 @@ All parser classes should:
 import bpy
 import math
 import numpy as np
+import sys
 
 import pyrpr
 
@@ -1009,38 +1010,46 @@ class ShaderNodeTexCoord(RuleNodeParser):
     # outputs: Generated, Normal, UV, Object, Camera, Window, Reflection
     # Supported outputs by RPR: Normal, UV
 
-    nodes = {
-        "Generated": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
-            },
-            "warn": "TexCoord Generated output is not supported, UV will be used"
-        },
-        "Normal": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
-            }
-        },
-        "UV": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
-            }
-        },
-        "Object": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
-            },
-        },
+    def export(self):
+        tex_coord_type = self.socket_out.name
 
-        "hybrid:Generated": None,
-        "hybrid:Normal": None,
-        "hybrid:UV": None,
-        "hybrid:Object": None,
-    }
+        if tex_coord_type == 'Generated':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
+            })
+            if self.object:
+                # normalize over object bounding box
+                # get min and max of boinding box
+                min_bounds = tuple(min(p[i] for p in self.object.bound_box) for i in range(3))
+                max_bounds = tuple(max(p[i] for p in self.object.bound_box) for i in range(3))
+
+                size = self.node_item((max_bounds[0] - min_bounds[0],
+                                       max_bounds[1] - min_bounds[1],
+                                       max_bounds[2] - min_bounds[2]))
+                min_bounds = self.node_item(min_bounds)
+
+                data = (data - min_bounds) / size
+
+        elif tex_coord_type == 'Normal':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
+            })
+        elif tex_coord_type == 'UV':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
+            })
+        elif tex_coord_type == 'Object':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
+            })
+        else:
+            log.warn("Ignoring unsupported UV lookup", tex_coord_type, self.node, self.material, 
+                     "UV will be used")
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
+            })
+
+        return data
 
 
 class ShaderNodeLightFalloff(NodeParser):
@@ -1653,6 +1662,33 @@ class ShaderNodeMapping(NodeParser):
 
         return self.export_281()
 
+    def rotation(self, mapping, transpose=False):
+        ''' returns a vector transformed by rotation '''
+        # Apply rotation to transpose we flip matrix
+        rotation = - self.get_input_default('Rotation')  # must be flipped to match cycles
+        sin_x, sin_y, sin_z = map(math.sin, rotation.data)
+        cos_x, cos_y, cos_z = map(math.cos, rotation.data)
+
+        if transpose:
+            part1 = mapping.dot3((cos_y * cos_z,
+                                  sin_y * sin_x * cos_z - cos_x * sin_z,
+                                  sin_y * cos_x * cos_z + sin_x * sin_z, 0.0))
+            part2 = mapping.dot3((cos_y * sin_z,
+                                  sin_y * sin_x * sin_z + cos_x * cos_z,
+                                  sin_y * cos_x * sin_z - sin_x * cos_z, 0.0))
+            part3 = mapping.dot3((-sin_y,
+                                  cos_y * sin_x,
+                                  cos_y * cos_x, 0.0))
+        else:
+            part1 = mapping.dot3((cos_y * cos_z, cos_y * sin_z, -sin_y, 0.0))
+            part2 = mapping.dot3((sin_y * sin_x * cos_z - cos_x * sin_z,
+                                  sin_y * sin_x * sin_z + cos_x * cos_z,
+                                  cos_y * sin_x, 0.0))
+            part3 = mapping.dot3((sin_y * cos_x * cos_z + sin_x * sin_z,
+                                  sin_y * cos_x * sin_z - sin_x * cos_z,
+                                  cos_y * cos_x, 0.0))
+        return part1.combine4(part2, part3, self.node_item((0, 0, 0, 1)))
+
     def export_281(self):
         """ Export reworked node of Blender version 2.81+ """
         mapping = self.get_input_link('Vector')
@@ -1662,32 +1698,17 @@ class ShaderNodeMapping(NodeParser):
             })
 
         location = self.get_input_value('Location')
-        mapping = mapping + location
-
-        # Apply Z-axis rotation
-        rotation = self.get_input_default('Rotation')
-        angle = -rotation.data[2]  # Blender Mapping node angle is already in radians
-        if angle:
-            part1 = mapping.dot3((math.cos(angle), math.sin(angle), 0.0))
-            part2 = mapping.dot3((-math.sin(angle), math.cos(angle), 0.0))
-            mapping = part1.combine(part2, mapping)
-
-        if self.node.vector_type == 'TEXTURE':
-            # to match cycles "Texture" mapping type scale is used as a divider
-            scale = self.get_input_value('Scale')
-            if isinstance(scale.data, tuple):
-                if not (math.isclose(scale.data[0], 1.0) and
-                        math.isclose(scale.data[1], 1.0) and
-                        math.isclose(scale.data[2], 1.0)):
-                    mapping /= tuple(max(abs(axis_scale), 0.001) for axis_scale in scale.data)
-            else:
-                scale = abs(scale)
-                mapping /= scale
+        scale = self.get_input_value('Scale')
+        
+        mapping_type = self.node.vector_type
+        if mapping_type == 'POINT':
+            return self.rotation(mapping * scale) + location
+        elif mapping_type == 'TEXTURE':
+            return self.rotation(mapping - location, transpose=True) / scale
+        elif mapping_type == 'VECTOR':
+            return self.rotation(mapping * scale)
         else:
-            scale = self.get_input_value('Scale')
-            mapping *= scale
-
-        return mapping
+            return (self.rotation(mapping / scale)).normalize()
 
     def export_280(self):
         """ Export node of Blender version 2.80 """
