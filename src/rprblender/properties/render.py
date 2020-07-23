@@ -67,7 +67,7 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     adaptive_tile_size: IntProperty(
         name="Adaptive tile size",
-        min=4, default=16, max=16
+        min=4, default=32, max=64
     )
 
     update_samples: IntProperty(
