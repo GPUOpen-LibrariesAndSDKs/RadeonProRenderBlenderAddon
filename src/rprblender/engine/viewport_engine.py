@@ -53,7 +53,7 @@ class ViewportSettings:
     screen_height: int
     border: tuple
 
-    def __init__(self, context: bpy.types.Context, iteration_time, prev_settings):
+    def __init__(self, context: bpy.types.Context):
         """Initializes settings from Blender's context"""
         self.camera_data = camera.CameraData.init_from_context(context)
         self.screen_width, self.screen_height = context.region.width, context.region.height
@@ -112,39 +112,38 @@ class ViewportSettings:
         self.width, self.height = x2 - x1, y2 - y1
         self.border = (x1, y1), (self.width, self.height)
 
-        # always use set resolution from viewport settings if not in adaptive mode
-        if scene.rpr.viewport_limits.adapt_viewport_resolution and iteration_time is not None:
-            if prev_settings.is_adapted:
-                self.width, self.height = prev_settings.width, prev_settings.height
-            else:
-                target_time = 1.0 / scene.rpr.viewport_limits.viewport_samples_per_sec
-                time_ratio = math.sqrt(target_time / iteration_time)
-
-                if time_ratio < 0.9 or time_ratio > 1.1:
-                    adapt_w, adapt_h = int(self.width * time_ratio), int(self.width * time_ratio)
-
-                    region_aspect = self.width / self.height
-                    render_aspect = adapt_w / adapt_h
-
-                    if render_aspect > region_aspect:
-                        # if render resolution is wider, use the max height
-                        # from render and scale to aspect ratio
-                        self.height = min(adapt_h, self.height)
-                        self.width = int(region_aspect * self.height)
-                    else:
-                        # scale to render width and maintain aspect ratio
-                        self.width = min(adapt_w, self.width)
-                        self.height = int(self.width / region_aspect)
-
-    @property
-    def is_adapted(self):
-        return (self.width, self.height) != self.border[1]
-
     def export_camera(self, rpr_camera):
         """Exports camera settings with render border"""
         self.camera_data.export(rpr_camera,
             ((self.border[0][0] / self.screen_width, self.border[0][1] / self.screen_height),
              (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
+
+    @property
+    def resolution(self):
+        return self.width, self.height
+
+    def adapt_resolution(self, adapt_render_pixels, prev_settings):
+        PIXEL_DIFF = 0.2
+        RATIO_DIFF = 0.1
+        SCALE_MIN = 0.2
+
+        # checking with previous settings, if previous resolutions
+        # suits to adapt_render_pixels and suits to new render ratio
+        prev_pixels = prev_settings.width * prev_settings.height
+        if abs(1 - adapt_render_pixels / prev_pixels) < PIXEL_DIFF \
+                and abs(self.width / self.height -
+                        prev_settings.width / prev_settings.height) < RATIO_DIFF:
+            self.width, self.height = prev_settings.width, prev_settings.height
+            return
+
+        # checking if current resolution suits to adapt_render_pixels
+        pixels = self.width * self.height
+        if adapt_render_pixels > pixels or abs(1 - adapt_render_pixels / pixels) < PIXEL_DIFF:
+            return
+
+        # changing to new resolution, but not less then SCALE_MIN
+        scale = max(math.sqrt(adapt_render_pixels / pixels), SCALE_MIN)
+        self.width, self.height = max(int(self.width * scale), 1), max(int(self.height * scale), 1)
 
 
 @dataclass(init=False, eq=True)
@@ -217,8 +216,7 @@ class ViewportEngine(Engine):
         self.is_denoised = False
         self.is_resized = False
 
-        self.iteration_time = None
-        self.is_resolution_adapted = False
+        self.adapt_render_pixels = None
 
         self.render_iterations = 0
         self.render_time = 0
@@ -362,12 +360,16 @@ class ViewportEngine(Engine):
 
                     # checking for last iteration
                     # preparing information to show in viewport
-                    if iteration == 2:
-                        time_render_old = time_render
-                        time_render = time.perf_counter() - time_begin
-                        self.iteration_time = time_render - time_render_old
+                    time_render_prev = time_render
+                    time_render = time.perf_counter() - time_begin
+                    iteration_time = time_render - time_render_prev
+                    if depsgraph.scene.rpr.viewport_limits.adapt_viewport_resolution:
+                        if iteration == 2:
+                            target_time = 1.0 / depsgraph.scene.rpr.viewport_limits.viewport_samples_per_sec
+                            render_pixels = self.rpr_context.width * self.rpr_context.height
+                            self.adapt_render_pixels = render_pixels * target_time / iteration_time
                     else:
-                        time_render = time.perf_counter() - time_begin
+                        self.adapt_render_pixels = None
 
                     if self.render_iterations > 0:
                         info_str = f"Time: {time_render:.1f} sec"\
@@ -448,7 +450,7 @@ class ViewportEngine(Engine):
         self.view_layer_data = ViewLayerSettings(view_layer)
 
         # getting initial render resolution
-        viewport_settings = ViewportSettings(context, None, None)
+        viewport_settings = ViewportSettings(context)
         width, height = viewport_settings.width, viewport_settings.height
         if width * height == 0:
             # if width, height == 0, 0, then we set it to 1, 1 to be able to set AOVs
@@ -663,11 +665,13 @@ class ViewportEngine(Engine):
         scene = context.scene
 
         with self.render_lock:
-            viewport_settings = ViewportSettings(context, self.iteration_time,
-                                                 self.viewport_settings)
+            viewport_settings = ViewportSettings(context)
 
             if viewport_settings.width * viewport_settings.height == 0:
                 return
+
+            if self.adapt_render_pixels is not None:
+                viewport_settings.adapt_resolution(self.adapt_render_pixels, self.viewport_settings)
 
             if self.viewport_settings != viewport_settings:
                 viewport_settings.export_camera(self.rpr_context.scene.camera)
@@ -695,13 +699,9 @@ class ViewportEngine(Engine):
                     if self.world_settings.backplate:
                         self.world_settings.backplate.export(self.rpr_context, resolution)
 
-                    self.is_resolution_adapted = False
                     self.is_resized = True
 
-                self.viewport_settings = viewport_settings
                 self.restart_render_event.set()
-
-                self.is_resolution_adapted = True
 
         if self.is_resized or not self.is_rendered:
             return
