@@ -109,13 +109,6 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         default=15,
     )
 
-    viewport_resolution: IntVectorProperty(
-        name="Viewport Resolution",
-        description="Viewport resolution (may be adaptively set if enabled)",
-        size=2,
-        default=[1980, 1080],
-    )
-
     def set_adaptive_params(self, rpr_context):
         """
         Set the adaptive sampling parameters for this context.
