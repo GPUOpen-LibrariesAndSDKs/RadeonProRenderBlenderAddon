@@ -118,10 +118,6 @@ class ViewportSettings:
             ((self.border[0][0] / self.screen_width, self.border[0][1] / self.screen_height),
              (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
 
-    @property
-    def resolution(self):
-        return self.width, self.height
-
     def adapt_resolution(self, adapt_render_pixels, prev_settings):
         PIXEL_DIFF = 0.2
         RATIO_DIFF = 0.1
