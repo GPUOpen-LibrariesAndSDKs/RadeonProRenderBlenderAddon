@@ -660,6 +660,63 @@ class ViewportEngine(Engine):
 
         scene = context.scene
 
+        # initializing self.viewport_settings and requesting first self.restart_render_event
+        with self.render_lock:
+            if not self.viewport_settings:
+                self.viewport_settings = ViewportSettings(context)
+                self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+                self.restart_render_event.set()
+
+        if not self.is_rendered:
+            return
+
+        # drawing functionality
+        def draw_(texture_id):
+            if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
+                                         'POSITION', 'NORMAL', 'TEXCOORD'):
+                # Draw without color management
+                draw_texture_2d(texture_id, self.viewport_settings.border[0],
+                                *self.viewport_settings.border[1])
+
+            else:
+                # Bind shader that converts from scene linear to display space,
+                bgl.glEnable(bgl.GL_BLEND)
+                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
+                self.rpr_engine.bind_display_space_shader(scene)
+
+                # note this has to draw to region size, not scaled down size
+                self._draw_texture(texture_id, *self.viewport_settings.border[0],
+                                   *self.viewport_settings.border[1])
+
+                self.rpr_engine.unbind_display_space_shader()
+                bgl.glDisable(bgl.GL_BLEND)
+
+        def draw__():
+            if self.is_denoised:
+                im = None
+                with self.resolve_lock:
+                    if self.image_filter:
+                        im = self.image_filter.get_data()
+
+                if im is not None:
+                    self.gl_texture.set_image(im)
+                    draw_(self.gl_texture.texture_id)
+                    return
+
+            if self.rpr_context.gl_interop:
+                with self.resolve_lock:
+                    draw_(self.rpr_context.get_frame_buffer().texture_id)
+                return
+
+            with self.resolve_lock:
+                im = self._get_render_image()
+
+            self.gl_texture.set_image(im)
+            draw_(self.gl_texture.texture_id)
+
+        draw__()
+
+        # checking for viewport updates: setting camera position and resizing
         with self.render_lock:
             viewport_settings = ViewportSettings(context)
 
@@ -700,51 +757,6 @@ class ViewportEngine(Engine):
                     self.is_resized = True
 
                 self.restart_render_event.set()
-
-        if self.is_resized or not self.is_rendered:
-            return
-
-        def draw_(texture_id):
-            if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
-                                         'POSITION', 'NORMAL', 'TEXCOORD'):
-                # Draw without color management
-                draw_texture_2d(texture_id, self.viewport_settings.border[0],
-                                *self.viewport_settings.border[1])
-
-            else:
-                # Bind shader that converts from scene linear to display space,
-                bgl.glEnable(bgl.GL_BLEND)
-                bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-                self.rpr_engine.bind_display_space_shader(scene)
-
-                # note this has to draw to region size, not scaled down size
-                self._draw_texture(texture_id, *self.viewport_settings.border[0],
-                                   *self.viewport_settings.border[1])
-
-                self.rpr_engine.unbind_display_space_shader()
-                bgl.glDisable(bgl.GL_BLEND)
-
-        if self.is_denoised:
-            im = None
-            with self.resolve_lock:
-                if self.image_filter:
-                    im = self.image_filter.get_data()
-
-            if im is not None:
-                self.gl_texture.set_image(im)
-                draw_(self.gl_texture.texture_id)
-                return
-
-        if self.rpr_context.gl_interop:
-            with self.resolve_lock:
-                draw_(self.rpr_context.get_frame_buffer().texture_id)
-            return
-
-        with self.resolve_lock:
-            im = self._get_render_image()
-
-        self.gl_texture.set_image(im)
-        draw_(self.gl_texture.texture_id)
 
     def sync_objects_collection(self, depsgraph):
         """
