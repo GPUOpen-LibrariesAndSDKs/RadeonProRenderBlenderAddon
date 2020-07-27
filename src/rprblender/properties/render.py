@@ -106,7 +106,14 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     viewport_samples_per_sec: IntProperty(
         name="Samples Per Second",
         description="Viewport samples per second",
-        default=15,
+        min=1, soft_max=200, default=15,
+    )
+
+    min_resolution_scale: FloatProperty(
+        name="Min Resolution Scale",
+        description="Min adapt viewport resolution scale",
+        subtype='FACTOR',
+        min=0.05, max=1.0, default=0.2,
     )
 
     def set_adaptive_params(self, rpr_context):
