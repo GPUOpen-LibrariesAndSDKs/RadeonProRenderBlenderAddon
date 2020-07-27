@@ -118,27 +118,29 @@ class ViewportSettings:
             ((self.border[0][0] / self.screen_width, self.border[0][1] / self.screen_height),
              (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
 
-    def adapt_resolution(self, requested_pixels, prev_settings, min_scale):
+    def adapt_resolution(self, requested_ratio, prev_settings, min_scale):
         MIN_PIXEL_DIFF = 0.2
         MIN_RATIO_DIFF = 0.1
 
         # checking with previous settings, if previous resolution
         # suits to requested_pixels and suits to new render ratio
-        prev_pixels = prev_settings.width * prev_settings.height
-        if abs(1 - requested_pixels / prev_pixels) < MIN_PIXEL_DIFF \
+        if abs(1 - requested_ratio) < MIN_PIXEL_DIFF \
                 and abs(self.width / self.height -
                         prev_settings.width / prev_settings.height) < MIN_RATIO_DIFF:
-            self.width, self.height = prev_settings.width, prev_settings.height
+            self.width = max(prev_settings.width, int(self.width * min_scale), 1)
+            self.height = max(prev_settings.height, int(self.height * min_scale), 1)
             return
 
         # checking if current resolution suits to requested_pixels
-        pixels = self.width * self.height
-        if requested_pixels > pixels or abs(1 - requested_pixels / pixels) < MIN_PIXEL_DIFF:
+        new_ratio = (prev_settings.width * prev_settings.height * requested_ratio) / \
+                    (self.width * self.height)
+        if new_ratio > 1.0 - MIN_PIXEL_DIFF:
             return
 
         # changing to new resolution, but not less then SCALE_MIN
-        scale = max(math.sqrt(requested_pixels / pixels), min_scale)
-        self.width, self.height = max(int(self.width * scale), 1), max(int(self.height * scale), 1)
+        scale = max(math.sqrt(new_ratio), min_scale)
+        self.width = max(int(self.width * scale), 1)
+        self.height = max(int(self.height * scale), 1)
 
 
 @dataclass(init=False, eq=True)
@@ -211,7 +213,7 @@ class ViewportEngine(Engine):
         self.is_denoised = False
         self.is_resized = False
 
-        self.requested_adapt_pixels = None
+        self.requested_adapt_ratio = None
 
         self.render_iterations = 0
         self.render_time = 0
@@ -361,10 +363,9 @@ class ViewportEngine(Engine):
                     if depsgraph.scene.rpr.viewport_limits.adapt_viewport_resolution:
                         if iteration == 2:
                             target_time = 1.0 / depsgraph.scene.rpr.viewport_limits.viewport_samples_per_sec
-                            render_pixels = self.rpr_context.width * self.rpr_context.height
-                            self.requested_adapt_pixels = render_pixels * target_time / iteration_time
+                            self.requested_adapt_ratio = target_time / iteration_time
                     else:
-                        self.requested_adapt_pixels = None
+                        self.requested_adapt_ratio = None
 
                     if self.render_iterations > 0:
                         info_str = f"Time: {time_render:.1f} sec"\
@@ -665,9 +666,9 @@ class ViewportEngine(Engine):
             if viewport_settings.width * viewport_settings.height == 0:
                 return
 
-            if self.requested_adapt_pixels is not None:
+            if self.requested_adapt_ratio is not None:
                 viewport_settings.adapt_resolution(
-                    self.requested_adapt_pixels, self.viewport_settings,
+                    self.requested_adapt_ratio, self.viewport_settings,
                     scene.rpr.viewport_limits.min_resolution_scale)
 
             if self.viewport_settings != viewport_settings:
