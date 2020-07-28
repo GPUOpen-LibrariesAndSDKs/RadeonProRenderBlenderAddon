@@ -97,25 +97,6 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, default=4,
     )
 
-    adapt_viewport_resolution: BoolProperty(
-        name="Adapt Viewport Resolution",
-        description="Adapts Viewport Resolution for interactivity",
-        default=True,
-    )
-
-    viewport_samples_per_sec: IntProperty(
-        name="Samples Per Second",
-        description="Viewport samples per second",
-        min=1, soft_max=200, default=15,
-    )
-
-    min_resolution_scale: FloatProperty(
-        name="Min Resolution Scale",
-        description="Min adapt viewport resolution scale",
-        subtype='FACTOR',
-        min=0.05, max=1.0, default=0.2,
-    )
-
     def set_adaptive_params(self, rpr_context):
         """
         Set the adaptive sampling parameters for this context.
@@ -226,6 +207,25 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
             ('4096', '4096', '4096')
         ),
         default='2048',
+    )
+
+    adapt_viewport_resolution: BoolProperty(
+        name="Adapt Viewport Resolution",
+        description="Adapts Viewport Resolution for interactivity",
+        default=True,
+    )
+
+    viewport_samples_per_sec: IntProperty(
+        name="Samples Per Second",
+        description="Viewport samples per second",
+        min=1, soft_max=200, default=15,
+    )
+
+    min_viewport_resolution_scale: IntProperty(
+        name="Min Resolution Scale",
+        description="Min adapt viewport resolution scale",
+        subtype='PERCENTAGE',
+        min=5, max=100, default=20,
     )
 
 

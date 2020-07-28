@@ -127,8 +127,8 @@ class ViewportSettings:
         if abs(1 - requested_ratio) < MIN_PIXEL_DIFF \
                 and abs(self.width / self.height -
                         prev_settings.width / prev_settings.height) < MIN_RATIO_DIFF:
-            self.width = max(prev_settings.width, int(self.width * min_scale), 1)
-            self.height = max(prev_settings.height, int(self.height * min_scale), 1)
+            self.width = max(min(self.width, prev_settings.width), int(self.width * min_scale))
+            self.height = max(min(self.height, prev_settings.height), int(self.height * min_scale))
             return
 
         # checking if current resolution suits to requested_pixels
@@ -292,6 +292,7 @@ class ViewportEngine(Engine):
             # RENDERING
             notify_status("Starting...", "Render")
 
+            user_settings = get_user_settings()
             is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
 
             # Infinite cycle, which starts when scene has to be re-rendered.
@@ -360,9 +361,9 @@ class ViewportEngine(Engine):
                     time_render_prev = time_render
                     time_render = time.perf_counter() - time_begin
                     iteration_time = time_render - time_render_prev
-                    if depsgraph.scene.rpr.viewport_limits.adapt_viewport_resolution:
+                    if user_settings.adapt_viewport_resolution:
                         if iteration == 2:
-                            target_time = 1.0 / depsgraph.scene.rpr.viewport_limits.viewport_samples_per_sec
+                            target_time = 1.0 / user_settings.viewport_samples_per_sec
                             self.requested_adapt_ratio = target_time / iteration_time
                     else:
                         self.requested_adapt_ratio = None
@@ -726,7 +727,7 @@ class ViewportEngine(Engine):
             if self.requested_adapt_ratio is not None:
                 viewport_settings.adapt_resolution(
                     self.requested_adapt_ratio, self.viewport_settings,
-                    scene.rpr.viewport_limits.min_resolution_scale)
+                    get_user_settings().min_viewport_resolution_scale / 100)
 
             if self.viewport_settings != viewport_settings:
                 viewport_settings.export_camera(self.rpr_context.scene.camera)
