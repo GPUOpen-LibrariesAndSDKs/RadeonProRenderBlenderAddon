@@ -225,7 +225,7 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         name="Min Resolution Scale",
         description="Min adapt viewport resolution scale",
         subtype='PERCENTAGE',
-        min=5, max=100, default=20,
+        min=5, max=100, default=25,
     )
 
 
