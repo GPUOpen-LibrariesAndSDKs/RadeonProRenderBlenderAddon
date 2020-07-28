@@ -284,6 +284,10 @@ class RenderEngine(Engine):
 
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = round(self.render_samples * progress)
+
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
+
         self.athena_send(athena_data)
 
     def render(self):
