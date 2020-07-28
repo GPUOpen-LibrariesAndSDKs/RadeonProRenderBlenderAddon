@@ -87,6 +87,10 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
     def execute(self, context):
         scene = bpy.context.scene
 
+        if scene.camera is None:
+            log.error("No camera in scene, skipping export")
+            return {'FINISHED'}
+
         flags = 1 << 5 # RPRLOADSTORE_EXPORTFLAG_EMBED_FILE_IMAGES_USING_OBJECTNAME
         # RPRLOADSTORE_EXPORTFLAG_EXTERNALFILES (1 << 0) - image data will be stored to rprs external file
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_1 (1 << 1) - lossless image

@@ -69,6 +69,11 @@ class ExportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
 
+        # EXPORT CAMERA
+        camera_key = object.key(scene.camera)   # current camera key
+        rpr_camera = self.rpr_context.create_camera(camera_key)
+        self.rpr_context.scene.set_camera(rpr_camera)
+
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.sync_auto_adapt_subdivision(self.rpr_context.width, self.rpr_context.height)
