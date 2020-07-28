@@ -23,12 +23,9 @@ log = logging.Log(tag='export.Material')
 
 def key(material: bpy.types.Material, obj=None, input_socket_key='Surface'):
     mat_key = material.name_full
-    if obj and obj.type == 'MESH' and has_uv_map_node(material):
-        mat_key = (mat_key, obj.data.rpr.uv_sets_names)
-    if input_socket_key != 'Surface':
-        mat_key = (mat_key, input_socket_key)
+    obj_name = obj.name_full if obj is not None else ''
 
-    return mat_key
+    return (mat_key, obj_name, input_socket_key)
 
 
 def get_material_output_node(material):
@@ -98,12 +95,13 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
     return rpr_material
 
 
-def sync_update(rpr_context: RPRContext, material: bpy.types.Material, obj: bpy.types.Object = None):
+def sync_update(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface', 
+                obj: bpy.types.Object = None):
     """ Recreates existing material """
 
     log("sync_update", material)
 
-    mat_key = key(material, obj)
+    mat_key = key(material, obj, input_socket_key)
     if mat_key in rpr_context.materials:
         rpr_context.remove_material(mat_key)
 

@@ -45,10 +45,6 @@ class RPR_MeshProperites(RPR_Properties):
             return layer.name
         return None
 
-    @property
-    def uv_sets_names(self):
-        return tuple(uv.name for uv in self.id_data.uv_layers)
-
     def secondary_uv_layer(self, obj):
         """ Get the mesh secondary UV set if present """
         uv_layers = self.id_data.uv_layers
