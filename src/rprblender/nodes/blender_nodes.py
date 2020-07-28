@@ -1211,6 +1211,22 @@ class ShaderNodeVectorMath(NodeParser):
 
         if op == 'NORMALIZE':
             res = in1.normalize()
+        elif op == 'FLOOR':
+            res = in1.floor()
+        elif op == 'CEIL':
+            res = in1.ceil()
+        elif op == 'LENGTH':
+            res = in1.length()
+        elif op == 'ABSOLUTE':
+            res = abs(in1)
+        elif op == 'SINE':
+            res = in1.sin()
+        elif op == 'COSINE':
+            res = in1.cos()
+        elif op == 'TANGENT':
+            res = in1.tan()
+        elif op == 'FRACTION':
+            res = in1 - in1.floor()
         else:
             in2 = self.get_input_value(1)
             if op == 'ADD':
@@ -1231,14 +1247,8 @@ class ShaderNodeVectorMath(NodeParser):
                 res = min(in1, in2)
             elif op == 'MAXIMUM':
                 res = max(in1, in2)
-            elif op == 'FLOOR':
-                res = in1.floor()
-            elif op == 'CEIL':
-                res = in1.ceil()
             elif op == 'MODULO':
                 res = in1 % in2
-            elif op == 'FRACTION':
-                res = in1 - in1.floor()
             elif op == 'PROJECT':
                 len_sq = in2.dot3(in2)
                 res = (len_sq != 0.0).if_else(in1.dot3(in2) / len_sq, 0.0)
@@ -1248,12 +1258,11 @@ class ShaderNodeVectorMath(NodeParser):
             elif op == 'DISTANCE':
                 diff = in1 - in2
                 res = diff.length()
-            elif op == 'LENGTH':
-                res = in1.length()
             elif op == 'SNAP':
                 res = (in1 / in2).floor() * in2
-            elif op == 'ABSOLUTE':
-                res = abs(in1)
+            elif op == 'SCALE':
+                # input 2 here is a scalar
+                res = in1 * in2
             else:
                 raise ValueError("Incorrect operation", op)
 

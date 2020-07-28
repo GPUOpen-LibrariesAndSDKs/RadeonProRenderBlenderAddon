@@ -359,6 +359,10 @@ class NodeItem:
         return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_COS,
                                        lambda a: math.cos(a))
 
+    def tan(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_TAN,
+                                       lambda a: math.tan(a))
+
     def is_zero(self):
         """ Check if numerical value is close to zero """
         if isinstance(self.data, float) and math.isclose(self.data, 0.0):
