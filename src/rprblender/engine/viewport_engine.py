@@ -546,12 +546,6 @@ class ViewportEngine(Engine):
                     continue
 
                 if isinstance(obj, bpy.types.Material):
-                    if material.has_uv_map_node(obj):
-                        self.remove_material_uvs_instances(obj, depsgraph)
-
-                    mesh_obj = context.object if context.object and \
-                                                 context.object.type == 'MESH' else None
-                    material.sync_update(self.rpr_context, obj, mesh_obj)
                     is_updated |= self.update_material_on_scene_objects(obj, depsgraph)
                     continue
 
@@ -867,17 +861,6 @@ class ViewportEngine(Engine):
                 res = True
         return res
 
-    def remove_material_uvs_instances(self, mat, depsgraph):
-        """ Find and remove each unique instance of material by UVs combinations """
-        uvs = set(entry.data.rpr.uv_sets_names for entry in self.depsgraph_objects(depsgraph)
-                  if isinstance(entry, bpy.types.Mesh) and mat.name in entry.material_slots)
-
-        for entry in uvs:
-            for socket in ('Surface', 'Volume', 'Displacement'):
-                mat_key = material.key((mat.name, entry), input_socket_key=socket)
-                if mat_key in self.rpr_context.materials:
-                    self.rpr_context.remove_material(mat_key)
-
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
@@ -892,9 +875,9 @@ class ViewportEngine(Engine):
 
         updated = False
         for obj in objects:
-            rpr_material = material.sync(self.rpr_context, active_mat, obj=obj)
-            rpr_volume = material.sync(self.rpr_context, active_mat, 'Volume', obj=obj)
-            rpr_displacement = material.sync(self.rpr_context, active_mat, 'Displacement', obj=obj)
+            rpr_material = material.sync_update(self.rpr_context, active_mat, obj=obj)
+            rpr_volume = material.sync_update(self.rpr_context, active_mat, 'Volume', obj=obj)
+            rpr_displacement = material.sync_update(self.rpr_context, active_mat, 'Displacement', obj=obj)
 
             if not rpr_material and not rpr_volume and not rpr_displacement:
                 continue
