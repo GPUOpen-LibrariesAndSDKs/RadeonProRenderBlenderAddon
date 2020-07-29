@@ -23,6 +23,7 @@ from rprblender.export import (
     object,
     particle,
     world,
+    camera
 )
 from .context import RPRContext
 from .engine import Engine
@@ -73,6 +74,13 @@ class ExportEngine(Engine):
         camera_key = object.key(scene.camera)   # current camera key
         rpr_camera = self.rpr_context.create_camera(camera_key)
         self.rpr_context.scene.set_camera(rpr_camera)
+        camera_obj = depsgraph.objects.get(camera_key, None)
+        if not camera_obj:
+            camera_obj = scene.camera
+
+        camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
+                                                         self.rpr_context.width / self.rpr_context.height)
+        camera_data.export(rpr_camera)
 
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
