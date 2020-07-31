@@ -54,7 +54,7 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
         to_mesh.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'VOLUME':
-        openvdb.sync(rpr_context, obj)
+        openvdb.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'EMPTY':
         pass
@@ -95,7 +95,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         pass
 
     elif obj.type == 'VOLUME':
-        updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
     else:
         log.warn("Not supported object to sync_update", obj, obj.type)
