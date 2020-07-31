@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import os
 
 import numpy as np
 
@@ -19,6 +20,7 @@ import bpy
 
 import pyrpr
 from rprblender.utils import helper_lib, IS_WIN, IS_MAC, is_zero
+from rprblender.utils import get_sequence_frame_file_path
 
 from . import mesh, object, material
 
@@ -46,14 +48,71 @@ def get_transform(obj: bpy.types.Object):
     return object.get_transform(obj) @ bound_mat
 
 
-def sync(rpr_context, obj: bpy.types.Object):
+def sequence_frame_number(scene_frame, mode, start, duration, offset):
+    """ Get sequence frame number from sequence settings and current scene frame """
+    frame = scene_frame - start + 1
+    if mode == 'CLIP':
+        if frame < 1 or frame > duration:
+            return None
+
+    elif mode == 'EXTEND':
+        frame = min(max(frame, 1), duration)
+
+    elif mode == 'REPEAT':
+        frame %= duration
+        if frame < 0:
+            frame += duration
+        if frame == 0:
+            frame = duration
+
+    else:  # mode == 'PING_PONG'
+        pingpong_duration = duration * 2 - 2
+        frame %= pingpong_duration
+        if frame < 0:
+            frame += pingpong_duration
+        if frame == 0:
+            frame = pingpong_duration
+        if frame > duration:
+            frame = duration * 2 - frame
+    frame += offset
+
+    return frame
+
+
+def get_volume_file_path(volume, scene_frame):
+    """ Get full file path for VDB grids data """
+    source_path = bpy.path.abspath(volume.filepath)
+
+    if not volume.is_sequence:  # use filename for non-sequence
+        if not os.path.exists(source_path):
+            log.warn(f"Unable to find OpenVDB file {source_path}")
+            return None
+
+        return source_path
+
+    # get VDB frame number for current scene frame
+    frame_duration = volume.frame_duration
+    frame_start = volume.frame_start
+    frame_offset = volume.frame_offset
+
+    mode = volume.sequence_mode
+
+    frame_number = sequence_frame_number(scene_frame, mode, frame_start, frame_duration, frame_offset)
+    return get_sequence_frame_file_path(source_path, frame_number)
+
+
+def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     if not (IS_WIN or IS_MAC):
         return
 
     # getting openvdb grid data
     volume = obj.data
     obj_key = object.key(obj)
-    vdb_file = bpy.path.abspath(volume.filepath)
+
+    vdb_file = get_volume_file_path(volume, kwargs['frame_current'])
+    if not vdb_file:  # nothing to export
+        return
+
     grids = helper_lib.vdb_read_grids_list(vdb_file)
 
     def get_rpr_grid(grid_name):
@@ -125,7 +184,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_shape.set_hetero_volume(rpr_volume)
 
 
-def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
     if not (IS_WIN or IS_MAC):
         return
 
@@ -135,7 +194,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     if not rpr_mesh:
         # no such mesh with volume => creating mesh with volume
-        sync(rpr_context, obj)
+        sync(rpr_context, obj, **kwargs)
         return True
 
     material_data = get_material_data(rpr_context, obj)
@@ -145,7 +204,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
     if is_updated_geometry or emission_changed:
         # mesh exists, but its settings were changed => recreating mesh with volume
         rpr_context.remove_object(obj_key)
-        sync(rpr_context, obj)
+        sync(rpr_context, obj, **kwargs)
         return True
 
     if is_updated_transform:
