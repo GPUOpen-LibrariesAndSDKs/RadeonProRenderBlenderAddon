@@ -36,6 +36,10 @@ from rprblender.utils import logging
 log = logging.Log(tag='viewport_engine')
 
 
+MIN_ADAPT_RATIO_DIFF = 0.2
+MIN_ADAPT_RESOLUTION_RATIO_DIFF = 0.1
+
+
 @dataclass(init=False, eq=True)
 class ViewportSettings:
     """
@@ -47,8 +51,6 @@ class ViewportSettings:
     """
 
     camera_data: camera.CameraData
-    width: int
-    height: int
     screen_width: int
     screen_height: int
     border: tuple
@@ -109,8 +111,8 @@ class ViewportSettings:
                 y2 = int(y + context.space_data.render_border_max_y * dy)
 
         # getting render resolution and render border
-        self.width, self.height = x2 - x1, y2 - y1
-        self.border = (x1, y1), (self.width, self.height)
+        width, height = x2 - x1, y2 - y1
+        self.border = (x1, y1), (width, height)
 
     def export_camera(self, rpr_camera):
         """Exports camera settings with render border"""
@@ -118,29 +120,13 @@ class ViewportSettings:
             ((self.border[0][0] / self.screen_width, self.border[0][1] / self.screen_height),
              (self.border[1][0] / self.screen_width, self.border[1][1] / self.screen_height)))
 
-    def adapt_resolution(self, requested_ratio, prev_settings, min_scale):
-        MIN_PIXEL_DIFF = 0.2
-        MIN_RATIO_DIFF = 0.1
+    @property
+    def width(self):
+        return self.border[1][0]
 
-        # checking with previous settings, if previous resolution
-        # suits to requested_pixels and suits to new render ratio
-        if abs(1 - requested_ratio) < MIN_PIXEL_DIFF \
-                and abs(self.width / self.height -
-                        prev_settings.width / prev_settings.height) < MIN_RATIO_DIFF:
-            self.width = max(min(self.width, prev_settings.width), int(self.width * min_scale))
-            self.height = max(min(self.height, prev_settings.height), int(self.height * min_scale))
-            return
-
-        # checking if current resolution suits to requested_pixels
-        new_ratio = (prev_settings.width * prev_settings.height * requested_ratio) / \
-                    (self.width * self.height)
-        if new_ratio > 1.0 - MIN_PIXEL_DIFF:
-            return
-
-        # changing to new resolution, but not less then SCALE_MIN
-        scale = max(math.sqrt(new_ratio), min_scale)
-        self.width = max(int(self.width * scale), 1)
-        self.height = max(int(self.height * scale), 1)
+    @property
+    def height(self):
+        return self.border[1][1]
 
 
 @dataclass(init=False, eq=True)
@@ -214,9 +200,14 @@ class ViewportEngine(Engine):
         self.is_resized = False
 
         self.requested_adapt_ratio = None
+        self.is_resolution_adapted = False
+        self.width = 1
+        self.height = 1
 
         self.render_iterations = 0
         self.render_time = 0
+
+        self.user_settings = get_user_settings()
 
     def stop_render(self):
         self.is_finished = True
@@ -292,7 +283,6 @@ class ViewportEngine(Engine):
             # RENDERING
             notify_status("Starting...", "Render")
 
-            user_settings = get_user_settings()
             is_adaptive = self.rpr_context.is_aov_enabled(pyrpr.AOV_VARIANCE)
 
             # Infinite cycle, which starts when scene has to be re-rendered.
@@ -331,14 +321,13 @@ class ViewportEngine(Engine):
                                 # When gl_interop is not enabled, than resize is better to do in
                                 # this thread. This is important for hybrid.
                                 with self.render_lock:
-                                    self.rpr_context.resize(self.viewport_settings.width,
-                                                            self.viewport_settings.height)
+                                    self.rpr_context.resize(self.width, self.height)
                             self.is_resized = False
 
                         self.rpr_context.sync_auto_adapt_subdivision()
                         self.rpr_context.sync_portal_lights()
                         time_begin = time.perf_counter()
-                        log(f"Restart render [{self.rpr_context.width}, {self.rpr_context.height}]")
+                        log(f"Restart render [{self.width}, {self.height}]")
 
                     # rendering
                     with self.render_lock:
@@ -361,12 +350,11 @@ class ViewportEngine(Engine):
                     time_render_prev = time_render
                     time_render = time.perf_counter() - time_begin
                     iteration_time = time_render - time_render_prev
-                    if user_settings.adapt_viewport_resolution:
-                        if iteration == 2:
-                            target_time = 1.0 / user_settings.viewport_samples_per_sec
-                            self.requested_adapt_ratio = target_time / iteration_time
-                    else:
-                        self.requested_adapt_ratio = None
+                    if self.user_settings.adapt_viewport_resolution \
+                            and not self.is_resolution_adapted \
+                            and iteration == 2:
+                        target_time = 1.0 / self.user_settings.viewport_samples_per_sec
+                        self.requested_adapt_ratio = target_time / iteration_time
 
                     if self.render_iterations > 0:
                         info_str = f"Time: {time_render:.1f} sec"\
@@ -446,16 +434,11 @@ class ViewportEngine(Engine):
         self.shading_data = ShadingData(context)
         self.view_layer_data = ViewLayerSettings(view_layer)
 
-        # getting initial render resolution
-        viewport_settings = ViewportSettings(context)
-        width, height = viewport_settings.width, viewport_settings.height
-        if width * height == 0:
-            # if width, height == 0, 0, then we set it to 1, 1 to be able to set AOVs
-            width, height = 1, 1
-
-        self.rpr_context.resize(width, height)
+        # setting initial render resolution as (1, 1) just for AOVs creation.
+        # It'll be resized to correct resolution in draw() function
+        self.rpr_context.resize(1, 1)
         if not self.rpr_context.gl_interop:
-            self.gl_texture = gl.GLTexture(width, height)
+            self.gl_texture = gl.GLTexture(self.width, self.height)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
@@ -475,7 +458,7 @@ class ViewportEngine(Engine):
 
         # image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
-        image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
+        image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
 
         # other context settings
@@ -542,6 +525,9 @@ class ViewportEngine(Engine):
                     # Outliner object visibility change will provide us only bpy.types.Scene update
                     # That's why we need to sync objects collection in the end
                     sync_collection = True
+
+                    if is_updated:
+                        self.is_resolution_adapted = False
 
                     continue
 
@@ -659,7 +645,10 @@ class ViewportEngine(Engine):
         with self.render_lock:
             if not self.viewport_settings:
                 self.viewport_settings = ViewportSettings(context)
+
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+                self._resize(self.viewport_settings.width, self.viewport_settings.height)
+                self.is_resolution_adapted = False
                 self.restart_render_event.set()
 
         if not self.is_rendered:
@@ -718,40 +707,78 @@ class ViewportEngine(Engine):
             if viewport_settings.width * viewport_settings.height == 0:
                 return
 
-            if self.requested_adapt_ratio is not None:
-                viewport_settings.adapt_resolution(
-                    self.requested_adapt_ratio, self.viewport_settings,
-                    get_user_settings().min_viewport_resolution_scale / 100)
-
             if self.viewport_settings != viewport_settings:
-                viewport_settings.export_camera(self.rpr_context.scene.camera)
                 self.viewport_settings = viewport_settings
+                self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+                if self.user_settings.adapt_viewport_resolution:
+                    # trying to use previous resolution or almost same pixels number
+                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
+                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
+                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
+                    w, h = self.rpr_context.width, self.rpr_context.height
 
-                if self.rpr_context.width != viewport_settings.width \
-                        or self.rpr_context.height != viewport_settings.height:
+                    if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
+                        scale = math.sqrt(w * h / (max_w * max_h))
+                        w, h = int(max_w * scale), int(max_h * scale)
 
-                    resolution = (viewport_settings.width, viewport_settings.height)
+                    self._resize(min(max(w, min_w), max_w),
+                                 min(max(h, min_h), max_h))
+                else:
+                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
 
-                    if self.rpr_context.gl_interop:
-                        # GL framebuffer ahs to be recreated in this thread,
-                        # that's why we call resize here
-                        with self.resolve_lock:
-                            self.rpr_context.resize(*resolution)
-
-                    if self.gl_texture:
-                        self.gl_texture = gl.GLTexture(*resolution)
-
-                    if self.image_filter:
-                        image_filter_settings = self.image_filter.settings.copy()
-                        image_filter_settings['resolution'] = resolution
-                        self.setup_image_filter(image_filter_settings)
-
-                    if self.world_settings.backplate:
-                        self.world_settings.backplate.export(self.rpr_context, resolution)
-
-                    self.is_resized = True
-
+                self.is_resolution_adapted = False
                 self.restart_render_event.set()
+
+            else:
+                if self.requested_adapt_ratio is not None:
+                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
+                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
+                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
+                    if abs(1.0 - self.requested_adapt_ratio) > MIN_ADAPT_RATIO_DIFF:
+                        scale = math.sqrt(self.requested_adapt_ratio)
+                        w, h = int(self.rpr_context.width * scale),\
+                               int(self.rpr_context.height * scale)
+                    else:
+                        w, h = self.rpr_context.width, self.rpr_context.height
+
+                    self._resize(min(max(w, min_w), max_w),
+                                 min(max(h, min_h), max_h))
+
+                    self.requested_adapt_ratio = None
+                    self.is_resolution_adapted = True
+
+                elif not self.user_settings.adapt_viewport_resolution:
+                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
+
+                if self.is_resized:
+                    self.restart_render_event.set()
+
+    def _resize(self, width, height):
+        if self.width == width and self.height == height:
+            self.is_resized = False
+            return
+
+        self.width = width
+        self.height = height
+
+        if self.rpr_context.gl_interop:
+            # GL framebuffer ahs to be recreated in this thread,
+            # that's why we call resize here
+            with self.resolve_lock:
+                self.rpr_context.resize(self.width, self.height)
+
+        if self.gl_texture:
+            self.gl_texture = gl.GLTexture(self.width, self.height)
+
+        if self.image_filter:
+            image_filter_settings = self.image_filter.settings.copy()
+            image_filter_settings['resolution'] = self.width, self.height
+            self.setup_image_filter(image_filter_settings)
+
+        if self.world_settings.backplate:
+            self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
+
+        self.is_resized = True
 
     def sync_objects_collection(self, depsgraph):
         """
