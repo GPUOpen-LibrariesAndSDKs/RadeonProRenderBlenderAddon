@@ -244,6 +244,7 @@ class ViewportEngine(Engine):
             time_begin = time.perf_counter()
 
             # exporting objects
+            frame_current = depsgraph.scene.frame_current
             material_override = depsgraph.view_layer.material_override
             objects_len = len(depsgraph.objects)
             for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
@@ -255,7 +256,8 @@ class ViewportEngine(Engine):
 
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
-                            indirect_only=indirect_only, material_override=material_override)
+                            indirect_only=indirect_only, material_override=material_override,
+                            frame_current=frame_current)
 
             # exporting instances
             instances_len = len(depsgraph.object_instances)
@@ -273,7 +275,8 @@ class ViewportEngine(Engine):
 
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
-                              indirect_only=indirect_only, material_override=material_override)
+                              indirect_only=indirect_only, material_override=material_override,
+                              frame_current=frame_current)
 
             # shadow catcher
             self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
@@ -486,6 +489,8 @@ class ViewportEngine(Engine):
         if not self.is_synced:
             return
 
+        frame_current = depsgraph.scene.frame_current
+
         # get supported updates and sort by priorities
         updates = []
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
@@ -545,7 +550,8 @@ class ViewportEngine(Engine):
                                                      update.is_updated_geometry or active_and_mode_changed, 
                                                      update.is_updated_transform,
                                                      indirect_only=indirect_only,
-                                                     material_override=material_override)
+                                                     material_override=material_override,
+                                                     frame_current=frame_current)
                     is_obj_updated |= is_updated
                     continue
 
@@ -842,6 +848,7 @@ class ViewportEngine(Engine):
     def sync_collection_objects(self, depsgraph, object_keys_to_export, material_override):
         """ Export collections objects """
         res = False
+        frame_current = depsgraph.scene.frame_current
 
         for obj in self.depsgraph_objects(depsgraph):
             obj_key = object.key(obj)
@@ -859,7 +866,8 @@ class ViewportEngine(Engine):
             else:
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
-                            indirect_only=indirect_only, material_override=material_override)
+                            indirect_only=indirect_only, material_override=material_override,
+                            frame_current=frame_current)
 
                 res = True
         return res
@@ -867,6 +875,7 @@ class ViewportEngine(Engine):
     def sync_collection_instances(self, depsgraph, object_keys_to_export, material_override):
         """ Export collections instances """
         res = False
+        frame_current = depsgraph.scene.frame_current
 
         for inst in self.depsgraph_instances(depsgraph):
             instance_key = instance.key(inst)
@@ -884,13 +893,15 @@ class ViewportEngine(Engine):
             else:
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
-                              indirect_only=indirect_only, material_override=material_override)
+                              indirect_only=indirect_only, material_override=material_override,
+                              frame_current=frame_current)
                 res = True
         return res
 
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
+        frame_current = depsgraph.scene.frame_current
 
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)
@@ -912,12 +923,15 @@ class ViewportEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
 
             if object.key(obj) not in self.rpr_context.objects:
-                object.sync(self.rpr_context, obj, indirect_only=indirect_only)
+                object.sync(self.rpr_context, obj, indirect_only=indirect_only,
+                            frame_current=frame_current)
                 updated = True
                 continue
 
             updated |= object.sync_update(self.rpr_context, obj, False, False,
-                                          indirect_only=indirect_only, material_override=material_override)
+                                          indirect_only=indirect_only,
+                                          material_override=material_override,
+                                          frame_current=frame_current)
 
         return updated
 

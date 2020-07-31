@@ -59,12 +59,14 @@ class ExportEngine(Engine):
         # camera, objects, particles
         for obj in self.depsgraph_objects(depsgraph, with_camera=True):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
-            object.sync(self.rpr_context, obj, indirect_only=indirect_only)
+            object.sync(self.rpr_context, obj, indirect_only=indirect_only,
+                        frame_current=scene.frame_current)
 
         # instances
         for inst in self.depsgraph_instances(depsgraph):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
-            instance.sync(self.rpr_context, inst, indirect_only=indirect_only)
+            instance.sync(self.rpr_context, inst, indirect_only=indirect_only,
+                          frame_current=scene.frame_current)
 
         # rpr_context parameters
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)

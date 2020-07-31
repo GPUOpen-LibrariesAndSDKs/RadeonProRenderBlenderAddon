@@ -259,3 +259,39 @@ def get_prop_array_data(arr, dtype=np.float32):
 
 def is_zero(val):
     return np.all(np.isclose(val, 0.0))
+
+
+# accept up to this number of leading zeroes in frame number in filename
+MAX_FRAME_NUMBER_LEADING_ZEROS = 6
+
+
+def get_sequence_frame_file_path(source_path, frame_number):
+    """ Find sequence file path for frame number """
+    if frame_number is None:
+        return None
+
+    path = Path(source_path)
+    folder = path.parent
+    extension = path.suffix
+    filename = path.name[:-len(extension)]
+
+    # cut filename by the last non-digit filename character
+    index = 0
+    for i, c in enumerate(reversed(filename)):
+        if not c.isdigit():
+            index = i
+            break
+
+    filename = filename[:len(filename) - index]
+
+    # try to locate target file using various frame number formats
+    for zeros_count in range(len(str(frame_number)), MAX_FRAME_NUMBER_LEADING_ZEROS + 1):
+        result = folder.joinpath(f"{filename}{frame_number:0{zeros_count}}{extension}")
+        if result.is_file():
+            return str(result)
+
+    log.warn(
+        f"Unable to find file {source_path} variant for frame number {frame_number}\n"
+        f"Frame number may have up to {MAX_FRAME_NUMBER_LEADING_ZEROS} leading zeroes."
+    )
+    return None
