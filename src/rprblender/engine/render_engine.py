@@ -243,7 +243,7 @@ class RenderEngine(Engine):
 
                 render_iteration += 1
 
-            if self.image_filter and sample == self.render_samples:
+            if self.image_filter and not self.rpr_engine.test_break():
                 self.update_image_filter_inputs(tile_pos)
 
         if self.image_filter and not self.rpr_engine.test_break():
