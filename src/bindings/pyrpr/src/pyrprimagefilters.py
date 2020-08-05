@@ -291,7 +291,9 @@ class ImageFilter(Object):
         if name in self.parameters and self.parameters[name] == value:
             return
 
-        if isinstance(value, (int, bool)):
+        if name == 'compute_type':
+            ImageFilterSetComputeType(self, value)
+        elif isinstance(value, (int, bool)):
             ImageFilterSetParameter1u(self, pyrpr.encode(name), int(value))
             self.parameters[name] = value
         elif isinstance(value, float):
@@ -345,6 +347,9 @@ class CommandQueue(Object):
 
     def execute(self):
         ContextExecuteCommandQueue(self.context, self, ffi.NULL, ffi.NULL, ffi.NULL)
+
+    def synchronize(self):
+        SyncronizeQueue(self)
 
     def delete(self):
         self.detach_image_filters()
