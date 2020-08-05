@@ -22,6 +22,8 @@ import bpy_extras
 from rprblender import utils
 
 from rprblender.utils import logging
+from rprblender.utils import get_sequence_frame_file_path
+
 log = logging.Log(tag='export.image')
 
 
@@ -40,24 +42,28 @@ IMAGE_FORMATS = {
 DEFAULT_FORMAT = ('PNG', 'png')
 
 
-def key(image: bpy.types.Image, color_space):
+def key(image: bpy.types.Image, color_space, frame_number=None):
     """ Generate image key for RPR """
+    if frame_number is not None:
+        return (image.name, color_space, frame_number)
     return (image.name, color_space)
 
 
-def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
+def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number=None):
     """ Creates pyrpr.Image from bpy.types.Image """
     from rprblender.engine.export_engine import ExportEngine
-
-    if image.size[0] * image.size[1] * image.channels == 0:
-        log.warn("Image has no data", image)
-        return None
 
     color_space = image.colorspace_settings.name
     if use_color_space:
         color_space = use_color_space
 
-    image_key = key(image, color_space)
+    if image.source == 'SEQUENCE':
+        image_key = key(image, color_space, frame_number)
+    else:
+        if image.size[0] * image.size[1] * image.channels == 0:
+            log.warn("Image has no data", image)
+            return None
+        image_key = key(image, color_space)
 
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
@@ -65,7 +71,13 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None):
     log("sync", image)
 
     pixels = image.pixels
-    if rpr_context.engine_type != ExportEngine.TYPE and hasattr(pixels, 'foreach_get'):
+    if image.source == 'SEQUENCE':
+        file_path = get_sequence_frame_file_path(image.filepath_from_user(), frame_number)
+        if not file_path:
+            return None
+        rpr_image = rpr_context.create_image_file(image_key, file_path)
+
+    elif rpr_context.engine_type != ExportEngine.TYPE and hasattr(pixels, 'foreach_get'):
         data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
