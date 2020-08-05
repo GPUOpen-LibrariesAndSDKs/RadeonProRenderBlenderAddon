@@ -13,6 +13,7 @@
 # limitations under the License.
 #********************************************************************
 from abc import ABCMeta, abstractmethod
+import os
 
 import pyrpr
 import pyhybrid
@@ -105,6 +106,7 @@ class ImageFilter(metaclass=ABCMeta):
         self.command_queue.execute()
 
     def get_data(self):
+        self.command_queue.synchronize()
         return self.output_image.get_data()
 
 
@@ -159,7 +161,7 @@ class ImageFilterML(ImageFilter):
         as well as an albedo '''
     def _create_filter(self):
         devices = self.get_devices()
-        use_oidn = (utils.IS_WIN and devices.cpu_state) 
+        use_oidn = (utils.IS_WIN or utils.IS_MAC) and devices.cpu_state
         if use_oidn:
             self.filter = self.context.create_filter(rif.IMAGE_FILTER_OPENIMAGE_DENOISE)
         else:
