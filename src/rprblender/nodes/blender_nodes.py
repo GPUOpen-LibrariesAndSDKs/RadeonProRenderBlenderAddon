@@ -647,7 +647,8 @@ class ShaderNodeTexImage(NodeParser):
             return self.node_item(ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else
                                   ERROR_IMAGE_COLOR[3])
 
-        rpr_image = image.sync(self.rpr_context, self.node.image)
+        rpr_image = image.sync(self.rpr_context, self.node.image,
+                               frame_number=self.node.image_user.frame_current)
         if not rpr_image:
             return None
 
