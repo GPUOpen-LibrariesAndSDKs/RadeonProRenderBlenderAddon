@@ -478,6 +478,7 @@ class ViewportEngine(Engine):
 
         self.view_mode = context.mode
         self.space_data = context.space_data
+        self.selected_objects = context.selected_objects
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
         self.sync_render_thread.start()
 
@@ -487,6 +488,11 @@ class ViewportEngine(Engine):
         """ sync just the updated things """
 
         if not self.is_synced:
+            return
+
+        if context.selected_objects != self.selected_objects:
+            # only a selection change
+            self.selected_objects = context.selected_objects
             return
 
         frame_current = depsgraph.scene.frame_current
