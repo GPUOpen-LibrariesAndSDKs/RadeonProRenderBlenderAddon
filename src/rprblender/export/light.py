@@ -170,7 +170,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     rpr_light.set_radiant_power(*power)
     rpr_light.set_transform(object.get_transform(obj))
-    rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
+    rpr_light.set_group_id(int(light.rpr.group))
 
     rpr_context.scene.attach(rpr_light)
 

@@ -220,6 +220,7 @@ class WorldData:
     overrides: {str: OverrideData} = None
     backplate: BackplateData = None
     gizmo_rotation: tuple = None
+    group: int = 0
 
     @staticmethod
     def init_from_world(world: bpy.types.World):
@@ -230,6 +231,8 @@ class WorldData:
         rpr = world.rpr
         if not rpr.enabled:
             return data
+
+        data.group = int(rpr.group)
 
         def set_override(override_type):
             if not getattr(rpr, f'{override_type}_override'):
@@ -297,7 +300,7 @@ class WorldData:
                     rpr_context.scene.add_environment_override(pyrpr_key, rpr_light)
 
                 rpr_light.set_intensity_scale(override.intensity)
-                rpr_light.set_group_id(0)
+                rpr_light.set_group_id(self.group)
 
                 if override.image:
                     set_light_image(rpr_context, rpr_light, override.image)
@@ -333,7 +336,7 @@ class WorldData:
         export_override('transparency')
 
         rpr_context.scene.environment_light.set_intensity_scale(self.intensity)
-        rpr_context.scene.environment_light.set_group_id(0)
+        rpr_context.scene.environment_light.set_group_id(self.group)
 
 
 def sync(rpr_context: RPRContext, world: bpy.types.World):
