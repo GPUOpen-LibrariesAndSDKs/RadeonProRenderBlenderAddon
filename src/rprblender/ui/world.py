@@ -60,6 +60,9 @@ class RPR_WORLD_PT_environment(RPR_Panel):
 
             layout.prop(sun_sky, 'resolution')
 
+        row = layout.row()
+        row.prop(rpr, 'group')
+
 
 class RPR_EnvironmentOverride(RPR_Panel):
     bl_parent_id = 'RPR_WORLD_PT_environment'
