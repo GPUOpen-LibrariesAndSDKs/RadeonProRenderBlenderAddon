@@ -279,22 +279,22 @@ class RPR_ViewLayerProperites(RPR_Properties):
         },
         {
             'rpr': pyrpr.AOV_LIGHT_GROUP0,
-            'name': "Environment Lighting",
+            'name': "Light Group 1",
             'channel': 'RGB'
         },
         {
             'rpr': pyrpr.AOV_LIGHT_GROUP1,
-            'name': "Key Lighting",
+            'name': "Light Group 2",
             'channel': 'RGB'
         },
         {
             'rpr': pyrpr.AOV_LIGHT_GROUP2,
-            'name': "Fill Lighting",
+            'name': "Light Group 3",
             'channel': 'RGB'
         },
         {
             'rpr': pyrpr.AOV_LIGHT_GROUP3,
-            'name': "Emissive Lighting",
+            'name': "Light Group 4",
             'channel': 'RGB'
         },
         {
