@@ -37,6 +37,14 @@ _lock = threading.Lock()
 is_error = False
 
 
+DEV_DISABLE_STATISTICS = "RPR_DEV_DISABLE_STATISTICS"
+
+
+def is_disabled():
+    """ Statistics disabled if env variable is present and has any non-empty value other than 'FALSE' """
+    return config.disable_athena_report or os.environ.get(DEV_DISABLE_STATISTICS, 'FALSE').upper() not in ('FALSE', '')
+
+
 def _send_data_thread(data):
     global is_error
 

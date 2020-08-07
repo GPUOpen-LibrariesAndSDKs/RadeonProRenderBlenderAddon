@@ -479,6 +479,10 @@ class RenderEngine(Engine):
         if not settings.collect_stat:
             return
 
+        from rprblender.utils import athena
+        if athena.is_disabled():
+            return
+
         devices = settings.final_devices
 
         data['CPU Enabled'] = devices.cpu_state
@@ -515,7 +519,6 @@ class RenderEngine(Engine):
         self._update_athena_data(data)
 
         # sending data
-        from rprblender.utils import athena
         athena.send_data(data)
 
     def _update_athena_data(self, data):
