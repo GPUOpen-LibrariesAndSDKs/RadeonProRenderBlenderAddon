@@ -307,12 +307,12 @@ class RPR_EnvironmentProperties(RPR_Properties):
     # LIGHT GROUP AOV
     group: EnumProperty(
         name="Light Group",
-        items=(('1', "1", "Group 1"),
-               ('2', "2", "Group 2"),
-               ('3', "3", "Group 3"),
-               ('4', "4", "Group 4"),),
+        items=(('0', "1", "Group 1"),
+               ('1', "2", "Group 2"),
+               ('2', "3", "Group 3"),
+               ('3', "4", "Group 4"),),
         description="Light group for doing split lighting AOVs",
-        default='1',
+        default='0',
     )
 
     @classmethod
