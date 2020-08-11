@@ -35,6 +35,7 @@ import platform
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
+from rprblender.engine import context
 
 from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
@@ -463,7 +464,8 @@ class RPR_RenderProperties(RPR_Properties):
                 if use_gl_interop:
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
 
-                if not metal_enabled and platform.system() == 'Darwin':
+                if not metal_enabled and platform.system() == 'Darwin'\
+                        and not isinstance(rpr_context, context.RPRContext2):
                     # only enable metal once and if a GPU is turned on
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
