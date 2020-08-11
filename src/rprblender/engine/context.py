@@ -544,8 +544,6 @@ class RPRContext2(RPRContext):
 
     # Classes
     _Context = pyrpr2.Context
-    _Curve = pyrpr2.Curve
-    _Scene = pyrpr2.Scene
 
     def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
