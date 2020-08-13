@@ -1264,9 +1264,18 @@ class ShaderNodeVectorMath(NodeParser):
             elif op == 'SCALE':
                 # input 2 here is a scalar
                 res = in1 * in2
-            else:
-                raise ValueError("Incorrect operation", op)
+            else:  # 3-inputs operations
+                in3 = self.get_input_value(2)
 
+                if op == 'WRAP':
+                    # adapted from Blender util_math.h wrapf method
+                    val_range = in2 - in3
+                    if val_range != 0.0:
+                        res = in1 - val_range * ((in1 - in3) / val_range).floor()
+                    else:
+                        res = in3
+                else:
+                    raise ValueError("Incorrect operation", op)
 
         # Apply RGB to BW conversion for "Value" output
         if self.socket_out.name == 'Value':

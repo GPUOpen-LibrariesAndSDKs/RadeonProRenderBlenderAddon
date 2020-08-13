@@ -173,7 +173,7 @@ class NodeItem:
  
     def __ne__(self, other):
         return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_NOT_EQUAL,
-                                       lambda a,b: float(a != b))
+                                       lambda a, b: float(a != b))
 
     def get_channel(self, key):
         if isinstance(self.data, float):
