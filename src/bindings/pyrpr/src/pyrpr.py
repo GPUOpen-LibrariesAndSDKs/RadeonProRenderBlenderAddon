@@ -1265,6 +1265,10 @@ class PointLight(Light):
     def set_radiant_power(self, r, g, b):
         PointLightSetRadiantPower3f(self, r, g, b)
 
+    def set_radius(self, radius):
+        """ Supported in RPR 2.0 Sphere Light """
+        pass
+
 
 class SpotLight(Light):
     def __init__(self, context):
@@ -1276,6 +1280,10 @@ class SpotLight(Light):
 
     def set_cone_shape(self, iangle, oangle):
         SpotLightSetConeShape(self, iangle, oangle)
+
+    def set_radius(self, radius):
+        """ Supported in RPR 2.0 Disk Light """
+        pass
 
 
 class DirectionalLight(Light):

@@ -41,9 +41,11 @@ class RPR_LIGHT_PT_light(RPR_Panel):
         if light.type == 'POINT':
             row = main_col.row(align=True)
             row.template_ID(rpr_light, "ies_file", open="rpr.open_ies_file")
+            main_col.prop(light, 'shadow_soft_size')
 
         elif light.type == 'SPOT':
             col = main_col.column(align=True)
+            col.prop(light, 'shadow_soft_size')
             col.prop(light, 'spot_size', slider=True)
             col.prop(light, 'spot_blend', slider=True)
 

@@ -126,6 +126,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     if light.type == 'POINT':
         if light.rpr.ies_file:
             rpr_light = sync_ies_light(rpr_context, light, light_key)
+        elif light.shadow_soft_size > 0:
+            rpr_light = rpr_context.create_light(light_key, 'sphere')
+            rpr_light.set_radius(light.shadow_soft_size)
         else:
             rpr_light = rpr_context.create_light(light_key, 'point')
 
@@ -134,7 +137,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
         rpr_light.set_shadow_softness_angle(light.rpr.shadow_softness_angle)
 
     elif light.type == 'SPOT':
-        rpr_light = rpr_context.create_light(light_key, 'spot')
+        rpr_light = rpr_context.create_light(light_key, 'disk')
+        rpr_light.set_radius(light.shadow_soft_size)
         oangle = 0.5 * light.spot_size  # half of spot_size
         iangle = oangle * (1.0 - light.spot_blend * light.spot_blend)  # square dependency of spot_blend
         rpr_light.set_cone_shape(iangle, oangle)
