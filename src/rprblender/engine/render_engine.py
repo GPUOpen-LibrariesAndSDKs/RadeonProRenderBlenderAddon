@@ -32,6 +32,9 @@ from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
 
 
+MAX_RENDER_ITERATIONS = 32
+
+
 class RenderEngine(Engine):
     """ Final render engine """
 
@@ -142,6 +145,9 @@ class RenderEngine(Engine):
                 break
 
             render_iteration += 1
+            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+                # progressively increase update samples up to 32
+                self.render_update_samples *= 2
 
         if self.image_filter:
             self.notify_status(1.0, "Applying denoising final image")
@@ -242,6 +248,9 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
+                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+                    # progressively increase update samples up to 32
+                    self.render_update_samples *= 2
 
             if self.image_filter and not self.rpr_engine.test_break():
                 self.update_image_filter_inputs(tile_pos)
@@ -460,6 +469,7 @@ class RenderEngine(Engine):
         scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
+
         if scene.rpr.render_quality == 'FULL2':
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
