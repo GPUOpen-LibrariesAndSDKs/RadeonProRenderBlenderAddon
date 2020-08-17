@@ -123,10 +123,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         row.prop(limits, 'noise_threshold', slider=True)
         if rpr.render_quality == 'FULL2':
             row.enabled = False
-            col.prop(limits, 'update_samples_rpr2')
-        else:
-            col.prop(limits, 'update_samples')
-
+        
         col = self.layout.column(align=True)
         col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')

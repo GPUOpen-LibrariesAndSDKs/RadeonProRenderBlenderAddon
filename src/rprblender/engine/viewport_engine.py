@@ -318,7 +318,7 @@ class ViewportEngine(Engine):
                         # clears restart_render_event, prepares to start rendering
                         self.restart_render_event.clear()
                         iteration = 0
-
+                        
                         if self.is_resized:
                             if not self.rpr_context.gl_interop:
                                 # When gl_interop is not enabled, than resize is better to do in
