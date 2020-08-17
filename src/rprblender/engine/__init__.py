@@ -124,7 +124,7 @@ def register_plugins():
             pyhybrid.enabled = False
 
     # enabling RPR 2
-    pyrpr2.enabled = config.enable_rpr2 and utils.OS != 'Darwin'  # disabled on MacOS until the core fix is ready
+    pyrpr2.enabled = config.enable_rpr2
     if pyrpr2.enabled:
         try:
             register_plugin(pyrpr2.Context,

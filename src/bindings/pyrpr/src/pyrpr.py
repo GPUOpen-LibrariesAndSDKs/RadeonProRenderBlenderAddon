@@ -284,9 +284,7 @@ class Context(Object):
         # getting available devices
         def get_device(create_flag, info_flag):
             try:
-                create_flag_ = create_flag if platform.system() != 'Darwin' \
-                               else (create_flag | CREATION_FLAGS_ENABLE_METAL)
-                context = cls(create_flag_)
+                context = cls(create_flag)
                 device_name = context.get_info_str(info_flag)
                 if not device_name:
                     return None
@@ -303,6 +301,8 @@ class Context(Object):
         cls.gpu_devices = []
         for i in range(16):
             create_flag = getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i)
+            create_flag = create_flag if platform.system() != 'Darwin' \
+                               else (create_flag | CREATION_FLAGS_ENABLE_METAL)
             device = get_device(create_flag, getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
             if not device:
                 break
