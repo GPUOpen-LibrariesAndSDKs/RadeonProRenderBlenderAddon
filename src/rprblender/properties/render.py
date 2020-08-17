@@ -79,6 +79,13 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, default=4,
     )
 
+    update_samples_rpr2: IntProperty(
+        name="Samples per View Update",
+        description="The more samples, the less intermediate render result updates for shorter "
+                    "render times",
+        min=1, default=32,
+    )
+
     seconds: IntProperty(
         name="Time Limit",
         description="Limit rendering process in seconds. 0 - means limit by number of samples",

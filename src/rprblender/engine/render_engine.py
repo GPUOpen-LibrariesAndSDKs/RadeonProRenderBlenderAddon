@@ -460,7 +460,10 @@ class RenderEngine(Engine):
         scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
-        self.render_update_samples = scene.rpr.limits.update_samples
+        if scene.rpr.render_quality == 'FULL2':
+            self.render_update_samples = scene.rpr.limits.update_samples_rpr2
+        else:
+            self.render_update_samples = scene.rpr.limits.update_samples
 
         if scene.rpr.use_render_stamp:
             self.render_stamp_text = self.prepare_scene_stamp_text(scene)
