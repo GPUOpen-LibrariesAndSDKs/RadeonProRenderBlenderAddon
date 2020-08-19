@@ -26,6 +26,9 @@ material_library_path = None
 enable_hybrid = True
 enable_rpr2 = True
 
+disable_athena_report = False
+clean_athena_files = True
+
 try:
     # configdev.py example for logging setup:
     # from . import logging

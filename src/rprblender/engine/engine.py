@@ -281,6 +281,7 @@ class Engine:
 
         elif settings['filter_type'] == 'ML':
             inputs = {'color'}
+            params = {}
 
             if not settings['ml_color_only']:
                 self.rpr_context.enable_aov(pyrpr.AOV_DEPTH)
@@ -288,8 +289,15 @@ class Engine:
                 self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
                 inputs |= {'normal', 'depth', 'albedo'}
 
+            from .viewport_engine import ViewportEngine
+            import pyrprimagefilters as rif
+            if settings['ml_use_fp16_compute_type'] and self.TYPE == ViewportEngine.TYPE:
+                params['compute_type'] = rif.COMPUTE_TYPE_FLOAT16
+            else:
+                params['compute_type'] = rif.COMPUTE_TYPE_FLOAT
+
             self.image_filter = image_filter.ImageFilterML(
-                self.rpr_context.context, inputs, {}, {}, width, height)
+                self.rpr_context.context, inputs, {}, params, width, height)
 
         self.image_filter.settings = settings
 

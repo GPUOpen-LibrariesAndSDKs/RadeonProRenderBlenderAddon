@@ -23,7 +23,7 @@ log = logging.Log(tag='export.object')
 
 
 def key(obj: bpy.types.Object):
-    return obj.name
+    return obj.name_full
 
 
 def get_transform(obj: bpy.types.Object):
@@ -38,7 +38,11 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     log("sync", obj, obj.type)
 
     if obj.type == 'MESH':
-        mesh.sync(rpr_context, obj, **kwargs)
+        if obj.mode == 'OBJECT':
+            # if in edit mode use to_mesh
+            mesh.sync(rpr_context, obj, **kwargs)
+        else:
+            to_mesh.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj)
@@ -50,7 +54,7 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
         to_mesh.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'VOLUME':
-        openvdb.sync(rpr_context, obj)
+        openvdb.sync(rpr_context, obj, **kwargs)
 
     elif obj.type == 'EMPTY':
         pass
@@ -79,8 +83,11 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         updated |= light.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     elif obj.type == 'MESH':
-        updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
-        
+        if obj.mode == 'OBJECT':
+            updated |= mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
+        else:
+            updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
+ 
     elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
         updated |= to_mesh.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
@@ -88,7 +95,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         pass
 
     elif obj.type == 'VOLUME':
-        updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
+        updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
 
     else:
         log.warn("Not supported object to sync_update", obj, obj.type)

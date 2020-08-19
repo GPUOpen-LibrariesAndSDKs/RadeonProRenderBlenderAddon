@@ -238,6 +238,11 @@ class RPR_EnvironmentProperties(RPR_Properties):
         description="Background override type",
         default='SPHERE',
     )
+    backplate_crop: bpy.props.BoolProperty(
+        name="Crop",
+        description="Crop backplate image to render size",
+        default=True,
+    )
 
     # reflection override
     reflection_override: bpy.props.BoolProperty(
@@ -297,6 +302,17 @@ class RPR_EnvironmentProperties(RPR_Properties):
         description="Gizmo Rotation Euler Angles",
         subtype='EULER',
         size=3,
+    )
+
+    # LIGHT GROUP AOV
+    group: EnumProperty(
+        name="Light Group",
+        items=(('0', "1", "Group 1"),
+               ('1', "2", "Group 2"),
+               ('2', "3", "Group 3"),
+               ('3', "4", "Group 4"),),
+        description="Light group for doing split lighting AOVs",
+        default='0',
     )
 
     @classmethod

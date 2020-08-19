@@ -21,11 +21,11 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.Material')
 
 
-def key(material: (str, tuple), *, input_socket_key='Surface'):
-    if input_socket_key == 'Surface':
-        return material
+def key(material: bpy.types.Material, obj=None, input_socket_key='Surface'):
+    mat_key = material.name_full
+    obj_name = obj.name_full if obj is not None else ''
 
-    return (material, input_socket_key)
+    return (mat_key, obj_name, input_socket_key)
 
 
 def get_material_output_node(material):
@@ -75,12 +75,7 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
 
     log(f"sync {material} '{input_socket_key}'; obj {obj}")
 
-    if obj and obj.type=='MESH' and has_uv_map_node(material):
-        # only Mesh objects have UV mapping and RPR data field
-        mat_key = key((material.name, obj.data.rpr.uv_sets_names), input_socket_key=input_socket_key)
-    else:
-        mat_key = key(material.name, input_socket_key=input_socket_key)
-
+    mat_key = key(material, obj, input_socket_key)
     rpr_material = rpr_context.materials.get(mat_key, None)
     if rpr_material:
         return rpr_material
@@ -100,23 +95,19 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
     return rpr_material
 
 
-def sync_update(rpr_context: RPRContext, material: bpy.types.Material, obj: bpy.types.Object = None):
+def sync_update(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key='Surface', 
+                obj: bpy.types.Object = None):
     """ Recreates existing material """
 
     log("sync_update", material)
 
-    if obj and obj.type=='MESH' and has_uv_map_node(material):
-        # only Mesh objects have UV mapping and RPR data field
-        mat_key = key((material.name, obj.data.rpr.uv_sets_names),)
-    else:
-        mat_key = key(material.name)
-
+    mat_key = key(material, obj, input_socket_key)
     if mat_key in rpr_context.materials:
         rpr_context.remove_material(mat_key)
 
     sync(rpr_context, material, obj=obj)
 
-    displacement_key = key(mat_key, input_socket_key='Displacement')
+    displacement_key = key(material, obj, 'Displacement')
     if displacement_key in rpr_context.materials:
         rpr_context.remove_material(displacement_key)
 

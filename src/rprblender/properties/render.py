@@ -28,12 +28,14 @@ from bpy.props import (
     BoolVectorProperty,
     EnumProperty,
     StringProperty,
+    IntVectorProperty
 )
 import platform
 
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
+from rprblender.engine import context
 
 from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
@@ -67,7 +69,7 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
 
     adaptive_tile_size: IntProperty(
         name="Adaptive tile size",
-        min=4, default=16, max=16
+        min=4, default=16, max=64
     )
 
     update_samples: IntProperty(
@@ -75,6 +77,13 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         description="The more samples, the less intermediate render result updates for shorter "
                     "render times",
         min=1, default=4,
+    )
+
+    update_samples_rpr2: IntProperty(
+        name="Samples per View Update",
+        description="The more samples, the less intermediate render result updates for shorter "
+                    "render times",
+        min=1, default=32,
     )
 
     seconds: IntProperty(
@@ -94,12 +103,6 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         description="The more samples, the less intermediate preview render result updates for "
                     "shorter render times",
         min=1, default=4,
-    )
-
-    limit_viewport_resolution: BoolProperty(
-        name="Limit Viewport Resolution",
-        description="Limits viewport resolution to final render resolution",
-        default=True,
     )
 
     def set_adaptive_params(self, rpr_context):
@@ -212,6 +215,25 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
             ('4096', '4096', '4096')
         ),
         default='2048',
+    )
+
+    adapt_viewport_resolution: BoolProperty(
+        name="Adapt Viewport Resolution",
+        description="Adapts Viewport Resolution for interactivity",
+        default=True,
+    )
+
+    viewport_samples_per_sec: IntProperty(
+        name="Samples Per Second",
+        description="Viewport samples per second",
+        min=1, soft_max=200, default=15,
+    )
+
+    min_viewport_resolution_scale: IntProperty(
+        name="Min Resolution Scale",
+        description="Min adapt viewport resolution scale",
+        subtype='PERCENTAGE',
+        min=5, max=100, default=25,
     )
 
 
@@ -407,11 +429,11 @@ class RPR_RenderProperties(RPR_Properties):
         ]
     if pyrpr2.enabled:
         render_quality_items += [
-            ('FULL2', "Full (Experimental)", "Full render quality with RPR 2 (Experimental)")
+            ('FULL2', "RPR 2.0 (Beta)", "Full render quality with RPR 2 (Beta)")
         ]
 
     def update_render_quality(self, context):
-        if self.render_quality == 'FULL':
+        if self.render_quality in ('FULL', 'FULL2'):
             return
 
         settings = get_user_settings()
@@ -449,7 +471,8 @@ class RPR_RenderProperties(RPR_Properties):
                 if use_gl_interop:
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
 
-                if not metal_enabled and platform.system() == 'Darwin':
+                if not metal_enabled and platform.system() == 'Darwin'\
+                        and not isinstance(rpr_context, context.RPRContext2):
                     # only enable metal once and if a GPU is turned on
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
