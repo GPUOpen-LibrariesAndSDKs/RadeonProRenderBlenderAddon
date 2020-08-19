@@ -21,6 +21,7 @@ All parser classes should:
 import bpy
 import math
 import numpy as np
+import sys
 
 import pyrpr
 
@@ -646,7 +647,8 @@ class ShaderNodeTexImage(NodeParser):
             return self.node_item(ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else
                                   ERROR_IMAGE_COLOR[3])
 
-        rpr_image = image.sync(self.rpr_context, self.node.image)
+        rpr_image = image.sync(self.rpr_context, self.node.image,
+                               frame_number=self.node.image_user.frame_current)
         if not rpr_image:
             return None
 
@@ -972,42 +974,83 @@ class ShaderNodeAddShader(NodeParser):
         return shader2
 
 
+class ShaderNodeObjectInfo(NodeParser):
+
+    def export(self):
+        if self.socket_out.name == 'Location':
+            if self.object:
+                return self.node_item(tuple(self.object.location))
+            else:
+                return self.node_item((0.0, 0.0, 0.0, 0.0))
+        elif self.socket_out.name == 'Color':
+            if self.object:
+                return self.node_item(tuple(self.object.color))
+            else:
+                return self.node_item((1.0, 1.0, 1.0, 1.0))
+        elif self.socket_out.name == 'Object Index':
+            if self.object:
+                return self.node_item(self.object.pass_index)
+            else:
+                return self.node_item(0)
+        elif self.socket_out.name == 'Material Index':
+            return self.node_item(self.material.pass_index)
+        elif self.socket_out.name == 'Random':
+            return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+                                    {pyrpr.MATERIAL_INPUT_VALUE:
+                                     pyrpr.MATERIAL_NODE_LOOKUP_SHAPE_RANDOM_COLOR})
+
+    def export_hybrid(self):
+        if self.socket_out.name == 'Random':
+            log.warn(f"Unsupported random object info in Hybrid modes")
+            return self.node_item(self.object.pass_index)
+        else:
+            return self.export()
+
+
 class ShaderNodeTexCoord(RuleNodeParser):
     # outputs: Generated, Normal, UV, Object, Camera, Window, Reflection
     # Supported outputs by RPR: Normal, UV
 
-    nodes = {
-        "Generated": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
-            },
-            "warn": "TexCoord Generated output is not supported, UV will be used"
-        },
-        "Normal": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
-            }
-        },
-        "UV": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
-            }
-        },
-        "Object": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
-            },
-        },
+    def export(self):
+        tex_coord_type = self.socket_out.name
 
-        "hybrid:Generated": None,
-        "hybrid:Normal": None,
-        "hybrid:UV": None,
-        "hybrid:Object": None,
-    }
+        if tex_coord_type == 'Generated':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
+            })
+            if self.object:
+                # normalize over object bounding box
+                # get min and max of boinding box
+                min_bounds = tuple(min(p[i] for p in self.object.bound_box) for i in range(3))
+                max_bounds = tuple(max(p[i] for p in self.object.bound_box) for i in range(3))
+
+                size = self.node_item((max_bounds[0] - min_bounds[0],
+                                       max_bounds[1] - min_bounds[1],
+                                       max_bounds[2] - min_bounds[2]))
+                min_bounds = self.node_item(min_bounds)
+
+                data = (data - min_bounds) / size
+
+        elif tex_coord_type == 'Normal':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
+            })
+        elif tex_coord_type == 'UV':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
+            })
+        elif tex_coord_type == 'Object':
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL,
+            })
+        else:
+            log.warn("Ignoring unsupported UV lookup", tex_coord_type, self.node, self.material, 
+                     "UV will be used")
+            data = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV,
+            })
+
+        return data
 
 
 class ShaderNodeLightFalloff(NodeParser):
@@ -1148,7 +1191,11 @@ class ShaderNodeMath(NodeParser):
             elif op == 'MODULO':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_MOD, in1, in2)
             else:
-                raise ValueError("Incorrect math operation", op)
+                in3 = self.get_input_value(2)
+                if op == 'MULTIPLY_ADD':
+                    res = in1 * in2 + in3
+                else:
+                    raise ValueError("Incorrect math operation", op)
 
         if self.node.use_clamp:
             res = res.clamp()
@@ -1165,6 +1212,22 @@ class ShaderNodeVectorMath(NodeParser):
 
         if op == 'NORMALIZE':
             res = in1.normalize()
+        elif op == 'FLOOR':
+            res = in1.floor()
+        elif op == 'CEIL':
+            res = in1.ceil()
+        elif op == 'LENGTH':
+            res = in1.length()
+        elif op == 'ABSOLUTE':
+            res = abs(in1)
+        elif op == 'SINE':
+            res = in1.sin()
+        elif op == 'COSINE':
+            res = in1.cos()
+        elif op == 'TANGENT':
+            res = in1.tan()
+        elif op == 'FRACTION':
+            res = in1 - in1.floor()
         else:
             in2 = self.get_input_value(1)
             if op == 'ADD':
@@ -1185,14 +1248,8 @@ class ShaderNodeVectorMath(NodeParser):
                 res = min(in1, in2)
             elif op == 'MAXIMUM':
                 res = max(in1, in2)
-            elif op == 'FLOOR':
-                res = in1.floor()
-            elif op == 'CEIL':
-                res = in1.ceil()
             elif op == 'MODULO':
                 res = in1 % in2
-            elif op == 'FRACTION':
-                res = in1 - in1.floor()
             elif op == 'PROJECT':
                 len_sq = in2.dot3(in2)
                 res = (len_sq != 0.0).if_else(in1.dot3(in2) / len_sq, 0.0)
@@ -1202,15 +1259,23 @@ class ShaderNodeVectorMath(NodeParser):
             elif op == 'DISTANCE':
                 diff = in1 - in2
                 res = diff.length()
-            elif op == 'LENGTH':
-                res = in1.length()
             elif op == 'SNAP':
                 res = (in1 / in2).floor() * in2
-            elif op == 'ABSOLUTE':
-                res = abs(in1)
-            else:
-                raise ValueError("Incorrect operation", op)
+            elif op == 'SCALE':
+                # input 2 here is a scalar
+                res = in1 * in2
+            else:  # 3-inputs operations
+                in3 = self.get_input_value(2)
 
+                if op == 'WRAP':
+                    # adapted from Blender util_math.h wrapf method
+                    val_range = in2 - in3
+                    if val_range != 0.0:
+                        res = in1 - val_range * ((in1 - in3) / val_range).floor()
+                    else:
+                        res = in3
+                else:
+                    raise ValueError("Incorrect operation", op)
 
         # Apply RGB to BW conversion for "Value" output
         if self.socket_out.name == 'Value':
@@ -1616,6 +1681,33 @@ class ShaderNodeMapping(NodeParser):
 
         return self.export_281()
 
+    def rotation(self, mapping, transpose=False):
+        ''' returns a vector transformed by rotation '''
+        # Apply rotation to transpose we flip matrix
+        rotation = - self.get_input_default('Rotation')  # must be flipped to match cycles
+        sin_x, sin_y, sin_z = map(math.sin, rotation.data)
+        cos_x, cos_y, cos_z = map(math.cos, rotation.data)
+
+        if transpose:
+            part1 = mapping.dot3((cos_y * cos_z,
+                                  sin_y * sin_x * cos_z - cos_x * sin_z,
+                                  sin_y * cos_x * cos_z + sin_x * sin_z, 0.0))
+            part2 = mapping.dot3((cos_y * sin_z,
+                                  sin_y * sin_x * sin_z + cos_x * cos_z,
+                                  sin_y * cos_x * sin_z - sin_x * cos_z, 0.0))
+            part3 = mapping.dot3((-sin_y,
+                                  cos_y * sin_x,
+                                  cos_y * cos_x, 0.0))
+        else:
+            part1 = mapping.dot3((cos_y * cos_z, cos_y * sin_z, -sin_y, 0.0))
+            part2 = mapping.dot3((sin_y * sin_x * cos_z - cos_x * sin_z,
+                                  sin_y * sin_x * sin_z + cos_x * cos_z,
+                                  cos_y * sin_x, 0.0))
+            part3 = mapping.dot3((sin_y * cos_x * cos_z + sin_x * sin_z,
+                                  sin_y * cos_x * sin_z - sin_x * cos_z,
+                                  cos_y * cos_x, 0.0))
+        return part1.combine4(part2, part3, self.node_item((0, 0, 0, 1)))
+
     def export_281(self):
         """ Export reworked node of Blender version 2.81+ """
         mapping = self.get_input_link('Vector')
@@ -1625,32 +1717,17 @@ class ShaderNodeMapping(NodeParser):
             })
 
         location = self.get_input_value('Location')
-        mapping = mapping + location
-
-        # Apply Z-axis rotation
-        rotation = self.get_input_default('Rotation')
-        angle = -rotation.data[2]  # Blender Mapping node angle is already in radians
-        if angle:
-            part1 = mapping.dot3((math.cos(angle), math.sin(angle), 0.0))
-            part2 = mapping.dot3((-math.sin(angle), math.cos(angle), 0.0))
-            mapping = part1.combine(part2, mapping)
-
-        if self.node.vector_type == 'TEXTURE':
-            # to match cycles "Texture" mapping type scale is used as a divider
-            scale = self.get_input_value('Scale')
-            if isinstance(scale.data, tuple):
-                if not (math.isclose(scale.data[0], 1.0) and
-                        math.isclose(scale.data[1], 1.0) and
-                        math.isclose(scale.data[2], 1.0)):
-                    mapping /= tuple(max(abs(axis_scale), 0.001) for axis_scale in scale.data)
-            else:
-                scale = abs(scale)
-                mapping /= scale
+        scale = self.get_input_value('Scale')
+        
+        mapping_type = self.node.vector_type
+        if mapping_type == 'POINT':
+            return self.rotation(mapping * scale) + location
+        elif mapping_type == 'TEXTURE':
+            return self.rotation(mapping - location, transpose=True) / scale
+        elif mapping_type == 'VECTOR':
+            return self.rotation(mapping * scale)
         else:
-            scale = self.get_input_value('Scale')
-            mapping *= scale
-
-        return mapping
+            return (self.rotation(mapping / scale)).normalize()
 
     def export_280(self):
         """ Export node of Blender version 2.80 """

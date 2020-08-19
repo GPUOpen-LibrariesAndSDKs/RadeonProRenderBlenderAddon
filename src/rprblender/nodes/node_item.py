@@ -173,7 +173,7 @@ class NodeItem:
  
     def __ne__(self, other):
         return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_NOT_EQUAL,
-                                       lambda a,b: float(a != b))
+                                       lambda a, b: float(a != b))
 
     def get_channel(self, key):
         if isinstance(self.data, float):
@@ -358,6 +358,10 @@ class NodeItem:
     def cos(self):
         return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_COS,
                                        lambda a: math.cos(a))
+
+    def tan(self):
+        return self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_TAN,
+                                       lambda a: math.tan(a))
 
     def is_zero(self):
         """ Check if numerical value is close to zero """

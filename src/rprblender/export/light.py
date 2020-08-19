@@ -126,6 +126,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     if light.type == 'POINT':
         if light.rpr.ies_file:
             rpr_light = sync_ies_light(rpr_context, light, light_key)
+        elif light.shadow_soft_size > 0:
+            rpr_light = rpr_context.create_light(light_key, 'sphere')
+            rpr_light.set_radius(light.shadow_soft_size)
         else:
             rpr_light = rpr_context.create_light(light_key, 'point')
 
@@ -134,14 +137,15 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
         rpr_light.set_shadow_softness_angle(light.rpr.shadow_softness_angle)
 
     elif light.type == 'SPOT':
-        rpr_light = rpr_context.create_light(light_key, 'spot')
+        rpr_light = rpr_context.create_light(light_key, 'disk')
+        rpr_light.set_radius(light.shadow_soft_size)
         oangle = 0.5 * light.spot_size  # half of spot_size
         iangle = oangle * (1.0 - light.spot_blend * light.spot_blend)  # square dependency of spot_blend
         rpr_light.set_cone_shape(iangle, oangle)
 
     elif light.type == 'AREA':
         data = mesh.MeshData.init_from_shape_type(rpr.shape, light.size, light.size_y, segments=32)
-        area = data.area
+        area = data.area * obj.scale[0] * obj.scale[1]
 
         rpr_light = rpr_context.create_area_light(
             light_key,
@@ -170,7 +174,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     rpr_light.set_radiant_power(*power)
     rpr_light.set_transform(object.get_transform(obj))
-    rpr_light.set_group_id(1 if light.rpr.group == 'KEY' else 2)
+    rpr_light.set_group_id(int(light.rpr.group))
 
     rpr_context.scene.attach(rpr_light)
 
@@ -198,8 +202,13 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
         return True
 
     if is_updated_transform:
-        # updating only light transform
-        rpr_light.set_transform(object.get_transform(obj))
+        if light.type == 'AREA' and light.rpr.intensity_normalization:
+            # the normalized are light should be recreated to apply scale correctly
+            rpr_context.remove_object(light_key)
+            sync(rpr_context, obj)
+        else:
+            # updating only light transform
+            rpr_light.set_transform(object.get_transform(obj))
         return True
 
     return False

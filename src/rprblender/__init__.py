@@ -20,7 +20,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (2, 4, 10),
+    "version": (2, 5, 1),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
@@ -77,7 +77,7 @@ viewport_engine_cls = {
     'HIGH': ViewportEngineHybrid,
     'MEDIUM': ViewportEngineHybrid,
     'LOW': ViewportEngineHybrid,
-    'FULL2': ViewportEngine,
+    'FULL2': ViewportEngine2,
 }
 
 

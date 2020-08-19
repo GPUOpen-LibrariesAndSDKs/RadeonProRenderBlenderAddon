@@ -26,6 +26,7 @@ import bpy
 import pyrpr
 from rprblender import utils
 from rprblender import bl_info
+from rprblender import config
 
 from . import logging
 from . import IS_MAC
@@ -34,6 +35,14 @@ log = logging.Log(tag='athena')
 
 _lock = threading.Lock()
 is_error = False
+
+
+DEV_DISABLE_STATISTICS = "RPR_DEV_DISABLE_STATISTICS"
+
+
+def is_disabled():
+    """ Statistics disabled if env variable is present and has any non-empty value other than 'FALSE' """
+    return config.disable_athena_report or os.environ.get(DEV_DISABLE_STATISTICS, 'FALSE').upper() not in ('FALSE', '')
 
 
 def _send_data_thread(data):
@@ -58,10 +67,11 @@ def _send_data_thread(data):
             is_error = True
 
         finally:
-            try:
-                os.remove(file_name)
-            except Exception as e:  # In case removal happens on Blender exit, when temporary folder is already removed
-                log.warn(f"Unable to remove temporary json: {e}")
+            if config.clean_athena_files:
+                try:
+                    os.remove(file_name)
+                except Exception as e:  # In case removal happens on Blender exit, when temporary folder is already removed
+                    log.warn(f"Unable to remove temporary json: {e}")
 
         log("send_data_thread finish")
 
