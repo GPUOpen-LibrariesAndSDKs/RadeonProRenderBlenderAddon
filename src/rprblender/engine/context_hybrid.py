@@ -31,8 +31,10 @@ class RPRContext(context.RPRContext):
     _MaterialNode = pyhybrid.MaterialNode
 
     _PointLight = pyhybrid.PointLight
+    _SphereLight = pyhybrid.PointLight
     _DirectionalLight = pyhybrid.DirectionalLight
     _SpotLight = pyhybrid.SpotLight
+    _DiskLight = pyhybrid.SpotLight
     _IESLight = pyhybrid.IESLight
     _AreaLight = pyhybrid.AreaLight
     _EnvironmentLight = pyhybrid.EnvironmentLight

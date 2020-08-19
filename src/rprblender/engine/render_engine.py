@@ -24,11 +24,15 @@ from rprblender import utils
 from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
+from rprblender.utils.conversion import perfcounter_to_str
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
+
+
+MAX_RENDER_ITERATIONS = 32
 
 
 class RenderEngine(Engine):
@@ -50,6 +54,7 @@ class RenderEngine(Engine):
         self.render_update_samples = 1
         self.render_time = 0
         self.current_render_time = 0
+        self.sync_time = 0
 
         self.status_title = ""
 
@@ -140,6 +145,9 @@ class RenderEngine(Engine):
                 break
 
             render_iteration += 1
+            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+                # progressively increase update samples up to 32
+                self.render_update_samples *= 2
 
         if self.image_filter:
             self.notify_status(1.0, "Applying denoising final image")
@@ -154,6 +162,8 @@ class RenderEngine(Engine):
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = self.current_sample
 
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
         self.athena_send(athena_data)
 
     def _render_tiles(self):
@@ -185,9 +195,7 @@ class RenderEngine(Engine):
 
             # export backplate section for tile if backplate present
             if self.world_backplate:
-                self.world_backplate.export_tile(self.rpr_context,
-                                                 tile[0][0], tile[0][1],
-                                                 tile[0][0] + tile[1][0], tile[0][1] + tile[1][1])
+                self.world_backplate.export(self.rpr_context, (self.width, self.height), tile)
 
             sample = 0
             if is_adaptive:
@@ -240,8 +248,11 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
+                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+                    # progressively increase update samples up to 32
+                    self.render_update_samples *= 2
 
-            if self.image_filter and sample == self.render_samples:
+            if self.image_filter and not self.rpr_engine.test_break():
                 self.update_image_filter_inputs(tile_pos)
 
         if self.image_filter and not self.rpr_engine.test_break():
@@ -282,6 +293,10 @@ class RenderEngine(Engine):
 
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = round(self.render_samples * progress)
+
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
+
         self.athena_send(athena_data)
 
     def render(self):
@@ -311,6 +326,8 @@ class RenderEngine(Engine):
 
         # Preparations for syncing
         self.is_synced = False
+
+        self.sync_time = time.perf_counter()
 
         scene = depsgraph.scene
         view_layer = depsgraph.view_layer
@@ -345,7 +362,8 @@ class RenderEngine(Engine):
             # the correct collection visibility info is stored in original object
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
             object.sync(self.rpr_context, obj,
-                        indirect_only=indirect_only, material_override=material_override)
+                        indirect_only=indirect_only, material_override=material_override,
+                        frame_current=scene.frame_current)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -364,7 +382,8 @@ class RenderEngine(Engine):
 
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
             instance.sync(self.rpr_context, inst,
-                          indirect_only=indirect_only, material_override=material_override)
+                          indirect_only=indirect_only, material_override=material_override,
+                          frame_current=scene.frame_current)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -405,11 +424,8 @@ class RenderEngine(Engine):
             self.camera_data.export(rpr_camera)
 
         # Environment is synced once per frame
-        world.sync(self.rpr_context, scene.world)
-        if scene.world.rpr.background_image_type == "BACKPLATE":
-            # Different Backplate regions should be exported for each render tile
-            self.world_backplate = world.Backplate(scene.world.rpr, (self.width, self.height))
-            self.world_backplate.export_full(self.rpr_context)
+        world_settings = world.sync(self.rpr_context, scene.world)
+        self.world_backplate = world_settings.backplate
 
         # SYNC MOTION BLUR
         self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
@@ -453,10 +469,16 @@ class RenderEngine(Engine):
         scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
-        self.render_update_samples = scene.rpr.limits.update_samples
+
+        if scene.rpr.render_quality == 'FULL2':
+            self.render_update_samples = scene.rpr.limits.update_samples_rpr2
+        else:
+            self.render_update_samples = scene.rpr.limits.update_samples
 
         if scene.rpr.use_render_stamp:
             self.render_stamp_text = self.prepare_scene_stamp_text(scene)
+
+        self.sync_time = time.perf_counter() - self.sync_time
 
         self.is_synced = True
         self.notify_status(0, "Finish syncing")
@@ -470,6 +492,10 @@ class RenderEngine(Engine):
         if not settings.collect_stat:
             return
 
+        from rprblender.utils import athena
+        if athena.is_disabled():
+            return
+
         devices = settings.final_devices
 
         data['CPU Enabled'] = devices.cpu_state
@@ -477,13 +503,8 @@ class RenderEngine(Engine):
             data[f'GPU{i} Enabled'] = gpu_state
 
         data['Resolution'] = (self.width, self.height)
-        quality = -1 if utils.IS_MAC else self.rpr_context.get_parameter(pyrpr.CONTEXT_RENDER_QUALITY, -1)
-        data['Quality'] = "full" if utils.IS_MAC else {-1: "full",
-                           pyrpr.RENDER_QUALITY_HIGH: "high",
-                           pyrpr.RENDER_QUALITY_MEDIUM: "medium",
-                           pyrpr.RENDER_QUALITY_LOW: "low"}[quality]
         data['Number Lights'] = sum(1 for o in self.rpr_context.scene.objects
-                                 if isinstance(o, pyrpr.Light))
+                                    if isinstance(o, pyrpr.Light))
         data['AOVs Enabled'] = tuple(
             f'RPR_{v}' for v in dir(pyrpr) if v.startswith('AOV_')
             and getattr(pyrpr, v) in self.rpr_context.frame_buffers_aovs
@@ -508,9 +529,13 @@ class RenderEngine(Engine):
 
         data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
 
+        self._update_athena_data(data)
+
         # sending data
-        from rprblender.utils import athena
         athena.send_data(data)
+
+    def _update_athena_data(self, data):
+        data['Quality'] = "full"
 
     def prepare_scene_stamp_text(self, scene):
         """ Fill stamp with static scene and render devices info that user can ask for """
@@ -595,3 +620,6 @@ from .context import RPRContext2
 
 class RenderEngine2(RenderEngine):
     _RPRContext = RPRContext2
+
+    def _update_athena_data(self, data):
+        data['Quality'] = "rpr2"

@@ -1,7 +1,16 @@
+import math
 import numpy as np
 
 import pyrpr
-
+from pyrprwrap import (
+    ContextCreateSphereLight,
+    SphereLightSetRadiantPower3f,
+    SphereLightSetRadius,
+    ContextCreateDiskLight,
+    DiskLightSetRadiantPower3f,
+    DiskLightSetRadius,
+    DiskLightSetAngle,
+)
 
 # will be used in other modules to check if RPR 2 is enabled
 enabled = False
@@ -11,26 +20,47 @@ class Context(pyrpr.Context):
     pass
 
 
-class Scene(pyrpr.Scene):
-    def attach(self, obj):
-        if isinstance(obj, pyrpr.Curve):
-            return
+class SphereLight(pyrpr.Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreateSphereLight(self.context, self)
 
-        super().attach(obj)
+        # keep target intensity and radius to adjust actual intensity when they are changed
+        self._radius_squared = 1
+
+    def set_radiant_power(self, r, g, b):
+        # Adjust intensity by current radius
+        SphereLightSetRadiantPower3f(self,
+                                     r / self._radius_squared,
+                                     g / self._radius_squared,
+                                     b / self._radius_squared)
+
+    def set_radius(self, radius):
+        radius = max(radius, 0.01)
+        self._radius_squared = radius * radius
+        SphereLightSetRadius(self, radius)
 
 
-class Curve(pyrpr.Curve):
-    def __init__(self, context, control_points, points_radii, uvs):
-        pass
+class DiskLight(pyrpr.Light):
+    def __init__(self, context):
+        super().__init__(context)
+        ContextCreateDiskLight(self.context, self)
 
-    def delete(self):
-        pass
+        # keep target intensity and radius to adjust actual intensity when they are changed
+        self._radius_squared = 1
 
-    def set_material(self, material):
-        pass
+    def set_radiant_power(self, r, g, b):
+        # Adjust intensity by current radius
+        DiskLightSetRadiantPower3f(self,
+                                   r / self._radius_squared,
+                                   g / self._radius_squared,
+                                   b / self._radius_squared)
 
-    def set_transform(self, transform: np.array, transpose=True):
-        pass
+    def set_cone_shape(self, iangle, oangle):
+        # Use external angle oangle
+        DiskLightSetAngle(self, oangle)
 
-    def set_name(self, name):
-        self.name = name
+    def set_radius(self, radius):
+        radius = max(radius, 0.01)
+        self._radius_squared = radius * radius
+        DiskLightSetRadius(self, radius)

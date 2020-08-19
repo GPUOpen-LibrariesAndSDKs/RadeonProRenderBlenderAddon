@@ -21,9 +21,9 @@ import bpy_extras
 
 from rprblender import utils
 
-import pyrpr
-
 from rprblender.utils import logging
+from rprblender.utils import get_sequence_frame_file_path
+
 log = logging.Log(tag='export.image')
 
 
@@ -42,19 +42,28 @@ IMAGE_FORMATS = {
 DEFAULT_FORMAT = ('PNG', 'png')
 
 
-def key(image: bpy.types.Image):
+def key(image: bpy.types.Image, color_space, frame_number=None):
     """ Generate image key for RPR """
-    return image.name
+    if frame_number is not None:
+        return (image.name, color_space, frame_number)
+    return (image.name, color_space)
 
 
-def sync(rpr_context, image: bpy.types.Image):
+def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number=None):
     """ Creates pyrpr.Image from bpy.types.Image """
+    from rprblender.engine.export_engine import ExportEngine
 
-    if image.size[0] * image.size[1] * image.channels == 0:
-        log.warn("Image has no data", image)
-        return None
+    color_space = image.colorspace_settings.name
+    if use_color_space:
+        color_space = use_color_space
 
-    image_key = key(image)
+    if image.source == 'SEQUENCE':
+        image_key = key(image, color_space, frame_number)
+    else:
+        if image.size[0] * image.size[1] * image.channels == 0:
+            log.warn("Image has no data", image)
+            return None
+        image_key = key(image, color_space)
 
     if image_key in rpr_context.images:
         return rpr_context.images[image_key]
@@ -62,7 +71,13 @@ def sync(rpr_context, image: bpy.types.Image):
     log("sync", image)
 
     pixels = image.pixels
-    if hasattr(pixels, 'foreach_get'):
+    if image.source == 'SEQUENCE':
+        file_path = get_sequence_frame_file_path(image.filepath_from_user(), frame_number)
+        if not file_path:
+            return None
+        rpr_image = rpr_context.create_image_file(image_key, file_path)
+
+    elif rpr_context.engine_type != ExportEngine.TYPE and hasattr(pixels, 'foreach_get'):
         data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
@@ -73,103 +88,76 @@ def sync(rpr_context, image: bpy.types.Image):
 
     else:
         # loading image by pixels
-        data = np.fromiter(pixels, dtype=np.float32,
-                           count=image.size[0] * image.size[1] * image.channels)
+        data = utils.get_prop_array_data(pixels)
         data = np.flipud(data.reshape(image.size[1], image.size[0], image.channels))
         rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(data))
 
-    rpr_image.set_name(image_key)
+    rpr_image.set_name(str(image_key))
 
     # TODO: implement more correct support of image color space types
-    if image.colorspace_settings.name in ('sRGB', 'BD16', 'Filmic Log'):
+    # RPRImageTexture node color space names are in caps, unlike in Blender
+    if color_space in ('sRGB', 'BD16', 'Filmic Log', 'SRGB'):
         rpr_image.set_gamma(2.2)
-    else:
-        if image.colorspace_settings.name not in ('Non-Color', 'Raw', 'Linear'):
-            log.warn("Ignoring unsupported image color space type",
-                     image.colorspace_settings.name, image)
+    elif color_space not in ('Non-Color', 'Raw', 'Linear', 'LINEAR'):
+        log.warn("Ignoring unsupported image color space type",
+                 color_space, image)
 
     return rpr_image
 
 
 class ImagePixels:
-    """
-    This class stores source image pixels clipped to region size.
-    Exports full and sub-region pixels
-    """
-    def __init__(self, image: bpy.types.Image, region: tuple):
-        self.pixels = None
-        self.size = (0, 0)
-        self.channels = image.channels
+    """This class stores source image pixels. Exports as tile image and clipped to render size"""
+
+    def __init__(self, image: bpy.types.Image):
+        if image.size[0] * image.size[1] * image.channels == 0:
+            raise ValueError("Image has no data", image)
+
+        pixels = image.pixels
+        if hasattr(pixels, 'foreach_get'):
+            data = utils.get_prop_array_data(pixels)
+        else:
+            # loading image by pixels
+            data = np.fromiter(pixels, dtype=np.float32,
+                               count=image.size[0] * image.size[1] * image.channels)
+
+        self.pixels = data.reshape(image.size[1], image.size[0], image.channels)
+
         self.name = image.name
         self.color_space = image.colorspace_settings.name
 
-        if image.size[0] * image.size[1] * image.channels == 0:
-            log.warn("Image has no data", image)
-            return
+    def export(self, rpr_context, render_size=None, tile=((0, 0), (1, 1))):
+        """Export pixels cropped to render and tile size as RPR image"""
 
-        self.pixels = self.extract_pixels(image, *region)
+        image_size = self.pixels.shape[1], self.pixels.shape[0]
+        if render_size:
+            image_ratio = image_size[0] / image_size[1]
+            render_ratio = render_size[0] / render_size[1]
 
-        self.size = (region[2] - region[0] + 1, region[3] - region[1] + 1)
+            if image_ratio > render_ratio:
+                size = image_size[1] * render_ratio, image_size[1]
+            else:
+                size = image_size[0], image_size[0] / render_ratio
 
-    def is_empty(self) -> bool:
-        return self.pixels is None
+            x1, y1 = (image_size[0] - size[0]) / 2, (image_size[1] - size[1]) / 2
+            x2, y2 = x1 + size[0], y1 + size[1]
 
-    def extract_pixels(self, image: bpy.types.Image, x1, y1, x2, y2) -> np.array:
-        """ Store source image pixels cropped to region coordinates """
-        # extract pixels
-        data = np.fromiter(image.pixels, dtype=np.float32,
-                           count=image.size[0] * image.size[1] * image.channels)
-        pixels = data.reshape(image.size[1], image.size[0], image.channels)
+        else:
+            x1, y1 = 0, 0
+            x2, y2 = image_size
 
-        return self.extract_pixels_region(pixels, x1, y1, x2, y2)
+        x1, y1, x2, y2 = (
+            int(x1 + (x2 - x1) * tile[0][0]),
+            int(y1 + (y2 - y1) * tile[0][1]),
+            int(x1 + (x2 - x1) * (tile[0][0] + tile[1][0])),
+            int(y1 + (y2 - y1) * (tile[0][1] + tile[1][1]))
+        )
 
-    def extract_pixels_region(self, pixels: np.array, x1, y1, x2, y2) -> np.array:
-        """ Crop pixels to region size """
-        region_pixels = np.array(pixels[y1:y2+1, x1:x2+1, :], dtype=np.float32)
-
-        return region_pixels
-
-    def export_full(self, rpr_context) -> (pyrpr.Image, None):
-        """ Export the full image pixels as RPR image"""
-        if self.is_empty():
+        if x1 == x2 or y1 == y2:
             return None
 
-        image_key = f"{self.name}@{self.color_space}"
-
-        if image_key in rpr_context.images:
-            return rpr_context.images[image_key]
-
-        pixels = np.ascontiguousarray(np.flipud(self.pixels))
-        rpr_image = rpr_context.create_image_data(image_key, pixels)
-        rpr_image.set_name(image_key)
-
-        if self.color_space in ('sRGB', 'BD16', 'Filmic Log'):
-            rpr_image.set_gamma(2.2)
-
-        return rpr_image
-
-    def export_region(self, rpr_context, x1, y1, x2, y2) -> (pyrpr.Image, None):
-        """ Export pixels cropped to sub-region coordinates as RPR image """
-        if self.is_empty():
-            return None
-
-        # check sub-region boundaries, just in case something went terribly wrong
-        if x1 == x2 or y1 == y2 or x1 >= self.size[0] or x2 < 0 or y1 >= self.size[1] or y2 < 0:
-            log.warn(f"Image region ({x1}; {y1})-({x2}; {y2}) has no data", self.name)
-            return None
-
-        image_key = f"{self.name}({x1}, {y1})-({x2}, {y2})@{self.color_space}"
-
-        if image_key in rpr_context.images:
-            return rpr_context.images[image_key]
-
-        # get pixels region
-        pixels = self.extract_pixels_region(self.pixels, x1, y1, x2, y2)
-        pixels = np.flipud(pixels)
-
-        rpr_image = rpr_context.create_image_data(image_key, np.ascontiguousarray(pixels))
-
-        rpr_image.set_name(image_key)
+        pixels = self.pixels[y1:y2, x1:x2, :]
+        rpr_image = rpr_context.create_image_data(None, np.ascontiguousarray(np.flipud(pixels)))
+        rpr_image.set_name(self.name)
 
         if self.color_space in ('sRGB', 'BD16', 'Filmic Log'):
             rpr_image.set_gamma(2.2)

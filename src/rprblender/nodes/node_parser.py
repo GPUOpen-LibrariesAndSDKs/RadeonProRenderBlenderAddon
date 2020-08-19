@@ -244,6 +244,17 @@ class BaseNodeParser(metaclass=ABCMeta):
         """
         pass
 
+    def export_muted(self):
+        # export as a muted node
+        # pass through first linked socket of same output socket type
+        matching_incoming_socket = next((input for input in self.node.inputs
+            if isinstance(input, type(self.socket_out)) and input.is_linked), None)
+        if matching_incoming_socket:
+            return self.get_input_link(matching_incoming_socket.name)
+        else:
+            # if no inputs use the socket val
+            return None
+
     def final_export(self):
         """
         This is the entry point of NodeParser classes.
@@ -251,7 +262,11 @@ class BaseNodeParser(metaclass=ABCMeta):
         """
 
         log("export", self.material, self.node, self.socket_out, self.group_nodes)
-        rpr_node = self.export()
+        
+        if self.node.mute:
+            rpr_node = self.export_muted()
+        else:
+            rpr_node = self.export()
 
         if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
@@ -273,7 +288,9 @@ class NodeParser(BaseNodeParser):
         """
 
         log("export", self.material, self.node, self.socket_out, self.group_nodes)
-        if isinstance(self.rpr_context, RPRContextHybrid):
+        if self.node.mute:
+            node_item = self.export_muted()
+        elif isinstance(self.rpr_context, RPRContextHybrid):
             node_item = self.export_hybrid()
         else:
             node_item = self.export()
@@ -292,6 +309,10 @@ class NodeParser(BaseNodeParser):
 
     def export_hybrid(self) -> [NodeItem, None]:
         return self.export()
+
+    def export_muted(self) -> [NodeItem, None]:
+        rpr_node = super().export_muted()
+        return self.node_item(rpr_node) if rpr_node is not None else None
 
     def get_output_default(self, socket_key=None) -> NodeItem:
         val = super().get_output_default(socket_key)

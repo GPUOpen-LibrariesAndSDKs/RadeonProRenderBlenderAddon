@@ -27,8 +27,10 @@ class RPRContext:
     _MaterialNode = pyrpr.MaterialNode
 
     _PointLight = pyrpr.PointLight
+    _SphereLight = pyrpr.PointLight  # RPR 2.0 only feature, use PointLight instead
     _DirectionalLight = pyrpr.DirectionalLight
     _SpotLight = pyrpr.SpotLight
+    _DiskLight = pyrpr.SpotLight
     _IESLight = pyrpr.IESLight
     _AreaLight = pyrpr.AreaLight
     _EnvironmentLight = pyrpr.EnvironmentLight
@@ -352,8 +354,12 @@ class RPRContext:
     def create_light(self, key, light_type):
         if light_type == 'point':
             light = self._PointLight(self.context)
+        elif light_type == 'sphere':
+            light = self._SphereLight(self.context)
         elif light_type == 'spot':
             light = self._SpotLight(self.context)
+        elif light_type == 'disk':
+            light = self._DiskLight(self.context)
         elif light_type == 'directional':
             light = self._DirectionalLight(self.context)
         elif light_type == 'ies':
@@ -544,8 +550,8 @@ class RPRContext2(RPRContext):
 
     # Classes
     _Context = pyrpr2.Context
-    _Curve = pyrpr2.Curve
-    _Scene = pyrpr2.Scene
+    _SphereLight = pyrpr2.SphereLight
+    _DiskLight = pyrpr2.DiskLight
 
     def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}

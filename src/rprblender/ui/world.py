@@ -60,6 +60,9 @@ class RPR_WORLD_PT_environment(RPR_Panel):
 
             layout.prop(sun_sky, 'resolution')
 
+        row = layout.row()
+        row.prop(rpr, 'group')
+
 
 class RPR_EnvironmentOverride(RPR_Panel):
     bl_parent_id = 'RPR_WORLD_PT_environment'
@@ -105,7 +108,12 @@ class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
 
         layout.template_ID(rpr, 'background_image', open='image.open', new='image.new')
 
-        row = layout.row()
+        if rpr.background_image_type == 'BACKPLATE':
+            row = layout.column()
+            row.enabled = rpr.background_image is not None
+            row.prop(rpr, 'backplate_crop')
+
+        row = layout.column()
         row.enabled = rpr.background_image is None
         row.prop(rpr, 'background_color')
 

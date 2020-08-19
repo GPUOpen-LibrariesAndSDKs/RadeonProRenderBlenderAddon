@@ -301,8 +301,8 @@ class Context(Object):
         cls.gpu_devices = []
         for i in range(16):
             create_flag = getattr(pyrprwrap, 'CREATION_FLAGS_ENABLE_GPU%d' % i)
-            if platform.system() == 'Darwin':
-                create_flag = create_flag | CREATION_FLAGS_ENABLE_METAL
+            create_flag = create_flag if platform.system() != 'Darwin' \
+                               else (create_flag | CREATION_FLAGS_ENABLE_METAL)
             device = get_device(create_flag, getattr(pyrprwrap, 'CONTEXT_GPU%d_NAME' % i))
             if not device:
                 break
@@ -467,7 +467,6 @@ class Scene(Object):
         self.subdivision_camera = None
         self.objects = set()
 
-
     def set_camera(self, camera):
         self.camera = camera
         SceneSetCamera(self, self.camera)
@@ -487,6 +486,10 @@ class Scene(Object):
     def set_background_image(self, image):
         self.background_image = image
         SceneSetBackgroundImage(self, image)
+
+    def set_background_color(self, r, g, b):
+        self.set_background_image(
+            ImageData(self.context, np.full((2, 2, 4), (r, g, b, 1.0), dtype=np.float32)))
 
     def add_environment_override(self, core_id, light):
         self.environment_overrides[core_id] = light
@@ -1262,6 +1265,10 @@ class PointLight(Light):
     def set_radiant_power(self, r, g, b):
         PointLightSetRadiantPower3f(self, r, g, b)
 
+    def set_radius(self, radius):
+        """ Supported in RPR 2.0 Sphere Light """
+        pass
+
 
 class SpotLight(Light):
     def __init__(self, context):
@@ -1273,6 +1280,10 @@ class SpotLight(Light):
 
     def set_cone_shape(self, iangle, oangle):
         SpotLightSetConeShape(self, iangle, oangle)
+
+    def set_radius(self, radius):
+        """ Supported in RPR 2.0 Disk Light """
+        pass
 
 
 class DirectionalLight(Light):

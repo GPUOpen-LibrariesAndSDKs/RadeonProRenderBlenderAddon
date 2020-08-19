@@ -105,7 +105,7 @@ for name, t in api.functions.items():
                                                       'rprObject', 'rprShape', 'rprCamera', 'rprMesh',
                                                       'rprMaterialSystem', 'rprMaterialNode',
                                                       'rprLight', 'rprPointLight', 'rprSpotLight',
-                                                      'rprDirectionalLight',
+                                                      'rprDirectionalLight', 'rprDiskLight', 'rprSphereLight',
                                                       'rprEnvironmentLight', 'rprSkyLight',
                                                       'rprPostEffect',
                                                       'rprIESLight',
