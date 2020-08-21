@@ -13,6 +13,7 @@ A new setting in Viewport Sampling called “Samples per second” has been adde
 -   Support of image sequences of textures and sequences of animated OpenVDB files has been added.
 -   Final rendering no longer uses the setting “Update samples”.  Renders are exponentially updated after 1, 1, 2, 4, 8, 16, 32, and every 32 samples thereafter.  This is done to maximize performance, especially with RPR 2.0.  Viewport rendering is unchanged.
 -   For users interested in testing the latest developments in the Radeon ProRender for Blender plugin, a weekly “Development Build” will be posted on future Mondays. See https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases or follow the repository on github to get weekly updates.
+-   Support for Blender 2.90
 
 ## Fixed Issues
 -   The Physical Light normalization  now takes transform scaling into account.
