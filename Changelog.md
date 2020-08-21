@@ -42,6 +42,7 @@ A new setting in Viewport Sampling called “Samples per second” has been adde
     - Adaptive sampling is disabled
     - Adaptive subdivision is disabled
     - On macOS, currently RPR 2.0 uses OpenCL and not metal.
+    - Volumetric absorption does not currently work
 
 
 # Version 2.4.11
@@ -121,5 +122,6 @@ A new setting in Viewport Sampling called “Samples per second” has been adde
 -   ML Denoiser on macOS (with certain Vega cards) and Ubuntu can produce black pixels.
     
 -   Viewport rendering with RPR 2.0 falls back to use RPR 1.0.
+
     
 -   Invisible area lights can cause firefly artifacts in RPR 2.0.
