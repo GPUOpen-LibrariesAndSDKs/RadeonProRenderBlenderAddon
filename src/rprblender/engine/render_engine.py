@@ -424,7 +424,11 @@ class RenderEngine(Engine):
             self.camera_data.export(rpr_camera)
 
         # Environment is synced once per frame
-        world_settings = world.sync(self.rpr_context, scene.world)
+        if scene.world.is_evaluated:  # for some reason World data can came in unevaluated
+            world_data = scene.world
+        else:
+            world_data = scene.world.evaluated_get(depsgraph)
+        world_settings = world.sync(self.rpr_context, world_data)
         self.world_backplate = world_settings.backplate
 
         # SYNC MOTION BLUR
