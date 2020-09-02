@@ -323,9 +323,13 @@ class RPRContext:
             # creating temporary FrameBuffer of required size only to set subdivision
             fb = pyrpr.FrameBuffer(self.context, width, height)
 
-        for obj in objects_with_adaptive_subdivision:
+        self.set_subdivision_on_objects(camera, fb, objects_with_adaptive_subdivision)
+
+    def set_subdivision_on_objects(self, camera, subdivision_framebuffer, objects):
+        """ Apply subdivision to objects using context-specific methods """
+        for obj in objects:
             if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
-                obj.set_auto_adapt_subdivision_factor(fb, camera, obj.subdivision['factor'])
+                obj.set_auto_adapt_subdivision_factor(subdivision_framebuffer, camera, obj.subdivision['factor'])
                 obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
                 obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
 
@@ -565,3 +569,12 @@ class RPRContext2(RPRContext):
 
     def sync_catchers(self, use_transparent_background=False):
         pass
+
+    def set_subdivision_on_objects(self, camera, subdivision_framebuffer, objects):
+        # 1.35.4 core version RPR2 doesn't support auto adaptive subdivision, use set_subdivision_factor instead
+        # TODO remove when RPR 2 supports adaptive subdivision
+        for obj in objects:
+            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
+                obj.set_subdivision_factor(obj.subdivision['factor'])
+                obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+                obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
