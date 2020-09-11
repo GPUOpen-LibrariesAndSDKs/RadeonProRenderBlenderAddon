@@ -1643,9 +1643,9 @@ class ShaderNodeRGBCurve(NodeParser):
 
         out_col = tuple(
             self.eval_curve(mapping, i,
-                            self.eval_curve(mapping, 3, in_col.data[i]))
+                            self.eval_curve(mapping, 3, in_col.get_channel(i).data))
             for i in range(3)
-        ) + (in_col.data[3],)
+        ) + (in_col.get_channel(3).data,)
 
         return fac.blend(in_col, out_col)
 
