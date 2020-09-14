@@ -178,7 +178,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'channel': 'X'
         },
         {
-            'rpr': pyrpr.AOV_MATERIAL_IDX,
+            'rpr': pyrpr.AOV_MATERIAL_ID,
             'name': "Material Index",
             'channel': 'X'
         },
