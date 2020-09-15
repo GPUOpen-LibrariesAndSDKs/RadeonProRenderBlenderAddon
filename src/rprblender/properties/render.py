@@ -352,7 +352,7 @@ class RPR_RenderProperties(RPR_Properties):
     )
     ray_cast_epsilon: FloatProperty(
         name="Ray Cast Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
-        min=0.0, max=2.0,
+        min=0.0, soft_max=2.0,
         default=0.02,
     )
 
