@@ -74,7 +74,7 @@ def init(log_fun, rprsdk_bin_path):
     del _module
 
 
-API_VERSION = (VERSION_MAJOR << 58) | (VERSION_MINOR << 50) | (VERSION_REVISION << 32) | COMMIT_INFO
+API_VERSION = (VERSION_MAJOR << 56) | (VERSION_MINOR << 48) | (VERSION_REVISION << 32) | COMMIT_INFO
 BACKEND_API = BACKEND_API_METAL if platform.system() == 'Darwin' else BACKEND_API_OPENCL
 
 

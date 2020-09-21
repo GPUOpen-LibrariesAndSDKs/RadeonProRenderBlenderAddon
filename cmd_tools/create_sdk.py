@@ -109,9 +109,9 @@ def copy_rif_sdk():
             shutil.copy(str(lib), str(sdk_lib_dir))
 
     elif OS == 'Linux':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters.so.1.5.4"),
+        shutil.copy(str(bin_dir / "libRadeonImageFilters.so.1.6.0"),
                     str(sdk_bin_dir / "libRadeonImageFilters.so"))
-        shutil.copy(str(bin_dir / "libRadeonML_MIOpen.so.0.9.7"),
+        shutil.copy(str(bin_dir / "libRadeonML_MIOpen.so.0.9.8"),
                     str(sdk_bin_dir / "libRadeonML_MIOpen.so"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.so.0.9.0"),
                     str(sdk_bin_dir / "libOpenImageDenoise.so"))
@@ -119,11 +119,11 @@ def copy_rif_sdk():
                     str(sdk_bin_dir / "libMIOpen.so.2"))
 
     elif OS == 'Darwin':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters.1.5.4.dylib"),
+        shutil.copy(str(bin_dir / "libRadeonImageFilters.1.6.0.dylib"),
                     str(sdk_bin_dir / "libRadeonImageFilters.dylib"))
         shutil.copy(str(bin_dir / "libOpenImageDenoise.0.9.0.dylib"),
                     str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
-        shutil.copy(str(bin_dir / "libRadeonML_MPS.0.9.7.dylib"),
+        shutil.copy(str(bin_dir / "libRadeonML_MPS.0.9.8.dylib"),
                     str(sdk_bin_dir / "libRadeonML_MPS.dylib"))
 
         # adjusting id of RIF libs
