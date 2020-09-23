@@ -160,11 +160,15 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         if context.scene.rpr.render_quality == 'FULL2':
             row.enabled = False
 
-        col.prop(settings, 'adapt_viewport_resolution')
+        adapt_resolution = context.scene.rpr.render_quality != 'FULL2'
+        col1 = col.column()
+        col1.enabled = adapt_resolution
+        col1.prop(settings, 'adapt_viewport_resolution')
+
         col1 = col.column(align=True)
+        col1.enabled = settings.adapt_viewport_resolution and adapt_resolution
         col1.prop(settings, 'viewport_samples_per_sec', slider=True)
         col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
-        col1.enabled = settings.adapt_viewport_resolution
 
         col.prop(settings, 'use_gl_interop')
 

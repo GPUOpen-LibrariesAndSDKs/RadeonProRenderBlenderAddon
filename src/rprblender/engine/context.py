@@ -129,6 +129,9 @@ class RPRContext:
         else:
             self.context.render_tile(*tile)
 
+    def abort_render(self):
+        self.context.abort_render()
+
     def get_image(self, aov_type=None):
         return self.get_frame_buffer(aov_type).get_data()
 
@@ -556,6 +559,7 @@ class RPRContext2(RPRContext):
     _Context = pyrpr2.Context
     _SphereLight = pyrpr2.SphereLight
     _DiskLight = pyrpr2.DiskLight
+    _PostEffect = pyrpr2.PostEffect
 
     def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
@@ -578,3 +582,6 @@ class RPRContext2(RPRContext):
                 obj.set_subdivision_factor(obj.subdivision['factor'])
                 obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
                 obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+
+    def set_render_update_callback(self, func):
+        self.context.set_render_update_callback(func)

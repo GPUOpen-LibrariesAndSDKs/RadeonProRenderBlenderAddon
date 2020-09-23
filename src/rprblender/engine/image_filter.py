@@ -13,7 +13,6 @@
 # limitations under the License.
 #********************************************************************
 from abc import ABCMeta, abstractmethod
-import os
 
 import pyrpr
 import pyhybrid
@@ -35,7 +34,10 @@ class ImageFilter(metaclass=ABCMeta):
         # creating context
         creation_flags = rpr_context.get_creation_flags()
         if creation_flags & pyrpr.CREATION_FLAGS_ENABLE_METAL:
-            self.context = rif.ContextMetal(rpr_context)
+            if isinstance(rpr_context, pyrpr2.Context):
+                self.context = rif.Context(rpr_context)
+            else:
+                self.context = rif.ContextMetal(rpr_context)
         elif pyrpr.is_gpu_enabled(creation_flags) and \
                 not isinstance(rpr_context, (pyhybrid.Context, pyrpr2.Context)):
             self.context = rif.ContextOpenCL(rpr_context)
