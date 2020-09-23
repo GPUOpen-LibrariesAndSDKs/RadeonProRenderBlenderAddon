@@ -172,7 +172,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             pyrpr.AOV_LIGHT_GROUP1: 'light.group1',
             pyrpr.AOV_LIGHT_GROUP2: 'light.group2',
             pyrpr.AOV_LIGHT_GROUP3: 'light.group3',
-            pyrpr.AOV_MATERIAL_IDX: 'material.id',
+            pyrpr.AOV_MATERIAL_ID: 'material.id',
             pyrpr.AOV_OBJECT_GROUP_ID: 'group.id',
             pyrpr.AOV_OBJECT_ID: 'object.id',
             pyrpr.AOV_OPACITY: 'opacity',
