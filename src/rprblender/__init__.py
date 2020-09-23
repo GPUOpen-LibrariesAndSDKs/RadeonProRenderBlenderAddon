@@ -45,7 +45,8 @@ from . import (
     material_library,
 )
 
-from .engine.render_engine import RenderEngine, RenderEngine2
+from .engine.render_engine import RenderEngine
+from .engine.render_engine_2 import RenderEngine2
 from .engine.preview_engine import PreviewEngine
 from .engine.viewport_engine import ViewportEngine
 from .engine.viewport_engine_2 import ViewportEngine2
