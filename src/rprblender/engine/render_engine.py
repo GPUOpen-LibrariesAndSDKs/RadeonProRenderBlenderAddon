@@ -617,13 +617,3 @@ class RenderEngine(Engine):
                 p.rect = [e[:p.channels] for e in ordered_text_bytes]
 
             self.rpr_engine.end_result(result)
-
-
-from .context import RPRContext2
-
-
-class RenderEngine2(RenderEngine):
-    _RPRContext = RPRContext2
-
-    def _update_athena_data(self, data):
-        data['Quality'] = "rpr2"
