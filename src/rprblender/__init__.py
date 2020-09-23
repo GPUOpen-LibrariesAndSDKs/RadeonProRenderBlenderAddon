@@ -47,7 +47,8 @@ from . import (
 
 from .engine.render_engine import RenderEngine, RenderEngine2
 from .engine.preview_engine import PreviewEngine
-from .engine.viewport_engine import ViewportEngine, ViewportEngine2
+from .engine.viewport_engine import ViewportEngine
+from .engine.viewport_engine_2 import ViewportEngine2
 from .engine.animation_engine import AnimationEngine, AnimationEngine2
 
 from .engine.render_engine_hybrid import RenderEngine as RenderEngineHybrid
