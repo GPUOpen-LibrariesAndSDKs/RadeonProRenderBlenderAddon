@@ -143,7 +143,7 @@ class RPR_DenoiserProperties(RPR_Properties):
         }
 
     def is_available(self, scene, is_final_engine=True):
-        return scene.rpr.render_quality != 'FULL2'
+        return True
 
 
 class RPR_ViewLayerProperites(RPR_Properties):

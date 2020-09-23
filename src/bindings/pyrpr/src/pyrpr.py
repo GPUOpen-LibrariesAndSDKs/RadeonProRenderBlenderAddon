@@ -357,6 +357,9 @@ class Context(Object):
 
     def render(self):
         ContextRender(self)
+
+    def abort_render(self):
+        ContextAbortRender(self)
         
     def render_tile(self, xmin, xmax, ymin, ymax):
         ContextRenderTile(self, xmin, xmax, ymin, ymax)

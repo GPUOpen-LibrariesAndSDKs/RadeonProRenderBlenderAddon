@@ -49,6 +49,7 @@
     <Compile Include="rprblender\engine\render_engine.py" />
     <Compile Include="rprblender\engine\render_engine_hybrid.py" />
     <Compile Include="rprblender\engine\viewport_engine.py" />
+    <Compile Include="rprblender\engine\viewport_engine_2.py" />
     <Compile Include="rprblender\engine\viewport_engine_hybrid.py" />
     <Compile Include="rprblender\engine\__init__.py">
       <SubType>Code</SubType>
