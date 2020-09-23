@@ -40,9 +40,9 @@ class ViewportEngine2(ViewportEngine):
 
         self.resolve_event = threading.Event()
         self.resolve_thread = None
+        self.resolve_lock = threading.Lock()
 
     def stop_render(self):
-        self.is_abort_render = True
         super().stop_render()
 
         self.resolve_event.set()
@@ -217,9 +217,6 @@ class ViewportEngine2(ViewportEngine):
         im = self.rendered_image
         if im is None:
             return
-
-        if self.gl_texture.width != im.shape[1] or self.gl_texture.height != im.shape[0]:
-            self.gl_texture = gl.GLTexture(im.shape[1], im.shape[0])
 
         self.gl_texture.set_image(im)
         self.draw_texture(self.gl_texture.texture_id, context.scene)
