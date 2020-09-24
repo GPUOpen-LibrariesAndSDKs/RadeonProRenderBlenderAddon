@@ -186,6 +186,9 @@ class RPRContext:
     def is_aov_enabled(self, aov_type):
         return aov_type in self.frame_buffers_aovs
 
+    def set_aov_index_lookup(self, key, r, g, b, a):
+        self.context.set_aov_index_lookup(key, r, g, b, a)
+
     def resize(self, width, height):
         self.width = width
         self.height = height
