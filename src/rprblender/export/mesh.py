@@ -302,6 +302,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     )
     rpr_shape.set_name(obj.name)
     rpr_shape.set_id(obj.pass_index)
+    rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
+                                     obj.pass_index, obj.pass_index, 1.0)
 
     if data.vertex_colors is not None:
         rpr_shape.set_vertex_colors(data.vertex_colors)
