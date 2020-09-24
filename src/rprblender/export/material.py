@@ -90,6 +90,9 @@ def sync(rpr_context: RPRContext, material: bpy.types.Material, input_socket_key
     rpr_material = node_parser.final_export(input_socket_key)
 
     if rpr_material:
+        rpr_material.set_id(material.pass_index)
+        rpr_context.set_aov_index_lookup(material.pass_index, material.pass_index,
+                                         material.pass_index, material.pass_index, 1.0)
         rpr_context.set_material_node_as_material(mat_key, rpr_material)
 
     return rpr_material

@@ -377,8 +377,8 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
-    def set_aov_index_lookup(self, input, r, g, b, a):
-        ContextSetAOVindexLookup(self, input, r, g, b, a)
+    def set_aov_index_lookup(self, key, r, g, b, a):
+        ContextSetAOVindexLookup(self, key, r, g, b, a)
 
     def get_info_size(self, context_info):
         size = ffi.new('size_t *', 0)
@@ -1190,6 +1190,9 @@ class MaterialNode(Object):
             raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
         self.inputs[name] = value
+
+    def set_id(self, id):
+        MaterialNodeSetID(self, id)
 
 
 class Light(Object):
