@@ -145,7 +145,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     elif light.type == 'AREA':
         data = mesh.MeshData.init_from_shape_type(rpr.shape, light.size, light.size_y, segments=32)
-        area = data.area * obj.scale[0] * obj.scale[1]
+        area = abs(data.area * obj.scale[0] * obj.scale[1])
+        if math.isclose(area, 0):
+            return
 
         rpr_light = rpr_context.create_area_light(
             light_key,
