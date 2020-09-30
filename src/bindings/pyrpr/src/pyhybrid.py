@@ -31,7 +31,8 @@ def ignore_unsupported(function):
             return function(*args, **kwargs)
 
         except pyrpr.CoreError as e:
-            if e.status not in (pyrpr.ERROR_UNSUPPORTED, pyrpr.ERROR_INVALID_PARAMETER):
+            if e.status not in (pyrpr.ERROR_UNSUPPORTED, pyrpr.ERROR_INVALID_PARAMETER,
+                                pyrpr.ERROR_UNIMPLEMENTED):
                 raise
 
             if hybrid_unsupported_log_warn:
@@ -80,6 +81,10 @@ class Context(pyrpr.Context):
     @ignore_unsupported
     def detach_aov(self, aov):
         super().detach_aov(aov)
+
+    @ignore_unsupported
+    def set_aov_index_lookup(self, key, r, g, b, a):
+        super().set_aov_index_lookup(key, r, g, b, a)
 
 
 @class_ignore_unsupported
