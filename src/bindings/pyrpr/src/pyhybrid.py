@@ -60,8 +60,8 @@ def class_ignore_unsupported(cls):
 enabled = True
 
 
+@class_ignore_unsupported
 class Context(pyrpr.Context):
-    @ignore_unsupported
     def set_parameter(self, key, param):
         if key == pyrpr.CONTEXT_ITERATIONS:
             self.parameters[key] = param
@@ -73,18 +73,6 @@ class Context(pyrpr.Context):
         iterations = self.parameters.get(pyrpr.CONTEXT_ITERATIONS, 1)
         for _ in range(iterations):
             super().render()
-
-    @ignore_unsupported
-    def attach_aov(self, aov, frame_buffer):
-        super().attach_aov(aov, frame_buffer)
-
-    @ignore_unsupported
-    def detach_aov(self, aov):
-        super().detach_aov(aov)
-
-    @ignore_unsupported
-    def set_aov_index_lookup(self, key, r, g, b, a):
-        super().set_aov_index_lookup(key, r, g, b, a)
 
 
 @class_ignore_unsupported
