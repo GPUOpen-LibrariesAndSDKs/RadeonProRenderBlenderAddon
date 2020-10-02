@@ -38,10 +38,6 @@ class Context(pyrpr.Context):
                                               pyrpr.ffi.NULL)
             self.render_update_callback = None
 
-    def delete(self):
-        self.set_render_update_callback(None)
-        super().delete()
-
 
 class SphereLight(pyrpr.Light):
     def __init__(self, context):

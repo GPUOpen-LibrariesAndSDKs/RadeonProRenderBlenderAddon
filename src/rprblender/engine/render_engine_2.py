@@ -84,5 +84,6 @@ class RenderEngine2(RenderEngine):
 
         finally:
             is_finished = True
+            self.rpr_context.set_render_update_callback(None)
             resolve_event.set()
             resolve_thread.join()
