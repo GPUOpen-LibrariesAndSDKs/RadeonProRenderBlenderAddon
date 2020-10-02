@@ -43,6 +43,8 @@ class ViewportEngine2(ViewportEngine):
         self.resolve_lock = threading.Lock()
 
     def stop_render(self):
+        self.rpr_context.set_render_update_callback(None)
+
         super().stop_render()
 
         self.resolve_event.set()
