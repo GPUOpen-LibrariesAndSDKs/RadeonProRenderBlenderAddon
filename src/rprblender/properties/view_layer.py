@@ -23,7 +23,6 @@ from bpy.props import (
 )
 
 import pyrpr
-from rprblender import utils
 
 from rprblender.utils import logging
 from . import RPR_Properties
@@ -117,7 +116,7 @@ class RPR_DenoiserProperties(RPR_Properties):
     ml_color_only: BoolProperty(
         name="Use Color AOV only",
         description="Use Color AOV only instead of using additional required AOVs",
-        default=True if not utils.IS_MAC else False
+        default=True
     )
     ml_use_fp16_compute_type: BoolProperty(
         name="Use 16-bit Compute",
