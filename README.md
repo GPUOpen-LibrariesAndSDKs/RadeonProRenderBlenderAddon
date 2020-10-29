@@ -70,12 +70,12 @@ run `build.py` to build.
 ## Run Addon while developing it(without real installation)
 
 - make sure you have no installed addon for Blender version you want to use; remove installed version if needed.
-- set environment variable BLENDER_28x_EXE to blender.exe you want to use via the command line or system environment settings.
+- set environment variable BLENDER_EXE to blender.exe you want to use via the command line or system environment settings.
 - run run_blender_with_rpr.cmd
 
 Example:
 
-`set BLENDER_28X_EXE="C:\Program Files\Blender Foundation\Blender 2.81\blender.exe" && run_blender_with_rpr.cmd`
+`set BLENDER_EXE="C:\Program Files\Blender Foundation\Blender 2.81\blender.exe" && run_blender_with_rpr.cmd`
 
 ### Debugging
 
