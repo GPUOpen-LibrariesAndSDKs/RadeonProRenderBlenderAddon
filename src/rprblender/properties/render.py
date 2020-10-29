@@ -419,17 +419,14 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
     render_quality_items = [
-        ('FULL', "Full", "Full render quality. If using CPU this is the only mode available")
+        ('FULL2', "Full", "Full render quality using RPR 2, including hardware ray tracing support."),
+        ('FULL', "Legacy", "Full render quality using RPR 1.")
     ]
     if pyhybrid.enabled:
         render_quality_items += [
             ('HIGH', "High", "High render quality"),
             ('MEDIUM', "Medium", "Medium render quality"),
             ('LOW', "Low", "Low render quality"),
-        ]
-    if pyrpr2.enabled:
-        render_quality_items += [
-            ('FULL2', "RPR 2.0 (Beta)", "Full render quality with RPR 2 (Beta)")
         ]
 
     def update_render_quality(self, context):
@@ -444,7 +441,7 @@ class RPR_RenderProperties(RPR_Properties):
         name="Render Quality",
         description="RPR render quality",
         items=render_quality_items,
-        default='FULL',
+        default='FULL2',
         update=update_render_quality
     )
 
