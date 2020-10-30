@@ -39,6 +39,25 @@ class Context(pyrpr.Context):
             self.render_update_callback = None
 
 
+class Shape(pyrpr.Shape):
+    def set_motion_transform(self, transform, transpose=True): # Blender needs matrix to be transposed
+        pyrpr.ShapeSetMotionTransformCount(self, 1)
+        pyrpr.ShapeSetMotionTransform(self, transpose, pyrpr.ffi.cast('float*', transform.ctypes.data), 1)
+
+
+class Mesh(pyrpr.Mesh, Shape):
+    pass
+
+
+class Instance(pyrpr.Instance, Shape):
+    pass
+
+
+class AreaLight(pyrpr.AreaLight):
+    def set_motion_transform(self, transform, transpose=True): # Blender needs matrix to be transposed
+        self.mesh.set_motion_transform(transform, transpose)
+
+
 class SphereLight(pyrpr.Light):
     def __init__(self, context):
         super().__init__(context)
