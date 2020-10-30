@@ -36,7 +36,6 @@ class RPRContext:
     _EnvironmentLight = pyrpr.EnvironmentLight
 
     _Camera = pyrpr.Camera
-    _Shape = pyrpr.Shape
     _Mesh = pyrpr.Mesh
     _Instance = pyrpr.Instance
     _Curve = pyrpr.Curve
@@ -560,6 +559,11 @@ class RPRContext2(RPRContext):
 
     # Classes
     _Context = pyrpr2.Context
+
+    _Mesh = pyrpr2.Mesh
+    _Instance = pyrpr2.Instance
+
+    _AreaLight = pyrpr2.AreaLight
     _SphereLight = pyrpr2.SphereLight
     _DiskLight = pyrpr2.DiskLight
     _PostEffect = pyrpr2.PostEffect
