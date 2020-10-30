@@ -315,10 +315,7 @@ class RPRContext:
         if height == 0:
             height = self.height
 
-        objects_with_adaptive_subdivision = tuple(
-                obj for obj in self.scene.objects
-                if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None
-        )
+        objects_with_adaptive_subdivision = self.get_adaptive_subdivision_objects()
 
         if not objects_with_adaptive_subdivision:
             return
@@ -330,13 +327,19 @@ class RPRContext:
 
         self.set_subdivision_on_objects(camera, fb, objects_with_adaptive_subdivision)
 
+    def get_adaptive_subdivision_objects(self):
+        objects_with_adaptive_subdivision = tuple(
+            obj for obj in self.scene.objects
+            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None
+        )
+        return objects_with_adaptive_subdivision
+
     def set_subdivision_on_objects(self, camera, subdivision_framebuffer, objects):
         """ Apply subdivision to objects using context-specific methods """
         for obj in objects:
-            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
-                obj.set_auto_adapt_subdivision_factor(subdivision_framebuffer, camera, obj.subdivision['factor'])
-                obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
-                obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+            obj.set_auto_adapt_subdivision_factor(subdivision_framebuffer, camera, obj.subdivision['factor'])
+            obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+            obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
 
     def sync_portal_lights(self):
         """ Attach active Portal Light objects to active environment light """
@@ -581,14 +584,24 @@ class RPRContext2(RPRContext):
     def sync_catchers(self, use_transparent_background=False):
         pass
 
-    def set_subdivision_on_objects(self, camera, subdivision_framebuffer, objects):
-        # 1.35.4 core version RPR2 doesn't support auto adaptive subdivision, use set_subdivision_factor instead
-        # TODO remove when RPR 2 supports adaptive subdivision
-        for obj in objects:
-            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
-                obj.set_subdivision_factor(obj.subdivision['factor'])
-                obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
-                obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+    def sync_auto_adapt_subdivision(self, width=0, height=0):
+        if height == 0:
+            height = self.height
+
+        objects_with_adaptive_subdivision = self.get_adaptive_subdivision_objects()
+
+        if not objects_with_adaptive_subdivision or height == 0:
+            return
+
+        auto_ratio_cap = 1.0 / height
+
+        for obj in objects_with_adaptive_subdivision:
+            factor = max(obj.subdivision['factor'], 0)
+
+            obj.set_subdivision_factor(factor)
+            obj.set_subdivision_auto_ratio_cap(auto_ratio_cap)
+            obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+            obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
 
     def set_render_update_callback(self, func):
         self.context.set_render_update_callback(func)
