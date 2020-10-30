@@ -621,6 +621,9 @@ class Shape(Object):
     def set_subdivision_crease_weight(self, factor):
         ShapeSetSubdivisionCreaseWeight(self, factor)
 
+    def set_subdivision_auto_ratio_cap(self, auto_ratio_cap):
+        ShapeSetSubdivisionAutoRatioCap(self, auto_ratio_cap)
+
     def set_light_group_id(self, group_id):
         ShapeSetLightGroupID(self, group_id)
 

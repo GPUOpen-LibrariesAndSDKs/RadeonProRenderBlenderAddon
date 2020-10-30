@@ -72,6 +72,9 @@ class RPR_OBJECT_PT_subdivision(RPR_Panel):
 
         col = self.layout.column()
         col.enabled = rpr.subdivision
-        col.prop(rpr, 'subdivision_factor')
+        if context.scene.rpr.render_quality == 'FULL2':
+            col.prop(rpr, 'subdivision_factor', text="Level")
+        else:
+            col.prop(rpr, 'subdivision_factor')
         col.prop(rpr, 'subdivision_crease_weight')
         col.prop(rpr, 'subdivision_boundary_type')
