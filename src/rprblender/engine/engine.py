@@ -201,6 +201,10 @@ class Engine:
             # restore current frame
             self.rpr_engine.frame_set(cur_frame, 0.0)
 
+    def set_motion_blur_mode(self, scene):
+        """ Apply engine-specific motion blur parameters """
+        pass
+
     def setup_image_filter(self, settings):
         if self.image_filter and self.image_filter.settings == settings:
             return False

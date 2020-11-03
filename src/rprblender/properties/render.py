@@ -445,6 +445,12 @@ class RPR_RenderProperties(RPR_Properties):
         update=update_render_quality
     )
 
+    motion_blur_in_velocity_aov: BoolProperty(
+        name="Only in Velocity AOV",
+        description="Apply Motion Blur in Velocity AOV only\nOnly for Full render quality",
+        default=False,
+    )
+
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
         """ Initializes rpr_context by device settings """
 
