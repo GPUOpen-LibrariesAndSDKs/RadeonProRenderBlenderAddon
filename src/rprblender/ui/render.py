@@ -306,6 +306,10 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         col.enabled = context.scene.render.use_motion_blur
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
+        col = layout.column()
+        col.enabled = context.scene.render.use_motion_blur and context.scene.rpr.render_quality == 'FULL2'
+        col.prop(context.scene.rpr, "motion_blur_in_velocity_aov")
+
 
 class RPR_RENDER_PT_film_transparency(RPR_Panel):
     bl_label = "Film"
