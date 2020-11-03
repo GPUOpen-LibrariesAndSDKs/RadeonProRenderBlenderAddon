@@ -438,6 +438,7 @@ class RenderEngine(Engine):
         if self.rpr_context.do_motion_blur:
             self.sync_motion_blur(depsgraph)
             rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+            self.set_motion_blur_mode(scene)
 
         # EXPORT PARTICLES
         # Note: particles should be exported after motion blur,
