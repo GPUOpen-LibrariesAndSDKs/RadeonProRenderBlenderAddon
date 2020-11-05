@@ -391,3 +391,6 @@ class RPR_RENDER_PT_debug(RPR_Panel):
         row.use_property_split = False
         row.prop(rpr, 'trace_dump_folder', text="")
 
+        layout.row().prop(rpr, 'texture_cache_dir')
+        layout.row().operator('rpr.op_clear_tex_cache', text='Clear Cache')
+
