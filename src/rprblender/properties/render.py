@@ -274,6 +274,12 @@ class RPR_RenderProperties(RPR_Properties):
         subtype='DIR_PATH',
         default=str(utils.get_temp_dir() / "tracedump")
     )
+    texture_cache_dir: StringProperty(
+        name='Texture Cache Dir',
+        description='Dirctory used for texture cache',
+        subtype='DIR_PATH',
+        default=str(utils.package_root_dir() / ".tex_cache")
+    )
 
     # RENDER LIMITS
     limits: PointerProperty(type=RPR_RenderLimits)
@@ -498,6 +504,12 @@ class RPR_RenderProperties(RPR_Properties):
             # if this is mojave turn on MPS
             if float(mac_vers_major) >= 14:
                 rpr_context.set_parameter(pyrpr.CONTEXT_METAL_PERFORMANCE_SHADER, 1)
+
+        # enable texture cache for RPR2
+        if isinstance(rpr_context, context.RPRContext2):
+            if not os.path.isdir(self.texture_cache_dir):
+                os.mkdir(self.texture_cache_dir)
+            rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
