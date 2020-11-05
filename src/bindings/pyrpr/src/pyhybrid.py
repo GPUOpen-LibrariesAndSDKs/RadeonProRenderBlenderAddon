@@ -143,6 +143,10 @@ class MaterialNode(pyrpr.MaterialNode):
 
         super().set_input(name, value)
 
+    def delete(self):
+        self.inputs.clear()
+        super().delete()
+
 
 class EmptyMaterialNode(MaterialNode):
     def __init__(self, material_type):
