@@ -14,6 +14,7 @@
 #********************************************************************
 import webbrowser
 import bpy
+import shutil
 
 from . import RPR_Operator
 
@@ -45,6 +46,21 @@ class RPR_RENDER_OP_open_web_page(RPR_Operator):
 
         webbrowser.open(url)
         return {'FINISHED'}
+
+
+class RPR_RENDER_OP_clear_cache(RPR_Operator):
+    '''
+    Clear texture cache dir
+    '''
+
+    bl_idname = "rpr.op_clear_tex_cache"
+    bl_label = "Clear Cache"
+    bl_description = "Clear Texture Cache"
+
+    def execute(self, context):
+        shutil.rmtree(context.scene.rpr.texture_cache_dir)
+        return {'FINISHED'}
+
 
 class RPR_RENDER_OP_add_denoiser_node(RPR_Operator):
     '''
