@@ -249,8 +249,6 @@ class Object:
         if self._get_handle():
             ObjectDelete(self._get_handle())
 
-        ffi.release(self._handle_ptr)
-
     def _get_handle(self):
         return self._handle_ptr[0]
 
