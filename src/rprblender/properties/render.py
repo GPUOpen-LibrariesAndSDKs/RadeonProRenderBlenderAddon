@@ -451,6 +451,12 @@ class RPR_RenderProperties(RPR_Properties):
         update=update_render_quality
     )
 
+    hybrid_low_mem: BoolProperty(
+        name="Use 4GB memory",
+        description="Enable to support GPUs with 4Gb VRAM or less",
+        default=False,
+    )
+
     motion_blur_in_velocity_aov: BoolProperty(
         name="Only in Velocity AOV",
         description="Apply Motion Blur in Velocity AOV only\nOnly for Full render quality",
@@ -485,7 +491,15 @@ class RPR_RenderProperties(RPR_Properties):
                     # only enable metal once and if a GPU is turned on
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
-                        
+
+        if self.render_quality in ('LOW', 'MEDIUM', 'HIGH') and self.hybrid_low_mem:
+            # set these props to use < 4gb
+            vertex_mem_size = pyrpr.ffi.new('int*', 768 * 1024 * 1024)  # 768mb texture memory
+            acc_mem_size = pyrpr.ffi.new('int*', 1024 ** 3)             # 1gb for bvh memry
+            context_props.extend([
+                pyrpr.CONTEXT_CREATEPROP_HYBRID_VERTEX_MEMORY_SIZE, vertex_mem_size,
+                pyrpr.CONTEXT_CREATEPROP_HYBRID_ACC_MEMORY_SIZE, acc_mem_size])
+               
         context_props.append(0) # should be followed by 0
 
         if self.trace_dump:
