@@ -192,6 +192,9 @@ class RPR_RENDER_PT_quality(RPR_Panel):
 
         if len(rpr.render_quality_items) > 1:
             self.layout.prop(rpr, 'render_quality')
+        
+        if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH'):
+            self.layout.prop(rpr, 'hybrid_low_mem')
 
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
