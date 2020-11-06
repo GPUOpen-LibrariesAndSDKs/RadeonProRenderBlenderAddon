@@ -62,7 +62,7 @@ class ViewportEngine2(ViewportEngine):
 
             # don't need to do intermediate update for 0, 1 iteration and
             # at render finish when progress == 1.0
-            if iteration <= 1 or progress == 1.0:
+            if progress == 1.0:
                 return
 
             self.resolve_event.set()
@@ -71,8 +71,6 @@ class ViewportEngine2(ViewportEngine):
             self.notify_status(f"Time: {time_render:.1f} sec | Iteration "
                                f"{iteration + update_iterations}/{self.render_iterations}" +
                                "." * int(progress / 0.2), "Render")
-
-        self.rpr_context.set_render_update_callback(render_update)
 
         self.notify_status("Starting...", "Render")
 
@@ -125,16 +123,25 @@ class ViewportEngine2(ViewportEngine):
                 if self.restart_render_event.is_set():
                     continue
 
-                # rendering
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, iteration)
                 update_iterations = 1 if iteration <= 1 else \
                     min(32, self.render_iterations - iteration)
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_iterations)
 
+                # unsetting render update callback for first iteration and set it back
+                # starting from second iteration
+                if iteration == 0:
+                    self.rpr_context.set_render_update_callback(None)
+                    self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 3)
+                elif iteration == 1:
+                    self.rpr_context.set_render_update_callback(render_update)
+                    self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
+
+                # rendering
                 with self.render_lock:
                     self.rpr_context.render(restart=(iteration == 0))
 
-                if self.restart_render_event.is_set():
+                if iteration > 0 and self.restart_render_event.is_set():
                     continue
 
                 iteration += update_iterations
@@ -143,7 +150,13 @@ class ViewportEngine2(ViewportEngine):
                 if self.is_last_iteration:
                     break
 
-                self.resolve_event.set()
+                # getting render results only for first iteration, for other iterations
+                if iteration == 1:
+                    with self.resolve_lock:
+                        self._resolve()
+                        self.rendered_image = self.rpr_context.get_image()
+                else:
+                    self.resolve_event.set()
 
                 time_render = time.perf_counter() - time_begin
                 self.notify_status(f"Time: {time_render:.1f} sec | Iteration {iteration}/"
@@ -153,7 +166,8 @@ class ViewportEngine2(ViewportEngine):
                 continue
 
             # notifying viewport that rendering is finished
-            self._resolve()
+            with self.resolve_lock:
+                self._resolve()
 
             time_render = time.perf_counter() - time_begin
             if self.image_filter:
@@ -170,6 +184,7 @@ class ViewportEngine2(ViewportEngine):
                                    f" | Denoised", "Rendering Done")
 
             else:
+                self.rendered_image = self.rpr_context.get_image()
                 self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}",
                                    "Rendering Done")
 
@@ -212,9 +227,6 @@ class ViewportEngine2(ViewportEngine):
         if self.viewport_settings != viewport_settings:
             self.viewport_settings = viewport_settings
             self.restart_render_event.set()
-            self.rendered_image = None
-            self.rpr_engine.update_stats("Render", "Syncing...")
-            return
 
         im = self.rendered_image
         if im is None:
