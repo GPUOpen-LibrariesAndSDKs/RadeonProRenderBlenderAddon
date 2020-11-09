@@ -80,7 +80,7 @@ class RPRContext:
         self.use_reflection_catcher = False
         self.use_transparent_background = False
 
-    def init(self, context_flags, context_props):
+    def init(self, context_flags, context_props, use_contour_integrator=False):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
@@ -93,6 +93,9 @@ class RPRContext:
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
+
+        if use_contour_integrator:
+            self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
 
         self.post_effect = self._PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
 
@@ -571,9 +574,9 @@ class RPRContext2(RPRContext):
     _DiskLight = pyrpr2.DiskLight
     _PostEffect = pyrpr2.PostEffect
 
-    def init(self, context_flags, context_props):
+    def init(self, context_flags, context_props, use_contour_integrator=False):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-        super().init(context_flags, context_props)
+        super().init(context_flags, context_props, use_contour_integrator)
 
     def enable_aov(self, aov_type):
         if aov_type == pyrpr.AOV_VARIANCE:

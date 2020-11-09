@@ -318,7 +318,8 @@ class RenderEngine(Engine):
         log('Finish render')
 
     def _init_rpr_context(self, scene):
-        scene.rpr.init_rpr_context(self.rpr_context)
+        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=scene.rpr.is_contour_used)
+
         self.rpr_context.scene.set_name(scene.name)
 
     def sync(self, depsgraph):
@@ -352,6 +353,10 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
+        use_contour = scene.rpr.is_contour_used
+        if use_contour:
+            scene.rpr.export_contour_mode(self.rpr_context)
+
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # EXPORT OBJECTS
@@ -363,7 +368,7 @@ class RenderEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current)
+                        frame_current=scene.frame_current, use_contour=use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -383,7 +388,7 @@ class RenderEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current)
+                          frame_current=scene.frame_current, use_contour=use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -475,7 +480,7 @@ class RenderEngine(Engine):
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
 
-        if scene.rpr.render_quality == 'FULL2':
+        if scene.rpr.render_quality == 'FULL2' and not scene.rpr.use_contour_render:
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples
