@@ -55,6 +55,7 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
         flow.column().prop(rpr, 'refraction_visibility')
         flow.column().prop(rpr, 'diffuse_visibility')
         flow.column().prop(rpr, 'shadows')
+        flow.column().prop(rpr, 'visibility_contour')
 
 
 class RPR_OBJECT_PT_subdivision(RPR_Panel):

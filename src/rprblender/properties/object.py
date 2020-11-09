@@ -73,6 +73,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="Use this object as a portal light",
         default=False,
     )
+    visibility_contour: BoolProperty(
+        name="Contour",
+        description="This object will be visible in Contour render mode",
+        default=True,
+    )
 
     # Motion Blur
     motion_blur: BoolProperty(
