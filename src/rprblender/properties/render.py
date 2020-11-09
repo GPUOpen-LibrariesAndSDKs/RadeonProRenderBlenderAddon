@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import math
 import sys
 import os
 
@@ -463,7 +464,67 @@ class RPR_RenderProperties(RPR_Properties):
         default=False,
     )
 
-    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
+    # CONTOUR render mode settings
+    use_contour_render: BoolProperty(
+        name="Contour",
+        description="Use Contour rendering mode. Final render only",
+        default=False
+    )
+
+    contour_use_object_id: BoolProperty(
+        name="Use Object ID",
+        description="Use Object ID for Contour rendering",
+        default=True,
+    )
+    contour_use_material_id: BoolProperty(
+        name="Use Material Index",
+        description="Use Material Index for Contour rendering",
+        default=True,
+    )
+    contour_use_shading_normal: BoolProperty(
+        name="Use Shading Normal",
+        description="Use Shading Normal for Contour rendering",
+        default=True,
+    )
+
+    contour_object_id_line_width: FloatProperty(
+        name="Line Width Object",
+        description="Line width for Object ID contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    contour_material_id_line_width: FloatProperty(
+        name="Line Width Material",
+        description="Line width for Material Index contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    contour_shading_normal_line_width: FloatProperty(
+        name="Line Width Normal",
+        description="Line width for Shading Normal contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+
+    contour_normal_threshold: FloatProperty(
+        name="Normal Threshold",
+        description="Threshold for normals, in degrees",
+        subtype='ANGLE',
+        min=0.0, max=math.radians(180.0),
+        default=math.radians(45.0),
+    )
+    contour_antialiasing: FloatProperty(
+        name="Antialiasing",
+        min=0.0, max=1.0,
+        default=1.0,
+    )
+
+    contour_debug_flag: BoolProperty(
+        name="Feature Debug",
+        default=False,
+    )
+
+    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
         """ Initializes rpr_context by device settings """
 
         scene = self.id_data
@@ -511,7 +572,7 @@ class RPR_RenderProperties(RPR_Properties):
         else:
             pyrpr.Context.set_parameter(None, pyrpr.CONTEXT_TRACING_ENABLED, False)
 
-        rpr_context.init(context_flags, context_props)
+        rpr_context.init(context_flags, context_props, use_contour_integrator=use_contour_integrator)
 
         if metal_enabled:
             mac_vers_major = platform.mac_ver()[0].split('.')[1]
@@ -554,6 +615,29 @@ class RPR_RenderProperties(RPR_Properties):
     def export_render_mode(self, rpr_context):
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_MODE,
                                          getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
+
+    @property
+    def is_contour_used(self):
+        return self.render_quality == 'FULL2' and self.use_contour_render
+
+    def export_contour_mode(self, rpr_context):
+        """ set Contour render mode parameters """
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_OBJECTID, self.contour_use_object_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_MATERIALID, self.contour_use_material_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_NORMAL, self.contour_use_shading_normal)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_OBJECTID, self.contour_object_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_MATERIALID, self.contour_material_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_NORMAL, self.contour_shading_normal_line_width)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_NORMAL_THRESHOLD, math.degrees(self.contour_normal_threshold))
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_ANTIALIASING, self.contour_antialiasing)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_DEBUG_ENABLED, self.contour_debug_flag)
+
+        rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+        rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
+        rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """
