@@ -303,7 +303,7 @@ class RenderEngine(Engine):
         if not self.is_synced:
             return
 
-        self.rpr_context.sync_auto_adapt_subdivision(self.width, self.height)
+        self.rpr_context.sync_auto_adapt_subdivision()
         self.rpr_context.sync_portal_lights()
 
         log(f"Start render [{self.width}, {self.height}]")
