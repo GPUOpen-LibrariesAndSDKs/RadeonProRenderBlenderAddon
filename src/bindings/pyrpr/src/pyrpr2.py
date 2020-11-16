@@ -104,6 +104,25 @@ class DiskLight(pyrpr.Light):
         pyrpr.DiskLightSetRadius(self, radius)
 
 
+class TiledImage(pyrpr.Image):
+    def __init__(self, context: pyrpr.Context):
+        super(TiledImage, self).__init__(context)
+
+        pyrpr.ContextCreateImage(self.context, (0, pyrpr.COMPONENT_TYPE_UINT8), pyrpr.ffi.NULL, pyrpr.ffi.NULL, self)
+
+        self.tiles = {}
+
+    def delete(self):
+        for tile_index in self.tiles:
+            pyrpr.ImageSetUDIM(self, tile_index, None)
+        del self.tiles[:]
+        super().delete()
+
+    def set_udim_tile(self, tile_index: int, tile_image: pyrpr.Image):
+        self.tiles[tile_index] = tile_image
+        pyrpr.ImageSetUDIM(self, tile_index, tile_image)
+
+
 class PostEffect:
     def __init__(self, context, post_effect_type):
         pass

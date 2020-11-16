@@ -92,3 +92,7 @@ class RPRContext(context.RPRContext):
 
     def sync_catchers(self, use_transparent_background=False):
         pass
+
+    def create_tiled_image(self, key):
+        # Tiled images are unsupported by Hybrid
+        return None

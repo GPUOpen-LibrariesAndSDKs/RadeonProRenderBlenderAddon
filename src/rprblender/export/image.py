@@ -42,10 +42,12 @@ IMAGE_FORMATS = {
 DEFAULT_FORMAT = ('PNG', 'png')
 
 
-def key(image: bpy.types.Image, color_space, frame_number=None):
+def key(image: bpy.types.Image, color_space, frame_number=None, UDIM_tile=0):
     """ Generate image key for RPR """
     if frame_number is not None:
         return (image.name, color_space, frame_number)
+    if UDIM_tile:
+        return (image.name, color_space, 0, UDIM_tile)
     return (image.name, color_space)
 
 
@@ -58,7 +60,7 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
         color_space = use_color_space
 
     if image.source == 'SEQUENCE':
-        image_key = key(image, color_space, frame_number)
+        image_key = key(image, color_space, frame_number=frame_number)
     else:
         if image.size[0] * image.size[1] * image.channels == 0:
             log.warn("Image has no data", image)
@@ -69,6 +71,24 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
         return rpr_context.images[image_key]
 
     log("sync", image)
+
+    if image.source == 'TILED':  # UDIM Tiles
+        rpr_image = rpr_context.create_tiled_image(key=image_key)
+        if rpr_image:  # if context doesn't support tiles - export as regular image
+            udim_path_split = image.filepath_from_user().split('.')
+            for tile in image.tiles:
+                tile_path = '.'.join(udim_path_split[:-2] + [tile.label] + udim_path_split[-1:])
+                tile_key = key(image, color_space, UDIM_tile=tile.label)
+
+                tile_image = rpr_context.create_image_file(tile_key, tile_path)
+                set_image_gamma(tile_image, image, color_space)
+                tile_image.set_name(str(tile_key))
+
+                rpr_image.set_udim_tile(tile.number, tile_image)
+
+            rpr_image.set_name(str(image_key))
+
+            return rpr_image
 
     pixels = image.pixels
     if image.source == 'SEQUENCE':
@@ -94,6 +114,12 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
 
     rpr_image.set_name(str(image_key))
 
+    set_image_gamma(rpr_image, image, color_space)
+
+    return rpr_image
+
+
+def set_image_gamma(rpr_image, image, color_space, ):
     # TODO: implement more correct support of image color space types
     # RPRImageTexture node color space names are in caps, unlike in Blender
     if color_space in ('sRGB', 'BD16', 'Filmic Log', 'SRGB'):
@@ -101,8 +127,6 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
     elif color_space not in ('Non-Color', 'Raw', 'Linear', 'LINEAR'):
         log.warn("Ignoring unsupported image color space type",
                  color_space, image)
-
-    return rpr_image
 
 
 class ImagePixels:

@@ -454,6 +454,10 @@ class RPRContext:
             self.images[key] = image
         return image
 
+    def create_tiled_image(self, key):
+        # Tiled images are unsupported by Tahoe
+        return None
+
     def create_buffer(self, data, dtype):
         return pyrpr.Buffer(self.context, data, dtype)
 
@@ -598,3 +602,8 @@ class RPRContext2(RPRContext):
 
     def set_render_update_callback(self, func):
         self.context.set_render_update_callback(func)
+
+    def create_tiled_image(self, key):
+        image = pyrpr2.TiledImage(self.context)
+
+        return image
