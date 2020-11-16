@@ -1,3 +1,35 @@
+# Version 3.0
+## New Features:
+-   The new plug-in version incorporates version 2.0 of our Radeon™ ProRender system and brings about these significant changes and enhancements:
+    - Hardware-accelerated ray tracing on AMD Radeon™ RX 6000 series GPUs
+    - Better scaling across multiple devices: the use of two or more GPUs gives a better performance improvement with Radeon ProRender 2.0 than with Radeon ProRender 1.0 in most cases.
+    - Less noise for a given number of render samples.  Using the same number of samples as with Radeon ProRender 1.0 may be slower in some scenes, but noise will be significantly lower.  
+    - RPR 2.0 is the default render mode called “Full”.  Users who wish to use RPR 1.0 can set the render quality mode to “Legacy”.
+    - A new setting for texture cache has been added.  The specified folder will cache textures for rendering, and can be cleaned up by the user if it becomes too large.
+- A new setting called “Contour Rendering” allows non-photorealistic outline style renders.
+- A setting has been added to allow “Motion Blur only in the Velocity AOV” in the Motion Blur settings.  Enabling this setting means that all AOVs will not have motion blur, but the Velocity AOV will contain motion blur information to allow compositing of post-process motion blur.
+- Support for UDIM based tiled image textures has been added
+
+## Issues Fixed:
+-   Using the Uber shader with the “Metalness” reflection mode now matches the Disney shader PBR standard more closely. Among other improvements, the Blender “Principled BRDF” node respects the “Specular” parameter better.
+-   Motion Blur, particularly for rotation, is now more correct.
+-   Animated World settings were not being applied correctly — fixed.
+-   An error when using RGB Curve nodes in some instances — fixed.
+-   Object and material “Pass Index” Blender’s settings are now fully supported. 
+-   Some errors in Hybrid rendering have been resolved.
+-   Some users (particularly users with 4GB VRAM GPUs) could not use Hybrid rendering.  We have added a setting for them to use Hybrid in these instances with lower memory.
+-   A memory leak when rendering animations has been fixed.
+-   An issue involving OpenVDB compatibility with Blender 2.91 has been fixed.  
+
+## Known Issues:
+-   RPR 2.0 has some forthcoming features.  If these are needed, please use the “Legacy” render mode:
+    - Heterogenous volumes;
+    - Adaptive sampling;
+    - Adaptive subdivision.
+-   The first render on macOS® with RPR 2.0 can take a few minutes to start, while the kernels are being compiled.
+macOS® Mojave users should use Legacy mode if seeing crashes with Full mode.
+-   Pixelated textures or color artifacts in textures can sometimes happen in Full mode.
+
 # Version 2.4.11
 
 ## NEW FEATURES:
