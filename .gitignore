@@ -54,6 +54,7 @@ bindings-ok
 
 kernelsCache/
 .hybrid_cache
+.tex_cache
 
 vscode/
 

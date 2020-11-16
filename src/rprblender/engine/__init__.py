@@ -124,18 +124,14 @@ def register_plugins():
             pyhybrid.enabled = False
 
     # enabling RPR 2
-    pyrpr2.enabled = config.enable_rpr2
-    if pyrpr2.enabled:
-        try:
-            register_plugin(pyrpr2.Context,
-                            {'Windows': 'Northstar64.dll',
-                             'Linux': 'libNorthstar64.so',
-                             'Darwin': 'libNorthstar64.dylib'}[utils.OS],
-                            cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr2")
-        except RuntimeError as err:
-            log.warn(err)
-            pyrpr2.enabled = False
-
+    try:
+        register_plugin(pyrpr2.Context,
+                        {'Windows': 'Northstar64.dll',
+                            'Linux': 'libNorthstar64.so',
+                            'Darwin': 'libNorthstar64.dylib'}[utils.OS],
+                        cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr2")
+    except RuntimeError as err:
+        log.warn(err)
 
 # we do import of helper_lib just to load RPRBlenderHelper.dll at this stage
 import rprblender.utils.helper_lib

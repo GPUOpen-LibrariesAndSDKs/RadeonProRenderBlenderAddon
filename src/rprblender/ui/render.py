@@ -129,7 +129,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.render_quality in ('FULL', 'FULL2')
+        col.enabled = rpr.render_quality == 'FULL'
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
@@ -160,11 +160,15 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         if context.scene.rpr.render_quality == 'FULL2':
             row.enabled = False
 
-        col.prop(settings, 'adapt_viewport_resolution')
+        adapt_resolution = context.scene.rpr.render_quality != 'FULL2'
+        col1 = col.column()
+        col1.enabled = adapt_resolution
+        col1.prop(settings, 'adapt_viewport_resolution')
+
         col1 = col.column(align=True)
+        col1.enabled = settings.adapt_viewport_resolution and adapt_resolution
         col1.prop(settings, 'viewport_samples_per_sec', slider=True)
         col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
-        col1.enabled = settings.adapt_viewport_resolution
 
         col.prop(settings, 'use_gl_interop')
 
@@ -188,6 +192,9 @@ class RPR_RENDER_PT_quality(RPR_Panel):
 
         if len(rpr.render_quality_items) > 1:
             self.layout.prop(rpr, 'render_quality')
+        
+        if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH'):
+            self.layout.prop(rpr, 'hybrid_low_mem')
 
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
@@ -210,6 +217,48 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         col.prop(rpr_scene, 'shadow_depth', slider=True)
 
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
+
+
+class RPR_RENDER_PT_contour_rendering(RPR_Panel):
+    bl_label = "Contour Rendering"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.rpr, 'use_contour_render', text="")
+        self.layout.enabled = context.scene.rpr.render_quality == 'FULL2'
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        rpr_scene = context.scene.rpr
+
+        main_column = self.layout.column()
+        main_column.enabled = context.scene.rpr.render_quality == 'FULL2' and rpr_scene.use_contour_render
+
+        col = main_column.column(align=True)
+        col.prop(rpr_scene, 'contour_use_object_id')
+        args = col.column(align=True)
+        args.enabled = rpr_scene.contour_use_object_id
+        args.prop(rpr_scene, 'contour_object_id_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(rpr_scene, 'contour_use_material_id')
+        args = col.column(align=True)
+        args.enabled = rpr_scene.contour_use_material_id
+        args.prop(rpr_scene, 'contour_material_id_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(rpr_scene, 'contour_use_shading_normal')
+        args = col.column(align=True)
+        args.enabled = rpr_scene.contour_use_shading_normal
+        args.prop(rpr_scene, 'contour_normal_threshold', slider=True)
+        args.prop(rpr_scene, 'contour_shading_normal_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(rpr_scene, 'contour_antialiasing', slider=True)
+
+        main_column.prop(rpr_scene, 'contour_debug_flag')
 
 
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
@@ -302,6 +351,10 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         col.enabled = context.scene.render.use_motion_blur
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
+        col = layout.column()
+        col.enabled = context.scene.render.use_motion_blur and context.scene.rpr.render_quality == 'FULL2'
+        col.prop(context.scene.rpr, "motion_blur_in_velocity_aov")
+
 
 class RPR_RENDER_PT_film_transparency(RPR_Panel):
     bl_label = "Film"
@@ -382,4 +435,7 @@ class RPR_RENDER_PT_debug(RPR_Panel):
         row.enabled = rpr.trace_dump
         row.use_property_split = False
         row.prop(rpr, 'trace_dump_folder', text="")
+
+        layout.row().prop(rpr, 'texture_cache_dir')
+        layout.row().operator('rpr.op_clear_tex_cache', text='Clear Cache')
 

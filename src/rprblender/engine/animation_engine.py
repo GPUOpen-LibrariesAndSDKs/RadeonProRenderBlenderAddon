@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-from .render_engine import RenderEngine, RenderEngine2
+from .render_engine import RenderEngine
+from .render_engine_2 import RenderEngine2
 
 
 class AnimationEngine(RenderEngine):

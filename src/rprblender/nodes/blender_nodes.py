@@ -767,24 +767,23 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         if enabled(normal):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL, normal)
 
-        if enabled(specular) or enabled(metallic):
-            # setting reflection weight as max of specular and metallic weights
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
+        # setting reflection weight as max of specular and metallic weights
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
+        #rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
 
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
-                               pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                            pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
 
-            if enabled(normal):
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
+        if enabled(normal):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
 
-            if enabled(anisotropic):
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY, anisotropic)
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION,
-                                   anisotropic_rotation)
+        if enabled(anisotropic):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY, anisotropic)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION,
+                                anisotropic_rotation)
         # Clearcloat
         if enabled(clearcoat):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_COLOR, (1.0, 1.0, 1.0, 1.0))
@@ -1643,9 +1642,9 @@ class ShaderNodeRGBCurve(NodeParser):
 
         out_col = tuple(
             self.eval_curve(mapping, i,
-                            self.eval_curve(mapping, 3, in_col.data[i]))
+                            self.eval_curve(mapping, 3, in_col.get_channel(i).data))
             for i in range(3)
-        ) + (in_col.data[3],)
+        ) + (in_col.get_channel(3).data,)
 
         return fac.blend(in_col, out_col)
 

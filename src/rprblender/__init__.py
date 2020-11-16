@@ -20,7 +20,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (2, 5, 1),
+    "version": (2, 5, 33),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
@@ -45,9 +45,11 @@ from . import (
     material_library,
 )
 
-from .engine.render_engine import RenderEngine, RenderEngine2
+from .engine.render_engine import RenderEngine
+from .engine.render_engine_2 import RenderEngine2
 from .engine.preview_engine import PreviewEngine
-from .engine.viewport_engine import ViewportEngine, ViewportEngine2
+from .engine.viewport_engine import ViewportEngine
+from .engine.viewport_engine_2 import ViewportEngine2
 from .engine.animation_engine import AnimationEngine, AnimationEngine2
 
 from .engine.render_engine_hybrid import RenderEngine as RenderEngineHybrid

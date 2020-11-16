@@ -55,6 +55,7 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
         flow.column().prop(rpr, 'refraction_visibility')
         flow.column().prop(rpr, 'diffuse_visibility')
         flow.column().prop(rpr, 'shadows')
+        flow.column().prop(rpr, 'visibility_contour')
 
 
 class RPR_OBJECT_PT_subdivision(RPR_Panel):
@@ -62,7 +63,9 @@ class RPR_OBJECT_PT_subdivision(RPR_Panel):
     bl_parent_id = 'RPR_OBJECT_PT_object'
 
     def draw_header(self, context):
-        self.layout.prop(context.object.rpr, 'subdivision', text="")
+        row = self.layout.row()
+        row.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+        row.prop(context.object.rpr, 'subdivision', text="")
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -71,7 +74,10 @@ class RPR_OBJECT_PT_subdivision(RPR_Panel):
         rpr = context.object.rpr
 
         col = self.layout.column()
-        col.enabled = rpr.subdivision
-        col.prop(rpr, 'subdivision_factor')
+        col.enabled = rpr.subdivision and context.scene.rpr.render_quality in ('FULL', 'FULL2')
+        if context.scene.rpr.render_quality == 'FULL2':
+            col.prop(rpr, 'subdivision_level')
+        else:
+            col.prop(rpr, 'subdivision_factor')
         col.prop(rpr, 'subdivision_crease_weight')
         col.prop(rpr, 'subdivision_boundary_type')

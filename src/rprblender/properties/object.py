@@ -73,6 +73,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="Use this object as a portal light",
         default=False,
     )
+    visibility_contour: BoolProperty(
+        name="Contour",
+        description="This object will be visible in Contour render mode",
+        default=True,
+    )
 
     # Motion Blur
     motion_blur: BoolProperty(
@@ -88,10 +93,17 @@ class RPR_ObjectProperites(RPR_Properties):
         default=False,
     )
     subdivision_factor: FloatProperty(
-        name="Adaptive Level",
-        description="Subdivision factor for mesh, in pixels that it should be subdivided to. For finer subdivision set lower.",
-        min=0.01, soft_max=10.0,
-        default=1.0
+        name="Subdiv Polygon Size",
+        description="Subdivision polygon size, in pixels that it should be subdivided to.\n"
+                    "For finer subdivision set lower.",
+        min=0.5, soft_max=512.0,
+        default=16.0
+    )
+    subdivision_level: IntProperty(
+        name="Level",
+        description="Subdivision level for mesh. For finer subdivision set upper.",
+        min=0, max=12, soft_max=8,
+        default=3
     )
     subdivision_boundary_type: EnumProperty(
         name="Boundary Type",
@@ -127,20 +139,22 @@ class RPR_ObjectProperites(RPR_Properties):
 
     def export_subdivision(self, rpr_shape):
         """ Exports subdivision settings """
-
         if self.subdivision:
             # convert factor from size of subdivision in pixel to RPR
             # RPR wants the subdivision factor as the "number of faces per pixel"
             # the setting gives user the size of face in number pixels.
             # rpr internally does: subdivision size in pixel = 2^factor  / 16.0
             factor = int(math.log2(16.0 / self.subdivision_factor))
-            
+
             rpr_shape.subdivision = {
                 'factor': factor,
+                'level': self.subdivision_level,
                 'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER if self.subdivision_boundary_type == 'EDGE_CORNER' else
                 pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_ONLY,
                 'crease_weight': self.subdivision_crease_weight
             }
+        else:
+            rpr_shape.subdivision = None
 
     @classmethod
     def register(cls):

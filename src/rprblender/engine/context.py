@@ -36,7 +36,6 @@ class RPRContext:
     _EnvironmentLight = pyrpr.EnvironmentLight
 
     _Camera = pyrpr.Camera
-    _Shape = pyrpr.Shape
     _Mesh = pyrpr.Mesh
     _Instance = pyrpr.Instance
     _Curve = pyrpr.Curve
@@ -81,7 +80,7 @@ class RPRContext:
         self.use_reflection_catcher = False
         self.use_transparent_background = False
 
-    def init(self, context_flags, context_props):
+    def init(self, context_flags, context_props, use_contour_integrator=False):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
@@ -94,6 +93,9 @@ class RPRContext:
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
+
+        if use_contour_integrator:
+            self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
 
         self.post_effect = self._PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
 
@@ -128,6 +130,9 @@ class RPRContext:
             self.context.render()
         else:
             self.context.render_tile(*tile)
+
+    def abort_render(self):
+        self.context.abort_render()
 
     def get_image(self, aov_type=None):
         return self.get_frame_buffer(aov_type).get_data()
@@ -182,6 +187,9 @@ class RPRContext:
 
     def is_aov_enabled(self, aov_type):
         return aov_type in self.frame_buffers_aovs
+
+    def set_aov_index_lookup(self, key, r, g, b, a):
+        self.context.set_aov_index_lookup(key, r, g, b, a)
 
     def resize(self, width, height):
         self.width = width
@@ -310,10 +318,7 @@ class RPRContext:
         if height == 0:
             height = self.height
 
-        objects_with_adaptive_subdivision = tuple(
-                obj for obj in self.scene.objects
-                if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None
-        )
+        objects_with_adaptive_subdivision = self._get_adaptive_subdivision_objects()
 
         if not objects_with_adaptive_subdivision:
             return
@@ -324,10 +329,13 @@ class RPRContext:
             fb = pyrpr.FrameBuffer(self.context, width, height)
 
         for obj in objects_with_adaptive_subdivision:
-            if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None:
-                obj.set_auto_adapt_subdivision_factor(fb, camera, obj.subdivision['factor'])
-                obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
-                obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+            obj.set_auto_adapt_subdivision_factor(fb, camera, obj.subdivision['factor'])
+            obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+            obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+
+    def _get_adaptive_subdivision_objects(self):
+        return tuple(obj for obj in self.scene.objects
+                     if isinstance(obj, pyrpr.Shape) and obj.subdivision is not None)
 
     def sync_portal_lights(self):
         """ Attach active Portal Light objects to active environment light """
@@ -446,6 +454,10 @@ class RPRContext:
             self.images[key] = image
         return image
 
+    def create_tiled_image(self, key):
+        # Tiled images are unsupported by Tahoe
+        return None
+
     def create_buffer(self, data, dtype):
         return pyrpr.Buffer(self.context, data, dtype)
 
@@ -550,12 +562,18 @@ class RPRContext2(RPRContext):
 
     # Classes
     _Context = pyrpr2.Context
+
+    _Mesh = pyrpr2.Mesh
+    _Instance = pyrpr2.Instance
+
+    _AreaLight = pyrpr2.AreaLight
     _SphereLight = pyrpr2.SphereLight
     _DiskLight = pyrpr2.DiskLight
+    _PostEffect = pyrpr2.PostEffect
 
-    def init(self, context_flags, context_props):
+    def init(self, context_flags, context_props, use_contour_integrator=False):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-        super().init(context_flags, context_props)
+        super().init(context_flags, context_props, use_contour_integrator)
 
     def enable_aov(self, aov_type):
         if aov_type == pyrpr.AOV_VARIANCE:
@@ -565,3 +583,27 @@ class RPRContext2(RPRContext):
 
     def sync_catchers(self, use_transparent_background=False):
         pass
+
+    def sync_auto_adapt_subdivision(self, width=0, height=0):
+        if height == 0:
+            height = self.height
+
+        objects_with_adaptive_subdivision = self._get_adaptive_subdivision_objects()
+        if not objects_with_adaptive_subdivision:
+            return
+
+        auto_ratio_cap = 1.0 / height
+
+        for obj in objects_with_adaptive_subdivision:
+            obj.set_subdivision_factor(obj.subdivision['level'])
+            obj.set_subdivision_auto_ratio_cap(auto_ratio_cap)
+            obj.set_subdivision_boundary_interop(obj.subdivision['boundary'])
+            obj.set_subdivision_crease_weight(obj.subdivision['crease_weight'])
+
+    def set_render_update_callback(self, func):
+        self.context.set_render_update_callback(func)
+
+    def create_tiled_image(self, key):
+        image = pyrpr2.TiledImage(self.context)
+
+        return image
