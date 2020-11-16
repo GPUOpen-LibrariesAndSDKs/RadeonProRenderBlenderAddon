@@ -60,6 +60,9 @@ class ViewportEngine2(ViewportEngine):
                 self.rpr_context.abort_render()
                 return
 
+            if iteration == 1:
+                return
+
             # don't need to do intermediate update for 0, 1 iteration and
             # at render finish when progress == 1.0
             if progress == 1.0:
@@ -134,6 +137,7 @@ class ViewportEngine2(ViewportEngine):
                     self.rpr_context.set_render_update_callback(None)
                     self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 3)
                 elif iteration == 1:
+                    self.rpr_context.clear_frame_buffers()
                     self.rpr_context.set_render_update_callback(render_update)
                     self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
 
