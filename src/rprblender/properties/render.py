@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import math
 import sys
 import os
 
@@ -274,6 +275,12 @@ class RPR_RenderProperties(RPR_Properties):
         subtype='DIR_PATH',
         default=str(utils.get_temp_dir() / "tracedump")
     )
+    texture_cache_dir: StringProperty(
+        name='Texture Cache Dir',
+        description='Dirctory used for texture cache',
+        subtype='DIR_PATH',
+        default=str(utils.package_root_dir() / ".tex_cache")
+    )
 
     # RENDER LIMITS
     limits: PointerProperty(type=RPR_RenderLimits)
@@ -307,7 +314,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     @property
     def is_tile_render_available(self):
-        return self.use_tile_render and self.render_quality in ('FULL', 'FULL2')
+        return self.use_tile_render and self.render_quality == 'FULL'
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
@@ -352,7 +359,7 @@ class RPR_RenderProperties(RPR_Properties):
     )
     ray_cast_epsilon: FloatProperty(
         name="Ray Cast Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
-        min=0.0, max=2.0,
+        min=0.0, soft_max=2.0,
         default=0.02,
     )
 
@@ -419,17 +426,14 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
     render_quality_items = [
-        ('FULL', "Full", "Full render quality. If using CPU this is the only mode available")
+        ('FULL2', "Full", "Full render quality using RPR 2, including hardware ray tracing support."),
+        ('FULL', "Legacy", "Full render quality using RPR 1.")
     ]
     if pyhybrid.enabled:
         render_quality_items += [
             ('HIGH', "High", "High render quality"),
             ('MEDIUM', "Medium", "Medium render quality"),
             ('LOW', "Low", "Low render quality"),
-        ]
-    if pyrpr2.enabled:
-        render_quality_items += [
-            ('FULL2', "RPR 2.0 (Beta)", "Full render quality with RPR 2 (Beta)")
         ]
 
     def update_render_quality(self, context):
@@ -444,11 +448,83 @@ class RPR_RenderProperties(RPR_Properties):
         name="Render Quality",
         description="RPR render quality",
         items=render_quality_items,
-        default='FULL',
+        default='FULL2',
         update=update_render_quality
     )
 
-    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False):
+    hybrid_low_mem: BoolProperty(
+        name="Use 4GB memory",
+        description="Enable to support GPUs with 4Gb VRAM or less",
+        default=False,
+    )
+
+    motion_blur_in_velocity_aov: BoolProperty(
+        name="Only in Velocity AOV",
+        description="Apply Motion Blur in Velocity AOV only\nOnly for Full render quality",
+        default=False,
+    )
+
+    # CONTOUR render mode settings
+    use_contour_render: BoolProperty(
+        name="Contour",
+        description="Use Contour rendering mode. Final render only",
+        default=False
+    )
+
+    contour_use_object_id: BoolProperty(
+        name="Use Object ID",
+        description="Use Object ID for Contour rendering",
+        default=True,
+    )
+    contour_use_material_id: BoolProperty(
+        name="Use Material Index",
+        description="Use Material Index for Contour rendering",
+        default=True,
+    )
+    contour_use_shading_normal: BoolProperty(
+        name="Use Shading Normal",
+        description="Use Shading Normal for Contour rendering",
+        default=True,
+    )
+
+    contour_object_id_line_width: FloatProperty(
+        name="Line Width Object",
+        description="Line width for Object ID contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    contour_material_id_line_width: FloatProperty(
+        name="Line Width Material",
+        description="Line width for Material Index contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    contour_shading_normal_line_width: FloatProperty(
+        name="Line Width Normal",
+        description="Line width for Shading Normal contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+
+    contour_normal_threshold: FloatProperty(
+        name="Normal Threshold",
+        description="Threshold for normals, in degrees",
+        subtype='ANGLE',
+        min=0.0, max=math.radians(180.0),
+        default=math.radians(45.0),
+    )
+    contour_antialiasing: FloatProperty(
+        name="Antialiasing",
+        min=0.0, max=1.0,
+        default=1.0,
+    )
+
+    contour_debug_flag: BoolProperty(
+        name="Feature Debug",
+        default=False,
+    )
+
+    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
         """ Initializes rpr_context by device settings """
 
         scene = self.id_data
@@ -476,7 +552,15 @@ class RPR_RenderProperties(RPR_Properties):
                     # only enable metal once and if a GPU is turned on
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
-                        
+
+        if self.render_quality in ('LOW', 'MEDIUM', 'HIGH') and self.hybrid_low_mem:
+            # set these props to use < 4gb
+            vertex_mem_size = pyrpr.ffi.new('int*', 768 * 1024 * 1024)  # 768mb texture memory
+            acc_mem_size = pyrpr.ffi.new('int*', 1024 ** 3)             # 1gb for bvh memry
+            context_props.extend([
+                pyrpr.CONTEXT_CREATEPROP_HYBRID_VERTEX_MEMORY_SIZE, vertex_mem_size,
+                pyrpr.CONTEXT_CREATEPROP_HYBRID_ACC_MEMORY_SIZE, acc_mem_size])
+               
         context_props.append(0) # should be followed by 0
 
         if self.trace_dump:
@@ -488,13 +572,19 @@ class RPR_RenderProperties(RPR_Properties):
         else:
             pyrpr.Context.set_parameter(None, pyrpr.CONTEXT_TRACING_ENABLED, False)
 
-        rpr_context.init(context_flags, context_props)
+        rpr_context.init(context_flags, context_props, use_contour_integrator=use_contour_integrator)
 
         if metal_enabled:
             mac_vers_major = platform.mac_ver()[0].split('.')[1]
             # if this is mojave turn on MPS
             if float(mac_vers_major) >= 14:
                 rpr_context.set_parameter(pyrpr.CONTEXT_METAL_PERFORMANCE_SHADER, 1)
+
+        # enable texture cache for RPR2
+        if isinstance(rpr_context, context.RPRContext2):
+            if not os.path.isdir(self.texture_cache_dir):
+                os.mkdir(self.texture_cache_dir)
+            rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
@@ -525,6 +615,29 @@ class RPR_RenderProperties(RPR_Properties):
     def export_render_mode(self, rpr_context):
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_MODE,
                                          getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
+
+    @property
+    def is_contour_used(self):
+        return self.render_quality == 'FULL2' and self.use_contour_render
+
+    def export_contour_mode(self, rpr_context):
+        """ set Contour render mode parameters """
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_OBJECTID, self.contour_use_object_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_MATERIALID, self.contour_use_material_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_NORMAL, self.contour_use_shading_normal)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_OBJECTID, self.contour_object_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_MATERIALID, self.contour_material_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_NORMAL, self.contour_shading_normal_line_width)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_NORMAL_THRESHOLD, math.degrees(self.contour_normal_threshold))
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_ANTIALIASING, self.contour_antialiasing)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_DEBUG_ENABLED, self.contour_debug_flag)
+
+        rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+        rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
+        rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
 
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """

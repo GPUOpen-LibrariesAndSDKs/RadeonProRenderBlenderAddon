@@ -96,11 +96,6 @@ class Engine:
             if p.channels != image.shape[2]:
                 image = image[:, :, 0:p.channels]
 
-            if p.name == "Object Index":
-                # De-normalizing Object ID to match blender values
-                # it appears values > 256 get clipped.
-                image = image * 255.0
-
             images.append(image.flatten())
 
         # efficient way to copy all AOV images
@@ -131,23 +126,26 @@ class Engine:
                 yield instance
 
     def sync_motion_blur(self, depsgraph: bpy.types.Depsgraph):
-        """ """
 
         def set_motion_blur(rpr_object, prev_matrix, cur_matrix):
-            velocity = (prev_matrix - cur_matrix).to_translation()
-            rpr_object.set_linear_motion(*velocity)
-
-            mul_diff = prev_matrix @ cur_matrix.inverted()
-
-            quaternion = mul_diff.to_quaternion()
-            if quaternion.axis.length > 0.5:
-                rpr_object.set_angular_motion(*quaternion.axis, quaternion.angle)
+            if hasattr(rpr_object, 'set_motion_transform'):
+                rpr_object.set_motion_transform(
+                    np.array(prev_matrix, dtype=np.float32).reshape(4, 4))
             else:
-                rpr_object.set_angular_motion(1.0, 0.0, 0.0, 0.0)
+                velocity = (prev_matrix - cur_matrix).to_translation()
+                rpr_object.set_linear_motion(*velocity)
 
-            if not isinstance(rpr_object, pyrpr.Camera):
-                scale_motion = mul_diff.to_scale() - mathutils.Vector((1, 1, 1))
-                rpr_object.set_scale_motion(*scale_motion)
+                mul_diff = prev_matrix @ cur_matrix.inverted()
+
+                quaternion = mul_diff.to_quaternion()
+                if quaternion.axis.length > 0.5:
+                    rpr_object.set_angular_motion(*quaternion.axis, quaternion.angle)
+                else:
+                    rpr_object.set_angular_motion(1.0, 0.0, 0.0, 0.0)
+
+                if not isinstance(rpr_object, pyrpr.Camera):
+                    scale_motion = mul_diff.to_scale() - mathutils.Vector((1, 1, 1))
+                    rpr_object.set_scale_motion(*scale_motion)
 
         cur_matrices = {}
 
@@ -202,6 +200,10 @@ class Engine:
         finally:
             # restore current frame
             self.rpr_engine.frame_set(cur_frame, 0.0)
+
+    def set_motion_blur_mode(self, scene):
+        """ Apply engine-specific motion blur parameters """
+        pass
 
     def setup_image_filter(self, settings):
         if self.image_filter and self.image_filter.settings == settings:

@@ -232,9 +232,8 @@ class array:
 class Object:
     core_type_name = 'void*'
 
-    def __init__(self, core_type_name=None):
-        self.ffi_type_name = (core_type_name if core_type_name is not None else self.core_type_name) + '*'
-        self._reset_handle()
+    def __init__(self):
+        self._handle_ptr = ffi.new(self.core_type_name + '*', ffi.NULL)
         self.name = None
 
     def __del__(self):
@@ -244,14 +243,11 @@ class Object:
             _init_data._log_fun('EXCEPTION:', traceback.format_exc())
 
     def delete(self):
-        if self._handle_ptr and self._get_handle():
-            if lib_wrapped_log_calls:
-                _init_data._log_fun('delete: ', self.name, self)
-            ObjectDelete(self._get_handle())
-            self._reset_handle()
+        if lib_wrapped_log_calls:
+            _init_data._log_fun('delete: ', self.name, self)
 
-    def _reset_handle(self):
-        self._handle_ptr = ffi.new(self.ffi_type_name, ffi.NULL)
+        if self._get_handle():
+            ObjectDelete(self._get_handle())
 
     def _get_handle(self):
         return self._handle_ptr[0]
@@ -357,6 +353,9 @@ class Context(Object):
 
     def render(self):
         ContextRender(self)
+
+    def abort_render(self):
+        ContextAbortRender(self)
         
     def render_tile(self, xmin, xmax, ymin, ymax):
         ContextRenderTile(self, xmin, xmax, ymin, ymax)
@@ -374,8 +373,8 @@ class Context(Object):
         ContextSetAOV(self, aov, None)
         del self.aovs[aov]
 
-    def set_aov_index_lookup(self, input, r, g, b, a):
-        ContextSetAOVindexLookup(self, input, r, g, b, a)
+    def set_aov_index_lookup(self, key, r, g, b, a):
+        ContextSetAOVindexLookup(self, key, r, g, b, a)
 
     def get_info_size(self, context_info):
         size = ffi.new('size_t *', 0)
@@ -617,6 +616,9 @@ class Shape(Object):
 
     def set_subdivision_crease_weight(self, factor):
         ShapeSetSubdivisionCreaseWeight(self, factor)
+
+    def set_subdivision_auto_ratio_cap(self, auto_ratio_cap):
+        ShapeSetSubdivisionAutoRatioCap(self, auto_ratio_cap)
 
     def set_light_group_id(self, group_id):
         ShapeSetLightGroupID(self, group_id)
@@ -1166,6 +1168,18 @@ class MaterialNode(Object):
         self.type = material_type
         MaterialSystemCreateNode(self.material_system, self.type, self)
 
+    def delete(self):
+        for name, value in self.inputs.items():
+            if isinstance(value, MaterialNode):
+                MaterialNodeSetInputNByKey(self, name, None)
+            elif isinstance(value, Image):
+                MaterialNodeSetInputImageDataByKey(self, name, None)
+            elif isinstance(value, Buffer):
+                MaterialNodeSetInputBufferDataByKey(self, name, None)
+        self.inputs.clear()
+
+        super().delete()
+
     def set_input(self, name, value):
         if isinstance(value, MaterialNode):
             MaterialNodeSetInputNByKey(self, name, value)
@@ -1187,6 +1201,9 @@ class MaterialNode(Object):
             raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
         self.inputs[name] = value
+
+    def set_id(self, id):
+        MaterialNodeSetID(self, id)
 
 
 class Light(Object):

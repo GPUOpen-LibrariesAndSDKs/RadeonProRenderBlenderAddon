@@ -86,7 +86,7 @@ class ExportEngine(Engine):
 
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
-        self.rpr_context.sync_auto_adapt_subdivision(self.rpr_context.width, self.rpr_context.height)
+        self.rpr_context.sync_auto_adapt_subdivision()
 
         self.rpr_context.sync_portal_lights()
 

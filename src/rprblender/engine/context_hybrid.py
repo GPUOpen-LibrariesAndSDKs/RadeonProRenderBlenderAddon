@@ -49,7 +49,7 @@ class RPRContext(context.RPRContext):
 
     _PostEffect = pyhybrid.PostEffect
 
-    def init(self, context_flags, context_props):
+    def init(self, context_flags, context_props, use_contour_integrator=False):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
         if context_props[0] == pyrpr.CONTEXT_SAMPLER_TYPE:
             context_props = context_props[2:]
@@ -92,3 +92,7 @@ class RPRContext(context.RPRContext):
 
     def sync_catchers(self, use_transparent_background=False):
         pass
+
+    def create_tiled_image(self, key):
+        # Tiled images are unsupported by Hybrid
+        return None

@@ -923,11 +923,32 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
 
     class Exporter(RuleNodeParser):
         nodes = {
-            "Normal": {
+            "normal": {
+                "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+                "params": {
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
+                }
+            },
+            "bump": {
                 "type": pyrpr.MATERIAL_NODE_BUMP_MAP,
                 "params": {
                     pyrpr.MATERIAL_INPUT_COLOR: "normal:inputs.Map",
                     pyrpr.MATERIAL_INPUT_SCALE: "inputs.Scale",
+                }
+            },
+            "normal_plus_bump": {
+                "type": "+",
+                "params": {
+                    pyrpr.MATERIAL_INPUT_COLOR0: "nodes.normal",
+                    pyrpr.MATERIAL_INPUT_COLOR1: "nodes.bump"
+                }
+            },
+            "Normal": {
+                "type": "blend",
+                "params": {
+                    pyrpr.MATERIAL_INPUT_WEIGHT: "inputs.Scale",
+                    pyrpr.MATERIAL_INPUT_COLOR0: "nodes.normal",
+                    pyrpr.MATERIAL_INPUT_COLOR1: "nodes.normal_plus_bump"
                 }
             },
             "hybrid:Normal": None

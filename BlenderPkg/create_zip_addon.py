@@ -14,6 +14,7 @@
 #********************************************************************
 
 import zipfile
+import zlib
 import platform
 from pathlib import Path
 import subprocess
@@ -93,7 +94,8 @@ def create_zip_addon(build_dir):
     zip_addon = build_dir / f"rprblender-{ver[0]}.{ver[1]}.{ver[2]}-{ver[3]}-{OS.lower()}.zip"
 
     print(f"Compressing addon files to: {zip_addon}")
-    with zipfile.ZipFile(zip_addon, 'w') as myzip:
+    with zipfile.ZipFile(zip_addon, 'w', compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=zlib.Z_BEST_COMPRESSION) as myzip:
         for src, package_path in enumerate_addon_data():
             print(f"adding {src} --> {package_path}")
 

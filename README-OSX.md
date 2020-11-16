@@ -60,10 +60,10 @@ NOTES:
 
 ### Running
 
-Ensure that the BLENDER_28X_EXE environment variable is set.  For example, add the following to
+Ensure that the BLENDER_EXE environment variable is set.  For example, add the following to
 your ~/.profile with the correct path to the Blender executable:
 
-    export BLENDER_28X_EXE="/Users/amd/Downloads/blender-2.78c-OSX_10.6-x86_64/blender.app/Contents/MacOS/blender"
+    export BLENDER_EXE="/Users/amd/Downloads/blender-2.78c-OSX_10.6-x86_64/blender.app/Contents/MacOS/blender"
 
 To run the local build, use:
 	- ./run_blender_with_rpr_osx.sh
