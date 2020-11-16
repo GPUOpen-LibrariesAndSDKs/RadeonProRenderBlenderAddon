@@ -31,7 +31,8 @@ def ignore_unsupported(function):
             return function(*args, **kwargs)
 
         except pyrpr.CoreError as e:
-            if e.status not in (pyrpr.ERROR_UNSUPPORTED, pyrpr.ERROR_INVALID_PARAMETER):
+            if e.status not in (pyrpr.ERROR_UNSUPPORTED, pyrpr.ERROR_INVALID_PARAMETER,
+                                pyrpr.ERROR_UNIMPLEMENTED):
                 raise
 
             if hybrid_unsupported_log_warn:
@@ -59,8 +60,8 @@ def class_ignore_unsupported(cls):
 enabled = True
 
 
+@class_ignore_unsupported
 class Context(pyrpr.Context):
-    @ignore_unsupported
     def set_parameter(self, key, param):
         if key == pyrpr.CONTEXT_ITERATIONS:
             self.parameters[key] = param
@@ -72,14 +73,6 @@ class Context(pyrpr.Context):
         iterations = self.parameters.get(pyrpr.CONTEXT_ITERATIONS, 1)
         for _ in range(iterations):
             super().render()
-
-    @ignore_unsupported
-    def attach_aov(self, aov, frame_buffer):
-        super().attach_aov(aov, frame_buffer)
-
-    @ignore_unsupported
-    def detach_aov(self, aov):
-        super().detach_aov(aov)
 
 
 @class_ignore_unsupported
@@ -149,6 +142,10 @@ class MaterialNode(pyrpr.MaterialNode):
             value = 0.0
 
         super().set_input(name, value)
+
+    def delete(self):
+        self.inputs.clear()
+        super().delete()
 
 
 class EmptyMaterialNode(MaterialNode):

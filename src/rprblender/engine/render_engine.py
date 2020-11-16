@@ -303,7 +303,7 @@ class RenderEngine(Engine):
         if not self.is_synced:
             return
 
-        self.rpr_context.sync_auto_adapt_subdivision(self.width, self.height)
+        self.rpr_context.sync_auto_adapt_subdivision()
         self.rpr_context.sync_portal_lights()
 
         log(f"Start render [{self.width}, {self.height}]")
@@ -318,7 +318,8 @@ class RenderEngine(Engine):
         log('Finish render')
 
     def _init_rpr_context(self, scene):
-        scene.rpr.init_rpr_context(self.rpr_context)
+        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=scene.rpr.is_contour_used)
+
         self.rpr_context.scene.set_name(scene.name)
 
     def sync(self, depsgraph):
@@ -352,6 +353,10 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
+        use_contour = scene.rpr.is_contour_used
+        if use_contour:
+            scene.rpr.export_contour_mode(self.rpr_context)
+
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # EXPORT OBJECTS
@@ -363,7 +368,7 @@ class RenderEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current)
+                        frame_current=scene.frame_current, use_contour=use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -383,7 +388,7 @@ class RenderEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current)
+                          frame_current=scene.frame_current, use_contour=use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -424,7 +429,11 @@ class RenderEngine(Engine):
             self.camera_data.export(rpr_camera)
 
         # Environment is synced once per frame
-        world_settings = world.sync(self.rpr_context, scene.world)
+        if scene.world.is_evaluated:  # for some reason World data can came in unevaluated
+            world_data = scene.world
+        else:
+            world_data = scene.world.evaluated_get(depsgraph)
+        world_settings = world.sync(self.rpr_context, world_data)
         self.world_backplate = world_settings.backplate
 
         # SYNC MOTION BLUR
@@ -434,6 +443,7 @@ class RenderEngine(Engine):
         if self.rpr_context.do_motion_blur:
             self.sync_motion_blur(depsgraph)
             rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+            self.set_motion_blur_mode(scene)
 
         # EXPORT PARTICLES
         # Note: particles should be exported after motion blur,
@@ -470,7 +480,7 @@ class RenderEngine(Engine):
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
 
-        if scene.rpr.render_quality == 'FULL2':
+        if scene.rpr.render_quality == 'FULL2' and not scene.rpr.use_contour_render:
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples
@@ -613,13 +623,3 @@ class RenderEngine(Engine):
                 p.rect = [e[:p.channels] for e in ordered_text_bytes]
 
             self.rpr_engine.end_result(result)
-
-
-from .context import RPRContext2
-
-
-class RenderEngine2(RenderEngine):
-    _RPRContext = RPRContext2
-
-    def _update_athena_data(self, data):
-        data['Quality'] = "rpr2"
