@@ -62,6 +62,8 @@ class RenderEngine(Engine):
         self.camera_data: camera.CameraData = None
         self.tile_order = None
 
+        self.use_contour = False
+
         self.world_backplate = None
 
         self.render_stamp_text = ""
@@ -145,7 +147,7 @@ class RenderEngine(Engine):
                 break
 
             render_iteration += 1
-            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
                 # progressively increase update samples up to 32
                 self.render_update_samples *= 2
 
@@ -248,7 +250,7 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
-                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS:
+                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
                     # progressively increase update samples up to 32
                     self.render_update_samples *= 2
 
@@ -318,7 +320,7 @@ class RenderEngine(Engine):
         log('Finish render')
 
     def _init_rpr_context(self, scene):
-        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=scene.rpr.is_contour_used)
+        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=self.use_contour)
 
         self.rpr_context.scene.set_name(scene.name)
 
@@ -339,6 +341,7 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
+        self.use_contour = scene.rpr.is_contour_used
         self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \
@@ -353,8 +356,7 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        use_contour = scene.rpr.is_contour_used
-        if use_contour:
+        if self.use_contour:
             scene.rpr.export_contour_mode(self.rpr_context)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
@@ -368,7 +370,7 @@ class RenderEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current, use_contour=use_contour)
+                        frame_current=scene.frame_current, use_contour=self.use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -388,7 +390,7 @@ class RenderEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current, use_contour=use_contour)
+                          frame_current=scene.frame_current, use_contour=self.use_contour)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -480,8 +482,11 @@ class RenderEngine(Engine):
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
 
-        if scene.rpr.render_quality == 'FULL2' and not scene.rpr.use_contour_render:
-            self.render_update_samples = scene.rpr.limits.update_samples_rpr2
+        if scene.rpr.render_quality == 'FULL2':
+            if self.use_contour:
+                self.render_update_samples = 1
+            else:
+                self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples
 
