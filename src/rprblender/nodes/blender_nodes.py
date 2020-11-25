@@ -410,20 +410,28 @@ class ShaderNodeBsdfVelvet(RuleNodeParser):
     # inputs: Color, Sigma
 
     nodes = {
+        "ONE_MINUS_SIGMA": {
+            "type": "-",
+            "params": {
+                pyrpr.MATERIAL_INPUT_COLOR0: 1.0,
+                pyrpr.MATERIAL_INPUT_COLOR1: "inputs.Sigma",
+            }
+        },
+
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: "nodes.ONE_MINUS_SIGMA",
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_SHEEN: "inputs.Color"
             }
         }
     }
-    # TODO: Has to be fixed, probably diffuse is not needed here
 
 
 class ShaderNodeEmission(RuleNodeParser):
