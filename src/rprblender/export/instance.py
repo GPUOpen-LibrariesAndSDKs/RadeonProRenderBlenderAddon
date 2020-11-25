@@ -15,7 +15,7 @@
 import numpy as np
 import bpy
 
-from . import object, light
+from . import object, light, mesh
 from rprblender.utils import logging
 log = logging.Log(tag='export.instance')
 
@@ -56,7 +56,7 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
 
         # exporting visibility from parent object
         indirect_only = kwargs.get("indirect_only", False)
-        instance.parent.rpr.export_visibility(rpr_shape, indirect_only)
+        mesh.export_visibility(instance.parent, rpr_shape, indirect_only)
 
         rpr_context.scene.attach(rpr_shape)
 

@@ -45,7 +45,7 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     if light.type in ('POINT', 'SPOT'):
         units = rpr.intensity_units_point
         if units == 'DEFAULT':
-            return default_intensity / (4*math.pi)  # dividing by 4*pi to be more convenient with cycles point light
+            return color * math.sqrt(light.energy)  # to match cycles
 
         # converting to lumen
         if units == 'LUMEN':
@@ -60,7 +60,7 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     elif light.type == 'SUN':
         units = rpr.intensity_units_dir
         if units == 'DEFAULT':
-            return default_intensity * 0.01         # multiplying by 0.01 to be more convenient with point light
+            return default_intensity
 
         # converting to luminance
         if units == 'LUMINANCE':
@@ -134,7 +134,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     elif light.type in ('SUN', 'HEMI'):  # just in case old scenes will have outdated Hemi
         rpr_light = rpr_context.create_light(light_key, 'directional')
-        rpr_light.set_shadow_softness_angle(light.rpr.shadow_softness_angle)
+        rpr_light.set_shadow_softness_angle(light.angle / 2.0) # to match cycles
 
     elif light.type == 'SPOT':
         rpr_light = rpr_context.create_light(light_key, 'disk')
