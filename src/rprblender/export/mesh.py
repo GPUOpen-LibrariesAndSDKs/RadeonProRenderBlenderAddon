@@ -257,6 +257,23 @@ def assign_override_material(rpr_context, rpr_shape, obj, material_override) -> 
     return bool(rpr_material or rpr_displacement)
 
 
+def export_visibility(obj, rpr_shape, indirect_only):
+    """ Exports visibility settings """
+    cycles_visibility = obj.cycles_visibility
+
+    camera_visibility = cycles_visibility.camera and not indirect_only
+
+    rpr_shape.set_visibility_primary_only(camera_visibility)
+    rpr_shape.set_visibility_ex("visible.reflection", cycles_visibility.glossy)
+    rpr_shape.set_visibility_ex("visible.reflection.glossy", cycles_visibility.glossy)
+    rpr_shape.set_visibility_ex("visible.refraction", cycles_visibility.transmission)
+    rpr_shape.set_visibility_ex("visible.refraction.glossy", cycles_visibility.transmission)
+    rpr_shape.set_visibility_ex("visible.diffuse", cycles_visibility.diffuse)
+    rpr_shape.set_shadow(cycles_visibility.shadow)
+
+    obj.rpr.set_catchers(rpr_shape)
+
+
 def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False, use_contour: bool = False):
     from rprblender.engine.viewport_engine import ViewportEngine
 
@@ -267,7 +284,7 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, 
     if not rpr_shape.is_visible:
         return
 
-    obj.rpr.export_visibility(rpr_shape, indirect_only)
+    export_visibility(obj, rpr_shape, indirect_only)
     obj.rpr.export_subdivision(rpr_shape)
 
     if use_contour:
