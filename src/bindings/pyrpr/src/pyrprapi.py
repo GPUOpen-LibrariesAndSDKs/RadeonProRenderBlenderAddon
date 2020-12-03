@@ -663,7 +663,8 @@ if __name__=='__main__':
                  'RPR_SHAPE_SET_LIGHTMAP_CHART_INDEX_FUNC_NAME',
                  'RPR_MESH_UPDATE_FUNC_NAME',
                  'RPR_SHAPE_SET_TRANSFORM_BATCH_FUNC_NAME',
-                 'rprDirectionalLightSetRasterShadowSplits']
+                 'rprDirectionalLightSetRasterShadowSplits',
+                 'RPR_CONTEXT_CREATE_MESH_EDITABLE_FUNC_NAME',]
     )
 
     export(
