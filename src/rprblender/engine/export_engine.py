@@ -25,7 +25,7 @@ from rprblender.export import (
     world,
     camera
 )
-from .context import RPRContext
+from .context import RPRContext, RPRContext2
 from .engine import Engine
 import pyrpr
 
@@ -48,7 +48,9 @@ class ExportEngine(Engine):
         self.rpr_context.blender_data['depsgraph'] = depsgraph
         scene = depsgraph.scene
 
-        scene.rpr.init_rpr_context(self.rpr_context)
+        use_contour = scene.rpr.is_contour_used
+
+        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=use_contour)
 
         self.rpr_context.scene.set_name(scene.name)
         self.rpr_context.width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
@@ -102,3 +104,11 @@ class ExportEngine(Engine):
         """
         log('export_to_rpr')
         pyrpr_load_store.export(filepath, self.rpr_context.context, self.rpr_context.scene, flags)
+
+
+class ExportEngine2(ExportEngine):
+    TYPE = 'EXPORT'
+
+    def __init__(self):
+        self.rpr_context = RPRContext2()
+        self.rpr_context.engine_type = self.TYPE
