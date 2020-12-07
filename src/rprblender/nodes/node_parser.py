@@ -17,7 +17,7 @@ from abc import ABCMeta, abstractmethod
 import bpy
 import pyrpr
 
-from rprblender.engine.context import RPRContext
+from rprblender.engine.context import RPRContext, RPRContext2
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 from .node_item import NodeItem
 
@@ -292,6 +292,8 @@ class NodeParser(BaseNodeParser):
             node_item = self.export_muted()
         elif isinstance(self.rpr_context, RPRContextHybrid):
             node_item = self.export_hybrid()
+        elif isinstance(self.rpr_context, RPRContext2):
+            node_item = self.export_rpr2()
         else:
             node_item = self.export()
         rpr_node = node_item.data if node_item else None
@@ -308,6 +310,9 @@ class NodeParser(BaseNodeParser):
         pass
 
     def export_hybrid(self) -> [NodeItem, None]:
+        return self.export()
+
+    def export_rpr2(self) -> [NodeItem, None]:
         return self.export()
 
     def export_muted(self) -> [NodeItem, None]:

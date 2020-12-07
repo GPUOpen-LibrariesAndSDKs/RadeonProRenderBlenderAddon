@@ -48,13 +48,14 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
         self.layout.use_property_decorate = False
 
         rpr = context.object.rpr
+        cycles_vis = context.object.cycles_visibility
 
         flow = self.layout.grid_flow(row_major=True, even_columns=True)
-        flow.column().prop(rpr, 'visibility_in_primary_rays')
-        flow.column().prop(rpr, 'reflection_visibility')
-        flow.column().prop(rpr, 'refraction_visibility')
-        flow.column().prop(rpr, 'diffuse_visibility')
-        flow.column().prop(rpr, 'shadows')
+        flow.column().prop(cycles_vis, 'camera')
+        flow.column().prop(cycles_vis, 'glossy')
+        flow.column().prop(cycles_vis, 'transmission')
+        flow.column().prop(cycles_vis, 'diffuse')
+        flow.column().prop(cycles_vis, 'shadow')
         flow.column().prop(rpr, 'visibility_contour')
 
 

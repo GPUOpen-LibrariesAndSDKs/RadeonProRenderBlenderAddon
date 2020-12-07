@@ -320,7 +320,7 @@ class RPR_RenderProperties(RPR_Properties):
     use_clamp_radiance: BoolProperty(
         name="Clamp",
         description="Use clamp radiance",
-        default=True,
+        default=False,
     )
     clamp_radiance: FloatProperty(
         name="Clamp Radiance",

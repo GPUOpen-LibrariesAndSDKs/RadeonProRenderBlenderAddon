@@ -21,7 +21,7 @@ from bpy.props import StringProperty, BoolProperty, IntProperty, EnumProperty
 
 import bpy
 from bpy_extras.io_utils import ExportHelper
-from rprblender.engine.export_engine import ExportEngine
+from rprblender.engine.export_engine import ExportEngine, ExportEngine2
 import os.path
 import json
 from rprblender.utils.user_settings import get_user_settings
@@ -32,6 +32,9 @@ from rprblender.utils.logging import Log
 import pyrpr
 
 log = Log(tag='operators.export_scene')
+
+
+CONTOUR_AOVS = (pyrpr.AOV_GEOMETRIC_NORMAL, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_OBJECT_ID)
 
 
 class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
@@ -118,10 +121,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
                 filepath_json = os.path.splitext(filepath_frame)[0] + '.json'
                 scene.frame_set(i)
 
-                exporter = ExportEngine()
-                exporter.sync(context)
-                exporter.export_to_rpr(filepath_frame, flags)
-                self.save_json(filepath_json, scene, context.view_layer)
+                self.export_scene_to_file(context, scene, filepath_frame, filepath_json, flags)
                 log.info(f"Finished frame {i} export to '{filepath_frame}'")
 
             scene.frame_set(orig_frame)
@@ -131,18 +131,27 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             time_started = time.time()
 
             filepath_json = os.path.splitext(self.filepath)[0] + '.json'
-            exporter = ExportEngine()
-            exporter.sync(context)
-            exporter.export_to_rpr(self.filepath, flags)
-            self.save_json(filepath_json, scene, context.view_layer)
+            self.export_scene_to_file(context, scene, self.filepath, filepath_json, flags)
 
         log.info(f"Finished RPR export in {time.time() - time_started} s")
 
         return {'FINISHED'}
 
+    def export_scene_to_file(self, context, scene, filepath, filepath_json, flags):
+        if scene.rpr.render_quality == 'FULL':
+            exporter = ExportEngine()
+        else:
+            exporter = ExportEngine2()
+        exporter.sync(context)
+        exporter.export_to_rpr(filepath, flags)
+        self.save_json(filepath_json, scene, context.view_layer)
+
     def save_json(self, filepath, scene, view_layer):
         ''' save scene settings to json at filepath '''
         output_base = os.path.splitext(filepath)[0]
+
+        devices = get_user_settings().final_devices
+        use_contour = scene.rpr.is_contour_used and not devices.cpu_state
 
         data = {
             'width': int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
@@ -189,21 +198,34 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
 
         aovs = {}
         for i, enable_aov in enumerate(view_layer.rpr.enable_aovs):
-            if enable_aov:
-                aov = view_layer.rpr.aovs_info[i]
-                aov_name = aov_map[aov['rpr']]
+            aov = view_layer.rpr.aovs_info[i]
+            aov_type = aov['rpr']
+            if enable_aov or (use_contour and aov_type in CONTOUR_AOVS):
+                aov_name = aov_map[aov_type]
                 aovs[aov_name] = output_base + '.' + aov_name + '.png'
+
         data['aovs'] = aovs
 
         # set devices based on final render
         device_settings = {}
-        devices = get_user_settings().final_devices
-        
         device_settings['cpu'] = int(devices.cpu_state)
         device_settings['threads'] = devices.cpu_threads
         
         for i, gpu_state in enumerate(devices.available_gpu_states):
             device_settings[f'gpu{i}'] = int(gpu_state)
+
+        if use_contour:
+            data['contour'] = {
+                "object.id": int(scene.rpr.contour_use_object_id),
+                "material.id": int(scene.rpr.contour_use_material_id),
+                "normal": int(scene.rpr.contour_use_shading_normal),
+                "threshold.normal": scene.rpr.contour_normal_threshold,
+                "linewidth.objid": scene.rpr.contour_object_id_line_width,
+                "linewidth.matid": scene.rpr.contour_material_id_line_width,
+                "linewidth.normal": scene.rpr.contour_shading_normal_line_width,
+                "antialiasing": scene.rpr.contour_antialiasing,
+                "debug": int(scene.rpr.contour_use_shading_normal)
+            }
 
         data['context'] = device_settings
 
