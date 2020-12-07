@@ -410,20 +410,28 @@ class ShaderNodeBsdfVelvet(RuleNodeParser):
     # inputs: Color, Sigma
 
     nodes = {
+        "ONE_MINUS_SIGMA": {
+            "type": "-",
+            "params": {
+                pyrpr.MATERIAL_INPUT_COLOR0: 1.0,
+                pyrpr.MATERIAL_INPUT_COLOR1: "inputs.Sigma",
+            }
+        },
+
         "BSDF": {
             "type": pyrpr.MATERIAL_NODE_UBERV2,
             "params": {
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: "nodes.ONE_MINUS_SIGMA",
                 pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal",
+                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_WEIGHT: "inputs.Sigma",
+                pyrpr.MATERIAL_INPUT_UBER_SHEEN_TINT: 1.0,
                 pyrpr.MATERIAL_INPUT_UBER_SHEEN: "inputs.Color"
             }
         }
     }
-    # TODO: Has to be fixed, probably diffuse is not needed here
 
 
 class ShaderNodeEmission(RuleNodeParser):
@@ -861,28 +869,37 @@ class ShaderNodeBsdfHair(NodeParser):
         base_color = self.get_input_value('Color')
 
         rotation_angle = self.get_input_value('Offset')
-        roughness_u = self.get_input_value('RoughnessU')
-        roughness_v = self.get_input_value('RoughnessV')
+        roughness_u = self.get_input_value('RoughnessU').clamp(0.001, 1.0)
+        roughness_v = self.get_input_value('RoughnessV').clamp(0.001, 1.0)
 
         # TODO: use Tangent input
 
         # Treat reflection as WARD shader 
         if component == 'Reflection':
-            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_WARD)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_X, roughness_u)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_Y, roughness_v)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROTATION, rotation_angle)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, base_color)
-
+            rpr_node = self._create_ward_node(base_color, roughness_u, roughness_v, rotation_angle)
         else:
-            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: base_color,
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR: base_color,
-            })
+            roughness = (roughness_u + roughness_v) * 0.5
+            rpr_node = self._create_transmission_node(base_color, roughness)
+
+        return rpr_node
+
+    def export_rpr2(self):
+        component = self.node.component
+        base_color = self.get_input_value('Color')
+
+        rotation_angle = self.get_input_value('Offset')
+        roughness_u = self.get_input_value('RoughnessU').clamp(0.001, 1.0)
+        roughness_v = self.get_input_value('RoughnessV').clamp(0.001, 1.0)
+
+        # Treat reflection as and Uber shader with anisotropic reflection
+        if component == 'Reflection':
+            rotation_angle = 0.5 - rotation_angle % math.pi  # fit angle to the range [-0.5..+0.5]
+
+            rpr_node = self._create_aniso_reflection_node(base_color, roughness_u, roughness_v,
+                                                          rotation_angle)
+        else:
+            roughness = (roughness_u + roughness_v) * 0.5
+            rpr_node = self._create_transmission_node(base_color, roughness)
 
         return rpr_node
 
@@ -894,7 +911,7 @@ class ShaderNodeBsdfHair(NodeParser):
         
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
-            
+
         if component == 'Reflection':
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, color)
@@ -902,6 +919,53 @@ class ShaderNodeBsdfHair(NodeParser):
         else:
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, color)
 
+        return rpr_node
+
+    def _create_ward_node(self, base_color, roughness_u, roughness_v, rotation_angle):
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_WARD)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_X, roughness_u)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_Y, roughness_v)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROTATION, rotation_angle)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, base_color)
+        return rpr_node
+
+    def _create_aniso_reflection_node(self, base_color, roughness_u, roughness_v, rotation_angle):
+        rotation_angle = 0.5 - rotation_angle % math.pi  # fit angle to the range [-0.5..+0.5]
+
+        rough_max = roughness_v.max(roughness_u)
+        rough_min = roughness_v.min(roughness_u)
+
+        anisotropy = 0
+        if not roughness_u.data == roughness_v.data:
+            anisotropy = (rough_max - rough_min).clamp(0.001, 1.0)  # limit anisotropy amount
+
+        # a rough approximation of reflection roughness
+        rough_med = (roughness_u + roughness_v) * 0.5
+        rough_aniso = (rough_min + rough_med) * 0.5
+
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
+
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, rough_aniso)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY, anisotropy)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION, rotation_angle)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                           pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, 1.0)
+
+        return rpr_node
+
+    def _create_transmission_node(self, base_color, roughness):
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: base_color,
+            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: roughness,
+            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 0.0,
+            pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT: 1.0,
+            pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR: base_color,
+        })
         return rpr_node
 
 

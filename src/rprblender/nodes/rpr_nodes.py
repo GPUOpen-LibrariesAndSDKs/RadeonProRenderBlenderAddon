@@ -591,13 +591,15 @@ class RPRShaderNodeUber(RPRShaderNode):
                 coating_roughness = self.get_input_value('Coating Roughness')
                 coating_thickness = self.get_input_value('Coating Thickness')
                 coating_transmission_color = self.get_input_value('Coating Transmission Color')
+                # remove transmission color negative values to prevent render artefacts
+                coating_transmission_color_clamped = coating_transmission_color.max(0.0)
 
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_WEIGHT, coating_weight)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_COLOR, coating_color)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_ROUGHNESS, coating_roughness)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_THICKNESS, coating_thickness)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_TRANSMISSION_COLOR,
-                                   coating_transmission_color)
+                                   coating_transmission_color_clamped)
 
                 coating_ior = self.get_input_value('Coating IOR')
 
