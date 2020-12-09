@@ -179,7 +179,7 @@ class Engine:
         prev_frame = cur_frame - depsgraph.scene.frame_step
 
         # set to previous frame and calculate motion blur data
-        self.rpr_engine.frame_set(prev_frame, 0.0)
+        self._set_scene_frame(depsgraph.scene, prev_frame, 0.0)
         try:
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
                 key = object.key(obj)
@@ -199,7 +199,10 @@ class Engine:
 
         finally:
             # restore current frame
-            self.rpr_engine.frame_set(cur_frame, 0.0)
+            self._set_scene_frame(depsgraph.scene, cur_frame, 0.0)
+
+    def _set_scene_frame(self, scene, frame, subframe=0.0):
+        self.rpr_engine.frame_set(frame, subframe)
 
     def set_motion_blur_mode(self, scene):
         """ Apply engine-specific motion blur parameters """

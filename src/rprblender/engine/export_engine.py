@@ -15,6 +15,7 @@
 """
 Scene export to file
 """
+import math
 
 import pyrpr_load_store
 
@@ -86,6 +87,15 @@ class ExportEngine(Engine):
                                                          self.rpr_context.width / self.rpr_context.height)
         camera_data.export(rpr_camera)
 
+        # sync Motion Blur
+        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
+                                          not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
+
+        if self.rpr_context.do_motion_blur:
+            self.sync_motion_blur(depsgraph)
+            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+            self.set_motion_blur_mode(scene)
+
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.sync_auto_adapt_subdivision()
@@ -96,6 +106,9 @@ class ExportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_Y_FLIP, True)
 
         log('Finish sync')
+
+    def _set_scene_frame(self, scene, frame, subframe=0.0):
+        scene.frame_set(frame, subframe=subframe)
 
     def export_to_rpr(self, filepath: str, flags):
         """
