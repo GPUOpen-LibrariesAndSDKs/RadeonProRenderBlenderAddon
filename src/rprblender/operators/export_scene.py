@@ -28,6 +28,7 @@ from rprblender.utils.user_settings import get_user_settings
 
 from . import RPR_Operator
 
+from rprblender.utils import OS
 from rprblender.utils.logging import Log
 import pyrpr
 
@@ -150,15 +151,26 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         return {'FINISHED'}
 
     def export_scene_to_file(self, context, scene, filepath, filepath_json, flags):
-        if scene.rpr.render_quality == 'FULL':
+        if scene.rpr.render_quality == 'FULL':  # Export Legacy mode using RPR1
             exporter = ExportEngine()
-        else:
+            engine_lib_name = {
+                'Windows': "RadeonProRender64.dll",
+                'Darwin': "libRadeonProRender64.dylib",
+                'Linux': "libRadeonProRender64.so",
+            }[OS]
+        else:  # Other quality modes export using RPR2
             exporter = ExportEngine2()
+            engine_lib_name = {
+                'Windows': "Northstar64.dll",
+                'Darwin': "libNorthstar64.dylib",
+                'Linux': "libNorthstar64.so",
+            }[OS]
+
         exporter.sync(context)
         exporter.export_to_rpr(filepath, flags)
-        self.save_json(filepath_json, scene, context.view_layer)
+        self.save_json(filepath_json, scene, context.view_layer, engine_lib_name)
 
-    def save_json(self, filepath, scene, view_layer):
+    def save_json(self, filepath, scene, view_layer, engine_lib_name):
         ''' save scene settings to json at filepath '''
         output_base = os.path.splitext(filepath)[0]
 
@@ -240,6 +252,9 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             }
 
         data['context'] = device_settings
+
+        if engine_lib_name:
+            data['plugin'] = engine_lib_name
 
         with open(filepath, 'w') as outfile:
             json.dump(data, outfile)
