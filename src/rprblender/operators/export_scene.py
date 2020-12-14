@@ -60,6 +60,12 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         name="Export Single File"
     )
 
+    use_image_cache: BoolProperty(
+        default=False,
+        name="Use Image Cache",
+        description="Use the image cache for exporting images.  Note, RPRSRender.exe MUST match plugin RPR version"
+    )
+
     compression: EnumProperty(
         items=(('NONE', 'None', 'None'),
                ('LOW', 'Low', 'Lossless texture compression'),
@@ -86,6 +92,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         row.prop(self, 'end_frame')
         self.layout.prop(self, 'export_as_single_file')
         self.layout.prop(self, 'compression')
+        self.layout.prop(self, 'use_image_cache')
 
     def execute(self, context):
         scene = bpy.context.scene
@@ -100,6 +107,8 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - lossy image
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_NORMALS (1 << 3) 
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_UV (1 << 4) 
+        # RPRLOADSTORE_EXPORTFLAG_EMBED_FILE_IMAGES_USING_OBJECTNAME (1 << 5) 
+        # RPRLOADSTORE_EXPORTFLAG_USE_IMAGE_CACHE (1 << 6)
         if not self.export_as_single_file:
             flags |= 1 << 0
         
@@ -108,6 +117,9 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
                         'MEDIUM': 1 << 2,
                         'HIGH': 1 << 2 | 1 << 3 | 1 << 4}
         flags |= compression[self.compression]
+
+        if self.use_image_cache:
+            flags |= 1 << 6
 
         if self.export_animation and self.start_frame <= self.end_frame:
             orig_frame = scene.frame_current
