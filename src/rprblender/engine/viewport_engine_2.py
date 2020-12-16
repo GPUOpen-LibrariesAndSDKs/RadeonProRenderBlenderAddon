@@ -43,12 +43,15 @@ class ViewportEngine2(ViewportEngine):
         self.resolve_lock = threading.Lock()
 
     def stop_render(self):
-        self.rpr_context.set_render_update_callback(None)
-
-        super().stop_render()
-
+        self.is_finished = True
+        self.restart_render_event.set()
         self.resolve_event.set()
+        self.sync_render_thread.join()
         self.resolve_thread.join()
+
+        self.rpr_context.set_render_update_callback(None)
+        self.rpr_context = None
+        self.image_filter = None
 
     def _do_render(self):
         iteration = 0
@@ -244,9 +247,6 @@ class ViewportEngine2(ViewportEngine):
         super().sync(context, depsgraph)
         self.resolve_thread = threading.Thread(target=self._do_resolve)
         self.resolve_thread.start()
-
-    def _sync_update_before(self):
-        self.restart_render_event.set()
 
     def _sync_update_after(self):
         self.rpr_engine.update_stats("Render", "Syncing...")

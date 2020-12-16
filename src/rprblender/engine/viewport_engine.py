@@ -554,6 +554,9 @@ class ViewportEngine(Engine):
             self.use_contour = use_contour
             mode_updated = True
 
+        if not updates and not sync_world and not sync_collection:
+            return
+
         self._sync_update_before()
         with self.render_lock:
             for update in updates:
@@ -613,8 +616,7 @@ class ViewportEngine(Engine):
 
         if is_updated:
             self.restart_render_event.set()
-
-        self._sync_update_after()
+            self._sync_update_after()
 
     def _sync_update_before(self):
         pass
