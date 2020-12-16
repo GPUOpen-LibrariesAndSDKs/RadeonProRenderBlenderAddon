@@ -308,6 +308,40 @@ class RPR_ViewLayerProperites(RPR_Properties):
         },
     )
 
+    # we went over 32 aovs so these must be separated
+    cryptomatte_aovs_info = (
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT0,
+            'name': "Cryptomatte Mat0",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT1,
+            'name': "Cryptomatte Mat1",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT2,
+            'name': "Cryptomatte Mat2",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ0,
+            'name': "Cryptomatte Obj0",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ1,
+            'name': "Cryptomatte Obj1",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ2,
+            'name': "Cryptomatte Obj2",
+            'channel': 'RGB'
+        },
+    )
+
     def aov_enabled_changed(self, context):
         """ Request update of active render passes for Render Layers compositor input node """
         context.view_layer.update_render_passes()
@@ -317,6 +351,20 @@ class RPR_ViewLayerProperites(RPR_Properties):
         description="Render passes (Arbitrary output variables)",
         size=len(aovs_info),
         default=tuple(aov['name'] in ["Combined", "Depth"] for aov in aovs_info),
+        update=aov_enabled_changed,
+    )
+
+    crytomatte_aov_object: BoolProperty(
+        name="Cryptomatte Object AOVs",
+        description="Enable Object Cryptomatte AOVs",
+        default=False,
+        update=aov_enabled_changed,
+    )
+
+    crytomatte_aov_material: BoolProperty(
+        name="Cryptomatte Material AOVs",
+        description="Enable Material Cryptomatte AOVs",
+        default=False,
         update=aov_enabled_changed,
     )
     # TODO: Probably better to create each aov separately like: aov_depth: BoolProperty(...)
@@ -349,6 +397,18 @@ class RPR_ViewLayerProperites(RPR_Properties):
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
             rpr_context.enable_aov(aov['rpr'])
+
+        if self.crytomatte_aov_material:
+            for i in range(3):
+                aov = self.cryptomatte_aovs_info[i]
+                rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                rpr_context.enable_aov(aov['rpr'])
+
+        if self.crytomatte_aov_object:
+            for i in range(3, 6):
+                aov = self.cryptomatte_aovs_info[i]
+                rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                rpr_context.enable_aov(aov['rpr'])
 
     def enable_aov_by_name(self, name):
         ''' Enables a give aov name '''

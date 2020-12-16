@@ -37,6 +37,9 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
             r = col.row()
             r.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
 
+        col1.prop(view_layer, 'crytomatte_aov_object')
+        col2.prop(view_layer, 'crytomatte_aov_material')
+
 
 class RPR_RENDER_PT_denoiser(RPR_Panel):
     bl_label = "RPR Denoiser"
