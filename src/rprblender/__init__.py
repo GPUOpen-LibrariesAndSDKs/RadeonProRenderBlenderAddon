@@ -174,25 +174,37 @@ class RPREngine(bpy.types.RenderEngine):
         Called by Blender.
         """
         aovs = properties.view_layer.RPR_ViewLayerProperites.aovs_info
+        cryptomatte_aovs = properties.view_layer.RPR_ViewLayerProperites.cryptomatte_aovs_info
 
         scene = render_scene if render_scene else bpy.context.scene
         layer = render_layer if render_scene else bpy.context.view_layer
 
+        def do_register_pass(aov):
+            pass_channel = aov['channel']
+            pass_name = aov['name']
+            pass_channels_size = len(pass_channel)
+
+            # convert from channel to blender type
+            blender_type = 'VALUE'
+            if pass_channel in ('RGB', 'RGBA'):
+                blender_type = 'COLOR'
+            elif pass_channel in {'XYZ', 'UVA'}:
+                blender_type = 'VECTOR'
+
+            self.register_pass(scene, layer,
+                               pass_name, pass_channels_size, pass_channel, blender_type)
+
         for index, enabled in enumerate(layer.rpr.enable_aovs):
             if enabled:
-                pass_channel = aovs[index]['channel']
-                pass_name = aovs[index]['name']
-                pass_channels_size = len(pass_channel)
+                do_register_pass(aovs[index])
+           
+        if layer.rpr.crytomatte_aov_material:
+            for i in range(3):
+                do_register_pass(cryptomatte_aovs[i])
 
-                # convert from channel to blender type
-                blender_type = 'VALUE'
-                if pass_channel in ('RGB', 'RGBA'):
-                    blender_type = 'COLOR'
-                elif pass_channel in {'XYZ', 'UVA'}:
-                    blender_type = 'VECTOR'
-
-                self.register_pass(scene, layer,
-                                   pass_name, pass_channels_size, pass_channel, blender_type)
+        if layer.rpr.crytomatte_aov_object:
+            for i in range(3,6):
+                do_register_pass(cryptomatte_aovs[i])
 
 
 @bpy.app.handlers.persistent

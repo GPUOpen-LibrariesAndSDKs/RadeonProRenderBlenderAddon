@@ -84,7 +84,9 @@ class Engine:
                 image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
 
             else:
-                aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info
+                aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
+                    if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
+                aov = next((aov for aov in aovs_info
                             if aov['name'] == p.name), None)
                 if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
                     image = self.rpr_context.get_image(aov['rpr'])
