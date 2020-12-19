@@ -234,7 +234,7 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
         rpr_scene = context.scene.rpr
 
         main_column = self.layout.column()
-        main_column.enabled = context.scene.rpr.render_quality == 'FULL2' and rpr_scene.use_contour_render
+        main_column.enabled = context.scene.rpr.is_contour_used()
 
         col = main_column.column(align=True)
         col.prop(rpr_scene, 'contour_use_object_id')
