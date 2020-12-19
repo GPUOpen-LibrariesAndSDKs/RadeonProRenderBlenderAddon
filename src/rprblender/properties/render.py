@@ -616,9 +616,12 @@ class RPR_RenderProperties(RPR_Properties):
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_MODE,
                                          getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
 
-    @property
-    def is_contour_used(self):
-        return self.render_quality == 'FULL2' and self.use_contour_render
+    def is_contour_available(self, is_final_engine):
+        devices = self.get_devices(is_final_engine=is_final_engine)
+        return self.render_quality == 'FULL2' and not devices.cpu_state
+
+    def is_contour_used(self, is_final_engine=True):
+        return self.is_contour_available(is_final_engine) and self.use_contour_render
 
     def export_contour_mode(self, rpr_context):
         """ set Contour render mode parameters """
