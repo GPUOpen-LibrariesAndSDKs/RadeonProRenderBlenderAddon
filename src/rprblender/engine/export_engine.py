@@ -49,7 +49,7 @@ class ExportEngine(Engine):
         self.rpr_context.blender_data['depsgraph'] = depsgraph
         scene = depsgraph.scene
 
-        use_contour = scene.rpr.is_contour_used
+        use_contour = scene.rpr.is_contour_used()
 
         scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=use_contour)
 

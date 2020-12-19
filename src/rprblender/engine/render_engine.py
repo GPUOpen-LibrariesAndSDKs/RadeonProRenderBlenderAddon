@@ -341,7 +341,7 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        self.use_contour = scene.rpr.is_contour_used
+        self.use_contour = scene.rpr.is_contour_used()
         self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \

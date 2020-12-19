@@ -242,7 +242,7 @@ class ViewportEngine(Engine):
         self.notify_status("Starting...", "Sync")
         time_begin = time.perf_counter()
 
-        self.use_contour = depsgraph.scene.rpr.is_contour_used
+        self.use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         # exporting objects
         frame_current = depsgraph.scene.frame_current
@@ -452,9 +452,10 @@ class ViewportEngine(Engine):
         settings = get_user_settings()
         use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
 
+        use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
                                    use_gl_interop=use_gl_interop,
-                                   use_contour_integrator=scene.rpr.is_contour_used)
+                                   use_contour_integrator=use_contour)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
@@ -477,7 +478,7 @@ class ViewportEngine(Engine):
         self.world_settings = self._get_world_settings(depsgraph)
         self.world_settings.export(self.rpr_context)
 
-        if scene.rpr.is_contour_used:
+        if scene.rpr.is_contour_used(is_final_engine=False):
             scene.rpr.export_contour_mode(self.rpr_context)
 
         rpr_camera = self.rpr_context.create_camera()
@@ -502,7 +503,7 @@ class ViewportEngine(Engine):
         self.restart_render_event.clear()
 
         self.view_mode = context.mode
-        self.contour = scene.rpr.is_contour_used
+        self.use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         self.space_data = context.space_data
         self.selected_objects = context.selected_objects
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
@@ -547,9 +548,9 @@ class ViewportEngine(Engine):
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # if view mode changed need to sync collections
-        use_contour = depsgraph.scene.rpr.is_contour_used
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
         mode_updated = False
-        if self.view_mode != context.mode or self.contour != use_contour:
+        if self.view_mode != context.mode or self.use_contour != use_contour:
             self.view_mode = context.mode
             self.use_contour = use_contour
             mode_updated = True
@@ -878,7 +879,7 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
-        use_contour = depsgraph.scene.rpr.is_contour_used
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         for obj in self.depsgraph_objects(depsgraph):
             obj_key = object.key(obj)
@@ -907,7 +908,7 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
-        use_contour = depsgraph.scene.rpr.is_contour_used
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         for inst in self.depsgraph_instances(depsgraph):
             instance_key = instance.key(inst)
@@ -935,7 +936,7 @@ class ViewportEngine(Engine):
         material_override = depsgraph.view_layer.material_override
         frame_current = depsgraph.scene.frame_current
 
-        use_contour = depsgraph.scene.rpr.is_contour_used
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)

@@ -175,7 +175,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         output_base = os.path.splitext(filepath)[0]
 
         devices = get_user_settings().final_devices
-        use_contour = scene.rpr.is_contour_used and not devices.cpu_state
+        use_contour = scene.rpr.is_contour_used() and not devices.cpu_state
 
         data = {
             'width': int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
