@@ -51,20 +51,20 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
     min_samples: IntProperty(
         name="Min Samples",
         description="Minimum number of samples to render for each pixel. After this, adaptive "
-                    "sampling will stop sampling pixels where noise is less than threshold.",
+                    "sampling will stop sampling pixels where noise is less than threshold",
         min=16, default=64,
     )
 
     max_samples: IntProperty(
         name="Max Samples",
-        description="Number of iterations to render for each pixel.",
+        description="Number of iterations to render for each pixel",
         min=16, default=128,
     )
 
     noise_threshold: FloatProperty(
         name="Noise Threshold",
         description="Cutoff for adaptive sampling. Once pixels are below this amount of noise, "
-                    "no more samples are added.  Set to 0 for no cutoff.",
+                    "no more samples are added.  Set to 0 for no cutoff",
         min=0.0, default=.05, max=1.0,
     )
 
@@ -147,7 +147,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
     cpu_state: BoolProperty(
         name="",
         description="Use CPU device for rendering",
-        default=not pyrpr.Context.gpu_devices, # True if no GPUs are available
+        default=not pyrpr.Context.gpu_devices,  # True if no GPUs are available
         update=update_states
     )
     cpu_threads: IntProperty(
@@ -190,7 +190,7 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         name="Collect anonymous render statistics",
         description="Statistics of render time, and scene details will be collated and "
                     "anonymously sent to AMD for plugin improvement. "
-                    "No personal information is collected.",
+                    "No personal information is collected",
         default=True,
         update=on_settings_changed,
     )
@@ -198,14 +198,14 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
     use_gl_interop: BoolProperty(
         name="OpenGL interoperability",
         description="Use OpenGL interoperability in viewport. This should speedup viewport rendering. "
-                    "However, to use an external GPU for viewport rendering this should be disabled.",
+                    "However, to use an external GPU for viewport rendering this should be disabled",
         default=True,
         update=on_settings_changed,
     )
 
     bake_resolution: EnumProperty(
         name="Texture Resolution",
-        description="Texture resolution to use for nodes baking.",
+        description="Texture resolution to use for nodes baking",
         items=(
             ('64', '64', '64'),
             ('128', '128', '128'),
@@ -289,7 +289,7 @@ class RPR_RenderProperties(RPR_Properties):
     # RENDER TILES
     use_tile_render: BoolProperty(
         name="Tiled rendering",
-        description="Use tiles to do final rendering. Available with Full render quality only",
+        description="Use tiles to do final rendering. Available with Legacy render quality only",
         default=False,
     )
     tile_x: IntProperty(
@@ -426,8 +426,8 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
     render_quality_items = [
-        ('FULL2', "Full", "Full render quality using RPR 2, including hardware ray tracing support."),
-        ('FULL', "Legacy", "Full render quality using RPR 1.")
+        ('FULL2', "Full", "Full render quality using RPR 2, including hardware ray tracing support"),
+        ('FULL', "Legacy", "Full render quality using RPR 1")
     ]
     if pyhybrid.enabled:
         render_quality_items += [

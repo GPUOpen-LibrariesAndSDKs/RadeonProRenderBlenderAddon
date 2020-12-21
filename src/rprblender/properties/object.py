@@ -95,13 +95,13 @@ class RPR_ObjectProperites(RPR_Properties):
     subdivision_factor: FloatProperty(
         name="Subdiv Polygon Size",
         description="Subdivision polygon size, in pixels that it should be subdivided to.\n"
-                    "For finer subdivision set lower.",
+                    "For finer subdivision set lower",
         min=0.5, soft_max=512.0,
         default=16.0
     )
     subdivision_level: IntProperty(
         name="Level",
-        description="Subdivision level for mesh. For finer subdivision set upper.",
+        description="Subdivision level for mesh. For finer subdivision set upper",
         min=0, max=12, soft_max=8,
         default=3
     )

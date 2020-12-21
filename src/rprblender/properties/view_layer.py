@@ -57,7 +57,7 @@ class RPR_DenoiserProperties(RPR_Properties):
         name="Scale Denoising Iterations",
         description="Scale the amount of denoiser blur by number of iterations. "
                     "This will give more blur for renders with less samples, "
-                    "and become sharper as more samples are added.",
+                    "and become sharper as more samples are added",
         default=True
     )
 
@@ -121,7 +121,7 @@ class RPR_DenoiserProperties(RPR_Properties):
     ml_use_fp16_compute_type: BoolProperty(
         name="Use 16-bit Compute",
         description="Reduce precision to 16 bit. It uses less memory and increases denoising speed, but with less quality.\n"
-                    "Available only for viewport render.",
+                    "Available only for viewport render",
         default=False
     )
     def get_settings(self, scene, is_final_engine=True):
