@@ -92,6 +92,7 @@ class WorldData:
         image: str = None
         studio_light: str = None
         intensity: float = 1.0
+        rotation: tuple = None
 
     @dataclass(init=False, eq=True)
     class BackplateData:
@@ -219,7 +220,7 @@ class WorldData:
     sun_sky: SunSkyData = None
     overrides: {str: OverrideData} = None
     backplate: BackplateData = None
-    gizmo_rotation: tuple = None
+    rotation: tuple = None
     group: int = 0
 
     @staticmethod
@@ -247,6 +248,8 @@ class WorldData:
                 override_data.image = image.name
             else:
                 override_data.color = tuple(color)
+            override_data.rotation = tuple(getattr(rpr, f'{override_type}_rotation')) \
+                if getattr(rpr, f'{override_type}_rotation_override', False) else rpr.world_rotation
 
             data.overrides[override_type] = override_data
 
@@ -257,7 +260,7 @@ class WorldData:
         else:
             data.sun_sky = WorldData.SunSkyData(rpr.sun_sky)
 
-        data.gizmo_rotation = tuple(rpr.gizmo_rotation)
+        data.rotation = tuple(rpr.world_rotation)
 
         data.overrides = {}
         if rpr.background_image_type == 'SPHERE':
@@ -276,7 +279,7 @@ class WorldData:
         data = WorldData()
         data.intensity = shading.studio_light_intensity
         data.ibl = WorldData.IblData.init_from_shading(shading)
-        data.gizmo_rotation = (0.0, 0.0, shading.studio_light_rotate_z)
+        data.rotation = (0.0, 0.0, shading.studio_light_rotate_z)
 
         bg_data = WorldData.OverrideData()
         if math.isclose(shading.studio_light_background_alpha, 0.0):
@@ -309,7 +312,7 @@ class WorldData:
                 else:
                     rpr_light.set_color(*override.color)
 
-                set_light_rotation(rpr_light, self.gizmo_rotation)
+                set_light_rotation(rpr_light, override.rotation)
 
             else:
                 if pyrpr_key in rpr_context.scene.environment_overrides:
@@ -320,9 +323,9 @@ class WorldData:
             return
 
         if self.ibl:
-            self.ibl.export(rpr_context, self.gizmo_rotation)
+            self.ibl.export(rpr_context, self.rotation)
         else:
-            self.sun_sky.export(rpr_context, self.gizmo_rotation)
+            self.sun_sky.export(rpr_context, self.rotation)
 
         if use_backplate:
             if self.backplate:
