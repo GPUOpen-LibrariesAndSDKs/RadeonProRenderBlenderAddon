@@ -90,6 +90,10 @@ class RPR_EnvironmentOverride(RPR_Panel):
         row.enabled = getattr(rpr, f'{self.type}_image') is None
         row.prop(rpr, f'{self.type}_color')
 
+        row = layout.column()
+        row.prop(rpr, f'{self.type}_rotation_override')
+        if getattr(rpr, f'{self.type}_rotation_override', False):
+            layout.prop(rpr, f'{self.type}_rotation')
 
 class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
     bl_label = "Background Override"
@@ -117,6 +121,10 @@ class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
         row.enabled = rpr.background_image is None
         row.prop(rpr, 'background_color')
 
+        row = layout.column()
+        row.prop(rpr, 'background_rotation_override')
+        if getattr(rpr, 'background_rotation_override', False):
+            layout.prop(rpr, 'background_rotation')
 
 class RPR_WORLD_PT_reflection_override(RPR_EnvironmentOverride):
     bl_label = "Reflection Override"
@@ -145,7 +153,7 @@ class RPR_WORLD_PT_gizmo(RPR_Panel):
         layout.use_property_decorate = False
         layout.enabled = rpr.enabled
 
-        layout.prop(rpr, 'gizmo_rotation')
+        layout.prop(rpr, 'world_rotation')
 
 
 class RPR_WORLD_PT_sun_sky(RPR_Panel):
