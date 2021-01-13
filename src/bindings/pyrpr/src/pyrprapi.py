@@ -458,6 +458,8 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
 
     for c in root.findall('Struct'):
         name = c.get('name')
+        if name.startswith("__"):
+            continue
         struct_members = c.get('members')
         types[c.get('id')] = Struct(name, struct_members.split() if struct_members else [])
 
