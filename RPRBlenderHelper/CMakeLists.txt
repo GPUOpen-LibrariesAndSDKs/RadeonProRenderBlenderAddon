@@ -5,11 +5,7 @@ project(RPRBlenderHelper)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set (CMAKE_CXX_STANDARD 11)
 
-find_package(OpenMP)
-
-if (${APPLE})
-    set (IGNORE_MISSING_OPENMP 1)
-endif()
+find_package(OpenMP REQUIRED)
 
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -74,6 +70,7 @@ elseif(${APPLE})
         ${OPENVDB_SDK_PATH}/OSX/lib/libsnappy.a
         ${OPENVDB_SDK_PATH}/OSX/lib/libboost_iostreams.a
         ${OPENVDB_SDK_PATH}/OSX/lib/libtbb.a
+        ${OpenMP_CXX_LIBRARIES}
     )
 
 else()
