@@ -67,6 +67,7 @@ class RenderEngine(Engine):
         self.world_backplate = None
 
         self.render_stamp_text = ""
+        self.render_iteration = 0
 
     def notify_status(self, progress, info):
         """ Display export/render status """
@@ -85,7 +86,6 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
-        render_iteration = 0
         while True:
             if self.rpr_engine.test_break():
                 athena_data['End Status'] = "cancelled"
@@ -124,7 +124,7 @@ class RenderEngine(Engine):
             log(log_str)
 
             self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
-            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, render_iteration)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, self.render_iteration)
             self.rpr_context.render(restart=(self.current_sample == 0))
 
             self.current_sample += update_samples
@@ -146,8 +146,8 @@ class RenderEngine(Engine):
             if self.render_time and self.current_render_time >= self.render_time:
                 break
 
-            render_iteration += 1
-            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+            self.render_iteration += 1
+            if self.render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
                 # progressively increase update samples up to 32
                 self.render_update_samples *= 2
 
