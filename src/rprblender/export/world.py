@@ -282,6 +282,7 @@ class WorldData:
         data.rotation = (0.0, 0.0, shading.studio_light_rotate_z)
 
         bg_data = WorldData.OverrideData()
+        bg_data.rotation = data.rotation
         if math.isclose(shading.studio_light_background_alpha, 0.0):
             bg_data.intensity = 1.0
             bg_data.color = STUDIO_LIGHT_DEFAULT_COLOR
