@@ -575,12 +575,6 @@ class RPRContext2(RPRContext):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
         super().init(context_flags, context_props, use_contour_integrator)
 
-    def enable_aov(self, aov_type):
-        if aov_type == pyrpr.AOV_VARIANCE:
-            return
-
-        super().enable_aov(aov_type)
-
     def sync_catchers(self, use_transparent_background=False):
         pass
 
