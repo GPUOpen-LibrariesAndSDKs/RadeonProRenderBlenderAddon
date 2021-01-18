@@ -147,7 +147,12 @@ class ViewportEngine2(ViewportEngine):
 
                 # rendering
                 with self.render_lock:
-                    self.rpr_context.render(restart=(iteration == 0))
+                    try:
+                        self.rpr_context.render(restart=(iteration == 0))
+
+                    except pyrpr.CoreError as e:
+                        if e.status != pyrpr.ERROR_ABORTED:     # ignoring ERROR_ABORTED
+                            raise
 
                 if iteration > 0 and self.restart_render_event.is_set():
                     continue
