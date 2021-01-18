@@ -314,7 +314,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     @property
     def is_tile_render_available(self):
-        return self.use_tile_render and self.render_quality == 'FULL'
+        return self.use_tile_render and self.render_quality in ('FULL', 'FULL2')
 
     # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(

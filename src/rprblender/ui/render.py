@@ -121,15 +121,13 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'max_samples')
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
-        if rpr.render_quality == 'FULL2':
-            row.enabled = False
         
         col = self.layout.column(align=True)
         col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.render_quality == 'FULL'
+        col.enabled = rpr.render_quality in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)

@@ -15,7 +15,8 @@
 import threading
 import time
 
-from pyrpr import CONTEXT_BEAUTY_MOTION_BLUR
+import pyrpr
+
 from .render_engine import RenderEngine
 from .context import RPRContext2
 
@@ -83,6 +84,10 @@ class RenderEngine2(RenderEngine):
         try:
             super()._render()
 
+        except pyrpr.CoreError as e:
+            if e.status != pyrpr.ERROR_ABORTED:     # ignoring ERROR_ABORTED
+                raise
+
         finally:
             is_finished = True
             self.rpr_context.set_render_update_callback(None)
@@ -91,4 +96,4 @@ class RenderEngine2(RenderEngine):
 
     def set_motion_blur_mode(self, scene):
         flag = not bool(scene.rpr.motion_blur_in_velocity_aov)
-        self.rpr_context.set_parameter(CONTEXT_BEAUTY_MOTION_BLUR, flag)
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_BEAUTY_MOTION_BLUR, flag)
