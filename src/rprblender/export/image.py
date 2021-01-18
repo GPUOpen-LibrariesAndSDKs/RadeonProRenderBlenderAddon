@@ -82,7 +82,7 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
                 tile_key = key(image, color_space, UDIM_tile=tile.label)
 
                 tile_image = rpr_context.create_image_file(tile_key, tile_path)
-                set_image_gamma(tile_image, image, color_space)
+                set_image_gamma(tile_image, image, color_space, rpr_context)
                 tile_image.set_name(str(tile_key))
 
                 rpr_image.set_udim_tile(tile.number, tile_image)
