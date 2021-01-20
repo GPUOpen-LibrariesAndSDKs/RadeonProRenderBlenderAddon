@@ -55,7 +55,7 @@ class RPRContext(context.RPRContext):
             context_props = context_props[2:]
         super().init(context_flags, context_props)
 
-    def resolve(self):
+    def resolve(self, aovs=None):
         pass
 
     def enable_aov(self, aov_type):
