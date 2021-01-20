@@ -371,9 +371,7 @@ class ViewportEngine(Engine):
                 time_render_prev = time_render
                 time_render = time.perf_counter() - time_begin
                 iteration_time = time_render - time_render_prev
-                if self.user_settings.adapt_viewport_resolution \
-                        and not self.is_resolution_adapted \
-                        and iteration == 2:
+                if not self.is_resolution_adapted and iteration == 2:
                     target_time = 1.0 / self.user_settings.viewport_samples_per_sec
                     self.requested_adapt_ratio = target_time / iteration_time
 
@@ -571,7 +569,7 @@ class ViewportEngine(Engine):
                     sync_collection = True
 
                     if is_updated:
-                        self.is_resolution_adapted = False
+                        self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
 
                     continue
 
@@ -731,7 +729,7 @@ class ViewportEngine(Engine):
 
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
                 self._resize(self.viewport_settings.width, self.viewport_settings.height)
-                self.is_resolution_adapted = False
+                self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
         if not self.is_rendered:
@@ -750,39 +748,19 @@ class ViewportEngine(Engine):
                 self.viewport_settings = viewport_settings
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
                 if self.user_settings.adapt_viewport_resolution:
-                    # trying to use previous resolution or almost same pixels number
-                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
-                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    w, h = self.rpr_context.width, self.rpr_context.height
-
-                    if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
-                        scale = math.sqrt(w * h / (max_w * max_h))
-                        w, h = int(max_w * scale), int(max_h * scale)
-
-                    self._resize(min(max(w, min_w), max_w),
-                                 min(max(h, min_h), max_h))
+                    self._adapt_resize(self.viewport_settings.width, self.viewport_settings.height,
+                                       self.user_settings.min_viewport_resolution_scale * 0.01)
                 else:
                     self._resize(self.viewport_settings.width, self.viewport_settings.height)
 
-                self.is_resolution_adapted = False
+                self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
             else:
                 if self.requested_adapt_ratio is not None:
-                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
-                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    if abs(1.0 - self.requested_adapt_ratio) > MIN_ADAPT_RATIO_DIFF:
-                        scale = math.sqrt(self.requested_adapt_ratio)
-                        w, h = int(self.rpr_context.width * scale),\
-                               int(self.rpr_context.height * scale)
-                    else:
-                        w, h = self.rpr_context.width, self.rpr_context.height
-
-                    self._resize(min(max(w, min_w), max_w),
-                                 min(max(h, min_h), max_h))
-
+                    self._adapt_resize(self.viewport_settings.width, self.viewport_settings.height,
+                                       self.user_settings.min_viewport_resolution_scale * 0.01,
+                                       self.requested_adapt_ratio)
                     self.requested_adapt_ratio = None
                     self.is_resolution_adapted = True
 
@@ -814,6 +792,27 @@ class ViewportEngine(Engine):
             self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
 
         self.is_resized = True
+
+    def _adapt_resize(self, max_w, max_h, min_scale, adapt_ratio=None):
+        # trying to use previous resolution or almost same pixels number
+        min_w = max(int(max_w * min_scale), 1)
+        min_h = max(int(max_h * min_scale), 1)
+        w, h = self.rpr_context.width, self.rpr_context.height
+
+        if adapt_ratio is None:
+            if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
+                scale = math.sqrt(w * h / (max_w * max_h))
+                w, h = int(max_w * scale), int(max_h * scale)
+        else:
+            if abs(1.0 - adapt_ratio) > MIN_ADAPT_RATIO_DIFF:
+                scale = math.sqrt(adapt_ratio)
+                w, h = int(self.rpr_context.width * scale), \
+                       int(self.rpr_context.height * scale)
+            else:
+                w, h = self.rpr_context.width, self.rpr_context.height
+
+        self._resize(min(max(w, min_w), max_w),
+                     min(max(h, min_h), max_h))
 
     def sync_objects_collection(self, depsgraph):
         """

@@ -158,7 +158,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         if context.scene.rpr.render_quality == 'FULL2':
             row.enabled = False
 
-        adapt_resolution = context.scene.rpr.render_quality != 'FULL2'
+        adapt_resolution = context.scene.rpr.render_quality in ('FULL', 'FULL2')
         col1 = col.column()
         col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
