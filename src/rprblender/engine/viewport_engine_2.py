@@ -16,13 +16,8 @@ import time
 import threading
 
 import pyrpr
-import bpy
 
-from rprblender.export import object
-from .viewport_engine import (
-    ViewportEngine, ViewportSettings, ShadingData, FinishRenderException
-)
-from rprblender.utils import gl
+from .viewport_engine import ViewportEngine, ViewportSettings, FinishRenderException
 from .context import RPRContext2
 
 from rprblender.utils import logging
@@ -53,21 +48,41 @@ class ViewportEngine2(ViewportEngine):
         self.rpr_context = None
         self.image_filter = None
 
+    def _resolve(self):
+        self.rpr_context.resolve(None if self.image_filter and self.is_last_iteration else
+                                 (pyrpr.AOV_COLOR,))
+        
+    def _resize(self, width, height):
+        if self.width == width and self.height == height:
+            self.is_resized = False
+            return
+
+        with self.render_lock:
+            with self.resolve_lock:
+                self.rpr_context.resize(width, height)
+
+        self.width = width
+        self.height = height
+
+        if self.image_filter:
+            image_filter_settings = self.image_filter.settings.copy()
+            image_filter_settings['resolution'] = self.width, self.height
+            self.setup_image_filter(image_filter_settings)
+
+        self.is_resized = True
+
     def _do_render(self):
         iteration = 0
         time_begin = 0.0
         update_iterations = 1
+        is_set_callback = False
 
         def render_update(progress):
             if self.restart_render_event.is_set():
                 self.rpr_context.abort_render()
                 return
 
-            if iteration == 1:
-                return
-
-            # don't need to do intermediate update for 0, 1 iteration and
-            # at render finish when progress == 1.0
+            # don't need to do intermediate update when progress == 1.0
             if progress == 1.0:
                 return
 
@@ -93,6 +108,7 @@ class ViewportEngine2(ViewportEngine):
             # preparations to start rendering
             iteration = 0
             time_begin = 0.0
+            time_render = 0.0
             self.is_last_iteration = False
 
             # this cycle renders each iteration
@@ -108,15 +124,13 @@ class ViewportEngine2(ViewportEngine):
                     if vs is None:
                         continue
 
-                    if vs.width != self.rpr_context.width or vs.height != self.rpr_context.height:
-                        with self.render_lock:
-                            with self.resolve_lock:
-                                self.rpr_context.resize(vs.width, vs.height)
+                    if self.user_settings.adapt_viewport_resolution:
+                        self._adapt_resize(vs.width, vs.height,
+                                           self.user_settings.min_viewport_resolution_scale * 0.01)
+                    else:
+                        self._resize(vs.width, vs.height)
 
-                        if self.image_filter:
-                            image_filter_settings = self.image_filter.settings.copy()
-                            image_filter_settings['resolution'] = vs.width, vs.height
-                            self.setup_image_filter(image_filter_settings)
+                    self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
 
                     vs.export_camera(self.rpr_context.scene.camera)
                     iteration = 0
@@ -140,10 +154,14 @@ class ViewportEngine2(ViewportEngine):
                 if iteration == 0:
                     self.rpr_context.set_render_update_callback(None)
                     self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 3)
+                    is_set_callback = False
                 elif iteration == 1:
-                    self.rpr_context.clear_frame_buffers()
+                    if self.is_resolution_adapted:
+                        self.rpr_context.clear_frame_buffers()
+                        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
+                elif not is_set_callback:
                     self.rpr_context.set_render_update_callback(render_update)
-                    self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
+                    is_set_callback = True
 
                 # rendering
                 with self.render_lock:
@@ -155,6 +173,22 @@ class ViewportEngine2(ViewportEngine):
                             raise
 
                 if iteration > 0 and self.restart_render_event.is_set():
+                    continue
+
+                if iteration == 1 and not self.is_resolution_adapted:
+                    time_render_prev = time_render
+                    time_render = time.perf_counter() - time_begin
+                    iteration_time = time_render - time_render_prev
+
+                    target_time = 1.0 / self.user_settings.viewport_samples_per_sec
+                    self.requested_adapt_ratio = target_time / iteration_time
+
+                    self._adapt_resize(self.viewport_settings.width, self.viewport_settings.height,
+                                       self.user_settings.min_viewport_resolution_scale * 0.01,
+                                       self.requested_adapt_ratio)
+
+                    iteration = 0
+                    self.is_resolution_adapted = True
                     continue
 
                 iteration += update_iterations
@@ -229,6 +263,7 @@ class ViewportEngine2(ViewportEngine):
         # initializing self.viewport_settings and requesting first self.restart_render_event
         if not self.viewport_settings:
             self.viewport_settings = ViewportSettings(context)
+            self._resize(self.viewport_settings.width, self.viewport_settings.height)
             self.restart_render_event.set()
             return
 

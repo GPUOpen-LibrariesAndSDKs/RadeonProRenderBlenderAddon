@@ -149,11 +149,19 @@ class RPRContext:
 
         return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
 
-    def resolve(self):
-        for aov, fbs in self.frame_buffers_aovs.items():
-            fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
+    def resolve(self, aovs=None):
+        if aovs:
+            for aov in aovs:
+                fbs = self.frame_buffers_aovs[aov]
+                fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
+        else:
+            for aov, fbs in self.frame_buffers_aovs.items():
+                fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
 
         if self.composite:
+            if aovs and pyrpr.AOV_COLOR not in aovs:
+                return
+
             color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
             self.composite.compute(color_aov['composite'])
             if self.gl_interop:
