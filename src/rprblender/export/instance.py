@@ -54,9 +54,9 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
         rpr_shape.set_name(str(instance_key))
         rpr_shape.set_transform(get_transform(instance))
 
-        # exporting visibility from parent object
+        # exporting visibility from source object
         indirect_only = kwargs.get("indirect_only", False)
-        mesh.export_visibility(instance.parent, rpr_shape, indirect_only)
+        mesh.export_visibility(instance.object, rpr_shape, indirect_only)
 
         rpr_context.scene.attach(rpr_shape)
 
