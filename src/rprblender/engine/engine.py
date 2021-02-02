@@ -298,7 +298,7 @@ class Engine:
 
             from .viewport_engine import ViewportEngine
             import pyrprimagefilters as rif
-            if settings['ml_use_fp16_compute_type'] and self.TYPE == ViewportEngine.TYPE:
+            if settings['ml_use_fp16_compute_type']:
                 params['compute_type'] = rif.COMPUTE_TYPE_FLOAT16
             else:
                 params['compute_type'] = rif.COMPUTE_TYPE_FLOAT

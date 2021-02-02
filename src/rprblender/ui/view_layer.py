@@ -82,7 +82,7 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
 
         elif denoiser.filter_type == 'ML':
             col.prop(denoiser, 'ml_color_only')
-            # col.prop(denoiser, 'ml_use_fp16_compute_type')
+            col.prop(denoiser, 'ml_use_fp16_compute_type')
 
         else:
             raise TypeError("No such filter type: %s" % denoiser.filter_type)
