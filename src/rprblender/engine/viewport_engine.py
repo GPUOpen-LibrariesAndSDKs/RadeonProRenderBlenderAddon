@@ -868,7 +868,11 @@ class ViewportEngine(Engine):
             self.sync_collection_objects(depsgraph, unchanged_meshes_keys,
                                          material_override)
 
-            self.sync_collection_instances(depsgraph, unchanged_meshes_keys,
+            rpr_instance_keys = set(key for key, obj in self.rpr_context.objects.items()
+                                    if isinstance(obj, pyrpr.Instance) and obj.is_visible)
+            unchanged_instances_keys = tuple(e for e in depsgraph_keys if e in rpr_instance_keys)
+            log("Instance keys to update material override", unchanged_instances_keys)
+            self.sync_collection_instances(depsgraph, unchanged_instances_keys,
                                            material_override)
 
         return res
@@ -886,20 +890,16 @@ class ViewportEngine(Engine):
                 continue
 
             rpr_obj = self.rpr_context.objects.get(obj_key, None)
-            if rpr_obj:
-                rpr_obj.set_visibility(True)
-
-                if not material_override:
-                    rpr_obj.set_material(None)
-                assign_materials(self.rpr_context, rpr_obj, obj, material_override)
-                res = True
-            else:
+            if not rpr_obj:
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
                             indirect_only=indirect_only, material_override=material_override,
                             frame_current=frame_current, use_contour=use_contour)
+            else:
+                assign_materials(self.rpr_context, rpr_obj, obj, material_override)
 
-                res = True
+            res = True
+
         return res
 
     def sync_collection_instances(self, depsgraph, object_keys_to_export, material_override):
@@ -914,20 +914,17 @@ class ViewportEngine(Engine):
             if instance_key not in object_keys_to_export:
                 continue
 
-            if not material_override:
-                inst_obj = self.rpr_context.objects.get(instance_key, None)
-                if inst_obj:
-                    if len(inst.object.material_slots) == 0:
-                        # remove override from instance without assigned materials
-                        inst_obj.set_material(None)
-                    assign_materials(self.rpr_context, inst_obj, inst.object)
-                    res = True
-            else:
+            inst_obj = self.rpr_context.objects.get(instance_key, None)
+            if not inst_obj:
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override,
                               frame_current=frame_current, use_contour=use_contour)
-                res = True
+            else:
+                assign_materials(self.rpr_context, inst_obj, inst.object, material_override=material_override)
+
+            res = True
+
         return res
 
     def update_material_on_scene_objects(self, mat, depsgraph):
