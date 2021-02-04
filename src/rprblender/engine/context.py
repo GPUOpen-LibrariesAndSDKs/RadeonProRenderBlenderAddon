@@ -609,3 +609,7 @@ class RPRContext2(RPRContext):
         image = pyrpr2.TiledImage(self.context)
 
         return image
+
+    def sync_portal_lights(self):
+        # portals are not supported or needed in rpr2
+        return
