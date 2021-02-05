@@ -112,6 +112,31 @@ class ImageFilter(metaclass=ABCMeta):
         self.command_queue.synchronize()
         return self.output_image.get_data()
 
+    def setup_alpha_filter(self, input_buffer, alpha, output):
+        """ Apply transparent background by setting output image alpha by alpha value """
+        result = self.context.create_filter(rif.IMAGE_FILTER_USER_DEFINED)
+
+        # redefine image alpha channel by alpha value
+        code = \
+            "int2 coord;" \
+            "GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outBuf));" \
+            "vec4 pixel = ReadPixelTyped(inputBuf, coord.x, coord.y);" \
+            "vec4 pixel_alpha = ReadPixelTyped(alphaBuf, coord.x, coord.y);" \
+            "pixel.x *= pixel_alpha.x;" \
+            "pixel.y *= pixel_alpha.x;" \
+            "pixel.z *= pixel_alpha.x;" \
+            "pixel.w = pixel_alpha.x;" \
+            "WritePixelTyped(outBuf, coord.x, coord.y, pixel);"
+
+        result.set_parameter('code', code)
+
+        # user defined filter requires explicit buffers setting
+        result.set_parameter("inputBuf", input_buffer)
+        result.set_parameter("alphaBuf", alpha)
+        result.set_parameter("outBuf", output)
+
+        return result
+
 
 class ImageFilterBilateral(ImageFilter):
     input_ids = ['color', 'normal', 'world_coordinate', 'object_id']
@@ -266,3 +291,11 @@ class ImageFilterEaw(ImageFilter):
         self.filter.set_parameter('normalSigma', self.sigmas['normal'])
         self.filter.set_parameter('depthSigma', self.sigmas['depth'])
         self.filter.set_parameter('transSigma', self.sigmas['trans'])
+
+
+class ImageFilterTransparentBackground(ImageFilter):
+    """ Apply transparent background only """
+    def _create_filter(self):
+        self.filter = self.setup_alpha_filter(self.inputs['color'], self.inputs['opacity'], self.output_image)
+
+        self.command_queue.attach_image_filter(self.filter, self.inputs['opacity'], self.output_image)

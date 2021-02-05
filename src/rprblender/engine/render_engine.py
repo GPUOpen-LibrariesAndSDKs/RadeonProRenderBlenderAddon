@@ -130,6 +130,9 @@ class RenderEngine(Engine):
             self.current_sample += update_samples
 
             self.rpr_context.resolve()
+            if self.background_filter:
+                self.update_background_filter_inputs()
+                self.background_filter.run()
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name)
 
@@ -467,13 +470,21 @@ class RenderEngine(Engine):
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
-        # Shadow catcher
-        self.rpr_context.sync_catchers(scene.render.film_transparent)
-
         # Image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings(scene)
         image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
+
+        # Shadow catcher
+        if scene.rpr.render_quality == 'FULL2':
+            self.rpr_context.sync_catchers(False)
+            background_filter_settings = {
+                'enable': scene.render.film_transparent,
+                'resolution': (self.width, self.height),
+            }
+            self.setup_background_filter(background_filter_settings)
+        else:
+            self.rpr_context.sync_catchers(scene.render.film_transparent)
 
         # SET rpr_context parameters
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
