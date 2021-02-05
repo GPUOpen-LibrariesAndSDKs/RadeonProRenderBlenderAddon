@@ -52,8 +52,9 @@ class Engine:
         self.rpr_context = self._RPRContext()
         self.rpr_context.engine_type = self.TYPE
 
-        # image filter
+        # image filters
         self.image_filter = None
+        self.background_filter = None
 
     def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
         """
@@ -73,10 +74,17 @@ class Engine:
                 if apply_image_filter and self.image_filter:
                     image = self.image_filter.get_data()
 
-                    # copying alpha component from rendered image to final denoised image,
-                    # because image filter changes it to 1.0
-                    image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
+                    if self.background_filter:
+                        self.update_background_filter_inputs(color_image=image)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()
+                    else:
+                        # copying alpha component from rendered image to final denoised image,
+                        # because image filter changes it to 1.0
+                        image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
 
+                elif self.background_filter:
+                    image = self.background_filter.get_data()
                 else:
                     image = self.rpr_context.get_image()
 
@@ -391,3 +399,49 @@ class Engine:
 
         for input_id, data in inputs.items():
             self.image_filter.update_input(input_id, data, tile_pos)
+
+    def setup_background_filter(self, settings):
+        if self.background_filter and self.background_filter.settings == settings:
+            return False
+
+        if settings['enable']:
+            if not self.background_filter:
+                self._enable_background_filter(settings)
+
+            elif self.background_filter.settings['resolution'] == settings['resolution']:
+                return False
+
+            else:
+                # recreating filter
+                self._disable_background_filter()
+                self._enable_background_filter(settings)
+
+        elif self.background_filter:
+            self._disable_background_filter()
+
+        return True
+
+    def _enable_background_filter(self, settings):
+        width, height = settings['resolution']
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_OPACITY)
+
+        inputs = {'color', 'opacity'}
+
+        self.background_filter = image_filter.ImageFilterTransparentBackground(
+            self.rpr_context.context, inputs, {}, {}, width, height)
+
+        self.background_filter.settings = settings
+
+    def _disable_background_filter(self):
+        self.background_filter = None
+
+    def update_background_filter_inputs(self, tile_pos=(0, 0), color_image=None, opacity_image=None):
+        if color_image is None:
+            color_image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        if opacity_image is None:
+            opacity_image = self.rpr_context.get_image(pyrpr.AOV_OPACITY)
+
+        self.background_filter.update_input('color', color_image, tile_pos)
+        self.background_filter.update_input('opacity', opacity_image, tile_pos)
