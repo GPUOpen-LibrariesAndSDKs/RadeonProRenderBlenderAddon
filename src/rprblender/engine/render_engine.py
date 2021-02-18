@@ -476,7 +476,7 @@ class RenderEngine(Engine):
         self.setup_image_filter(image_filter_settings)
 
         # Shadow catcher
-        if scene.rpr.render_quality == 'FULL2':
+        if scene.rpr.render_quality != 'FULL':
             self.rpr_context.sync_catchers(False)
             background_filter_settings = {
                 'enable': scene.render.film_transparent,
