@@ -84,6 +84,8 @@ class Engine:
                         image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
 
                 elif self.background_filter:
+                    self.update_background_filter_inputs()
+                    self.background_filter.run()
                     image = self.background_filter.get_data()
                 else:
                     image = self.rpr_context.get_image()
