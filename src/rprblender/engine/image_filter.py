@@ -112,28 +112,27 @@ class ImageFilter(metaclass=ABCMeta):
         self.command_queue.synchronize()
         return self.output_image.get_data()
 
-    def setup_alpha_filter(self, input_buffer, alpha, output):
+    def setup_alpha_filter(self, alpha):
         """ Apply transparent background by setting output image alpha by alpha value """
         result = self.context.create_filter(rif.IMAGE_FILTER_USER_DEFINED)
 
         # redefine image alpha channel by alpha value
-        code = \
-            "int2 coord;" \
-            "GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outBuf));" \
-            "vec4 pixel = ReadPixelTyped(inputBuf, coord.x, coord.y);" \
-            "vec4 pixel_alpha = ReadPixelTyped(alphaBuf, coord.x, coord.y);" \
-            "pixel.x *= pixel_alpha.x;" \
-            "pixel.y *= pixel_alpha.x;" \
-            "pixel.z *= pixel_alpha.x;" \
-            "pixel.w = pixel_alpha.x;" \
-            "WritePixelTyped(outBuf, coord.x, coord.y, pixel);"
+        code = """
+            int2 coord;
+            GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outputImage));
+            vec4 pixel = ReadPixelTyped(inputImage, coord.x, coord.y);
+            vec4 pixel_alpha = ReadPixelTyped(alphaBuf, coord.x, coord.y);
+            pixel.x *= pixel_alpha.x;
+            pixel.y *= pixel_alpha.x;
+            pixel.z *= pixel_alpha.x;
+            pixel.w = pixel_alpha.x;
+            WritePixelTyped(outputImage, coord.x, coord.y, pixel);
+        """
 
         result.set_parameter('code', code)
 
         # user defined filter requires explicit buffers setting
-        result.set_parameter("inputBuf", input_buffer)
         result.set_parameter("alphaBuf", alpha)
-        result.set_parameter("outBuf", output)
 
         return result
 
@@ -296,6 +295,6 @@ class ImageFilterEaw(ImageFilter):
 class ImageFilterTransparentBackground(ImageFilter):
     """ Apply transparent background only """
     def _create_filter(self):
-        self.filter = self.setup_alpha_filter(self.inputs['color'], self.inputs['opacity'], self.output_image)
+        self.filter = self.setup_alpha_filter(self.inputs['opacity'])
 
-        self.command_queue.attach_image_filter(self.filter, self.inputs['opacity'], self.output_image)
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
