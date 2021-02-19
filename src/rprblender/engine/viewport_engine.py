@@ -524,7 +524,8 @@ class ViewportEngine(Engine):
 
         # get supported updates and sort by priorities
         updates = []
-        for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
+        for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object,
+                         bpy.types.Collection, bpy.types.Light):
             updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
 
         sync_collection = False
@@ -592,6 +593,12 @@ class ViewportEngine(Engine):
                                                      use_contour=self.use_contour)
                     is_obj_updated |= is_updated
                     continue
+
+                if isinstance(obj, bpy.types.Light):
+                    light = obj
+                    for obj in self.depsgraph_objects(depsgraph):
+                        if obj.data == light:
+                            is_updated |= object.sync_update(self.rpr_context, obj, True, False)
 
                 if isinstance(obj, bpy.types.World):
                     sync_world = True
