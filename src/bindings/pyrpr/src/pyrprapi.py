@@ -656,9 +656,9 @@ if __name__=='__main__':
     export(
         rpr_wrap_h, rpr_includes, rpr_wrap_json,
         {
-            'type':['rpr_', '_rpr'],
-            'function':['rpr',],
-            'constant':['RPR_',]
+            'type': ['rpr_', '_rpr'],
+            'function': ['rpr',],
+            'constant': ['RPR_',]
         },
         castxml,
         exclude=['RPR_CONTEXT_FLUSH_FRAMEBUFFERS_FUNC_NAME',
@@ -666,7 +666,11 @@ if __name__=='__main__':
                  'RPR_MESH_UPDATE_FUNC_NAME',
                  'RPR_SHAPE_SET_TRANSFORM_BATCH_FUNC_NAME',
                  'rprDirectionalLightSetRasterShadowSplits',
-                 'RPR_CONTEXT_CREATE_MESH_EDITABLE_FUNC_NAME',]
+                 'RPR_CONTEXT_CREATE_MESH_EDITABLE_FUNC_NAME',
+                 'rprContextCreateCompressedImage_func',
+                 'rpr_compressed_format',
+                 'rpr_comressed_image_desc',
+                 'RPR_CONTEXT_CREATE_COMPRESSED_IMAGE',]
     )
 
     export(
