@@ -550,8 +550,13 @@ class RenderEngine(Engine):
             for o in self.rpr_context.objects.values() if isinstance(o, pyrpr.Shape)
         )
         data['Num Textures'] = len(self.rpr_context.images)
-        data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
-                                // (1024 * 1024)  # in MB
+
+        # temporary ignore getting texture sizes with hybrid,
+        # until it'll be fixed on hybrid core side
+        from . context_hybrid import RPRContext as RPRContextHybrid
+        if not isinstance(self.rpr_context, RPRContextHybrid):
+            data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
+                                    // (1024 * 1024)  # in MB
 
         data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
 
