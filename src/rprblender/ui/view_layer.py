@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import pyrpr
-
 from . import RPR_Panel
-from rprblender import utils
+
 
 class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
     bl_label = "RPR Passes"

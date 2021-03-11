@@ -27,6 +27,10 @@ log = logging.Log(tag='RenderEngine2')
 class RenderEngine2(RenderEngine):
     _RPRContext = RPRContext2
 
+    def __init__(self, rpr_engine):
+        super(RenderEngine2, self).__init__(rpr_engine)
+        self.cryptomatte_allowed = True
+
     def _update_athena_data(self, data):
         data['Quality'] = "rpr2"
 
