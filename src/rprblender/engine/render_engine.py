@@ -69,6 +69,8 @@ class RenderEngine(Engine):
         self.render_stamp_text = ""
         self.render_iteration = 0
 
+        self.cryptomatte_allowed = False  # only Full mode supports cryptomatte AOVs
+
     def notify_status(self, progress, info):
         """ Display export/render status """
         self.rpr_engine.update_progress(progress)
@@ -463,7 +465,7 @@ class RenderEngine(Engine):
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
-        view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive)
+        view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive, self.cryptomatte_allowed)
 
         if enable_adaptive:
             # if adaptive is enable turn on aov and settings

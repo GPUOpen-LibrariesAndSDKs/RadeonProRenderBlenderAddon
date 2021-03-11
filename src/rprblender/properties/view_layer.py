@@ -371,7 +371,7 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
     denoiser: PointerProperty(type=RPR_DenoiserProperties)
 
-    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive):
+    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive, cryptomatte_allowed):
         """
         Exports AOVs settings. Also adds required passes to rpr_engine
         Note: view_layer here is parent of self, but it is not available from self.id_data
@@ -398,17 +398,18 @@ class RPR_ViewLayerProperites(RPR_Properties):
 
             rpr_context.enable_aov(aov['rpr'])
 
-        if self.crytomatte_aov_material:
-            for i in range(3):
-                aov = self.cryptomatte_aovs_info[i]
-                rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
-                rpr_context.enable_aov(aov['rpr'])
+        if cryptomatte_allowed:
+            if self.crytomatte_aov_material:
+                for i in range(3):
+                    aov = self.cryptomatte_aovs_info[i]
+                    rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                    rpr_context.enable_aov(aov['rpr'])
 
-        if self.crytomatte_aov_object:
-            for i in range(3, 6):
-                aov = self.cryptomatte_aovs_info[i]
-                rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
-                rpr_context.enable_aov(aov['rpr'])
+            if self.crytomatte_aov_object:
+                for i in range(3, 6):
+                    aov = self.cryptomatte_aovs_info[i]
+                    rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                    rpr_context.enable_aov(aov['rpr'])
 
     def enable_aov_by_name(self, name):
         ''' Enables a give aov name '''
