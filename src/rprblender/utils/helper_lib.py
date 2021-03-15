@@ -18,7 +18,8 @@ import numpy as np
 import math
 import os
 
-from . import package_root_dir, IS_WIN, IS_MAC
+from . import package_root_dir, IS_WIN, IS_MAC, core_ver_str, rif_ver_str
+from .. import bl_info
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
@@ -60,7 +61,15 @@ def init():
 
     lib_path = next(p / lib_name for p in paths if (p / lib_name).is_file())
     log('Load lib', lib_path)
-    lib = ctypes.cdll.LoadLibrary(str(lib_path))
+    try:
+        lib = ctypes.cdll.LoadLibrary(str(lib_path))
+    except OSError as e:  # expand the traceback info with the exact addon version and library name
+        raise Exception(f"Failed to load library {lib_path}",
+                        f"addon version {bl_info['version']}",
+                        f"core {core_ver_str(True)}",
+                        f"rif {rif_ver_str(True)}",
+                        str(e)) \
+            from e
 
     # Sun & Sky functions
     lib.set_sun_horizontal_coordinate.argtypes = [ctypes.c_float, ctypes.c_float]
