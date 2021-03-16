@@ -97,10 +97,11 @@ class RPREngine(bpy.types.RenderEngine):
     engine: Engine = None
 
     def __del__(self):
-        log('__del__', self.as_pointer())
-
         if isinstance(self.engine, ViewportEngine):
             self.engine.stop_render()
+
+        log('__del__', self.as_pointer())
+
 
     # final render
     def update(self, data, depsgraph):
@@ -126,7 +127,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.error_set(f"ERROR | {e}. Please see log for more details.")
 
     def render(self, depsgraph):
-        """ Called with both final render and viewport """
+        """ Called with final render and preview """
         log("render", self.as_pointer())
         try:
             self.engine.render()
@@ -135,9 +136,13 @@ class RPREngine(bpy.types.RenderEngine):
             log.error(e, 'EXCEPTION:', traceback.format_exc())
             self.error_set(f"ERROR | {e}. Please see log for more details.")
 
+        # This has to be called in the end of render due to possible memory leak RPRBLND-1635
+        # Important to call it in this function, not in __del__()
+        self.engine.stop_render()
+
     # viewport render
     def view_update(self, context, depsgraph):
-        """ called when data is updated for viewport """
+        """ Called when data is updated for viewport """
         log('view_update', self.as_pointer())
 
         try:
