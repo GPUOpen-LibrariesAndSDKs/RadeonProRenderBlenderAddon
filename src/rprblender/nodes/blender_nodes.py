@@ -874,7 +874,7 @@ class ShaderNodeBsdfHair(NodeParser):
 
         # TODO: use Tangent input
 
-        # Treat reflection as WARD shader 
+        # Treat reflection as a WARD shader
         if component == 'Reflection':
             rpr_node = self._create_ward_node(base_color, roughness_u, roughness_v, rotation_angle)
         else:
@@ -969,6 +969,75 @@ class ShaderNodeBsdfHair(NodeParser):
             pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT: 1.0,
             pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR: base_color,
         })
+        return rpr_node
+
+
+class ShaderNodeBsdfHairPrincipled(NodeParser):
+    """ Partial support for Cycles Principled Hair BSDF shader node """
+
+    def export(self) -> [NodeItem, None]:
+        parametrization = self.node.parametrization
+
+        roughness = self.get_input_value('Roughness').clamp(0.001, 1.0)
+        roughness_radial = self.get_input_value('Radial Roughness').clamp(0.001, 1.0)
+        coat = self.get_input_scalar('Coat')
+        ior = self.get_input_scalar('IOR')
+
+        if parametrization == 'ABSORPTION':
+            absorption_color = self.get_input_scalar('Absorption Coefficient')
+            color = (1.0 - absorption_color).min(1.0)
+        elif parametrization == 'MELANIN':
+            melanin = self.get_input_scalar('Melanin')
+            melanin_redness = self.get_input_scalar('Melanin Redness')
+            absorption_color = self._calculate_absorption_from_melanin(melanin, melanin_redness)
+            color = (1.0 - absorption_color).min(1.0)
+        else:  # 'COLOR'
+            color = self.get_input_scalar('Color')
+            absorption_color = self._calculate_absorption_from_color(color, roughness_radial)
+
+        node = self._create_absorption_node(color, absorption_color, roughness, roughness_radial, coat, ior)
+        return node
+
+    def _calculate_absorption_from_color(self, color, roughness_radial):
+        """ Use the Cycles way from bsdf_principled_hair_albedo_roughness_scale and bsdf_principled_hair_sigma_from_reflectance """
+        x = roughness_radial
+        # see the node Blender Manual https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/hair_principled.html
+        roughness_scale = (((((0.245 * x) + 5.574) * x - 10.73) * x + 2.532) * x - 0.215) * x + 5.969
+        color_log = self.node_item(tuple(math.log(e, 10) for e in color.data))
+        result = color_log / roughness_scale
+        result = result.max(0.0)
+        return result
+
+    def _calculate_absorption_from_melanin(self, melanin, melanin_redness):
+        """ Use the Cycles way from bsdf_principled_hair_sigma_from_concentration """
+        # see the node Blender Manual https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/hair_principled.html
+        eumelanin = melanin * (1.0 - melanin_redness)
+        pheomelanin = melanin * melanin_redness
+        result = eumelanin * (0.506, 0.841, 1.653) + pheomelanin * (0.343, 0.733, 1.924)
+        return result
+
+    def _create_absorption_node(self, color, absorption_color, roughness, roughness_radial, coat, ior):
+        base_color = (1.0 - absorption_color)
+
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
+
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR, color)
+
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0-roughness)  # length roughness increases gloss
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, (1, 1, 1, 1))
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness_radial)  # decreases gloss, increases overall lightness
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                           pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
+
+        if coat is not None or (isinstance(coat, float) and math.isclose(coat, 0.0)):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_WEIGHT, coat)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_COLOR, color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_ROUGHNESS, 0)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_IOR, ior)
+
         return rpr_node
 
 
