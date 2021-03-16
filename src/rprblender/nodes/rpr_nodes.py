@@ -268,6 +268,7 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
             },
         }
 
+
 class RPRShaderNodePassthrough(RPRShaderNode):
 
     bl_label = 'RPR Passthrough'
@@ -302,9 +303,9 @@ class RPRShaderNodeUber(RPRShaderNode):
     bl_label = 'RPR Uber'
     bl_width_min = 250
 
-    def set_from_principled(self, node:bpy.types.ShaderNodeBsdfPrincipled):
-        ''' set the inputs of this from a principled node and replace the outputs
-            of principled with this '''
+    def set_from_principled(self, node: bpy.types.ShaderNodeBsdfPrincipled):
+        """ set the inputs of this from a principled node and replace the outputs
+            of principled with this """
         # TODO
         pass
 
@@ -413,7 +414,7 @@ class RPRShaderNodeUber(RPRShaderNode):
     enable_displacement: BoolProperty(name="Displacement", description="Enable Displacement", default=False, update=update_visibility)
 
     def init(self, context):
-        ''' create sockets based on node_socket rules '''
+        """ create sockets based on node_socket rules """
         
         for socket_name, socket_desc in self.node_sockets.items():
             socket_type = socket_desc[0]
@@ -484,7 +485,7 @@ class RPRShaderNodeUber(RPRShaderNode):
         
     class Exporter(NodeParser):
         def export(self):
-            ''' export sockets to the uber param specced in self.node_sockets '''
+            """ export sockets to the uber param specced in self.node_sockets """
 
             def set_normal(normal_socket_key, use_shader_normal, rprx_input):
                 normal = None
@@ -524,20 +525,20 @@ class RPRShaderNodeUber(RPRShaderNode):
                 reflection_weight = self.get_input_value('Reflection Weight')
                 reflection_color = self.get_input_value('Reflection Color')
                 reflection_roughness = self.get_input_value('Reflection Roughness')
-                reflection_anisotrophy = self.get_input_value('Reflection Anisotropy')
-                reflection_anisotrophy_rotation = self.get_input_value('Reflection Anisotropy Rotation')
+                reflection_anisotropy = self.get_input_value('Reflection Anisotropy')
+                reflection_anisotropy_rotation = self.get_input_value('Reflection Anisotropy Rotation')
 
                 # make it work exactly like in BSDF Principled
-                reflection_anisotrophy_rotation = 0.5 - (reflection_anisotrophy_rotation % 1.0)
+                reflection_anisotropy_rotation = 0.5 - (reflection_anisotropy_rotation % 1.0)
 
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, reflection_weight)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, reflection_color)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS,
                                    reflection_roughness)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY,
-                                   reflection_anisotrophy)
+                                   reflection_anisotropy)
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION,
-                                   reflection_anisotrophy_rotation)
+                                   reflection_anisotropy_rotation)
 
                 if self.node.reflection_mode == 'PBR':
                     reflection_ior = self.get_input_value('Reflection IOR')
@@ -662,7 +663,7 @@ class RPRShaderNodeUber(RPRShaderNode):
 
 
 class RPRShaderNodeImageTexture(RPRShaderNode):
-    ''' Texture node.  Has UV input, image texture input and controls for image UV wrap and color space '''
+    """ Texture node.  Has UV input, image texture input and controls for image UV wrap and color space """
     bl_label = 'RPR Image Texture'
     bl_width_min = 235
 
@@ -676,7 +677,7 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
 
     wrap: bpy.props.EnumProperty(
         name='Wrap Type',
-        items= (
+        items=(
             ('REPEAT', "Repeat", "Repeating Texture"),
             ('MIRRORED_REPEAT', "Mirror", "Texture mirrors outside of 0-1"),
             ('CLAMP_TO_EDGE', "Clamp to Edge", "Clamp to Edge.  Outside of 0-1 the texture will smear."),
@@ -725,7 +726,7 @@ class RPRShaderNodeImageTexture(RPRShaderNode):
 
 
 class RPRShaderNodeLookup(RPRShaderNode):
-    ''' Looks up geometry values '''
+    """ Looks up geometry values """
     bl_label = 'RPR Lookup'
     bl_width_min = 170
 
@@ -790,15 +791,15 @@ class RPRShaderNodeLookup(RPRShaderNode):
 
 
 class RPRShaderProceduralUVNode(RPRShaderNode):
-    ''' Generates a procedural UV Node 
+    """ Generates a procedural UV Node
         we use this for both shapes and triplanar
-    '''
+    """
     bl_label = 'RPR Procedural UV'
 
     procedural_type: EnumProperty(
         name='Type',
         items=(('MATERIAL_NODE_UVTYPE_PLANAR', 'Plane', 'Planar projection'),
-             ('MATERIAL_NODE_UVTYPE_CYLINDICAL', 'Cylinder', 'Cylidrical projection'),
+             ('MATERIAL_NODE_UVTYPE_CYLINDICAL', 'Cylinder', 'Cylindrical projection'),
              ('MATERIAL_NODE_UVTYPE_SPHERICAL', 'Sphere', 'Spherical projection'),
              ('MATERIAL_NODE_UVTYPE_PROJECT', 'Camera', 'Camera projection'),
              ('TRIPLANAR', 'Triplanar', 'Triplanar projection'),
@@ -913,7 +914,7 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
 
 
 class RPRShaderNodeBumpMap(RPRShaderNode):
-    ''' Simple Bump map node with bump value and scale '''
+    """ Simple Bump map node with bump value and scale """
     bl_label = 'RPR Bump Map'
 
     def init(self, context):
@@ -958,8 +959,8 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
 
 
 class RPRShaderNodeNormalMap(RPRShaderNode):
-    ''' Simple Normal map node with normal value and scale
-        User can also flip vector at X(up-dow) and Y(left-right) axis '''
+    """ Simple Normal map node with normal value and scale
+        User can also flip vector at X(up-dow) and Y(left-right) axis """
     bl_label = 'RPR Normal Map'
     bl_width_min = 150  # to stop "Flip X" checkbox name clipping
 
@@ -1014,7 +1015,7 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
 
 
 class RPRShaderNodeEmissive(RPRShaderNode):
-    ''' Emissive node, only has a color and intensity '''
+    """ Emissive node, only has a color and intensity """
     bl_label = 'RPR Emissive'
 
     emission_doublesided: BoolProperty(
@@ -1059,7 +1060,7 @@ class RPRShaderNodeEmissive(RPRShaderNode):
 
 
 class RPRShaderNodeBlend(RPRShaderNode):
-    ''' Shader Blend node '''
+    """ Shader Blend node """
     bl_label = 'RPR Shader Blend'
 
     def init(self, context):
@@ -1123,8 +1124,8 @@ class RPRShaderNodeBlend(RPRShaderNode):
 
 
 class RPRValueNode_Math(RPRShaderNode):
-    ''' RPR node for all Arithmetics operations, equivalent of Math, Vector Math, RGB Mix with some nice additions.
-    Display different number of input sockets for various operations. '''
+    """ RPR node for all Arithmetics operations, equivalent of Math, Vector Math, RGB Mix with some nice additions.
+    Display different number of input sockets for various operations. """
     bl_label = 'RPR Math'
     bl_width_min = 150  # for better fit of value type selector
 
@@ -1492,9 +1493,18 @@ class RPRValueNode_Math(RPRShaderNode):
             elif op == 'SHUFFLE_WXYZ':
                 val = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_SHUFFLE_WXYZ, value1)
             else:
-                raise  ValueError("Incorrect operation", op)
+                raise ValueError("Incorrect operation", op)
 
             if self.node.use_clamp:
                 val = val.clamp()
 
             return val
+
+        def export_hybrid(self):
+            op = self.node.operation
+            if op in ('LOG', 'SHUFFLE_YZWX', 'SHUFFLE_ZWXY', 'SHUFFLE_WXYZ'):
+                log.warn("Ignoring unsupported RPR Math operation",
+                         op, self.node, self.material)
+                return None
+
+            return self.export()
