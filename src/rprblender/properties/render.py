@@ -237,6 +237,14 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         min=5, max=100, default=25,
     )
 
+    viewport_denoiser_upscale: BoolProperty(
+        name="Viewport Denoising and Upscaling",
+        description="Denoise rendered image with Machine Learning denoiser.\n"
+                    "Rendering at 2 times lower resoluting then upscaling rendered image "
+                    "in the end of render",
+        default=True,
+    )
+
 
 class RPR_RenderProperties(RPR_Properties):
     """ Main render properties. Available from scene.rpr """

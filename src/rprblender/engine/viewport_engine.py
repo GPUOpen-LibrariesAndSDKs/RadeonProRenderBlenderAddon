@@ -26,6 +26,8 @@ from bpy_extras import view3d_utils
 
 import pyrpr
 from .engine import Engine
+from . import image_filter
+
 from rprblender.export import camera, material, world, object, instance
 from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
@@ -201,6 +203,7 @@ class ViewportEngine(Engine):
         self.is_rendered = False
         self.is_resized = False
         self.denoised_image = None
+        self.upscaled_image = None
 
         self.requested_adapt_ratio = None
         self.is_resolution_adapted = False
@@ -334,6 +337,7 @@ class ViewportEngine(Engine):
                         self.is_resized = False
 
                     self.denoised_image = None
+                    self.upscaled_image = None
                     self.rpr_context.sync_auto_adapt_subdivision()
                     self.rpr_context.sync_portal_lights()
                     time_begin = time.perf_counter()
@@ -413,10 +417,25 @@ class ViewportEngine(Engine):
                         self.image_filter.run()
                         self.denoised_image = self.image_filter.get_data()
 
+                        if self.upscale_filter:
+                            self.upscale_filter.update_input('color', self.denoised_image)
+                            self.upscale_filter.run()
+                            self.upscaled_image = self.upscale_filter.get_data()
+
+                    elif self.upscale_filter:
+                        self._resolve()
+                        color = self.rpr_context.get_image()
+                        self.upscale_filter.update_input('color', color)
+                        self.upscale_filter.run()
+                        self.upscaled_image = self.upscale_filter.get_data()
+
                 time_render = time.perf_counter() - time_begin
                 info_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
                 if self.denoised_image is not None:
                     info_str += " | Denoised"
+                if self.upscaled_image is not None:
+                    info_str += " | Upscaled"
+
                 self.notify_status(info_str, "Rendering Done")
 
     def _do_sync_render(self, depsgraph):
@@ -484,9 +503,13 @@ class ViewportEngine(Engine):
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
-        image_filter_settings['resolution'] = (self.width, self.height)
-        self.setup_image_filter(image_filter_settings)
+        self.setup_image_filter(self._get_image_filter_settings())
+
+        # upscale filter
+        self.setup_upscale_filter({
+            'enable': settings.viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+        })
 
         # other context settings
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
@@ -706,6 +729,12 @@ class ViewportEngine(Engine):
             bgl.glDisable(bgl.GL_BLEND)
 
     def _draw(self, scene):
+        im = self.upscaled_image
+        if im is not None:
+            self.gl_texture.set_image(im)
+            self.draw_texture(self.gl_texture.texture_id, scene)
+            return
+
         im = self.denoised_image
         if im is not None:
             self.gl_texture.set_image(im)
@@ -733,9 +762,9 @@ class ViewportEngine(Engine):
         with self.render_lock:
             if not self.viewport_settings:
                 self.viewport_settings = ViewportSettings(context)
-
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
-                self._resize(self.viewport_settings.width, self.viewport_settings.height)
+
+                self._resize(*self._get_resolution())
                 self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
@@ -754,25 +783,26 @@ class ViewportEngine(Engine):
             if self.viewport_settings != viewport_settings:
                 self.viewport_settings = viewport_settings
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+
                 if self.user_settings.adapt_viewport_resolution:
-                    self._adapt_resize(self.viewport_settings.width, self.viewport_settings.height,
+                    self._adapt_resize(*self._get_resolution(),
                                        self.user_settings.min_viewport_resolution_scale * 0.01)
                 else:
-                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
+                    self._resize(*self._get_resolution())
 
                 self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
             else:
                 if self.requested_adapt_ratio is not None:
-                    self._adapt_resize(self.viewport_settings.width, self.viewport_settings.height,
+                    self._adapt_resize(*self._get_resolution(),
                                        self.user_settings.min_viewport_resolution_scale * 0.01,
                                        self.requested_adapt_ratio)
                     self.requested_adapt_ratio = None
                     self.is_resolution_adapted = True
 
                 elif not self.user_settings.adapt_viewport_resolution:
-                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
+                    self._resize(*self._get_resolution())
 
                 if self.is_resized:
                     self.restart_render_event.set()
@@ -794,6 +824,11 @@ class ViewportEngine(Engine):
             image_filter_settings = self.image_filter.settings.copy()
             image_filter_settings['resolution'] = self.width, self.height
             self.setup_image_filter(image_filter_settings)
+
+        if self.upscale_filter:
+            upscale_filter_settings = self.upscale_filter.settings.copy()
+            upscale_filter_settings['resolution'] = self.width, self.height
+            self.setup_upscale_filter(upscale_filter_settings)
 
         if self.world_settings.backplate:
             self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
@@ -820,6 +855,14 @@ class ViewportEngine(Engine):
 
         self._resize(min(max(w, min_w), max_w),
                      min(max(h, min_h), max_h))
+
+    def _get_resolution(self, vs=None):
+        if not vs:
+            vs = self.viewport_settings
+        if self.upscale_filter:
+            return vs.width // 2, vs.height // 2
+
+        return vs.width, vs.height
 
     def sync_objects_collection(self, depsgraph):
         """
@@ -990,11 +1033,14 @@ class ViewportEngine(Engine):
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
-        image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
-        if self.setup_image_filter(image_filter_settings):
+        if self.setup_image_filter(self._get_image_filter_settings()):
             self.denoised_image = None
             restart = True
+
+        restart |= self.setup_upscale_filter({
+            'enable': get_user_settings().viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+        })
 
         return restart
 
@@ -1003,6 +1049,15 @@ class ViewportEngine(Engine):
             return world.WorldData.init_from_world(depsgraph.scene.world)
 
         return world.WorldData.init_from_shading_data(self.shading_data)
+
+    def _get_image_filter_settings(self):
+        return {
+            'enable': get_user_settings().viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+            'filter_type': 'ML',
+            'ml_color_only': True,
+            'ml_use_fp16_compute_type': True,
+        }
 
     def depsgraph_objects(self, depsgraph, with_camera=False):
         for obj in super().depsgraph_objects(depsgraph, with_camera):

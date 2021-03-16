@@ -55,6 +55,7 @@ class Engine:
         # image filters
         self.image_filter = None
         self.background_filter = None
+        self.upscale_filter = None
 
     def stop_render(self):
         self.rpr_context = None
@@ -452,3 +453,37 @@ class Engine:
 
         self.background_filter.update_input('color', color_image, tile_pos)
         self.background_filter.update_input('opacity', opacity_image, tile_pos)
+
+    def setup_upscale_filter(self, settings):
+        if self.upscale_filter and self.upscale_filter.settings == settings:
+            return False
+
+        if settings['enable']:
+            if not self.upscale_filter:
+                self._enable_upscale_filter(settings)
+
+            elif self.upscale_filter.settings['resolution'] == settings['resolution']:
+                return False
+
+            else:
+                # recreating filter
+                self._disable_upscale_filter()
+                self._enable_upscale_filter(settings)
+
+        elif self.upscale_filter:
+            self._disable_upscale_filter()
+
+        return True
+
+    def _enable_upscale_filter(self, settings):
+        width, height = settings['resolution']
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+
+        self.upscale_filter = image_filter.ImageFilterUpscale(
+            self.rpr_context.context, {'color'}, {}, {}, width, height)
+
+        self.upscale_filter.settings = settings
+
+    def _disable_upscale_filter(self):
+        self.upscale_filter = None
