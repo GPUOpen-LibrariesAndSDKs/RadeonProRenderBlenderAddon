@@ -21,7 +21,6 @@ All parser classes should:
 import bpy
 import math
 import numpy as np
-import sys
 
 import pyrpr
 
@@ -437,7 +436,7 @@ class ShaderNodeBsdfVelvet(RuleNodeParser):
 class ShaderNodeEmission(RuleNodeParser):
     # inputs: Color, Strength
 
-    nodes =  {
+    nodes = {
         # emission_color = Color * Strength
         "emission_color": {
             "type": "*",
@@ -482,10 +481,11 @@ class ShaderNodeFresnel(RuleNodeParser):
         }
     }
 
+
 class ShaderNodeLayerWeight(NodeParser):
     # inputs: Blend, Normal
-    ''' This should do a fresnel and blend based on that.  Use Blend for ior
-        This follows the cycles OSL code '''
+    """ This should do a fresnel and blend based on that.  Use Blend for ior
+        This follows the cycles OSL code """
 
     def export(self):
         blend = self.get_input_value('Blend')
@@ -860,8 +860,8 @@ class ShaderNodeBsdfPrincipled(NodeParser):
 
 
 class ShaderNodeBsdfHair(NodeParser):
-    ''' Cycles Hair BSDF has two modes, transmission and reflection.
-        Use "WARD" for reflection and transparent for transmission '''
+    """ Cycles Hair BSDF has two modes, transmission and reflection.
+        Use "WARD" for reflection and transparent for transmission """
 
     def export(self):
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
@@ -907,15 +907,18 @@ class ShaderNodeBsdfHair(NodeParser):
         # we'll just use roughness_u and uber for bsdf 
         component = self.node.component
         color = self.get_input_value('Color')
-        roughness_u = self.get_input_value('RoughnessU')
-        
+
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
 
         if component == 'Reflection':
+            roughness_u = self.get_input_value('RoughnessU').clamp(0.001, 1.0)
+            roughness_v = self.get_input_value('RoughnessV').clamp(0.001, 1.0)
+            roughness = (roughness_u + roughness_v) * 0.5
+
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, color)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness_u)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
         else:
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, color)
 
@@ -1083,7 +1086,7 @@ class ShaderNodeTexCoord(RuleNodeParser):
             })
             if self.object:
                 # normalize over object bounding box
-                # get min and max of boinding box
+                # get min and max of bounding box
                 min_bounds = tuple(min(p[i] for p in self.object.bound_box) for i in range(3))
                 max_bounds = tuple(max(p[i] for p in self.object.bound_box) for i in range(3))
 
@@ -1117,8 +1120,8 @@ class ShaderNodeTexCoord(RuleNodeParser):
 
 
 class ShaderNodeLightFalloff(NodeParser):
-    ''' we don't actually do light falloff in RPR.
-        So we're mainly going to pass through "strength" '''
+    """ we don't actually do light falloff in RPR.
+        So we're mainly going to pass through "strength" """
     def export(self):
         # This shader is used in materials preview, no need to spam log.warn() here.
         # Changing to log.debug()
@@ -1185,7 +1188,6 @@ class ShaderNodeMixRGB(NodeParser):
             rpr_node = test_val.if_else(color1 + fac * (2.0 * (color2 - 0.5)),
                                         color1 + fac * (2.0 * color2 - 1.0))
 
-
         else:
             # TODO: finish other mix types: SATURATION, HUE, SCREEN, BURN
             log.warn("Ignoring unsupported Blend Type", blend_type, self.node, self.material, 
@@ -1197,10 +1199,20 @@ class ShaderNodeMixRGB(NodeParser):
 
         return rpr_node
 
+    def export_hybrid(self) -> [NodeItem, None]:
+        blend_type = self.node.blend_type
+
+        if blend_type in ('OVERLAY', 'LINEAR_LIGHT', ):
+            log.warn(f"Ignoring unsupported MixRGB type", blend_type, self.node, self.material)
+            return None
+
+        # other operations are supported by Hybrid
+        return self.export()
+
 
 class ShaderNodeMath(NodeParser):
-    ''' simply map the blender op types to rpr op types with included map.
-        We could be more correct with "round" but I've never seen this used. '''
+    """ simply map the blender op types to rpr op types with included map.
+        We could be more correct with "round" but I've never seen this used. """
 
     def export(self):
         op = self.node.operation
@@ -1264,6 +1276,16 @@ class ShaderNodeMath(NodeParser):
             res = res.clamp()
 
         return res
+
+    def export_hybrid(self) -> [NodeItem, None]:
+        op = self.node.operation
+
+        if op in ('LOGARITHM', 'CEIL', 'LESS_THAN', 'GREATER_THAN'):
+            log.warn(f"Ignoring unsupported Math operation", op, self.node, self.material)
+            return None
+
+        # other operations are supported by Hybrid
+        return self.export()
 
 
 class ShaderNodeVectorMath(NodeParser):
@@ -1346,6 +1368,16 @@ class ShaderNodeVectorMath(NodeParser):
 
         return res
 
+    def export_hybrid(self) -> [NodeItem, None]:
+        op = self.node.operation
+
+        if op in ('PROJECT', ):
+            log.warn(f"Ignoring unsupported Vector Math operation", op, self.node, self.material)
+            return None
+
+        # other operations are supported by Hybrid
+        return self.export()
+
 
 class ShaderNodeMixShader(NodeParser):
     # inputs = ['Fac', 1, 2]
@@ -1426,7 +1458,7 @@ class ShaderNodeNormalMap(NodeParser):
 
 
 class ShaderNodeNormal(NodeParser):
-    """ Has two ouputs "normal" which is just to use the normal output, and dot 
+    """ Has two outputs "normal" which is just to use the normal output, and dot
         which dot products normal output and input """
     
     def export(self):
@@ -1534,8 +1566,8 @@ class ShaderNodeValToRGB(NodeParser):
     """ Creates an RPR_Buffer from ramp, and samples that in node.
     """
     def export(self):
-        ''' create a buffer from ramp data and sample that in nodes if connected '''
-        buffer_size = 256 # hard code, this is what cycles does 
+        """ create a buffer from ramp data and sample that in nodes if connected """
+        buffer_size = 256  # hard code, this is what cycles does
 
         fac = self.get_input_value('Fac')
         if isinstance(fac.data, (float, tuple)):
@@ -1583,7 +1615,7 @@ class ShaderNodeTexGradient(NodeParser):
     """ Makes a gradiant on vector input or P
     """
     def export(self):
-        ''' create a buffer from ramp data and sample that in nodes if connected '''
+        """ create a buffer from ramp data and sample that in nodes if connected """
         vec = self.get_input_link('Vector')
         if not vec:
             vec = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
@@ -1600,7 +1632,7 @@ class ShaderNodeTexGradient(NodeParser):
         elif gradiant_type == 'EASING':
             r = x.clamp()
             t = r * r
-            val = t * 3.0 -  t * r * 2.0
+            val = t * 3.0 - t * r * 2.0
         elif gradiant_type == 'DIAGONAL':
             y = vec.get_channel(1)
             val = (x + y) * 0.5
@@ -1612,9 +1644,9 @@ class ShaderNodeTexGradient(NodeParser):
             # r = max(1.0 - length, 0.0);
             length = vec.length()
             r = (1.0 - length).max(0.0)
-            if gradiant_type  == 'QUADRATIC_SPHERE':
+            if gradiant_type == 'QUADRATIC_SPHERE':
                 val = r * r
-            else: # 'SPHERICAL'
+            else:  # 'SPHERICAL'
                 val = r
 
         return val
@@ -1745,7 +1777,7 @@ class ShaderNodeMapping(NodeParser):
         return self.export_281()
 
     def rotation(self, mapping, transpose=False):
-        ''' returns a vector transformed by rotation '''
+        """ returns a vector transformed by rotation """
         # Apply rotation to transpose we flip matrix
         rotation = - self.get_input_default('Rotation')  # must be flipped to match cycles
         sin_x, sin_y, sin_z = map(math.sin, rotation.data)
@@ -2136,7 +2168,7 @@ class ShaderNodeEeveeSpecular(NodeParser):
 
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
         base_color = self.get_input_value('Base Color')
-        specular_color = self.get_input_value('Specular') # this is color value
+        specular_color = self.get_input_value('Specular')  # this is color value
         roughness = self.get_input_value('Roughness')
         emissive_color = self.get_input_value('Emissive Color')
         transparency = self.get_input_value('Transparency')
