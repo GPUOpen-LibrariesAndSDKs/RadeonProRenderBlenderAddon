@@ -56,6 +56,11 @@ class Engine:
         self.image_filter = None
         self.background_filter = None
 
+    def stop_render(self):
+        self.rpr_context = None
+        self.image_filter = None
+        self.background_filter = None
+
     def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
         """
         Sets render result to render passes
