@@ -298,3 +298,21 @@ class ImageFilterTransparentBackground(ImageFilter):
         self.filter = self.setup_alpha_filter(self.inputs['opacity'])
 
         self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
+
+
+class ImageFilterUpscale(ImageFilter):
+    """ Apply transparent background only """
+
+    def _create_filter(self):
+        self.filter = self.context.create_filter(rif.IMAGE_FILTER_AI_UPSCALE)
+
+        models_path = utils.package_root_dir() / 'data/models'
+        if not models_path.is_dir():
+            # set alternative path
+            models_path = utils.package_root_dir() / '../../.sdk/rif/models'
+        self.filter.set_parameter('modelPath', str(models_path))
+
+        self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_BEST_2X)
+
+        self.output_image = self.context.create_image(self.width * 2, self.height * 2)
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
