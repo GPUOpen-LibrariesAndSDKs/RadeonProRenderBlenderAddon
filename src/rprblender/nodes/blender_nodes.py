@@ -1981,9 +1981,6 @@ class ShaderNodeMapping(NodeParser):
 
         return mapping
 
-    def export_hybrid(self):
-        return None
-
 
 class ShaderNodeRGBToBW(NodeParser):
     """Convert input color or texture from RGB to grayscale colors"""
