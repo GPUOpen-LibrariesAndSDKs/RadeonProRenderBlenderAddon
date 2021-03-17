@@ -666,19 +666,68 @@ class ShaderNodeTexImage(NodeParser):
             log.warn(f"Unsupported image wrap type {self.node.extension}")
             rpr_image.set_wrap(pyrpr.IMAGE_WRAP_TYPE_REPEAT)
 
-        # TODO: Implement using node properties: interpolation, projection
         if self.node.interpolation != 'Linear':
             log.warn("Ignoring unsupported texture interpolation", self.node.interpolation, self.node, self.material)
-        if self.node.projection != 'FLAT':
-            log.warn("Ignoring unsupported texture projection", self.node.projection, self.node, self.material)
 
-        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
-            pyrpr.MATERIAL_INPUT_DATA: rpr_image
-        })
+        if self.node.projection == 'BOX':
+            p = self.get_input_link('Vector')
+            if not p:
+                # this is a bit undefined.
+                p = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P_LOCAL
+                })
 
-        vector = self.get_input_link('Vector')
-        if vector:
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV, vector)
+            normal = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N
+            })
+
+            x = p.get_channel(0)
+            y = p.get_channel(1)
+            z = p.get_channel(2)
+
+            uv_xy = (normal.get_channel(2) < 0.0).if_else(y, -y).combine4(x, 0.0, 0.0)
+            uv_yz = (normal.get_channel(0) < 0.0).if_else(-y, y).combine4(z, 0.0, 0.0)
+            uv_xz = (normal.get_channel(1) < 0.0).if_else(x, -x).combine4(z, 0.0, 0.0)
+
+            # lookup texture three times for each uv combo
+            tex_xy = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_DATA: rpr_image,
+                pyrpr.MATERIAL_INPUT_UV: uv_xy
+            })
+            tex_yz = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_DATA: rpr_image,
+                pyrpr.MATERIAL_INPUT_UV: uv_yz
+            })
+            tex_xz = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_DATA: rpr_image,
+                pyrpr.MATERIAL_INPUT_UV: uv_xz
+            })
+
+            # calculate blend factor
+            blend = 1.0 / (self.node.projection_blend
+                           if not math.isclose(self.node.projection_blend, 0.0) else 999.9)
+
+            weights = abs(normal) * blend
+            weights = weights / (weights.get_channel(0) + weights.get_channel(1) +
+                                 weights.get_channel(2))
+
+            # blend three images based on normal dir
+            rpr_node = tex_yz * weights.get_channel(0) + \
+                       tex_xz * weights.get_channel(1) + \
+                       tex_xy * weights.get_channel(2)
+
+        else:
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_DATA: rpr_image
+            })
+
+            vector = self.get_input_link('Vector')
+            if vector:
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_UV, vector)
+
+
+            if self.node.projection != 'FLAT':
+                log.warn("Ignoring unsupported texture projection", self.node.projection, self.node, self.material)
 
         if self.socket_out.name == 'Alpha':
             rpr_node = rpr_node.get_channel(3)
