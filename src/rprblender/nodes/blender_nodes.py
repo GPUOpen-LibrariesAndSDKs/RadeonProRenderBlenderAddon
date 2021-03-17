@@ -1052,7 +1052,7 @@ class ShaderNodeBsdfHairPrincipled(NodeParser):
         x = roughness_radial
         # see the node Blender Manual https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/hair_principled.html
         roughness_scale = (((((0.245 * x) + 5.574) * x - 10.73) * x + 2.532) * x - 0.215) * x + 5.969
-        color_log = self.node_item(tuple(math.log(e, 10) for e in color.data))
+        color_log = self.node_item(tuple(math.log(e, 10) if e > 0 else 0 for e in color.data))
         result = color_log / roughness_scale
         result = result.max(0.0)
         return result
