@@ -787,6 +787,11 @@ class RPRShaderNodeLookup(RPRShaderNode):
                 })
 
         def export_hybrid(self):
+            if self.node.lookup_type in ('UV', 'UV1'):  # Only UV supported in Hybrid for now
+                return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
+                })
+
             return None
 
 
