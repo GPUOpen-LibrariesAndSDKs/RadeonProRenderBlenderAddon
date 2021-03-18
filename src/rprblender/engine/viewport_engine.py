@@ -1055,7 +1055,7 @@ class ViewportEngine(Engine):
             'enable': get_user_settings().viewport_denoiser_upscale,
             'resolution': (self.width, self.height),
             'filter_type': 'ML',
-            'ml_color_only': True,
+            'ml_color_only': False,
             'ml_use_fp16_compute_type': True,
         }
 
