@@ -194,7 +194,7 @@ class Engine:
             return
 
         cur_frame = depsgraph.scene.frame_current
-        prev_frame = cur_frame - depsgraph.scene.frame_step
+        prev_frame = cur_frame - 1
 
         # set to previous frame and calculate motion blur data
         self._set_scene_frame(depsgraph.scene, prev_frame, 0.0)
