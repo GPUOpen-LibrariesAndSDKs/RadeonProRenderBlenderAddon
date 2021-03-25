@@ -40,8 +40,8 @@ class RPR_RENDER_OP_open_web_page(RPR_Operator):
             'main_site':     "https://www.amd.com/en/technologies/radeon-prorender",
             'documentation': "https://radeon-pro.github.io/RadeonProRenderDocs/plugins/blender/about.html",
             'downloads':     "https://www.amd.com/en/technologies/radeon-prorender-downloads",
-            'community':     "https://community.amd.com/community/prorender/",
-            'bug_reports':   "https://community.amd.com/community/prorender/blender/",
+            'community':     "https://community.amd.com/t5/blender-discussions/bd-p/blender-discussions",
+            'bug_reports':   "https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/issues",
         }[self.page]
 
         webbrowser.open(url)

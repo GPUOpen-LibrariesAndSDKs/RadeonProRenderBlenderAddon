@@ -55,7 +55,10 @@ class RPRContext(context.RPRContext):
             context_props = context_props[2:]
         super().init(context_flags, context_props)
 
-    def resolve(self):
+        # enable arithmetic operations on Hybrid
+        self.set_parameter(pyrpr.CONTEXT_ENABLE_ARITHMETICS, True)
+
+    def resolve(self, aovs=None):
         pass
 
     def enable_aov(self, aov_type):

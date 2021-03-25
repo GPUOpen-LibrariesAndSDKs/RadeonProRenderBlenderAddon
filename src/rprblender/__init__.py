@@ -20,7 +20,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (3, 0, 8),
+    "version": (3, 1, 0),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
@@ -97,10 +97,11 @@ class RPREngine(bpy.types.RenderEngine):
     engine: Engine = None
 
     def __del__(self):
-        log('__del__', self.as_pointer())
-
         if isinstance(self.engine, ViewportEngine):
             self.engine.stop_render()
+
+        log('__del__', self.as_pointer())
+
 
     # final render
     def update(self, data, depsgraph):
@@ -126,7 +127,7 @@ class RPREngine(bpy.types.RenderEngine):
             self.error_set(f"ERROR | {e}. Please see log for more details.")
 
     def render(self, depsgraph):
-        """ Called with both final render and viewport """
+        """ Called with final render and preview """
         log("render", self.as_pointer())
         try:
             self.engine.render()
@@ -135,9 +136,13 @@ class RPREngine(bpy.types.RenderEngine):
             log.error(e, 'EXCEPTION:', traceback.format_exc())
             self.error_set(f"ERROR | {e}. Please see log for more details.")
 
+        # This has to be called in the end of render due to possible memory leak RPRBLND-1635
+        # Important to call it in this function, not in __del__()
+        self.engine.stop_render()
+
     # viewport render
     def view_update(self, context, depsgraph):
-        """ called when data is updated for viewport """
+        """ Called when data is updated for viewport """
         log('view_update', self.as_pointer())
 
         try:
@@ -174,25 +179,37 @@ class RPREngine(bpy.types.RenderEngine):
         Called by Blender.
         """
         aovs = properties.view_layer.RPR_ViewLayerProperites.aovs_info
+        cryptomatte_aovs = properties.view_layer.RPR_ViewLayerProperites.cryptomatte_aovs_info
 
         scene = render_scene if render_scene else bpy.context.scene
         layer = render_layer if render_scene else bpy.context.view_layer
 
+        def do_register_pass(aov):
+            pass_channel = aov['channel']
+            pass_name = aov['name']
+            pass_channels_size = len(pass_channel)
+
+            # convert from channel to blender type
+            blender_type = 'VALUE'
+            if pass_channel in ('RGB', 'RGBA'):
+                blender_type = 'COLOR'
+            elif pass_channel in {'XYZ', 'UVA'}:
+                blender_type = 'VECTOR'
+
+            self.register_pass(scene, layer,
+                               pass_name, pass_channels_size, pass_channel, blender_type)
+
         for index, enabled in enumerate(layer.rpr.enable_aovs):
             if enabled:
-                pass_channel = aovs[index]['channel']
-                pass_name = aovs[index]['name']
-                pass_channels_size = len(pass_channel)
+                do_register_pass(aovs[index])
+           
+        if layer.rpr.crytomatte_aov_material:
+            for i in range(3):
+                do_register_pass(cryptomatte_aovs[i])
 
-                # convert from channel to blender type
-                blender_type = 'VALUE'
-                if pass_channel in ('RGB', 'RGBA'):
-                    blender_type = 'COLOR'
-                elif pass_channel in {'XYZ', 'UVA'}:
-                    blender_type = 'VECTOR'
-
-                self.register_pass(scene, layer,
-                                   pass_name, pass_channels_size, pass_channel, blender_type)
+        if layer.rpr.crytomatte_aov_object:
+            for i in range(3,6):
+                do_register_pass(cryptomatte_aovs[i])
 
 
 @bpy.app.handlers.persistent

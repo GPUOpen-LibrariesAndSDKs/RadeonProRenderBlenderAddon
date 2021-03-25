@@ -52,6 +52,7 @@ Once SSH keys are installed update/checkout submodules for active branch
 
 ### Building
 
+- NOTE.  If on MacOS 11.1 you may need to run export SDKROOT=`xcrun --show-sdk-path`    
 - After syncing the source, run:
 	- ./build_osx.sh
 

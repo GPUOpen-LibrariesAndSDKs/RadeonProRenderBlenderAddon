@@ -57,7 +57,7 @@ class RPR_DenoiserProperties(RPR_Properties):
         name="Scale Denoising Iterations",
         description="Scale the amount of denoiser blur by number of iterations. "
                     "This will give more blur for renders with less samples, "
-                    "and become sharper as more samples are added.",
+                    "and become sharper as more samples are added",
         default=True
     )
 
@@ -116,13 +116,13 @@ class RPR_DenoiserProperties(RPR_Properties):
     ml_color_only: BoolProperty(
         name="Use Color AOV only",
         description="Use Color AOV only instead of using additional required AOVs",
-        default=True
+        default=False
     )
     ml_use_fp16_compute_type: BoolProperty(
         name="Use 16-bit Compute",
-        description="Reduce precision to 16 bit. It uses less memory and increases denoising speed, but with less quality.\n"
-                    "Available only for viewport render.",
-        default=False
+        description="Reduce precision to 16 bit. It uses less memory generally for similar quality.\n"
+                    "Available only for viewport render",
+        default=True
     )
     def get_settings(self, scene, is_final_engine=True):
         return {
@@ -308,6 +308,40 @@ class RPR_ViewLayerProperites(RPR_Properties):
         },
     )
 
+    # we went over 32 aovs so these must be separated
+    cryptomatte_aovs_info = (
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT0,
+            'name': "Cryptomatte Mat0",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT1,
+            'name': "Cryptomatte Mat1",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_MAT2,
+            'name': "Cryptomatte Mat2",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ0,
+            'name': "Cryptomatte Obj0",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ1,
+            'name': "Cryptomatte Obj1",
+            'channel': 'RGB'
+        },
+        {
+            'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ2,
+            'name': "Cryptomatte Obj2",
+            'channel': 'RGB'
+        },
+    )
+
     def aov_enabled_changed(self, context):
         """ Request update of active render passes for Render Layers compositor input node """
         context.view_layer.update_render_passes()
@@ -319,11 +353,25 @@ class RPR_ViewLayerProperites(RPR_Properties):
         default=tuple(aov['name'] in ["Combined", "Depth"] for aov in aovs_info),
         update=aov_enabled_changed,
     )
+
+    crytomatte_aov_object: BoolProperty(
+        name="Cryptomatte Object AOVs",
+        description="Enable Object Cryptomatte AOVs",
+        default=False,
+        update=aov_enabled_changed,
+    )
+
+    crytomatte_aov_material: BoolProperty(
+        name="Cryptomatte Material AOVs",
+        description="Enable Material Cryptomatte AOVs",
+        default=False,
+        update=aov_enabled_changed,
+    )
     # TODO: Probably better to create each aov separately like: aov_depth: BoolProperty(...)
 
     denoiser: PointerProperty(type=RPR_DenoiserProperties)
 
-    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive):
+    def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive, cryptomatte_allowed):
         """
         Exports AOVs settings. Also adds required passes to rpr_engine
         Note: view_layer here is parent of self, but it is not available from self.id_data
@@ -349,6 +397,19 @@ class RPR_ViewLayerProperites(RPR_Properties):
                 rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
             rpr_context.enable_aov(aov['rpr'])
+
+        if cryptomatte_allowed:
+            if self.crytomatte_aov_material:
+                for i in range(3):
+                    aov = self.cryptomatte_aovs_info[i]
+                    rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                    rpr_context.enable_aov(aov['rpr'])
+
+            if self.crytomatte_aov_object:
+                for i in range(3, 6):
+                    aov = self.cryptomatte_aovs_info[i]
+                    rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+                    rpr_context.enable_aov(aov['rpr'])
 
     def enable_aov_by_name(self, name):
         ''' Enables a give aov name '''

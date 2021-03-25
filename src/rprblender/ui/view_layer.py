@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import pyrpr
-
 from . import RPR_Panel
-from rprblender import utils
+
 
 class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
     bl_label = "RPR Passes"
@@ -36,6 +34,9 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
             col = col1 if i <= len(view_layer.enable_aovs) // 2 else col2
             r = col.row()
             r.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
+
+        col1.prop(view_layer, 'crytomatte_aov_object')
+        col2.prop(view_layer, 'crytomatte_aov_material')
 
 
 class RPR_RENDER_PT_denoiser(RPR_Panel):
@@ -79,7 +80,7 @@ class RPR_RENDER_PT_denoiser(RPR_Panel):
 
         elif denoiser.filter_type == 'ML':
             col.prop(denoiser, 'ml_color_only')
-            # col.prop(denoiser, 'ml_use_fp16_compute_type')
+            col.prop(denoiser, 'ml_use_fp16_compute_type')
 
         else:
             raise TypeError("No such filter type: %s" % denoiser.filter_type)

@@ -26,6 +26,8 @@ from bpy_extras import view3d_utils
 
 import pyrpr
 from .engine import Engine
+from . import image_filter
+
 from rprblender.export import camera, material, world, object, instance
 from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
@@ -201,6 +203,7 @@ class ViewportEngine(Engine):
         self.is_rendered = False
         self.is_resized = False
         self.denoised_image = None
+        self.upscaled_image = None
 
         self.requested_adapt_ratio = None
         self.is_resolution_adapted = False
@@ -211,6 +214,7 @@ class ViewportEngine(Engine):
         self.render_time = 0
 
         self.view_mode = None
+        self.use_contour = False
         self.space_data = None
         self.selected_objects = None
 
@@ -241,6 +245,8 @@ class ViewportEngine(Engine):
         self.notify_status("Starting...", "Sync")
         time_begin = time.perf_counter()
 
+        self.use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
+
         # exporting objects
         frame_current = depsgraph.scene.frame_current
         material_override = depsgraph.view_layer.material_override
@@ -256,7 +262,7 @@ class ViewportEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=frame_current)
+                        frame_current=frame_current, use_contour=self.use_contour)
 
         # exporting instances
         instances_len = len(depsgraph.object_instances)
@@ -275,7 +281,7 @@ class ViewportEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=frame_current)
+                          frame_current=frame_current, use_contour=self.use_contour)
 
         # shadow catcher
         self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
@@ -331,6 +337,7 @@ class ViewportEngine(Engine):
                         self.is_resized = False
 
                     self.denoised_image = None
+                    self.upscaled_image = None
                     self.rpr_context.sync_auto_adapt_subdivision()
                     self.rpr_context.sync_portal_lights()
                     time_begin = time.perf_counter()
@@ -368,9 +375,7 @@ class ViewportEngine(Engine):
                 time_render_prev = time_render
                 time_render = time.perf_counter() - time_begin
                 iteration_time = time_render - time_render_prev
-                if self.user_settings.adapt_viewport_resolution \
-                        and not self.is_resolution_adapted \
-                        and iteration == 2:
+                if not self.is_resolution_adapted and iteration == 2:
                     target_time = 1.0 / self.user_settings.viewport_samples_per_sec
                     self.requested_adapt_ratio = target_time / iteration_time
 
@@ -412,10 +417,25 @@ class ViewportEngine(Engine):
                         self.image_filter.run()
                         self.denoised_image = self.image_filter.get_data()
 
+                        if self.upscale_filter:
+                            self.upscale_filter.update_input('color', self.denoised_image)
+                            self.upscale_filter.run()
+                            self.upscaled_image = self.upscale_filter.get_data()
+
+                    elif self.upscale_filter:
+                        self._resolve()
+                        color = self.rpr_context.get_image()
+                        self.upscale_filter.update_input('color', color)
+                        self.upscale_filter.run()
+                        self.upscaled_image = self.upscale_filter.get_data()
+
                 time_render = time.perf_counter() - time_begin
                 info_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
                 if self.denoised_image is not None:
                     info_str += " | Denoised"
+                if self.upscaled_image is not None:
+                    info_str += " | Upscaled"
+
                 self.notify_status(info_str, "Rendering Done")
 
     def _do_sync_render(self, depsgraph):
@@ -449,8 +469,10 @@ class ViewportEngine(Engine):
         settings = get_user_settings()
         use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
 
+        use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
-                                   use_gl_interop=use_gl_interop)
+                                   use_gl_interop=use_gl_interop,
+                                   use_contour_integrator=use_contour)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
@@ -473,14 +495,21 @@ class ViewportEngine(Engine):
         self.world_settings = self._get_world_settings(depsgraph)
         self.world_settings.export(self.rpr_context)
 
+        if scene.rpr.is_contour_used(is_final_engine=False):
+            scene.rpr.export_contour_mode(self.rpr_context)
+
         rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
-        image_filter_settings['resolution'] = (self.width, self.height)
-        self.setup_image_filter(image_filter_settings)
+        self.setup_image_filter(self._get_image_filter_settings())
+
+        # upscale filter
+        self.setup_upscale_filter({
+            'enable': settings.viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+        })
 
         # other context settings
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
@@ -495,6 +524,7 @@ class ViewportEngine(Engine):
         self.restart_render_event.clear()
 
         self.view_mode = context.mode
+        self.use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         self.space_data = context.space_data
         self.selected_objects = context.selected_objects
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
@@ -517,7 +547,8 @@ class ViewportEngine(Engine):
 
         # get supported updates and sort by priorities
         updates = []
-        for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object, bpy.types.Collection):
+        for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object,
+                         bpy.types.Collection, bpy.types.Light):
             updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
 
         sync_collection = False
@@ -539,10 +570,15 @@ class ViewportEngine(Engine):
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # if view mode changed need to sync collections
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
         mode_updated = False
-        if self.view_mode != context.mode:
+        if self.view_mode != context.mode or self.use_contour != use_contour:
             self.view_mode = context.mode
+            self.use_contour = use_contour
             mode_updated = True
+
+        if not updates and not sync_world and not sync_collection:
+            return
 
         self._sync_update_before()
         with self.render_lock:
@@ -557,7 +593,7 @@ class ViewportEngine(Engine):
                     sync_collection = True
 
                     if is_updated:
-                        self.is_resolution_adapted = False
+                        self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
 
                     continue
 
@@ -576,9 +612,16 @@ class ViewportEngine(Engine):
                                                      update.is_updated_transform,
                                                      indirect_only=indirect_only,
                                                      material_override=material_override,
-                                                     frame_current=frame_current)
+                                                     frame_current=frame_current,
+                                                     use_contour=self.use_contour)
                     is_obj_updated |= is_updated
                     continue
+
+                if isinstance(obj, bpy.types.Light):
+                    light = obj
+                    for obj in self.depsgraph_objects(depsgraph):
+                        if obj.data == light:
+                            is_updated |= object.sync_update(self.rpr_context, obj, True, False)
 
                 if isinstance(obj, bpy.types.World):
                     sync_world = True
@@ -602,8 +645,7 @@ class ViewportEngine(Engine):
 
         if is_updated:
             self.restart_render_event.set()
-
-        self._sync_update_after()
+            self._sync_update_after()
 
     def _sync_update_before(self):
         pass
@@ -687,6 +729,12 @@ class ViewportEngine(Engine):
             bgl.glDisable(bgl.GL_BLEND)
 
     def _draw(self, scene):
+        im = self.upscaled_image
+        if im is not None:
+            self.gl_texture.set_image(im)
+            self.draw_texture(self.gl_texture.texture_id, scene)
+            return
+
         im = self.denoised_image
         if im is not None:
             self.gl_texture.set_image(im)
@@ -714,10 +762,10 @@ class ViewportEngine(Engine):
         with self.render_lock:
             if not self.viewport_settings:
                 self.viewport_settings = ViewportSettings(context)
-
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
-                self._resize(self.viewport_settings.width, self.viewport_settings.height)
-                self.is_resolution_adapted = False
+
+                self._resize(*self._get_resolution())
+                self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
         if not self.is_rendered:
@@ -735,45 +783,26 @@ class ViewportEngine(Engine):
             if self.viewport_settings != viewport_settings:
                 self.viewport_settings = viewport_settings
                 self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+
                 if self.user_settings.adapt_viewport_resolution:
-                    # trying to use previous resolution or almost same pixels number
-                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
-                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    w, h = self.rpr_context.width, self.rpr_context.height
-
-                    if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
-                        scale = math.sqrt(w * h / (max_w * max_h))
-                        w, h = int(max_w * scale), int(max_h * scale)
-
-                    self._resize(min(max(w, min_w), max_w),
-                                 min(max(h, min_h), max_h))
+                    self._adapt_resize(*self._get_resolution(),
+                                       self.user_settings.min_viewport_resolution_scale * 0.01)
                 else:
-                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
+                    self._resize(*self._get_resolution())
 
-                self.is_resolution_adapted = False
+                self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
                 self.restart_render_event.set()
 
             else:
                 if self.requested_adapt_ratio is not None:
-                    max_w, max_h = self.viewport_settings.width, self.viewport_settings.height
-                    min_w = max(max_w * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    min_h = max(max_h * self.user_settings.min_viewport_resolution_scale // 100, 1)
-                    if abs(1.0 - self.requested_adapt_ratio) > MIN_ADAPT_RATIO_DIFF:
-                        scale = math.sqrt(self.requested_adapt_ratio)
-                        w, h = int(self.rpr_context.width * scale),\
-                               int(self.rpr_context.height * scale)
-                    else:
-                        w, h = self.rpr_context.width, self.rpr_context.height
-
-                    self._resize(min(max(w, min_w), max_w),
-                                 min(max(h, min_h), max_h))
-
+                    self._adapt_resize(*self._get_resolution(),
+                                       self.user_settings.min_viewport_resolution_scale * 0.01,
+                                       self.requested_adapt_ratio)
                     self.requested_adapt_ratio = None
                     self.is_resolution_adapted = True
 
                 elif not self.user_settings.adapt_viewport_resolution:
-                    self._resize(self.viewport_settings.width, self.viewport_settings.height)
+                    self._resize(*self._get_resolution())
 
                 if self.is_resized:
                     self.restart_render_event.set()
@@ -796,10 +825,44 @@ class ViewportEngine(Engine):
             image_filter_settings['resolution'] = self.width, self.height
             self.setup_image_filter(image_filter_settings)
 
+        if self.upscale_filter:
+            upscale_filter_settings = self.upscale_filter.settings.copy()
+            upscale_filter_settings['resolution'] = self.width, self.height
+            self.setup_upscale_filter(upscale_filter_settings)
+
         if self.world_settings.backplate:
             self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
 
         self.is_resized = True
+
+    def _adapt_resize(self, max_w, max_h, min_scale, adapt_ratio=None):
+        # trying to use previous resolution or almost same pixels number
+        min_w = max(int(max_w * min_scale), 1)
+        min_h = max(int(max_h * min_scale), 1)
+        w, h = self.rpr_context.width, self.rpr_context.height
+
+        if adapt_ratio is None:
+            if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
+                scale = math.sqrt(w * h / (max_w * max_h))
+                w, h = int(max_w * scale), int(max_h * scale)
+        else:
+            if abs(1.0 - adapt_ratio) > MIN_ADAPT_RATIO_DIFF:
+                scale = math.sqrt(adapt_ratio)
+                w, h = int(self.rpr_context.width * scale), \
+                       int(self.rpr_context.height * scale)
+            else:
+                w, h = self.rpr_context.width, self.rpr_context.height
+
+        self._resize(min(max(w, min_w), max_w),
+                     min(max(h, min_h), max_h))
+
+    def _get_resolution(self, vs=None):
+        if not vs:
+            vs = self.viewport_settings
+        if self.upscale_filter:
+            return vs.width // 2, vs.height // 2
+
+        return vs.width, vs.height
 
     def sync_objects_collection(self, depsgraph):
         """
@@ -855,7 +918,11 @@ class ViewportEngine(Engine):
             self.sync_collection_objects(depsgraph, unchanged_meshes_keys,
                                          material_override)
 
-            self.sync_collection_instances(depsgraph, unchanged_meshes_keys,
+            rpr_instance_keys = set(key for key, obj in self.rpr_context.objects.items()
+                                    if isinstance(obj, pyrpr.Instance) and obj.is_visible)
+            unchanged_instances_keys = tuple(e for e in depsgraph_keys if e in rpr_instance_keys)
+            log("Instance keys to update material override", unchanged_instances_keys)
+            self.sync_collection_instances(depsgraph, unchanged_instances_keys,
                                            material_override)
 
         return res
@@ -865,26 +932,24 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
+
         for obj in self.depsgraph_objects(depsgraph):
             obj_key = object.key(obj)
             if obj_key not in object_keys_to_export:
                 continue
 
             rpr_obj = self.rpr_context.objects.get(obj_key, None)
-            if rpr_obj:
-                rpr_obj.set_visibility(True)
-
-                if not material_override:
-                    rpr_obj.set_material(None)
-                assign_materials(self.rpr_context, rpr_obj, obj, material_override)
-                res = True
-            else:
+            if not rpr_obj:
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
                             indirect_only=indirect_only, material_override=material_override,
-                            frame_current=frame_current)
+                            frame_current=frame_current, use_contour=use_contour)
+            else:
+                assign_materials(self.rpr_context, rpr_obj, obj, material_override)
 
-                res = True
+            res = True
+
         return res
 
     def sync_collection_instances(self, depsgraph, object_keys_to_export, material_override):
@@ -892,31 +957,32 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
+
         for inst in self.depsgraph_instances(depsgraph):
             instance_key = instance.key(inst)
             if instance_key not in object_keys_to_export:
                 continue
 
-            if not material_override:
-                inst_obj = self.rpr_context.objects.get(instance_key, None)
-                if inst_obj:
-                    if len(inst.object.material_slots) == 0:
-                        # remove override from instance without assigned materials
-                        inst_obj.set_material(None)
-                    assign_materials(self.rpr_context, inst_obj, inst.object)
-                    res = True
-            else:
+            inst_obj = self.rpr_context.objects.get(instance_key, None)
+            if not inst_obj:
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override,
-                              frame_current=frame_current)
-                res = True
+                              frame_current=frame_current, use_contour=use_contour)
+            else:
+                assign_materials(self.rpr_context, inst_obj, inst.object, material_override=material_override)
+
+            res = True
+
         return res
 
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
         frame_current = depsgraph.scene.frame_current
+
+        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)
@@ -939,14 +1005,15 @@ class ViewportEngine(Engine):
 
             if object.key(obj) not in self.rpr_context.objects:
                 object.sync(self.rpr_context, obj, indirect_only=indirect_only,
-                            frame_current=frame_current)
+                            frame_current=frame_current, use_contour=use_contour)
                 updated = True
                 continue
 
             updated |= object.sync_update(self.rpr_context, obj, False, False,
                                           indirect_only=indirect_only,
                                           material_override=material_override,
-                                          frame_current=frame_current)
+                                          frame_current=frame_current,
+                                          use_contour=use_contour)
 
         return updated
 
@@ -966,11 +1033,14 @@ class ViewportEngine(Engine):
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         # image filter
-        image_filter_settings = view_layer.rpr.denoiser.get_settings(scene, False)
-        image_filter_settings['resolution'] = (self.rpr_context.width, self.rpr_context.height)
-        if self.setup_image_filter(image_filter_settings):
+        if self.setup_image_filter(self._get_image_filter_settings()):
             self.denoised_image = None
             restart = True
+
+        restart |= self.setup_upscale_filter({
+            'enable': get_user_settings().viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+        })
 
         return restart
 
@@ -979,6 +1049,15 @@ class ViewportEngine(Engine):
             return world.WorldData.init_from_world(depsgraph.scene.world)
 
         return world.WorldData.init_from_shading_data(self.shading_data)
+
+    def _get_image_filter_settings(self):
+        return {
+            'enable': get_user_settings().viewport_denoiser_upscale,
+            'resolution': (self.width, self.height),
+            'filter_type': 'ML',
+            'ml_color_only': False,
+            'ml_use_fp16_compute_type': True,
+        }
 
     def depsgraph_objects(self, depsgraph, with_camera=False):
         for obj in super().depsgraph_objects(depsgraph, with_camera):
