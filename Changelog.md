@@ -1,3 +1,53 @@
+# Version 3.1
+## New Features:
+- Support for AMD Radeon™ RX 6700 XT graphics cards has been added.
+- Cryptomatte AOVs make it easy to filter objects by name or material when using compositors that support Cryptomatte (including the Blender Cryptomatte compositor node)
+- A 16-bit Machine Learning Denoiser option is now available to provide for less memory usage and greater speed.
+- The speed and responsiveness of the viewport render has been vastly improved under RPR 2.0:
+    - An option for using Machine Learning Denoising and Upscaling the viewport render is enabled under the Viewport Settings.  We now render faster at ½ resolution and use the Machine Learning Upscaler to enhance the resolution;
+    - Changing the properties tabs no longer restarts the viewport render;
+    - Stopping the viewport render is now much faster;
+    - Various other fixes to speed up the viewport render have been added.
+- An often requested feature, Box mapping in the Image Texture node, is now supported!
+- Support for Principled Hair BSDF has been added.
+- UV Lookup nodes and math nodes now work in the High, Medium, Low modes.
+
+## Issues Fixed:
+- Adaptive sampling now works correctly in the CPU mode.
+- All color spaces for textures (not just sRGB and Linear) are now used.
+- Noise seeding for animation renders has now fixed an issue of a “swimming” noise pattern.  Noise seeding is always enabled.
+- A possible error with UDIM textures has been fixed.
+- If the Step Count option in Blender was set to a value > 1, accentuated motion blur would be rendered — fixed.
+- Memory was not being freed up at the end of rendering — fixed.
+- Shadow Catcher now work with RPR 2.
+- An error at the end of rendering with the Full mode has been fixed.
+- Calculated values of light power would not update in animation — fixed.
+- Transparent background now works with RPR 2.
+- Transparent background with tile rendering was creating a lot of artefacts and produced incorrect results — fixed.
+- Instances were not updated correctly in the viewport on disabling or enabling: they were correctly removed when disabled but not displayed on enabling — fixed.
+- There was an issue with material override application/removal: it reset the object rays visibility settings and was not updated on instances — fixed.
+- Linked collection objects now use ray visibility settings, rather than the settings from the parent object.
+- Various fixes have been made to .rpr file export:
+    - Motion blur is now exported with .rpr export;
+    - Export is now implemented with selected engine mode;
+    - An image cache is used to save space and enhance speed when exporting.
+- Environment Lights and various overrides can now be rotated independently. 
+- Area lights were shadowing too aggressively — fixed.
+- Switching to contour rendering could fail on an NVidia GPU — fixed.
+- Possible crashing when rendering AOVs in the viewport has been fixed.
+- Textures could be too blurry due to incorrect MIP mapping, particularly textures in a plane parallel to the camera direction.
+- Adaptive sampling now works with RPR 2.
+- Spiral artifacts when rendering with both the CPU and GPU have been fixed.
+- The Opacity AOV was not taking the maximum ray depth into account — fixed.
+- Artifacts in the Depth AOV have been fixed.
+- Compiling the BVH geometry has been improved in large scenes.
+
+## Known Issues:
+- RPR 2.0 has some forthcoming features.  If these are needed, please use the Legacy render mode:
+    - Heterogenous volumes.
+- Tiled rendering with transparent background enabled has image artifacts with RPR 2.0.
+- Adaptive sampling does not work with CPU only rendering.
+
 # Version 3.0
 ## New Features:
 -   The new plug-in version incorporates version 2.0 of our Radeon™ ProRender system and brings about these significant changes and enhancements:
