@@ -16,13 +16,8 @@ import time
 import threading
 
 import pyrpr
-import bpy
 
-from rprblender.export import object
-from .viewport_engine import (
-    ViewportEngine, ViewportSettings, ShadingData, FinishRenderException
-)
-from rprblender.utils import gl
+from .viewport_engine import ViewportEngine, ViewportSettings, FinishRenderException
 from .context import RPRContext2
 
 from rprblender.utils import logging
@@ -43,28 +38,56 @@ class ViewportEngine2(ViewportEngine):
         self.resolve_lock = threading.Lock()
 
     def stop_render(self):
-        self.rpr_context.set_render_update_callback(None)
-
-        super().stop_render()
-
+        self.is_finished = True
+        self.restart_render_event.set()
         self.resolve_event.set()
+        self.sync_render_thread.join()
         self.resolve_thread.join()
+
+        self.rpr_context.set_render_update_callback(None)
+        self.rpr_context = None
+        self.image_filter = None
+
+    def _resolve(self):
+        self.rpr_context.resolve(None if self.image_filter and self.is_last_iteration else
+                                 (pyrpr.AOV_COLOR,))
+        
+    def _resize(self, width, height):
+        if self.width == width and self.height == height:
+            self.is_resized = False
+            return
+
+        with self.render_lock:
+            with self.resolve_lock:
+                self.rpr_context.resize(width, height)
+
+        self.width = width
+        self.height = height
+
+        if self.image_filter:
+            image_filter_settings = self.image_filter.settings.copy()
+            image_filter_settings['resolution'] = self.width, self.height
+            self.setup_image_filter(image_filter_settings)
+
+        if self.upscale_filter:
+            upscale_filter_settings = self.upscale_filter.settings.copy()
+            upscale_filter_settings['resolution'] = self.width, self.height
+            self.setup_upscale_filter(upscale_filter_settings)
+
+        self.is_resized = True
 
     def _do_render(self):
         iteration = 0
         time_begin = 0.0
         update_iterations = 1
+        is_set_callback = False
 
         def render_update(progress):
             if self.restart_render_event.is_set():
                 self.rpr_context.abort_render()
                 return
 
-            if iteration == 1:
-                return
-
-            # don't need to do intermediate update for 0, 1 iteration and
-            # at render finish when progress == 1.0
+            # don't need to do intermediate update when progress == 1.0
             if progress == 1.0:
                 return
 
@@ -90,6 +113,7 @@ class ViewportEngine2(ViewportEngine):
             # preparations to start rendering
             iteration = 0
             time_begin = 0.0
+            time_render = 0.0
             self.is_last_iteration = False
 
             # this cycle renders each iteration
@@ -105,15 +129,13 @@ class ViewportEngine2(ViewportEngine):
                     if vs is None:
                         continue
 
-                    if vs.width != self.rpr_context.width or vs.height != self.rpr_context.height:
-                        with self.render_lock:
-                            with self.resolve_lock:
-                                self.rpr_context.resize(vs.width, vs.height)
+                    if self.user_settings.adapt_viewport_resolution:
+                        self._adapt_resize(*self._get_resolution(vs),
+                                           self.user_settings.min_viewport_resolution_scale * 0.01)
+                    else:
+                        self._resize(*self._get_resolution(vs))
 
-                        if self.image_filter:
-                            image_filter_settings = self.image_filter.settings.copy()
-                            image_filter_settings['resolution'] = vs.width, vs.height
-                            self.setup_image_filter(image_filter_settings)
+                    self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
 
                     vs.export_camera(self.rpr_context.scene.camera)
                     iteration = 0
@@ -127,8 +149,9 @@ class ViewportEngine2(ViewportEngine):
                     continue
 
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, iteration)
-                update_iterations = 1 if iteration <= 1 else \
-                    min(32, self.render_iterations - iteration)
+                update_iterations = 1
+                if not self.use_contour and iteration > 1:
+                    update_iterations = min(32, self.render_iterations - iteration)
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_iterations)
 
                 # unsetting render update callback for first iteration and set it back
@@ -136,16 +159,41 @@ class ViewportEngine2(ViewportEngine):
                 if iteration == 0:
                     self.rpr_context.set_render_update_callback(None)
                     self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 3)
+                    is_set_callback = False
                 elif iteration == 1:
-                    self.rpr_context.clear_frame_buffers()
+                    if self.is_resolution_adapted:
+                        self.rpr_context.clear_frame_buffers()
+                        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
+                elif not is_set_callback:
                     self.rpr_context.set_render_update_callback(render_update)
-                    self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, 0)
+                    is_set_callback = True
 
                 # rendering
                 with self.render_lock:
-                    self.rpr_context.render(restart=(iteration == 0))
+                    try:
+                        self.rpr_context.render(restart=(iteration == 0))
+
+                    except pyrpr.CoreError as e:
+                        if e.status != pyrpr.ERROR_ABORTED:     # ignoring ERROR_ABORTED
+                            raise
 
                 if iteration > 0 and self.restart_render_event.is_set():
+                    continue
+
+                if iteration == 1 and not self.is_resolution_adapted:
+                    time_render_prev = time_render
+                    time_render = time.perf_counter() - time_begin
+                    iteration_time = time_render - time_render_prev
+
+                    target_time = 1.0 / self.user_settings.viewport_samples_per_sec
+                    self.requested_adapt_ratio = target_time / iteration_time
+
+                    self._adapt_resize(*self._get_resolution(self.viewport_settings),
+                                       self.user_settings.min_viewport_resolution_scale * 0.01,
+                                       self.requested_adapt_ratio)
+
+                    iteration = 0
+                    self.is_resolution_adapted = True
                     continue
 
                 iteration += update_iterations
@@ -184,13 +232,18 @@ class ViewportEngine2(ViewportEngine):
                 self.rendered_image = self.image_filter.get_data()
 
                 time_render = time.perf_counter() - time_begin
-                self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
-                                   f" | Denoised", "Rendering Done")
-
+                status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration} | Denoised"
             else:
                 self.rendered_image = self.rpr_context.get_image()
-                self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}",
-                                   "Rendering Done")
+                status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+
+            if self.upscale_filter:
+                self.upscale_filter.update_input('color', self.rendered_image)
+                self.upscale_filter.run()
+                self.rendered_image = self.upscale_filter.get_data()
+                status_str += " | Upscaled"
+
+            self.notify_status(status_str, "Rendering Done")
 
     def _do_resolve(self):
         while True:
@@ -220,6 +273,7 @@ class ViewportEngine2(ViewportEngine):
         # initializing self.viewport_settings and requesting first self.restart_render_event
         if not self.viewport_settings:
             self.viewport_settings = ViewportSettings(context)
+            self._resize(*self._get_resolution())
             self.restart_render_event.set()
             return
 
@@ -243,9 +297,6 @@ class ViewportEngine2(ViewportEngine):
         super().sync(context, depsgraph)
         self.resolve_thread = threading.Thread(target=self._do_resolve)
         self.resolve_thread.start()
-
-    def _sync_update_before(self):
-        self.restart_render_event.set()
 
     def _sync_update_after(self):
         self.rpr_engine.update_stats("Render", "Syncing...")

@@ -112,6 +112,30 @@ class ImageFilter(metaclass=ABCMeta):
         self.command_queue.synchronize()
         return self.output_image.get_data()
 
+    def setup_alpha_filter(self, alpha):
+        """ Apply transparent background by setting output image alpha by alpha value """
+        result = self.context.create_filter(rif.IMAGE_FILTER_USER_DEFINED)
+
+        # redefine image alpha channel by alpha value
+        code = """
+            int2 coord;
+            GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outputImage));
+            vec4 pixel = ReadPixelTyped(inputImage, coord.x, coord.y);
+            vec4 pixel_alpha = ReadPixelTyped(alphaBuf, coord.x, coord.y);
+            pixel.x *= pixel_alpha.x;
+            pixel.y *= pixel_alpha.x;
+            pixel.z *= pixel_alpha.x;
+            pixel.w = pixel_alpha.x;
+            WritePixelTyped(outputImage, coord.x, coord.y, pixel);
+        """
+
+        result.set_parameter('code', code)
+
+        # user defined filter requires explicit buffers setting
+        result.set_parameter("alphaBuf", alpha)
+
+        return result
+
 
 class ImageFilterBilateral(ImageFilter):
     input_ids = ['color', 'normal', 'world_coordinate', 'object_id']
@@ -266,3 +290,29 @@ class ImageFilterEaw(ImageFilter):
         self.filter.set_parameter('normalSigma', self.sigmas['normal'])
         self.filter.set_parameter('depthSigma', self.sigmas['depth'])
         self.filter.set_parameter('transSigma', self.sigmas['trans'])
+
+
+class ImageFilterTransparentBackground(ImageFilter):
+    """ Apply transparent background only """
+    def _create_filter(self):
+        self.filter = self.setup_alpha_filter(self.inputs['opacity'])
+
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
+
+
+class ImageFilterUpscale(ImageFilter):
+    """ Apply transparent background only """
+
+    def _create_filter(self):
+        self.filter = self.context.create_filter(rif.IMAGE_FILTER_AI_UPSCALE)
+
+        models_path = utils.package_root_dir() / 'data/models'
+        if not models_path.is_dir():
+            # set alternative path
+            models_path = utils.package_root_dir() / '../../.sdk/rif/models'
+        self.filter.set_parameter('modelPath', str(models_path))
+
+        self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_BEST_2X)
+
+        self.output_image = self.context.create_image(self.width * 2, self.height * 2)
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)

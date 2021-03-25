@@ -305,9 +305,26 @@ class ImageFilter(Object):
         elif isinstance(value, Image):
             ImageFilterSetParameterImage(self, pyrpr.encode(name), value)
             self.parameters[name] = value
-        elif isinstance(value, tuple) and len(value) == 2:
+        elif isinstance(value, tuple):
+            size = len(value)
             if isinstance(value[0], int):
-                ImageFilterSetParameter2u(self, pyrpr.encode(name), *value)
+                if size == 2:
+                    ImageFilterSetParameter2u(self, pyrpr.encode(name), *value)
+                elif size == 3:
+                    ImageFilterSetParameter3u(self, pyrpr.encode(name), *value)
+                elif size == 4:
+                    ImageFilterSetParameter4u(self, pyrpr.encode(name), *value)
+                else:
+                    raise TypeError("Incorrect tuple size for ImageFilterSetParameter#i", self, name, value)
+            elif isinstance(value[0], float):
+                if size == 2:
+                    ImageFilterSetParameter2f(self, pyrpr.encode(name), *value)
+                elif size == 3:
+                    ImageFilterSetParameter3f(self, pyrpr.encode(name), *value)
+                elif size == 4:
+                    ImageFilterSetParameter4f(self, pyrpr.encode(name), *value)
+                else:
+                    raise TypeError("Incorrect tuple size for ImageFilterSetParameter#f", self, name, value)
             else:
                 raise TypeError("Incorrect type for ImageFilterSetParameter*", self, name, value)
             self.parameters[name] = value

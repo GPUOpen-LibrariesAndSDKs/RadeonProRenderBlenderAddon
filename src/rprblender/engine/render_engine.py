@@ -67,6 +67,9 @@ class RenderEngine(Engine):
         self.world_backplate = None
 
         self.render_stamp_text = ""
+        self.render_iteration = 0
+
+        self.cryptomatte_allowed = False  # only Full mode supports cryptomatte AOVs
 
     def notify_status(self, progress, info):
         """ Display export/render status """
@@ -85,7 +88,6 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
-        render_iteration = 0
         while True:
             if self.rpr_engine.test_break():
                 athena_data['End Status'] = "cancelled"
@@ -124,12 +126,15 @@ class RenderEngine(Engine):
             log(log_str)
 
             self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
-            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, render_iteration)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, self.render_iteration)
             self.rpr_context.render(restart=(self.current_sample == 0))
 
             self.current_sample += update_samples
 
             self.rpr_context.resolve()
+            if self.background_filter:
+                self.update_background_filter_inputs()
+                self.background_filter.run()
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name)
 
@@ -146,8 +151,8 @@ class RenderEngine(Engine):
             if self.render_time and self.current_render_time >= self.render_time:
                 break
 
-            render_iteration += 1
-            if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+            self.render_iteration += 1
+            if self.render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
                 # progressively increase update samples up to 32
                 self.render_update_samples *= 2
 
@@ -341,7 +346,7 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        self.use_contour = scene.rpr.is_contour_used
+        self.use_contour = scene.rpr.is_contour_used()
         self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \
@@ -460,20 +465,28 @@ class RenderEngine(Engine):
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
-        view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive)
+        view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive, self.cryptomatte_allowed)
 
         if enable_adaptive:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)
             scene.rpr.limits.set_adaptive_params(self.rpr_context)
 
-        # Shadow catcher
-        self.rpr_context.sync_catchers(scene.render.film_transparent)
-
         # Image filter
         image_filter_settings = view_layer.rpr.denoiser.get_settings(scene)
         image_filter_settings['resolution'] = (self.width, self.height)
         self.setup_image_filter(image_filter_settings)
+
+        # Shadow catcher
+        if scene.rpr.render_quality != 'FULL':
+            self.rpr_context.sync_catchers(False)
+            background_filter_settings = {
+                'enable': scene.render.film_transparent,
+                'resolution': (self.width, self.height),
+            }
+            self.setup_background_filter(background_filter_settings)
+        else:
+            self.rpr_context.sync_catchers(scene.render.film_transparent)
 
         # SET rpr_context parameters
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
@@ -539,8 +552,13 @@ class RenderEngine(Engine):
             for o in self.rpr_context.objects.values() if isinstance(o, pyrpr.Shape)
         )
         data['Num Textures'] = len(self.rpr_context.images)
-        data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
-                                // (1024 * 1024)  # in MB
+
+        # temporary ignore getting texture sizes with hybrid,
+        # until it'll be fixed on hybrid core side
+        from . context_hybrid import RPRContext as RPRContextHybrid
+        if not isinstance(self.rpr_context, RPRContextHybrid):
+            data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
+                                    // (1024 * 1024)  # in MB
 
         data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
 

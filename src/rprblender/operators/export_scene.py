@@ -28,6 +28,7 @@ from rprblender.utils.user_settings import get_user_settings
 
 from . import RPR_Operator
 
+from rprblender.utils import OS
 from rprblender.utils.logging import Log
 import pyrpr
 
@@ -60,6 +61,12 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         name="Export Single File"
     )
 
+    use_image_cache: BoolProperty(
+        default=False,
+        name="Use Image Cache",
+        description="Use the image cache for exporting images.  Note, RPRSRender.exe MUST match plugin RPR version"
+    )
+
     compression: EnumProperty(
         items=(('NONE', 'None', 'None'),
                ('LOW', 'Low', 'Lossless texture compression'),
@@ -86,6 +93,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         row.prop(self, 'end_frame')
         self.layout.prop(self, 'export_as_single_file')
         self.layout.prop(self, 'compression')
+        self.layout.prop(self, 'use_image_cache')
 
     def execute(self, context):
         scene = bpy.context.scene
@@ -100,6 +108,8 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - lossy image
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_NORMALS (1 << 3) 
         # RPRLOADSTORE_EXPORTFLAG_COMPRESS_FLOAT_TO_HALF_UV (1 << 4) 
+        # RPRLOADSTORE_EXPORTFLAG_EMBED_FILE_IMAGES_USING_OBJECTNAME (1 << 5) 
+        # RPRLOADSTORE_EXPORTFLAG_USE_IMAGE_CACHE (1 << 6)
         if not self.export_as_single_file:
             flags |= 1 << 0
         
@@ -108,6 +118,9 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
                         'MEDIUM': 1 << 2,
                         'HIGH': 1 << 2 | 1 << 3 | 1 << 4}
         flags |= compression[self.compression]
+
+        if self.use_image_cache:
+            flags |= 1 << 6
 
         if self.export_animation and self.start_frame <= self.end_frame:
             orig_frame = scene.frame_current
@@ -138,20 +151,31 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         return {'FINISHED'}
 
     def export_scene_to_file(self, context, scene, filepath, filepath_json, flags):
-        if scene.rpr.render_quality == 'FULL':
+        if scene.rpr.render_quality == 'FULL':  # Export Legacy mode using RPR1
             exporter = ExportEngine()
-        else:
+            engine_lib_name = {
+                'Windows': "RadeonProRender64.dll",
+                'Darwin': "libRadeonProRender64.dylib",
+                'Linux': "libRadeonProRender64.so",
+            }[OS]
+        else:  # Other quality modes export using RPR2
             exporter = ExportEngine2()
+            engine_lib_name = {
+                'Windows': "Northstar64.dll",
+                'Darwin': "libNorthstar64.dylib",
+                'Linux': "libNorthstar64.so",
+            }[OS]
+
         exporter.sync(context)
         exporter.export_to_rpr(filepath, flags)
-        self.save_json(filepath_json, scene, context.view_layer)
+        self.save_json(filepath_json, scene, context.view_layer, engine_lib_name)
 
-    def save_json(self, filepath, scene, view_layer):
+    def save_json(self, filepath, scene, view_layer, engine_lib_name):
         ''' save scene settings to json at filepath '''
         output_base = os.path.splitext(filepath)[0]
 
         devices = get_user_settings().final_devices
-        use_contour = scene.rpr.is_contour_used and not devices.cpu_state
+        use_contour = scene.rpr.is_contour_used() and not devices.cpu_state
 
         data = {
             'width': int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
@@ -228,6 +252,9 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             }
 
         data['context'] = device_settings
+
+        if engine_lib_name:
+            data['plugin'] = engine_lib_name
 
         with open(filepath, 'w') as outfile:
             json.dump(data, outfile)

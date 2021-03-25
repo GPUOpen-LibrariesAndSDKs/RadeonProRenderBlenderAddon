@@ -353,7 +353,6 @@ class NodeParser(BaseNodeParser):
         return self.node_item(input_normal) if input_normal is not None else self.normal_node
 
 
-
 class RuleNodeParser(NodeParser):
     """
     Base class that parses material node by rules. It looks up inputs on the blender node and get values,
