@@ -121,15 +121,13 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'max_samples')
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
-        if rpr.render_quality == 'FULL2':
-            row.enabled = False
         
         col = self.layout.column(align=True)
         col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.render_quality == 'FULL'
+        col.enabled = rpr.render_quality in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
@@ -160,7 +158,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         if context.scene.rpr.render_quality == 'FULL2':
             row.enabled = False
 
-        adapt_resolution = context.scene.rpr.render_quality != 'FULL2'
+        adapt_resolution = context.scene.rpr.render_quality in ('FULL', 'FULL2')
         col1 = col.column()
         col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
@@ -171,6 +169,8 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
 
         col.prop(settings, 'use_gl_interop')
+
+        col.prop(settings, 'viewport_denoiser_upscale')
 
         col.separator()
         col.prop(limits, 'preview_samples')
@@ -234,7 +234,7 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
         rpr_scene = context.scene.rpr
 
         main_column = self.layout.column()
-        main_column.enabled = context.scene.rpr.render_quality == 'FULL2' and rpr_scene.use_contour_render
+        main_column.enabled = context.scene.rpr.is_contour_used()
 
         col = main_column.column(align=True)
         col.prop(rpr_scene, 'contour_use_object_id')

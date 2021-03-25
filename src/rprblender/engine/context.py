@@ -149,11 +149,19 @@ class RPRContext:
 
         return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
 
-    def resolve(self):
-        for aov, fbs in self.frame_buffers_aovs.items():
-            fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
+    def resolve(self, aovs=None):
+        if aovs:
+            for aov in aovs:
+                fbs = self.frame_buffers_aovs[aov]
+                fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
+        else:
+            for aov, fbs in self.frame_buffers_aovs.items():
+                fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
 
         if self.composite:
+            if aovs and pyrpr.AOV_COLOR not in aovs:
+                return
+
             color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
             self.composite.compute(color_aov['composite'])
             if self.gl_interop:
@@ -575,12 +583,6 @@ class RPRContext2(RPRContext):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
         super().init(context_flags, context_props, use_contour_integrator)
 
-    def enable_aov(self, aov_type):
-        if aov_type == pyrpr.AOV_VARIANCE:
-            return
-
-        super().enable_aov(aov_type)
-
     def sync_catchers(self, use_transparent_background=False):
         pass
 
@@ -607,3 +609,7 @@ class RPRContext2(RPRContext):
         image = pyrpr2.TiledImage(self.context)
 
         return image
+
+    def sync_portal_lights(self):
+        # portals are not supported or needed in rpr2
+        return

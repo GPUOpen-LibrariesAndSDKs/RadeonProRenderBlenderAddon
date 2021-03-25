@@ -243,6 +243,17 @@ class RPR_EnvironmentProperties(RPR_Properties):
         description="Crop backplate image to render size",
         default=True,
     )
+    background_rotation_override: bpy.props.BoolProperty(
+        name="Override Rotation for Background",
+        description="Use separate rotation for background override",
+        default=False,
+    )
+    background_rotation: bpy.props.FloatVectorProperty(
+        name="Background Rotation",
+        description="Background Rotation Euler Angles",
+        subtype='EULER',
+        size=3,
+    )
 
     # reflection override
     reflection_override: bpy.props.BoolProperty(
@@ -259,7 +270,18 @@ class RPR_EnvironmentProperties(RPR_Properties):
     )
     reflection_image: bpy.props.PointerProperty(
         type=bpy.types.Image,
-        name = "Image",
+        name="Image",
+    )
+    reflection_rotation_override: bpy.props.BoolProperty(
+        name="Override Rotation for Reflection",
+        description="Use separate rotation for reflection override",
+        default=False,
+    )
+    reflection_rotation: bpy.props.FloatVectorProperty(
+        name="Reflection Rotation",
+        description="Reflection Rotation Euler Angles",
+        subtype='EULER',
+        size=3,
     )
 
     # refraction override
@@ -277,7 +299,18 @@ class RPR_EnvironmentProperties(RPR_Properties):
     )
     refraction_image: bpy.props.PointerProperty(
         type=bpy.types.Image,
-        name = "Image",
+        name="Image",
+    )
+    refraction_rotation_override: bpy.props.BoolProperty(
+        name="Override Rotation for Refraction",
+        description="Use separate rotation for refraction override",
+        default=False,
+    )
+    refraction_rotation: bpy.props.FloatVectorProperty(
+        name="Refraction Rotation",
+        description="Refraction Rotation Euler Angles",
+        subtype='EULER',
+        size=3,
     )
 
     # transparency override
@@ -296,10 +329,21 @@ class RPR_EnvironmentProperties(RPR_Properties):
         type=bpy.types.Image,
         name="Image",
     )
+    transparency_rotation_override: bpy.props.BoolProperty(
+        name="Override Rotation for Transparency",
+        description="Use separate rotation for transparency override",
+        default=False,
+    )
+    transparency_rotation: bpy.props.FloatVectorProperty(
+        name="Transparency Rotation",
+        description="Transparency Rotation Euler Angles",
+        subtype='EULER',
+        size=3,
+    )
 
-    gizmo_rotation: bpy.props.FloatVectorProperty(
+    world_rotation: bpy.props.FloatVectorProperty(
         name="Rotation",
-        description="Gizmo Rotation Euler Angles",
+        description="World Rotation Euler Angles",
         subtype='EULER',
         size=3,
     )

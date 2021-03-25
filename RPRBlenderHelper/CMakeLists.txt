@@ -5,22 +5,6 @@ project(RPRBlenderHelper)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set (CMAKE_CXX_STANDARD 11)
 
-find_package(OpenMP)
-
-if (${APPLE})
-    set (IGNORE_MISSING_OPENMP 1)
-endif()
-
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-else()
-    if(NOT "${IGNORE_MISSING_OPENMP}")
-        message(FATAL_ERROR "OpenMP support not found! Use IGNORE_MISSING_OPENMP=ON to override.")
-    endif() 
-endif()
-
-
 set(RPR_SDK_DIR ${CMAKE_SOURCE_DIR}/../.sdk/rpr)
 set(RPRTOOLS_DIR ${RPR_SDK_DIR}/rprTools)
 set(SHARED_DIR ${CMAKE_SOURCE_DIR}/../RadeonProRenderSharedComponents)
@@ -76,7 +60,7 @@ elseif(${APPLE})
         ${OPENVDB_SDK_PATH}/OSX/lib/libtbb.a
     )
 
-else()
+else()  # Linux
     set(LIBS ${RPR_SDK_DIR}/bin/libRadeonProRender64.so)
 
 endif()

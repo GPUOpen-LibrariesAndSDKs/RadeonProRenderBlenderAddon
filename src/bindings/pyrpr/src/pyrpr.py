@@ -1388,6 +1388,9 @@ class Image(Object):
     def set_wrap(self, wrap_type):
         ImageSetWrap(self, wrap_type)
 
+    def set_colorspace(self, colorspace):
+        ImageSetOcioColorspace(self, encode(colorspace))
+
     @property
     def size_byte(self):
         if self._size_byte is None:

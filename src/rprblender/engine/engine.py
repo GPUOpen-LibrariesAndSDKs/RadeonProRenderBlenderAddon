@@ -52,8 +52,15 @@ class Engine:
         self.rpr_context = self._RPRContext()
         self.rpr_context.engine_type = self.TYPE
 
-        # image filter
+        # image filters
         self.image_filter = None
+        self.background_filter = None
+        self.upscale_filter = None
+
+    def stop_render(self):
+        self.rpr_context = None
+        self.image_filter = None
+        self.background_filter = None
 
     def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
         """
@@ -73,10 +80,19 @@ class Engine:
                 if apply_image_filter and self.image_filter:
                     image = self.image_filter.get_data()
 
-                    # copying alpha component from rendered image to final denoised image,
-                    # because image filter changes it to 1.0
-                    image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
+                    if self.background_filter:
+                        self.update_background_filter_inputs(color_image=image)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()
+                    else:
+                        # copying alpha component from rendered image to final denoised image,
+                        # because image filter changes it to 1.0
+                        image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
 
+                elif self.background_filter:
+                    self.update_background_filter_inputs()
+                    self.background_filter.run()
+                    image = self.background_filter.get_data()
                 else:
                     image = self.rpr_context.get_image()
 
@@ -84,7 +100,9 @@ class Engine:
                 image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
 
             else:
-                aov = next((aov for aov in RPR_ViewLayerProperites.aovs_info
+                aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
+                    if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
+                aov = next((aov for aov in aovs_info
                             if aov['name'] == p.name), None)
                 if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
                     image = self.rpr_context.get_image(aov['rpr'])
@@ -176,10 +194,10 @@ class Engine:
             return
 
         cur_frame = depsgraph.scene.frame_current
-        prev_frame = cur_frame - depsgraph.scene.frame_step
+        prev_frame = cur_frame - 1
 
         # set to previous frame and calculate motion blur data
-        self.rpr_engine.frame_set(prev_frame, 0.0)
+        self._set_scene_frame(depsgraph.scene, prev_frame, 0.0)
         try:
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
                 key = object.key(obj)
@@ -199,7 +217,10 @@ class Engine:
 
         finally:
             # restore current frame
-            self.rpr_engine.frame_set(cur_frame, 0.0)
+            self._set_scene_frame(depsgraph.scene, cur_frame, 0.0)
+
+    def _set_scene_frame(self, scene, frame, subframe=0.0):
+        self.rpr_engine.frame_set(frame, subframe)
 
     def set_motion_blur_mode(self, scene):
         """ Apply engine-specific motion blur parameters """
@@ -293,7 +314,7 @@ class Engine:
 
             from .viewport_engine import ViewportEngine
             import pyrprimagefilters as rif
-            if settings['ml_use_fp16_compute_type'] and self.TYPE == ViewportEngine.TYPE:
+            if settings['ml_use_fp16_compute_type']:
                 params['compute_type'] = rif.COMPUTE_TYPE_FLOAT16
             else:
                 params['compute_type'] = rif.COMPUTE_TYPE_FLOAT
@@ -386,3 +407,83 @@ class Engine:
 
         for input_id, data in inputs.items():
             self.image_filter.update_input(input_id, data, tile_pos)
+
+    def setup_background_filter(self, settings):
+        if self.background_filter and self.background_filter.settings == settings:
+            return False
+
+        if settings['enable']:
+            if not self.background_filter:
+                self._enable_background_filter(settings)
+
+            elif self.background_filter.settings['resolution'] == settings['resolution']:
+                return False
+
+            else:
+                # recreating filter
+                self._disable_background_filter()
+                self._enable_background_filter(settings)
+
+        elif self.background_filter:
+            self._disable_background_filter()
+
+        return True
+
+    def _enable_background_filter(self, settings):
+        width, height = settings['resolution']
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_OPACITY)
+
+        inputs = {'color', 'opacity'}
+
+        self.background_filter = image_filter.ImageFilterTransparentBackground(
+            self.rpr_context.context, inputs, {}, {}, width, height)
+
+        self.background_filter.settings = settings
+
+    def _disable_background_filter(self):
+        self.background_filter = None
+
+    def update_background_filter_inputs(self, tile_pos=(0, 0), color_image=None, opacity_image=None):
+        if color_image is None:
+            color_image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        if opacity_image is None:
+            opacity_image = self.rpr_context.get_image(pyrpr.AOV_OPACITY)
+
+        self.background_filter.update_input('color', color_image, tile_pos)
+        self.background_filter.update_input('opacity', opacity_image, tile_pos)
+
+    def setup_upscale_filter(self, settings):
+        if self.upscale_filter and self.upscale_filter.settings == settings:
+            return False
+
+        if settings['enable']:
+            if not self.upscale_filter:
+                self._enable_upscale_filter(settings)
+
+            elif self.upscale_filter.settings['resolution'] == settings['resolution']:
+                return False
+
+            else:
+                # recreating filter
+                self._disable_upscale_filter()
+                self._enable_upscale_filter(settings)
+
+        elif self.upscale_filter:
+            self._disable_upscale_filter()
+
+        return True
+
+    def _enable_upscale_filter(self, settings):
+        width, height = settings['resolution']
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+
+        self.upscale_filter = image_filter.ImageFilterUpscale(
+            self.rpr_context.context, {'color'}, {}, {}, width, height)
+
+        self.upscale_filter.settings = settings
+
+    def _disable_upscale_filter(self):
+        self.upscale_filter = None
