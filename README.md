@@ -59,7 +59,6 @@ Also, make more meaningful commits(one commit per feature) the easy way:
 
 ### Recommended software
 
-- epydoc - enable PyCharm to parse Core's documentation. Use `py -m pip install epydoc` with your selected python interpreter or install it from PyCharm 
 - PyCharm Community Edition - very recommended, possible to enable intellisense(limited) for Blender code and for RPR Core
 - Visual Studio - has a very nice python extension, possible to enable intellisense for Blender and for RPR Core, provides remote debugging in Blender
 
