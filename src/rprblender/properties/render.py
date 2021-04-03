@@ -242,7 +242,7 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         description="Denoise rendered image with Machine Learning denoiser.\n"
                     "Rendering at 2 times lower resoluting then upscaling rendered image "
                     "in the end of render",
-        default=True,
+        default=True if not utils.IS_MAC else False, # TODO remove when macos upscaler fixed
     )
 
 
