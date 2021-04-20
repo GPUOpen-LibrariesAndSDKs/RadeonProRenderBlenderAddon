@@ -62,7 +62,7 @@ class Engine:
         self.image_filter = None
         self.background_filter = None
 
-    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter):
+    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter, tile_pos, tile_size):
         """
         Sets render result to render passes
         :param render_passes: render passes to collect
@@ -73,6 +73,9 @@ class Engine:
 
         images = []
 
+        x1, y1 = tile_pos
+        x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
+
         for p in render_passes:
             # finding corresponded aov
 
@@ -81,18 +84,20 @@ class Engine:
                     image = self.image_filter.get_data()
 
                     if self.background_filter:
-                        self.update_background_filter_inputs(color_image=image)
+                        # calculate background effects on denoised image and cut out by tile size
+                        self.update_background_filter_inputs(tile_pos=tile_pos, color_image=image)
                         self.background_filter.run()
-                        image = self.background_filter.get_data()
+                        image = self.background_filter.get_data()[y1:y2, x1:x2, :]
                     else:
                         # copying alpha component from rendered image to final denoised image,
                         # because image filter changes it to 1.0
                         image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
 
                 elif self.background_filter:
-                    self.update_background_filter_inputs()
+                    # calculate background effects and cut out by tile size
+                    self.update_background_filter_inputs(tile_pos=tile_pos)
                     self.background_filter.run()
-                    image = self.background_filter.get_data()
+                    image = self.background_filter.get_data()[y1:y2, x1:x2, :]
                 else:
                     image = self.rpr_context.get_image()
 
@@ -122,7 +127,7 @@ class Engine:
     def update_render_result(self, tile_pos, tile_size, layer_name="",
                              apply_image_filter=False):
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
-        self._set_render_result(result.layers[0].passes, apply_image_filter)
+        self._set_render_result(result.layers[0].passes, apply_image_filter, tile_pos, tile_size)
         self.rpr_engine.end_result(result)
 
     def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph, with_camera=False):
