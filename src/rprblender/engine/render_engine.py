@@ -160,6 +160,9 @@ class RenderEngine(Engine):
             self.notify_status(1.0, "Applying denoising final image")
             self.update_image_filter_inputs()
             self.image_filter.run()
+            if self.background_filter:
+                self.update_background_filter_inputs()
+                self.background_filter.run()
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name,
                                       apply_image_filter=True)
@@ -259,10 +262,13 @@ class RenderEngine(Engine):
                     # progressively increase update samples up to 32
                     self.render_update_samples *= 2
 
-            if self.image_filter and not self.rpr_engine.test_break():
-                self.update_image_filter_inputs(tile_pos)
+            if not self.rpr_engine.test_break():
+                if self.image_filter:
+                    self.update_image_filter_inputs(tile_pos=tile_pos)
+                if self.background_filter:
+                    self.update_background_filter_inputs(tile_pos=tile_pos)
 
-        if self.image_filter and not self.rpr_engine.test_break():
+        if (self.image_filter or self.background_filter) and not self.rpr_engine.test_break():
             self.notify_status(1.0, "Applying denoising final image")
 
             # getting already rendered images for every render pass
@@ -284,9 +290,19 @@ class RenderEngine(Engine):
 
                 # we will update only Combined pass
                 if p.name == "Combined":
-                    self.image_filter.run()
-                    image = self.image_filter.get_data()
-                    images[pos: pos + length] = image.flatten()
+                    image = None
+                    if self.image_filter:
+                        self.image_filter.run()
+                        image = self.image_filter.get_data()
+
+                    if self.background_filter:
+                        if image is not None:
+                            self.background_filter.update_input('color', image)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()
+
+                    if image is not None:
+                        images[pos: pos + length] = image.flatten()
                     break
 
                 pos += length
