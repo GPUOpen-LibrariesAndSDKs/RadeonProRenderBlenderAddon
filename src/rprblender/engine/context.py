@@ -80,6 +80,9 @@ class RPRContext:
         self.use_reflection_catcher = False
         self.use_transparent_background = False
 
+        # texture compression used when images created
+        self.texture_compression = False
+
     def init(self, context_flags, context_props, use_contour_integrator=False):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
@@ -452,12 +455,14 @@ class RPRContext:
 
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)
+        image.set_compression = self.compress_textures
         if key:
             self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
         image = pyrpr.ImageData(self.context, data)
+        image.set_compression = self.compress_textures
         if key:
             self.images[key] = image
         return image

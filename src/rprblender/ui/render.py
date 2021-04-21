@@ -196,6 +196,9 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH'):
             self.layout.prop(rpr, 'hybrid_low_mem')
 
+        if rpr.render_quality == 'FULL2':
+            self.layout.prop(rpr, texture_compression)
+
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
     bl_label = "Max Ray Depth"

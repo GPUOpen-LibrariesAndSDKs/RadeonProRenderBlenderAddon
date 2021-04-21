@@ -516,6 +516,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, 1)
         scene.rpr.export_render_mode(self.rpr_context)
         scene.rpr.export_ray_depth(self.rpr_context)
+        self.rpr_context.texture_compression = scene.rpr.texture_compression
         scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0)
