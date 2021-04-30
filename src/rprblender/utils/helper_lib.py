@@ -18,7 +18,7 @@ import numpy as np
 import math
 import os
 
-from . import package_root_dir, IS_WIN, IS_MAC, core_ver_str, rif_ver_str
+from . import package_root_dir, OS, IS_WIN, IS_MAC, IS_DEBUG_MODE, core_ver_str, rif_ver_str
 from .. import bl_info
 
 from . import logging
@@ -36,40 +36,25 @@ class VdbGridData(ctypes.Structure):
 
 def init():
     global lib
-    root_dir = package_root_dir()
 
-    OS = platform.system()
+    lib_name = {
+        'Windows': "RPRBlenderHelper.dll",
+        'Linux': "libRPRBlenderHelper.so",
+        'Darwin': "libRPRBlenderHelper.dylib"
+    }[OS]
 
-    paths = [root_dir]
-    if OS == 'Windows':
-        lib_name = "RPRBlenderHelper.dll"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build/Release")
-
-        if (root_dir / "openvdb.dll").is_file():
-            os.environ['PATH'] += ";" + str(root_dir)
-        else:
-            os.environ['PATH'] += ";" + str((root_dir / "../../RadeonProRenderSharedComponents/OpenVdb/Windows/bin")
-                                            .absolute())
-
-    elif OS == 'Darwin':
-        lib_name = "libRPRBlenderHelper.dylib"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build")
+    if IS_DEBUG_MODE:
+        root_dir = package_root_dir().parent.parent
+        lib_dir = root_dir / 'RPRBlenderHelper/.build/Release' if IS_WIN else root_dir / 'RPRBlenderHelper/.build'
+        path_name = 'PATH' if IS_WIN else 'LD_LIBRARY_PATH'
+        env_paths = f"{lib_dir};{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/Windows/bin'};" if IS_WIN else \
+                    f"{lib_dir};"
+        os.environ[path_name] = env_paths + os.environ.get(path_name, "")
 
     else:
-        lib_name = "libRPRBlenderHelper.so"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build")
+        lib_dir = package_root_dir()
 
-    lib_path = next(p / lib_name for p in paths if (p / lib_name).is_file())
-    log('Load lib', lib_path)
-    try:
-        lib = ctypes.cdll.LoadLibrary(str(lib_path))
-    except OSError as e:  # expand the traceback info with the exact addon version and library name
-        raise Exception(f"Failed to load library {lib_path}",
-                        f"addon version {bl_info['version']}",
-                        f"core {core_ver_str(True)}",
-                        f"rif {rif_ver_str(True)}",
-                        str(e)) \
-            from e
+    lib = ctypes.CDLL(str(lib_dir / lib_name))
 
     # Sun & Sky functions
     lib.set_sun_horizontal_coordinate.argtypes = [ctypes.c_float, ctypes.c_float]
@@ -178,6 +163,3 @@ def vdb_read_grid_data(vdb_file, grid_name):
     lib.vdb_free_grid_data(ctypes.byref(data))
 
     return res
-
-
-init()

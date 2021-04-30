@@ -12,24 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import math
 import platform
 import traceback
 import inspect
 import ctypes
-import os
 import time
 import functools
 import sys
 import numpy as np
-import bgl
 from typing import List
+
+import bgl
 
 import pyrprwrap
 from pyrprwrap import *
-
-
-lib_wrapped_log_calls = False
 
 
 class CoreError(Exception):
@@ -95,66 +91,33 @@ def wrap_core_log_call(f, log_fun, module_name):
 
 
 class _init_data:
-    _log_fun = None
+    log_fun = None
+    lib_wrapped_log_calls = False
 
 
-def init(log_fun, rprsdk_bin_path=None):
+def init(lib_dir, log_fun, lib_wrapped_log_calls):
+    _init_data.log_fun = log_fun
+    _init_data.lib_wrapped_log_calls = lib_wrapped_log_calls
 
-    _module = __import__(__name__)
+    lib_name = {
+        'Windows': "RadeonProRender64.dll",
+        'Linux': "libRadeonProRender64.so",
+        'Darwin': "libRadeonProRender64.dylib"
+    }[platform.system()]
 
-    _init_data._log_fun = log_fun
-
-    alternate_relative_paths = []
-    if platform.system() == "Windows":
-        alternate_relative_paths += ["../../rif/bin"]
-        lib_names = [
-            'RadeonProRender64.dll',
-            'RadeonImageFilters.dll',
-        ]
-
-    elif platform.system() == "Linux":
-        lib_names = [
-            'libRadeonProRender64.so',
-        ]
-
-    elif platform.system() == "Darwin":
-        lib_names = [
-            'libRadeonProRender64.dylib',
-        ]
-
-    else:
-        raise ValueError("Not supported OS", platform.system())
-
-    for lib_name in lib_names:
-        rpr_lib_path = rprsdk_bin_path / lib_name
-        if os.path.isfile(str(rpr_lib_path)):
-            ctypes.CDLL(str(rpr_lib_path))
-        else:
-            found = False
-            for relpath in alternate_relative_paths:
-                rpr_lib_path = rprsdk_bin_path / relpath / lib_name
-                if os.path.isfile(str(rpr_lib_path)):
-                    try:
-                        ctypes.CDLL(str(rpr_lib_path))
-                    except OSError as e:
-                        print(f"Failed to load '{rpr_lib_path}': {str(e)}")
-                        raise
-                    found = True
-                    break
-
-            if not found:
-                print("Shared lib does not exists \"%s\"\n" % lib_name)
-                assert False
+    ctypes.CDLL(str(lib_dir / lib_name))
 
     import __rpr
     try:
         lib = __rpr.lib
     except AttributeError:
-        lib = __rpr.ffi.dlopen(str(rprsdk_bin_path/lib_names[0]))
+        lib = __rpr.ffi.dlopen(str(lib_dir / lib_name))
     pyrprwrap.lib = lib
     pyrprwrap.ffi = __rpr.ffi
     global ffi
     ffi = __rpr.ffi
+
+    _module = __import__(__name__)
 
     for name in pyrprwrap._constants_names:
         setattr(_module, name, getattr(pyrprwrap, name))
@@ -197,38 +160,6 @@ def get_first_gpu_id_used(creation_flags):
     raise IndexError("GPU is not used", creation_flags)
 
 
-class array:
-    def __init__(self, a: np.array):
-        self.array = a if a.flags['C_CONTIGUOUS'] else np.ascontiguousarray(a)
-
-    def __eq__(self, other):
-        return np.array_equal(self.array, other.array)
-
-    @property
-    def nbytes(self):
-        return self.array[0].nbytes
-
-    @property
-    def len(self):
-        return len(self.array)
-
-    @property
-    def data(self):
-        if self.array.dtype == np.float32:
-            return ffi.cast('float*', self.array.ctypes.data)
-
-        if self.array.dtype == np.int32:
-            return ffi.cast('rpr_int*', self.array.ctypes.data)
-
-        if self.array.dtype == np.int64:
-            return ffi.cast('size_t*', self.array.ctypes.data)
-
-        raise KeyError("Not correct dtype of np.array", self.array.dtype)
-
-    def __repr__(self):
-        return 'pyrpr.' + repr(self.array)
-
-
 class Object:
     core_type_name = 'void*'
 
@@ -240,11 +171,11 @@ class Object:
         try:
             self.delete()
         except:
-            _init_data._log_fun('EXCEPTION:', traceback.format_exc())
+            _init_data.log_fun('EXCEPTION:', traceback.format_exc())
 
     def delete(self):
-        if lib_wrapped_log_calls:
-            _init_data._log_fun('delete: ', self.name, self)
+        if _init_data.lib_wrapped_log_calls:
+            _init_data.log_fun('delete: ', self.name, self)
 
         if self._get_handle():
             ObjectDelete(self._get_handle())

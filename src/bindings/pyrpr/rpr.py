@@ -133,10 +133,8 @@ def write_api(api_desc_fpath, f, abi_mode):
         else:
             print('typedef ', t.type, name, ';', file=f)
     for name, t in api.functions.items():
-        if 'rprxGetLog' == name:
-            continue
         if 'rifContextExecuteCommandQueue' == name:
-            print('rif_int rifContextExecuteCommandQueue(rif_context context, rif_command_queue command_queue, void *executeFinishedCallbackFunction(void* userdata), void* data, float* time);', file=f)
+            print('rif_int rifContextExecuteCommandQueue(rif_context context, rif_command_queue command_queue, void *executeFinishedCallbackFunction(void* userdata), void* data, rif_performance_statistic* statistics);', file=f)
             continue
         print(name, [(arg.name, arg.type) for arg in t.args])
         print(t.restype, name, '(' + ', '.join(arg.type + ' ' + arg.name for arg in t.args) + ');', file=f)
