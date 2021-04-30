@@ -37,6 +37,10 @@ def recreate_sdk():
     copy_rif_sdk()
 
 
+def find_file(path, glob):
+    return next(f for f in path.glob(glob) if not f.is_symlink())
+
+
 def copy_rpr_sdk():
     rpr_dir = Path("RadeonProRenderSDK/RadeonProRender")
 
@@ -109,27 +113,32 @@ def copy_rif_sdk():
             shutil.copy(str(lib), str(sdk_lib_dir))
 
     elif OS == 'Linux':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters.so.1.6.1"),
+        shutil.copy(str(find_file(bin_dir, "libRadeonImageFilters.so*")),
                     str(sdk_bin_dir / "libRadeonImageFilters.so"))
-        shutil.copy(str(bin_dir / "libRadeonML_MIOpen.so.0.9.8"),
+        shutil.copy(str(find_file(bin_dir, "libRadeonML_MIOpen.so*")),
                     str(sdk_bin_dir / "libRadeonML_MIOpen.so"))
-        shutil.copy(str(bin_dir / "libOpenImageDenoise.so.0.9.0"),
+        shutil.copy(str(find_file(bin_dir, "libOpenImageDenoise.so*")),
                     str(sdk_bin_dir / "libOpenImageDenoise.so"))
-        shutil.copy(str(bin_dir / "libMIOpen.so.2.0.4"),
+        shutil.copy(str(find_file(bin_dir, "libMIOpen.so.2*")),
                     str(sdk_bin_dir / "libMIOpen.so.2"))
+        shutil.copy(str(find_file(bin_dir, "libRadeonML.so.0*")),
+                    str(sdk_bin_dir / "libRadeonML.so.0"))
 
     elif OS == 'Darwin':
-        shutil.copy(str(bin_dir / "libRadeonImageFilters.1.6.1.dylib"),
+        shutil.copy(str(find_file(bin_dir, "libRadeonImageFilters*.dylib")),
                     str(sdk_bin_dir / "libRadeonImageFilters.dylib"))
-        shutil.copy(str(bin_dir / "libOpenImageDenoise.0.9.0.dylib"),
+        shutil.copy(str(find_file(bin_dir, "libOpenImageDenoise*.dylib")),
                     str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
-        shutil.copy(str(bin_dir / "libRadeonML_MPS.0.9.8.dylib"),
+        shutil.copy(str(find_file(bin_dir, "libRadeonML_MPS*.dylib")),
                     str(sdk_bin_dir / "libRadeonML_MPS.dylib"))
+        shutil.copy(str(find_file(bin_dir, "libRadeonML.0*.dylib")),
+                    str(sdk_bin_dir / "libRadeonML.0.dylib"))
 
         # adjusting id of RIF libs
         install_name_tool('-id', "@rpath/libRadeonImageFilters.dylib", sdk_bin_dir / "libRadeonImageFilters.dylib")
         install_name_tool('-id', "@rpath/libOpenImageDenoise.dylib", sdk_bin_dir / "libOpenImageDenoise.dylib")
         install_name_tool('-id', "@rpath/libRadeonML_MPS.dylib", sdk_bin_dir / "libRadeonML_MPS.dylib")
+        install_name_tool('-id', "@rpath/libRadeonML.dylib", sdk_bin_dir / "libRadeonML.dylib")
 
     else:
         raise KeyError("Unsupported OS", OS)
