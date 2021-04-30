@@ -14,8 +14,8 @@
 #********************************************************************
 import platform
 import traceback
-import os
-from abc import ABCMeta, abstractmethod
+import ctypes
+from abc import ABCMeta
 import numpy as np
 
 import pyrprimagefilterswrap
@@ -25,19 +25,15 @@ import pyrpr
 
 import bgl
 
-lib_wrapped_log_calls = False
-
 
 class _init_data:
-    _log_fun = None
+    log_fun = None
+    lib_wrapped_log_calls = False
 
 
-def init(log_fun, rprsdk_bin_path):
-    _module = __import__(__name__)
-
-    _init_data._log_fun = log_fun
-
-    rel_path = "../../rif/bin"
+def init(lib_dir, log_fun, lib_wrapped_log_calls):
+    _init_data.log_fun = log_fun
+    _init_data.lib_wrapped_log_calls = lib_wrapped_log_calls
 
     lib_name = {
         'Windows': "RadeonImageFilters.dll",
@@ -45,20 +41,20 @@ def init(log_fun, rprsdk_bin_path):
         'Darwin': "libRadeonImageFilters.dylib"
     }[platform.system()]
 
-    import __imagefilters
+    ctypes.CDLL(str(lib_dir / lib_name))
 
+    import __imagefilters
     try:
         lib = __imagefilters.lib
     except AttributeError:
-        lib_path = str(rprsdk_bin_path / lib_name)
-        if not os.path.isfile(lib_path):
-            lib_path = str(rprsdk_bin_path / rel_path / lib_name)
-        lib = __imagefilters.ffi.dlopen(lib_path)
+        lib = __imagefilters.ffi.dlopen(str(lib_dir / lib_name))
 
     pyrprimagefilterswrap.lib = lib
     pyrprimagefilterswrap.ffi = __imagefilters.ffi
     global ffi
     ffi = __imagefilters.ffi
+
+    _module = __import__(__name__)
 
     for name in pyrprimagefilterswrap._constants_names:
         setattr(_module, name, getattr(pyrprimagefilterswrap, name))
@@ -89,13 +85,13 @@ class Object:
         try:
             self.delete()
         except:
-            _init_data._log_fun('EXCEPTION:', traceback.format_exc())
+            _init_data.log_fun('EXCEPTION:', traceback.format_exc())
 
     def delete(self):
         if self._handle_ptr and self._get_handle():
-            if lib_wrapped_log_calls:
-                assert _init_data._log_fun
-                _init_data._log_fun('delete: ', self)
+            if _init_data.lib_wrapped_log_calls:
+                assert _init_data.log_fun
+                _init_data.log_fun('delete: ', self)
             ObjectDelete(self._get_handle())
             self._reset_handle()
             
