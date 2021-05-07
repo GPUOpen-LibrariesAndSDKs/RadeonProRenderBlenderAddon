@@ -19,7 +19,7 @@ import numpy as np
 import bpy
 
 import pyrpr
-from rprblender.utils import helper_lib, IS_WIN, IS_MAC, is_zero
+from rprblender.utils import helper_lib, IS_OPENVDB_SUPPORT, is_zero
 from rprblender.utils import get_sequence_frame_file_path
 
 from . import mesh, object, material
@@ -102,7 +102,8 @@ def get_volume_file_path(volume, scene_frame):
 
 
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):
-    if not (IS_WIN or IS_MAC):
+    if not IS_OPENVDB_SUPPORT:
+        log.warn("OpenVDB is not supported")
         return
 
     # getting openvdb grid data
