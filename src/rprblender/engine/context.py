@@ -455,14 +455,14 @@ class RPRContext:
 
     def create_image_file(self, key, filepath):
         image = pyrpr.ImageFile(self.context, filepath)
-        image.set_compression = self.compress_textures
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
         image = pyrpr.ImageData(self.context, data)
-        image.set_compression = self.compress_textures
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image

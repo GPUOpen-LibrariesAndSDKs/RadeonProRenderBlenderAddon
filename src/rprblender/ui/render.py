@@ -197,7 +197,7 @@ class RPR_RENDER_PT_quality(RPR_Panel):
             self.layout.prop(rpr, 'hybrid_low_mem')
 
         if rpr.render_quality == 'FULL2':
-            self.layout.prop(rpr, texture_compression)
+            self.layout.prop(rpr, 'texture_compression')
 
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
