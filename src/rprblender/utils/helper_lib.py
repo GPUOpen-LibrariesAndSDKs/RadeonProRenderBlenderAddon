@@ -13,13 +13,11 @@
 # limitations under the License.
 #********************************************************************
 import ctypes
-import platform
 import numpy as np
 import math
 import os
 
-from . import package_root_dir, OS, IS_WIN, IS_MAC, IS_DEBUG_MODE, core_ver_str, rif_ver_str
-from .. import bl_info
+from . import package_root_dir, OS, IS_WIN, IS_DEBUG_MODE, IS_OPENVDB_SUPPORT
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
@@ -37,19 +35,36 @@ class VdbGridData(ctypes.Structure):
 def init():
     global lib
 
-    lib_name = {
-        'Windows': "RPRBlenderHelper.dll",
-        'Linux': "libRPRBlenderHelper.so",
-        'Darwin': "libRPRBlenderHelper.dylib"
-    }[OS]
+    if IS_OPENVDB_SUPPORT:
+        lib_name = {
+            'Windows': "RPRBlenderHelper_vdb.dll",
+            'Linux': "libRPRBlenderHelper.so",
+            'Darwin': "libRPRBlenderHelper_vdb.dylib"
+        }[OS]
+    else:
+        lib_name = {
+            'Windows': "RPRBlenderHelper.dll",
+            'Linux': "libRPRBlenderHelper.so",
+            'Darwin': "libRPRBlenderHelper.dylib"
+        }[OS]
 
     if IS_DEBUG_MODE:
         root_dir = package_root_dir().parent.parent
-        lib_dir = root_dir / 'RPRBlenderHelper/.build/Release' if IS_WIN else root_dir / 'RPRBlenderHelper/.build'
-        path_name = 'PATH' if IS_WIN else 'LD_LIBRARY_PATH'
-        env_paths = f"{lib_dir};{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/Windows/bin'};" if IS_WIN else \
-                    f"{lib_dir};"
-        os.environ[path_name] = env_paths + os.environ.get(path_name, "")
+        if IS_WIN:
+            lib_dir = root_dir / 'RPRBlenderHelper/.build/Release'
+            if IS_OPENVDB_SUPPORT:
+                os.environ['PATH'] = \
+                    f"{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/Windows/bin'};" \
+                    f"{os.environ.get('PATH', '')}"
+                # NOTE for python 3.8+ we have to use os.add_dll_directory()
+                # https://docs.python.org/3.8/library/os.html#os.add_dll_directory
+
+        else:
+            lib_dir = root_dir / 'RPRBlenderHelper/.build'
+            if IS_OPENVDB_SUPPORT:
+                os.environ['LD_LIBRARY_PATH'] = \
+                    f"{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/OSX/lib'}:" \
+                    f"{os.environ.get('LD_LIBRARY_PATH', '')}"
 
     else:
         lib_dir = package_root_dir()
@@ -74,7 +89,7 @@ def init():
     lib.get_sun_azimuth.restype = ctypes.c_float
     lib.get_sun_altitude.restype = ctypes.c_float
 
-    if IS_WIN or IS_MAC:
+    if IS_OPENVDB_SUPPORT:
         # OpenVdb functions
         lib.vdb_read_grids_list.argtypes = [ctypes.c_char_p]
         lib.vdb_read_grids_list.restype = ctypes.c_char_p
