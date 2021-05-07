@@ -150,8 +150,8 @@ class Engine:
 
     def sync_motion_blur(self, depsgraph: bpy.types.Depsgraph):
 
-        def set_motion_blur(rpr_object, prev_matrix, cur_matrix):
-            if hasattr(rpr_object, 'set_motion_transform'):
+        def set_motion_blur(rpr_object, prev_matrix, cur_matrix, is_camera=False):
+            if hasattr(rpr_object, 'set_motion_transform') and not is_camera:
                 rpr_object.set_motion_transform(
                     np.array(prev_matrix, dtype=np.float32).reshape(4, 4))
             else:
@@ -207,15 +207,16 @@ class Engine:
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
                 key = object.key(obj)
                 cur_matrix = cur_matrices.get(key, None)
-                if cur_matrix is None:
+                if cur_matrix is None or cur_matrix == obj.matrix_world:
                     continue
 
-                set_motion_blur(self.rpr_context.objects[key], obj.matrix_world, cur_matrix)
+                set_motion_blur(self.rpr_context.objects[key], obj.matrix_world, cur_matrix, 
+                                is_camera=isinstance(obj, bpy.types.Camera))
 
             for inst in self.depsgraph_instances(depsgraph):
                 key = instance.key(inst)
                 cur_matrix = cur_matrices.get(key, None)
-                if cur_matrix is None:
+                if cur_matrix is None or cur_matrix == obj.matrix_world:
                     continue
 
                 set_motion_blur(self.rpr_context.objects[key], inst.matrix_world, cur_matrix)
