@@ -76,6 +76,7 @@ py -3.7 src\bindings\pyrpr\src\pyrprapi.py %castxml%
 set bindingsOk=.\bindings-ok
 if exist %bindingsOk% (
 	py -3.7 build.py
+	py -3.9 build.py
 ) else (
 	echo Compiling bindings failed
 )

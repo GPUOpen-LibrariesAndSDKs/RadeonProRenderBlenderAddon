@@ -42,7 +42,9 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
 
     ffi.cdef(Path('rprapi.h').read_text())
 
-    lib_names = ['RadeonProRender64', 'RadeonImageFilters', 'python37']
+
+    lib_names = ['RadeonProRender64', 'RadeonImageFilters',
+                 f'python{sys.version_info.major}{sys.version_info.minor}']
 
     inc_dir = [str(base / "src/bindings/pyrpr"),
                str(rpr_sdk['inc']),
@@ -89,7 +91,11 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
     shutil.copy(_cffi_backend.__file__, str(build_dir))
 
     if 'Linux' == platform.system():
-        for path in (Path(_cffi_backend.__file__).parent / '.libs_cffi_backend').iterdir():
+        cffi_libs_dir = Path(_cffi_backend.__file__).parent / '.libs_cffi_backend'
+        if not cffi_libs_dir.is_dir():
+            cffi_libs_dir = Path(_cffi_backend.__file__).parent / 'cffi.libs'
+
+        for path in cffi_libs_dir.iterdir():
             if '.so' in path.suffixes:
                 # copy library needed for cffi backend
                 ffi_lib = str(path)
