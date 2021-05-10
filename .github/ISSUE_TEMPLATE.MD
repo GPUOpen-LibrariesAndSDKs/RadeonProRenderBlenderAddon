@@ -1,6 +1,6 @@
 Every issue should include 3 things:
 1.  System setup (GPU, CPU, OS version, Blender version)
-2.  * Most ideally * a scene to reproduce this simply.  SCREENSHOTS ARE NOT A SCENE FILE
+2.  **Most ideally** a .blend scene to reproduce this simply.  **SCREENSHOTS OR RENDERS ARE NOT A SCENE FILE**
 3.  What the expected behavior or effect is.  If possible include the error message.  
 
 You can get more information on the error message by opening Window -> Show System Console from blender and copying that text here.  On MacOS launch Blender from the Terminal.
