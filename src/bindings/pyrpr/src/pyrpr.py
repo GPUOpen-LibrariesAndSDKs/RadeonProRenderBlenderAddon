@@ -1322,6 +1322,9 @@ class Image(Object):
     def set_colorspace(self, colorspace):
         ImageSetOcioColorspace(self, encode(colorspace))
 
+    def set_compression(self, compression):
+        ImageSetInternalCompression(self, compression)
+
     @property
     def size_byte(self):
         if self._size_byte is None:

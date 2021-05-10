@@ -29,6 +29,8 @@ class RPRContext(context.RPRContext):
     _Scene = pyhybrid.Scene
 
     _MaterialNode = pyhybrid.MaterialNode
+    _ImageData = pyhybrid.ImageData
+    _ImageFile = pyhybrid.ImageFile
 
     _PointLight = pyhybrid.PointLight
     _SphereLight = pyhybrid.PointLight

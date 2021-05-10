@@ -466,6 +466,12 @@ class RPR_RenderProperties(RPR_Properties):
         default=False,
     )
 
+    texture_compression: BoolProperty(
+        name="Texture Compression",
+        description="Enables Texture compression for faster rendering (with lossier textures)",
+        default=False,
+    )
+
     motion_blur_in_velocity_aov: BoolProperty(
         name="Only in Velocity AOV",
         description="Apply Motion Blur in Velocity AOV only\nOnly for Full render quality",

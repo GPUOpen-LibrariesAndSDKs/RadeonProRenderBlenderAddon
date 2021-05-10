@@ -113,6 +113,7 @@ class PreviewEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
         settings_scene.rpr.export_ray_depth(self.rpr_context)
         settings_scene.rpr.export_pixel_filter(self.rpr_context)
+        self.rpr_context.texture_compression = settings_scene.rpr.texture_compression
 
         self.render_samples = settings_scene.rpr.viewport_limits.preview_samples
         self.render_update_samples = settings_scene.rpr.viewport_limits.preview_update_samples
