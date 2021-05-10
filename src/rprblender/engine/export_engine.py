@@ -74,6 +74,7 @@ class ExportEngine(Engine):
         # rpr_context parameters
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
+        self.rpr_context.texture_compression = scene.rpr.texture_compression
 
         # EXPORT CAMERA
         camera_key = object.key(scene.camera)   # current camera key

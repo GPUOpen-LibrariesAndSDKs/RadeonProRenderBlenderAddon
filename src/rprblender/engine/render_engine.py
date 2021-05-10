@@ -508,6 +508,7 @@ class RenderEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
         scene.rpr.export_pixel_filter(self.rpr_context)
+        self.rpr_context.texture_compression = scene.rpr.texture_compression
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
 

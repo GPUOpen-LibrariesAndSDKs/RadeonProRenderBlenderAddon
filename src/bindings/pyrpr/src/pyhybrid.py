@@ -133,6 +133,16 @@ class Camera(pyrpr.Camera):
 
 
 @class_ignore_unsupported
+class ImageData(pyrpr.ImageData):
+    pass
+
+
+@class_ignore_unsupported
+class ImageFile(pyrpr.ImageFile):
+    pass
+
+
+@class_ignore_unsupported
 class MaterialNode(pyrpr.MaterialNode):
     def set_input(self, name, value):
         if isinstance(value, EmptyMaterialNode):

@@ -25,6 +25,8 @@ class RPRContext:
     _Scene = pyrpr.Scene
 
     _MaterialNode = pyrpr.MaterialNode
+    _ImageData = pyrpr.ImageData
+    _ImageFile = pyrpr.ImageFile
 
     _PointLight = pyrpr.PointLight
     _SphereLight = pyrpr.PointLight  # RPR 2.0 only feature, use PointLight instead
@@ -79,6 +81,9 @@ class RPRContext:
         self.use_shadow_catcher = False
         self.use_reflection_catcher = False
         self.use_transparent_background = False
+
+        # texture compression used when images created
+        self.texture_compression = False
 
     def init(self, context_flags, context_props, use_contour_integrator=False):
         self.context = self._Context(context_flags, context_props)
@@ -451,13 +456,15 @@ class RPRContext:
         self.materials[key] = material_node
 
     def create_image_file(self, key, filepath):
-        image = pyrpr.ImageFile(self.context, filepath)
+        image = self._ImageFile(self.context, filepath)
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
-        image = pyrpr.ImageData(self.context, data)
+        image = self._ImageData(self.context, data)
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image
