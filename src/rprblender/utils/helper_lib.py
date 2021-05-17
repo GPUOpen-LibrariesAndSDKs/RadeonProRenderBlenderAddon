@@ -67,7 +67,15 @@ def init():
                     f"{os.environ.get('LD_LIBRARY_PATH', '')}"
 
     else:
+        root_dir = package_root_dir()
         lib_dir = package_root_dir()
+
+    if IS_WIN and IS_OPENVDB_SUPPORT:
+        if IS_DEBUG_MODE:
+            ctypes.CDLL(str(root_dir /
+                'RadeonProRenderSharedComponents/OpenVdb/Windows/bin/Half-2_3.dll'))
+        else:
+            ctypes.CDLL(str(root_dir / 'Half-2_3.dll'))
 
     lib = ctypes.CDLL(str(lib_dir / lib_name))
 

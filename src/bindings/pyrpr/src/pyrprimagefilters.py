@@ -41,6 +41,8 @@ def init(lib_dir, log_fun, lib_wrapped_log_calls):
         'Darwin': "libRadeonImageFilters.dylib"
     }[platform.system()]
 
+    if platform.system() == 'Windows':
+        ctypes.CDLL(str(lib_dir / "RadeonML.dll"))
     ctypes.CDLL(str(lib_dir / lib_name))
 
     import __imagefilters
