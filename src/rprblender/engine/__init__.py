@@ -21,20 +21,29 @@ from rprblender import utils
 from rprblender.utils import logging
 log = logging.Log(tag='engine.init')
 
-path_name = 'PATH' if utils.IS_WIN else 'LD_LIBRARY_PATH'
+
 if utils.IS_DEBUG_MODE:
     project_root = utils.package_root_dir().parent.parent
     rpr_lib_dir = project_root / '.sdk/rpr/bin'
     rif_lib_dir = project_root / '.sdk/rif/bin'
-    os.environ[path_name] = f"{rpr_lib_dir};{rif_lib_dir};" \
-                            f"{os.environ.get(path_name, '')}"
+
+    if utils.IS_WIN:
+        os.environ['PATH'] = f"{rpr_lib_dir};{rif_lib_dir};" \
+                             f"{os.environ.get('PATH', '')}"
+    else:
+        os.environ['LD_LIBRARY_PATH'] = f"{rpr_lib_dir}:{rif_lib_dir}:" \
+                             f"{os.environ.get('LD_LIBRARY_PATH', '')}"
 
     sys.path.append(str(project_root / "src/bindings/pyrpr/.build"))
     sys.path.append(str(project_root / "src/bindings/pyrpr/src"))
 
 else:
     rpr_lib_dir = rif_lib_dir = utils.package_root_dir()
-    os.environ[path_name] = f"{rpr_lib_dir};{os.environ.get(path_name, '')}"
+    if utils.IS_WIN:
+        os.environ['PATH'] = f"{rpr_lib_dir};{os.environ.get('PATH', '')}"
+    else:
+        os.environ['LD_LIBRARY_PATH'] = f"{rpr_lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+
     sys.path.append(str(utils.package_root_dir()))
 
 
