@@ -1513,3 +1513,98 @@ class RPRValueNode_Math(RPRShaderNode):
                 return None
 
             return self.export()
+
+
+class RPRShaderNodeToon(RPRShaderNode):
+    ''' A toon shader using both the RPR Toon Shader and Ramp node '''
+    bl_label = 'RPR Toon'
+
+    def advanced_changed(self, context):
+        ramp_sockets = ['Shadow Color', "Mid Level","Mid Color", "Highlight Level", "Highlight Color"]
+        mix_sockets = ["Mid Level Mix", "Highlight Level Mix"]
+        if self.show_advanced:
+            self.inputs['Color'].enabled = False
+            for socket in ramp_sockets:
+                self.inputs[socket].enabled = True
+            for socket in mix_sockets:
+                self.inputs[socket].enabled = self.show_mix_levels
+        else:
+            for socket in ramp_sockets + mix_sockets:
+                self.inputs[socket].enabled = False
+            self.inputs['Color'].enabled = True
+
+    show_advanced: BoolProperty(name="Advanced", default=False, update=advanced_changed)
+    show_mix_levels: BoolProperty(name="Mix Levels", default=False, update=advanced_changed)
+
+    def init(self, context):
+        # Adding input sockets with default_value or hide_value properties.
+        # Here we use Blender's native node sockets
+        self.inputs.new('rpr_socket_color', "Color").default_value = (0.8, 0.8, 0.8, 1.0)    # Corresponds to Cycles diffuse
+        self.inputs.new('rpr_socket_weight', "Roughness").default_value = 1.0
+        self.inputs.new('NodeSocketVector', "Normal").hide_value = True
+
+        inp = self.inputs.new('rpr_socket_color', "Shadow Color")
+        inp.default_value = (0.0, 0.0, 0.0, 1.0)    # Corresponds to Cycles diffuse
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_weight', "Mid Level")
+        inp.default_value = 0.5
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_weight', "Mid Level Mix")
+        inp.default_value = 0.05
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_color', "Mid Color")
+        inp.default_value = (0.4, 0.4, 0.4, 1.0)    # Corresponds to Cycles diffuse
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_weight', "Highlight Level")
+        inp.default_value = 0.8
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_weight', "Highlight Level Mix")
+        inp.default_value = 0.05
+        inp.enabled = False
+        inp = self.inputs.new('rpr_socket_color', "Highlight Color")
+        inp.default_value = (0.8, 0.8, 0.8, 1.0)    # Corresponds to Cycles diffuse
+        inp.enabled = False
+
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    def draw_buttons(self, context, layout):
+        col = layout.column()
+
+        col.prop(self, 'show_advanced')
+        if self.show_advanced:
+            col.prop(self, 'show_mix_levels')
+
+    class Exporter(RuleNodeParser):
+        def export(self):
+            if self.node.show_advanced:
+                # build the toon ramp node
+                interpolation_mode = pyrpr.INTERPOLATION_MODE_LINEAR if self.node.show_mix_levels \
+                    else pyrpr.INTERPOLATION_MODE_NONE
+                ramp = self.create_node(pyrpr.MATERIAL_NODE_TOON_RAMP, {
+                    pyrpr.MATERIAL_INPUT_SHADOW: self.get_input_value('Shadow Color'),
+                    pyrpr.MATERIAL_INPUT_MID: self.get_input_value('Mid Color'),
+                    pyrpr.MATERIAL_INPUT_HIGHLIGHT: self.get_input_value('Highlight Color'),
+                    pyrpr.MATERIAL_INPUT_POSITION1: self.get_input_value('Mid Level'),
+                    pyrpr.MATERIAL_INPUT_POSITION2: self.get_input_value('Highlight Level'),
+                    pyrpr.MATERIAL_INPUT_RANGE1: self.get_input_value('Mid Level Mix'),
+                    pyrpr.MATERIAL_INPUT_RANGE2: self.get_input_value('Highlight Level Mix'),
+                    pyrpr.MATERIAL_INPUT_INTERPOLATION: interpolation_mode,
+                })
+
+                toon_shader = self.create_node(pyrpr.MATERIAL_NODE_TOON_CLOSURE, {
+                    pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0, 1.0),
+                    pyrpr.MATERIAL_INPUT_ROUGHNESS: self.get_input_value('Roughness'),
+                    pyrpr.MATERIAL_INPUT_DIFFUSE_RAMP: ramp
+                })
+            else:
+                toon_shader = self.create_node(pyrpr.MATERIAL_NODE_TOON_CLOSURE, {
+                    pyrpr.MATERIAL_INPUT_COLOR: self.get_input_value('Color'),
+                    pyrpr.MATERIAL_INPUT_ROUGHNESS: self.get_input_value('Roughness')
+                })
+
+            normal = self.get_input_link('Normal')        
+            if normal:
+                toon_shader.set_input(pyrpr.MATERIAL_INPUT_NORMAL, normal)
+
+            return toon_shader
