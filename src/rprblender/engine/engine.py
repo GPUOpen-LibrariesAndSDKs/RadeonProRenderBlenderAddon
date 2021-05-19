@@ -437,28 +437,66 @@ class Engine:
 
     def _enable_background_filter(self, settings):
         width, height = settings['resolution']
+        use_background = settings['use_background']
+        use_shadow = settings['use_shadow']
+        use_reflection = settings['use_reflection']
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.enable_aov(pyrpr.AOV_OPACITY)
 
         inputs = {'color', 'opacity'}
 
-        self.background_filter = image_filter.ImageFilterTransparentBackground(
-            self.rpr_context.context, inputs, {}, {}, width, height)
+        if not use_background and not use_reflection:
+            # The RPR2 applies a lonely Shadow catcher as a part of Color AOV, nothing to do here
+            return
+
+        if use_shadow:
+            self.rpr_context.enable_aov(pyrpr.AOV_SHADOW_CATCHER)
+            inputs.add('shadow_catcher')
+        if use_reflection:
+            self.rpr_context.enable_aov(pyrpr.AOV_REFLECTION_CATCHER)
+            inputs.add('reflection_catcher')
+        if use_reflection or use_shadow:
+            self.rpr_context.enable_aov(pyrpr.AOV_BACKGROUND)
+            inputs.add('background')
+
+        params = {'use_background': use_background, 'use_shadow': use_shadow, 'use_reflection': use_reflection}
+
+        self.background_filter = image_filter.ImageFilterTransparentShadowReflectionCatcher(
+            self.rpr_context.context, inputs, {}, params, width, height
+        )
 
         self.background_filter.settings = settings
 
     def _disable_background_filter(self):
         self.background_filter = None
 
-    def update_background_filter_inputs(self, tile_pos=(0, 0), color_image=None, opacity_image=None):
+    def update_background_filter_inputs(
+            self, tile_pos=(0, 0),
+            color_image=None, opacity_image=None):
+        """
+        Update background filter input images.
+        Use color_image and opacity_image as source if passed, get from AOV otherwise.
+        Update catchers from AOVs if usage flags are set.
+        """
         if color_image is None:
             color_image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+        self.background_filter.update_input('color', color_image, tile_pos)
+
         if opacity_image is None:
             opacity_image = self.rpr_context.get_image(pyrpr.AOV_OPACITY)
-
-        self.background_filter.update_input('color', color_image, tile_pos)
         self.background_filter.update_input('opacity', opacity_image, tile_pos)
+
+        # Catchers are taken directly from AOVs only when needed
+        if self.rpr_context.use_shadow_catcher:
+            shadow_catcher_image = self.rpr_context.get_image(pyrpr.AOV_SHADOW_CATCHER)
+            self.background_filter.update_input('shadow_catcher', shadow_catcher_image, tile_pos)
+        if self.rpr_context.use_reflection_catcher:
+            reflection_catcher_image = self.rpr_context.get_image(pyrpr.AOV_REFLECTION_CATCHER)
+            self.background_filter.update_input('reflection_catcher', reflection_catcher_image, tile_pos)
+        if self.rpr_context.use_shadow_catcher or self.rpr_context.use_reflection_catcher:
+            background_image = self.rpr_context.get_image(pyrpr.AOV_BACKGROUND)
+            self.background_filter.update_input('background', background_image, tile_pos)
 
     def setup_upscale_filter(self, settings):
         if self.upscale_filter and self.upscale_filter.settings == settings:
