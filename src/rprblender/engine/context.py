@@ -163,14 +163,7 @@ class RPRContext:
             for aov, fbs in self.frame_buffers_aovs.items():
                 fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
 
-        if self.composite:
-            if aovs and pyrpr.AOV_COLOR not in aovs:
-                return
-
-            color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
-            self.composite.compute(color_aov['composite'])
-            if self.gl_interop:
-                color_aov['composite'].resolve(color_aov['gl'])
+        self.apply_filters()
 
     def enable_aov(self, aov_type):
         if self.is_aov_enabled(aov_type):
@@ -250,10 +243,10 @@ class RPRContext:
         return False
 
     def _enable_catchers(self):
-        # Experimentally found the max value of shadow catcher,
-        # we'll need it to normalize shadow catcher AOV
-        SHADOW_CATCHER_MAX_VALUE = 2.0
+        self.enable_catcher_aovs()
+        self.create_filter_composite()
 
+    def enable_catcher_aovs(self):
         # Enable required AOVs
         self.enable_aov(pyrpr.AOV_COLOR)
         self.enable_aov(pyrpr.AOV_OPACITY)
@@ -262,6 +255,11 @@ class RPRContext:
             self.enable_aov(pyrpr.AOV_SHADOW_CATCHER)
         if self.use_reflection_catcher:
             self.enable_aov(pyrpr.AOV_REFLECTION_CATCHER)
+
+    def create_filter_composite(self):
+        # Experimentally found the max value of shadow catcher,
+        # we'll need it to normalize shadow catcher AOV
+        SHADOW_CATCHER_MAX_VALUE = 2.0
 
         # Composite frame buffer
         self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite'] = pyrpr.FrameBuffer(
@@ -272,17 +270,14 @@ class RPRContext:
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(
                 self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
-
         # Composite calculation elements frame buffers
         color = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
             'framebuffer.input': self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
         })
-
         alpha = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
             'framebuffer.input': self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res']
         }).get_channel(0)
         full_alpha = alpha
-
         if self.use_reflection_catcher or self.use_shadow_catcher:
             if self.use_reflection_catcher:
                 reflection_catcher = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
@@ -571,6 +566,13 @@ class RPRContext:
 
         del self.materials[key]
 
+    def apply_filters(self):
+        if self.composite:
+            color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
+            self.composite.compute(color_aov['composite'])
+            if self.gl_interop:
+                color_aov['composite'].resolve(color_aov['gl'])
+
 
 class RPRContext2(RPRContext):
     """ Manager of pyrpr calls """
@@ -590,7 +592,13 @@ class RPRContext2(RPRContext):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
         super().init(context_flags, context_props, use_contour_integrator)
 
-    def sync_catchers(self, use_transparent_background=False):
+    def _enable_catchers(self):
+        pass
+
+    def _disable_catchers(self):
+        pass
+
+    def apply_filters(self):
         pass
 
     def sync_auto_adapt_subdivision(self, width=0, height=0):
