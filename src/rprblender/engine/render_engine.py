@@ -157,11 +157,16 @@ class RenderEngine(Engine):
                 self.render_update_samples *= 2
 
         if self.image_filter:
-            self.notify_status(1.0, "Applying denoising final image")
+            self.notify_status(1.0, "Denoising final image")
             self.update_image_filter_inputs()
             self.image_filter.run()
+            color_source = self.image_filter.get_data()
+
+            # restore alpha channel
+            alpha_source = self.rpr_context.get_image()
+            color_source[:, :, 3] = alpha_source[:, :, 3]
             if self.background_filter:
-                self.update_background_filter_inputs()
+                self.update_background_filter_inputs(color_image=color_source)
                 self.background_filter.run()
             self.update_render_result((0, 0), (self.width, self.height),
                                       layer_name=self.render_layer_name,
@@ -496,8 +501,12 @@ class RenderEngine(Engine):
         # Shadow catcher
         if scene.rpr.render_quality != 'FULL':
             self.rpr_context.sync_catchers(False)
+            bg_filter_enabled = scene.render.film_transparent or self.rpr_context.use_reflection_catcher  # single Shadow Catcher AOV is handled by core
             background_filter_settings = {
-                'enable': scene.render.film_transparent,
+                'enable': bg_filter_enabled,
+                'use_background': scene.render.film_transparent,
+                'use_shadow': self.rpr_context.use_shadow_catcher,
+                'use_reflection': self.rpr_context.use_reflection_catcher,
                 'resolution': (self.width, self.height),
             }
             self.setup_background_filter(background_filter_settings)
