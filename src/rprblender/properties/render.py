@@ -42,6 +42,30 @@ from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
 
 
+def render_mode_items(scene, context):
+    items = [
+        ('AOV_COLOR', "Color AOV", "Color AOV"),
+        ('DIRECT_ILLUMINATION', "Direct Illumination", "Direct illumination render mode"),
+        ('DIRECT_ILLUMINATION_NO_SHADOW', "Direct Illumination no Shadows", "Direct illumination without shadows render mode"),
+        ('WIREFRAME', "Wireframe", "Wireframe render mode"),
+        ('MATERIAL_INDEX', "Material Index", "Material index render mode"),
+        ('POSITION', "World Position", "World position render mode"),
+        ('NORMAL', "Shading Normal", "Shading normal render mode"),
+        ('TEXCOORD', "Texture Coordinate", "Texture coordinate render mode"),
+        ('AMBIENT_OCCLUSION', "Ambient Occlusion", "Ambient occlusion render mode"),
+        ('DIFFUSE', "Diffuse", "Diffuse render mode"),
+    ]
+
+    enabled_aovs = context.view_layer.rpr.get_enabled_aovs()
+    for aov in enabled_aovs:
+        items.append(('AOV' + str(aov['rpr']), aov['name'], aov['name']))
+
+    return items
+
+
+
+
+
 class RPR_RenderLimits(bpy.types.PropertyGroup):
     """ Properties for render limits: 
         we use both a time and a max sample limit.
@@ -396,21 +420,10 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
     render_mode: EnumProperty(
-        name="Render Mode",
+        name="Viewport Render Mode",
         description="Override render mode",
-        items=(
-            ('GLOBAL_ILLUMINATION', "Global Illumination", "Global illumination render mode"),
-            ('DIRECT_ILLUMINATION', "Direct Illumination", "Direct illumination render mode"),
-            ('DIRECT_ILLUMINATION_NO_SHADOW', "Direct Illumination no Shadows", "Direct illumination without shadows render mode"),
-            ('WIREFRAME', "Wireframe", "Wireframe render mode"),
-            ('MATERIAL_INDEX', "Material Index", "Material index render mode"),
-            ('POSITION', "World Position", "World position render mode"),
-            ('NORMAL', "Shading Normal", "Shading normal render mode"),
-            ('TEXCOORD', "Texture Coordinate", "Texture coordinate render mode"),
-            ('AMBIENT_OCCLUSION', "Ambient Occlusion", "Ambient occlusion render mode"),
-            ('DIFFUSE', "Diffuse", "Diffuse render mode"),
-        ),
-        default='GLOBAL_ILLUMINATION',
+        items=render_mode_items,
+        default=0,
     )
 
     pixel_filter: EnumProperty(
@@ -636,6 +649,7 @@ class RPR_RenderProperties(RPR_Properties):
         return res
 
     def export_render_mode(self, rpr_context):
+        # TODO set only if not an aov
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_MODE,
                                          getattr(pyrpr, 'RENDER_MODE_' + self.render_mode))
 
