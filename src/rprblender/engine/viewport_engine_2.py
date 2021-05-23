@@ -69,6 +69,11 @@ class ViewportEngine2(ViewportEngine):
             image_filter_settings['resolution'] = self.width, self.height
             self.setup_image_filter(image_filter_settings)
 
+        if self.background_filter:
+            background_filter_settings = self.background_filter.settings.copy()
+            background_filter_settings['resolution'] = self.width, self.height
+            self.setup_background_filter(background_filter_settings)
+
         if self.upscale_filter:
             upscale_filter_settings = self.upscale_filter.settings.copy()
             upscale_filter_settings['resolution'] = self.width, self.height
@@ -229,13 +234,19 @@ class ViewportEngine2(ViewportEngine):
                 # applying denoising
                 self.update_image_filter_inputs()
                 self.image_filter.run()
-                self.rendered_image = self.image_filter.get_data()
+                image = self.image_filter.get_data()
 
                 time_render = time.perf_counter() - time_begin
                 status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration} | Denoised"
             else:
-                self.rendered_image = self.rpr_context.get_image()
+                image = self.rpr_context.get_image()
                 status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+
+            if self.background_filter:
+                with self.resolve_lock:
+                    self.rendered_image = self.resolve_background_aovs(self.rendered_image)
+            else:
+                self.rendered_image = image
 
             if self.upscale_filter:
                 self.upscale_filter.update_input('color', self.rendered_image)
@@ -260,9 +271,29 @@ class ViewportEngine2(ViewportEngine):
 
             with self.resolve_lock:
                 self._resolve()
-                self.rendered_image = self.rpr_context.get_image()
+                image = self.rpr_context.get_image()
+
+                if self.background_filter:
+                    image = self.resolve_background_aovs(image)
+                    self.rendered_image = image
+                else:
+                    self.rendered_image = image
 
         log("Finish _do_resolve")
+
+    def resolve_background_aovs(self, color_image):
+        settings = self.background_filter.settings
+        self.rpr_context.resolve((pyrpr.AOV_OPACITY,))
+        alpha = self.rpr_context.get_image(pyrpr.AOV_OPACITY)
+        if settings['use_shadow']:
+            self.rpr_context.resolve((pyrpr.AOV_SHADOW_CATCHER,))
+        if settings['use_reflection']:
+            self.rpr_context.resolve((pyrpr.AOV_REFLECTION_CATCHER,))
+        if settings['use_shadow'] or settings['use_reflection']:
+            self.rpr_context.resolve((pyrpr.AOV_BACKGROUND,))
+        self.update_background_filter_inputs(color_image=color_image, opacity_image=alpha)
+        self.background_filter.run()
+        return self.background_filter.get_data()
 
     def draw(self, context):
         log("Draw")
