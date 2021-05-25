@@ -21,7 +21,7 @@ import bmesh
 import mathutils
 
 import pyrpr
-from rprblender.engine.context import RPRContext
+from rprblender.engine.context import RPRContext, RPRContext2
 from . import object, material, volume
 from rprblender.utils import get_data_from_collection
 
@@ -82,12 +82,13 @@ class MeshData:
                 data.uvs.append(uvs)
                 data.uv_indices.append(uv_indices)
 
-            secondary_uv = mesh.rpr.secondary_uv_layer(obj)
-            if secondary_uv:
-                uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
-                if len(uvs) > 0:
-                    data.uvs.append(uvs)
-                    data.uv_indices.append(uv_indices)
+            if obj:
+                secondary_uv = mesh.rpr.secondary_uv_layer(obj)
+                if secondary_uv:
+                    uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
+                    if len(uvs) > 0:
+                        data.uvs.append(uvs)
+                        data.uv_indices.append(uv_indices)
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
         data.vertex_indices = get_data_from_collection(mesh.loop_triangles, 'vertices',
@@ -315,12 +316,26 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
         rpr_context.create_empty_object(obj_key)
         return
 
-    rpr_shape = rpr_context.create_mesh(
-        obj_key,
-        data.vertices, data.normals, data.uvs,
-        data.vertex_indices, data.normal_indices, data.uv_indices,
-        data.num_face_vertices
-    )
+    deformation_data = rpr_context.deformation_cache.get(obj_key)
+    if deformation_data and np.any(data.vertices != deformation_data.vertices) and \
+            np.any(data.normals != deformation_data.normals):
+        vertices = np.concatenate((data.vertices, deformation_data.vertices))
+        normals = np.concatenate((data.normals, deformation_data.normals))
+        rpr_shape = rpr_context.create_mesh(
+            obj_key,
+            np.ascontiguousarray(vertices), np.ascontiguousarray(normals), data.uvs,
+            data.vertex_indices, data.normal_indices, data.uv_indices,
+            data.num_face_vertices,
+            {pyrpr.MESH_MOTION_DIMENSION: 2}
+        )
+    else:
+        rpr_shape = rpr_context.create_mesh(
+            obj_key,
+            data.vertices, data.normals, data.uvs,
+            data.vertex_indices, data.normal_indices, data.uv_indices,
+            data.num_face_vertices
+        )
+
     rpr_shape.set_name(obj.name)
     rpr_shape.set_id(obj.pass_index)
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
@@ -332,7 +347,10 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     assign_materials(rpr_context, rpr_shape, obj, material_override)
 
     rpr_context.scene.attach(rpr_shape)
-    rpr_shape.set_transform(object.get_transform(obj))
+
+    transform = object.get_transform(obj)
+    rpr_shape.set_transform(transform)
+    object.export_motion_blur(rpr_context, obj_key, transform)
 
     sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only, use_contour=use_contour)
 
@@ -364,3 +382,12 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
     sync(rpr_context, obj, **kwargs)
     return True
+
+
+def cache_blur_data(rpr_context, obj: bpy.types.Object, mesh=None):
+    obj_key = object.key(obj)
+    if obj.rpr.motion_blur:
+        rpr_context.transform_cache[obj_key] = object.get_transform(obj)
+
+    if obj.rpr.deformation_blur and isinstance(rpr_context, RPRContext2):
+        rpr_context.deformation_cache[obj_key] = MeshData.init_from_mesh(mesh if mesh else obj.data)

@@ -65,6 +65,10 @@ class RPRContext:
 
         self.do_motion_blur = False
         self.engine_type = None
+        
+        # motion data cache. each object key has a {transform: ... , deformation: ...}
+        self.transform_cache = {}
+        self.deformation_cache = {}
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
@@ -126,6 +130,9 @@ class RPRContext:
         self.materials = {}
 
         self.images = {}
+
+        self.transform_cache = {}
+        self.deformation_cache = {}
 
     def render(self, restart=False, tile=None):
         if restart:
@@ -399,7 +406,8 @@ class RPRContext:
             self.context,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            {}
         )
         light = self._AreaLight(mesh, self.material_system)
         self.objects[key] = light
@@ -409,13 +417,15 @@ class RPRContext:
             self, key,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            mesh_info={}
     ):
         mesh = self._Mesh(
             self.context,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            mesh_info
         )
         self.objects[key] = mesh
         return mesh
@@ -579,6 +589,8 @@ class RPRContext2(RPRContext):
 
     # Classes
     _Context = pyrpr2.Context
+
+    _Camera = pyrpr2.Camera
 
     _Mesh = pyrpr2.Mesh
     _Instance = pyrpr2.Instance

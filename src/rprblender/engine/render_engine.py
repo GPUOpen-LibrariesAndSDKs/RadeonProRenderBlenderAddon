@@ -387,6 +387,14 @@ class RenderEngine(Engine):
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
+        # CACHE BLUR DATA
+        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
+            not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
+
+        if self.rpr_context.do_motion_blur:
+            self.cache_blur_data(depsgraph)
+            self.set_motion_blur_mode(scene)
+
         # EXPORT OBJECTS
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
@@ -435,8 +443,13 @@ class RenderEngine(Engine):
         if not camera_obj:
             camera_obj = scene.camera
 
-        self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
-                                                              screen_width / screen_height, border)
+        self.camera_data = camera.CameraData.init_from_camera(
+            camera_obj.data, camera_obj.matrix_world, screen_width / screen_height, border)
+
+        if self.rpr_context.do_motion_blur:
+            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+            object.export_motion_blur(self.rpr_context, camera_key,
+                                      object.get_transform(camera_obj))
 
         if scene.rpr.is_tile_render_available:
             if scene.camera.data.type == 'PANO':
@@ -463,15 +476,6 @@ class RenderEngine(Engine):
             world_data = scene.world.evaluated_get(depsgraph)
         world_settings = world.sync(self.rpr_context, world_data)
         self.world_backplate = world_settings.backplate
-
-        # SYNC MOTION BLUR
-        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
-                                          not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
-
-        if self.rpr_context.do_motion_blur:
-            self.sync_motion_blur(depsgraph)
-            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-            self.set_motion_blur_mode(scene)
 
         # EXPORT PARTICLES
         # Note: particles should be exported after motion blur,

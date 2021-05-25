@@ -59,6 +59,13 @@ class ExportEngine(Engine):
 
         world.sync(self.rpr_context, scene.world)
 
+        # cache blur data
+        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
+            not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
+        if self.rpr_context.do_motion_blur:
+            self.cache_blur_data(depsgraph)
+            self.set_motion_blur_mode(scene)
+
         # camera, objects, particles
         for obj in self.depsgraph_objects(depsgraph, with_camera=True):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
@@ -88,15 +95,11 @@ class ExportEngine(Engine):
                                                          self.rpr_context.width / self.rpr_context.height)
         camera_data.export(rpr_camera)
 
-        # sync Motion Blur
-        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
-                                          not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
-
         if self.rpr_context.do_motion_blur:
-            self.sync_motion_blur(depsgraph)
             rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-            self.set_motion_blur_mode(scene)
-
+            object.export_motion_blur(self.rpr_context, camera_key,
+                                      object.get_transform(camera_obj))
+        
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
         self.rpr_context.sync_auto_adapt_subdivision()

@@ -41,6 +41,7 @@ class RPR_OBJECT_PT_object(RPR_Panel):
         col = self.layout.column()
         col.active = context.scene.render.use_motion_blur
         col.prop(rpr, "motion_blur")
+        col.prop(rpr, "deformation_blur")
 
 
 class RPR_OBJECT_PT_visibility(RPR_Panel):
