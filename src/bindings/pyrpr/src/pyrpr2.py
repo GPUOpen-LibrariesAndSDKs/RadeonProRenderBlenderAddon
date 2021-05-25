@@ -39,6 +39,12 @@ class Context(pyrpr.Context):
             self.render_update_callback = None
 
 
+class Camera(pyrpr.Camera):
+    def set_motion_transform(self, transform, transpose=True): # Blender needs matrix to be transposed
+        pyrpr.CameraSetMotionTransformCount(self, 1)
+        pyrpr.CameraSetMotionTransform(self, transpose, pyrpr.ffi.cast('float*', transform.ctypes.data), 1)
+
+
 class Shape(pyrpr.Shape):
     def set_motion_transform(self, transform, transpose=True): # Blender needs matrix to be transposed
         pyrpr.ShapeSetMotionTransformCount(self, 1)

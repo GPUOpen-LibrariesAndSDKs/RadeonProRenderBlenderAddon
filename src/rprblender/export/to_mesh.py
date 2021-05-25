@@ -19,6 +19,7 @@ It converts such blender object into blender mesh and exports it as mesh.
 
 import bpy
 
+from rprblender.engine.context import RPRContext2
 from . import object, mesh
 
 from rprblender.utils import logging
@@ -29,8 +30,8 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     """ Converts object into blender's mesh and exports it as mesh """
 
     try:
-        # This operation adds new mesh into bpy.data.meshes, that's why it should be removed after usage.
-        # obj.to_mesh() could also return None for META objects.
+        # This operation adds new mesh into bpy.data.meshes, that's why it should be removed
+        # after usage. obj.to_mesh() could also return None for META objects.
         new_mesh = obj.to_mesh()
         log("sync", obj, new_mesh)
 
@@ -67,3 +68,25 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     material_override = kwargs.get('material_override', None)
     return mesh.assign_materials(rpr_context, rpr_shape, obj, material_override=material_override)
+
+
+def cache_blur_data(rpr_context, obj: bpy.types.Object):
+    if obj.rpr.deformation_blur and isinstance(rpr_context, RPRContext2):
+        try:
+            # This operation adds new mesh into bpy.data.meshes, that's why it should be removed
+            # after usage. obj.to_mesh() could also return None for META objects.
+            new_mesh = obj.to_mesh()
+            log("sync", obj, new_mesh)
+
+            if new_mesh:
+                mesh.cache_blur_data(rpr_context, obj, new_mesh)
+                return True
+
+            return False
+
+        finally:
+            # it's important to clear created mesh
+            obj.to_mesh_clear()
+
+    else:
+        mesh.cache_blur_data(rpr_context, obj)

@@ -652,11 +652,11 @@ class Curve(Object):
 class Mesh(Shape):
     def __init__(self, context, vertices, normals, uvs: List[np.array],
                  vertex_indices, normal_indices, uv_indices: List[np.array],
-                 num_face_vertices):
+                 num_face_vertices, mesh_info):
         super().__init__(context)
         self.poly_count = len(num_face_vertices)
 
-        if len(uvs) > 1:
+        if len(uvs) > 1 or mesh_info:
             # several UVs set present
             texcoords_layers_num = len(uvs)
             texcoords_uvs = ffi.new("float *[]", texcoords_layers_num)
@@ -672,7 +672,15 @@ class Mesh(Shape):
                 texcoords_ind[i] = ffi.cast('rpr_int *', uv_indices[i].ctypes.data)
                 texcoords_ind_nbytes[i] = uv_indices[i][0].nbytes
 
-            ContextCreateMeshEx(
+            mesh_info_ptr = ffi.new(f"rpr_mesh_info[{2 * len(mesh_info) + 1}]")
+            i = 0
+            for key, val in mesh_info.items():
+                mesh_info_ptr[i] = key
+                mesh_info_ptr[i + 1] = val
+                i += 2
+            mesh_info_ptr[i] = 0
+
+            ContextCreateMeshEx2(
                 self.context,
                 ffi.cast("float *", vertices.ctypes.data), len(vertices), vertices[0].nbytes,
                 ffi.cast("float *", normals.ctypes.data), len(normals), normals[0].nbytes,
@@ -684,6 +692,7 @@ class Mesh(Shape):
                 ffi.cast('rpr_int*', normal_indices.ctypes.data), normal_indices[0].nbytes,
                 texcoords_ind, ffi.cast('rpr_int*', texcoords_ind_nbytes.ctypes.data),
                 ffi.cast('rpr_int*', num_face_vertices.ctypes.data), len(num_face_vertices),
+                mesh_info_ptr,
                 self
             )
 
