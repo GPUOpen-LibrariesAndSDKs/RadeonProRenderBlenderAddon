@@ -24,11 +24,10 @@ import weakref
 import numpy as np
 
 import bpy
-import mathutils
 import pyrpr
 
-from .context import RPRContext
-from rprblender.export import object, instance
+from .context import RPRContext, RPRContext2
+from rprblender.export import object, instance, mesh
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
 from . import image_filter
 
@@ -148,81 +147,20 @@ class Engine:
             if instance.is_instance and instance.object.type in ITERATED_OBJECT_TYPES:
                 yield instance
 
-    def sync_motion_blur(self, depsgraph: bpy.types.Depsgraph):
-
-        def set_motion_blur(rpr_object, prev_matrix, cur_matrix, is_camera=False):
-            if hasattr(rpr_object, 'set_motion_transform') and not is_camera:
-                rpr_object.set_motion_transform(
-                    np.array(prev_matrix, dtype=np.float32).reshape(4, 4))
-            else:
-                velocity = (prev_matrix - cur_matrix).to_translation()
-                rpr_object.set_linear_motion(*velocity)
-
-                mul_diff = prev_matrix @ cur_matrix.inverted()
-
-                quaternion = mul_diff.to_quaternion()
-                if quaternion.axis.length > 0.5:
-                    rpr_object.set_angular_motion(*quaternion.axis, quaternion.angle)
-                else:
-                    rpr_object.set_angular_motion(1.0, 0.0, 0.0, 0.0)
-
-                if not isinstance(rpr_object, pyrpr.Camera):
-                    scale_motion = mul_diff.to_scale() - mathutils.Vector((1, 1, 1))
-                    rpr_object.set_scale_motion(*scale_motion)
-
-        cur_matrices = {}
-
-        # getting current frame matrices
-        for obj in self.depsgraph_objects(depsgraph, with_camera=True):
-            if not obj.rpr.motion_blur:
-                continue
-
-            key = object.key(obj)
-            rpr_object = self.rpr_context.objects.get(key, None)
-            if not rpr_object or not isinstance(rpr_object, (pyrpr.Shape, pyrpr.AreaLight, pyrpr.Camera)):
-                continue
-
-            cur_matrices[key] = obj.matrix_world.copy()
-
-        for inst in self.depsgraph_instances(depsgraph):
-            if not inst.parent.rpr.motion_blur:
-                continue
-
-            key = instance.key(inst)
-            rpr_object = self.rpr_context.objects.get(key, None)
-            if not rpr_object or not isinstance(rpr_object, (pyrpr.Shape, pyrpr.AreaLight)):
-                continue
-
-            cur_matrices[key] = inst.matrix_world.copy()
-
-        if not cur_matrices:
-            return
-
+    def cache_blur_data(self, depsgraph: bpy.types.Depsgraph):
         cur_frame = depsgraph.scene.frame_current
-        prev_frame = cur_frame - 1
 
-        # set to previous frame and calculate motion blur data
-        self._set_scene_frame(depsgraph.scene, prev_frame, 0.0)
+        # set to next frame and cache blur data
+        self._set_scene_frame(depsgraph.scene, cur_frame + 1, 0.0)
+
         try:
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
-                key = object.key(obj)
-                cur_matrix = cur_matrices.get(key, None)
-                if cur_matrix is None or cur_matrix == obj.matrix_world:
-                    continue
-
-                set_motion_blur(self.rpr_context.objects[key], obj.matrix_world, cur_matrix, 
-                                is_camera=isinstance(obj, bpy.types.Camera))
+                object.cache_blur_data(self.rpr_context, obj)
 
             for inst in self.depsgraph_instances(depsgraph):
-                key = instance.key(inst)
-                cur_matrix = cur_matrices.get(key, None)
-                if cur_matrix is None or cur_matrix == obj.matrix_world:
-                    continue
-
-                set_motion_blur(self.rpr_context.objects[key], inst.matrix_world, cur_matrix)
+                instance.cache_blur_data(self.rpr_context, inst)
 
         finally:
-            # restore current frame
             self._set_scene_frame(depsgraph.scene, cur_frame, 0.0)
 
     def _set_scene_frame(self, scene, frame, subframe=0.0):
