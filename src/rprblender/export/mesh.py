@@ -242,6 +242,14 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
             rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
             rpr_shape.set_displacement_material(rpr_displacement)
+            # if no subdivision set that up to 'high' so displacement looks good
+            # note subdivision is capped to resolution
+            if rpr_shape.subdivision is None:
+                rpr_shape.subdivision = {
+                    'level': 10,
+                    'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER,
+                    'crease_weight': 10
+                }
         else:
             rpr_shape.set_displacement_material(None)
 
