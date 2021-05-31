@@ -62,6 +62,7 @@ class Engine:
         self.rpr_context = None
         self.image_filter = None
         self.background_filter = None
+        self.upscale_filter = None
 
     def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter, tile_pos, tile_size):
         """
