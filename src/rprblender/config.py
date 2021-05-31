@@ -28,8 +28,6 @@ enable_hybrid = True
 disable_athena_report = False
 clean_athena_files = True
 
-disable_athena_report = False
-clean_athena_files = True
 
 try:
     # configdev.py example for logging setup:
