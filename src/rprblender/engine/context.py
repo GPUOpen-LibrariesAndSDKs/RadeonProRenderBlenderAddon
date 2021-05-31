@@ -89,7 +89,7 @@ class RPRContext:
         # texture compression used when images created
         self.texture_compression = False
 
-    def init(self, context_flags, context_props, use_contour_integrator=False):
+    def init(self, context_flags, context_props):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
@@ -102,9 +102,6 @@ class RPRContext:
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
-
-        if use_contour_integrator:
-            self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
 
         self.post_effect = self._PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
 
@@ -148,6 +145,10 @@ class RPRContext:
 
     def get_image(self, aov_type=None):
         return self.get_frame_buffer(aov_type).get_data()
+
+    def set_integrator(self, use_contour_integrator):
+        integrator = "gpucontour" if use_contour_integrator else "gpusimple"
+        self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, integrator)
 
     def get_frame_buffer(self, aov_type=None):
         if aov_type is not None:
@@ -600,9 +601,9 @@ class RPRContext2(RPRContext):
     _DiskLight = pyrpr2.DiskLight
     _PostEffect = pyrpr2.PostEffect
 
-    def init(self, context_flags, context_props, use_contour_integrator=False):
+    def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-        super().init(context_flags, context_props, use_contour_integrator)
+        super().init(context_flags, context_props)
 
     def _enable_catchers(self):
         pass

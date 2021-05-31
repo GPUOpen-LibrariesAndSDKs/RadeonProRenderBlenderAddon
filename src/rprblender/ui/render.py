@@ -222,48 +222,6 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
 
 
-class RPR_RENDER_PT_contour_rendering(RPR_Panel):
-    bl_label = "Contour Rendering"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, 'use_contour_render', text="")
-        self.layout.enabled = context.scene.rpr.render_quality == 'FULL2'
-
-    def draw(self, context):
-        self.layout.use_property_split = True
-        self.layout.use_property_decorate = False
-
-        rpr_scene = context.scene.rpr
-
-        main_column = self.layout.column()
-        main_column.enabled = context.scene.rpr.is_contour_used()
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_object_id')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_object_id
-        args.prop(rpr_scene, 'contour_object_id_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_material_id')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_material_id
-        args.prop(rpr_scene, 'contour_material_id_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_shading_normal')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_shading_normal
-        args.prop(rpr_scene, 'contour_normal_threshold', slider=True)
-        args.prop(rpr_scene, 'contour_shading_normal_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_antialiasing', slider=True)
-
-        main_column.prop(rpr_scene, 'contour_debug_flag')
-
-
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
     bl_label = "Node Baking"
     bl_parent_id = 'RPR_RENDER_PT_quality'

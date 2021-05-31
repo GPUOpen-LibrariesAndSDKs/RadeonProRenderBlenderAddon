@@ -211,6 +211,9 @@ class RPREngine(bpy.types.RenderEngine):
             for i in range(3,6):
                 do_register_pass(cryptomatte_aovs[i])
 
+        if layer.rpr.use_contour_render:
+            do_register_pass(layer.rpr.contour_info)
+
 
 @bpy.app.handlers.persistent
 def on_version_update(*args, **kwargs):
