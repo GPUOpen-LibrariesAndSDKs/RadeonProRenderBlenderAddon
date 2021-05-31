@@ -283,7 +283,7 @@ def export_visibility(obj, rpr_shape, indirect_only):
     obj.rpr.set_catchers(rpr_shape)
 
 
-def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False, use_contour: bool = False):
+def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False):
     from rprblender.engine.viewport_engine import ViewportEngine
 
     rpr_shape.set_visibility(
@@ -296,8 +296,7 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, 
     export_visibility(obj, rpr_shape, indirect_only)
     obj.rpr.export_subdivision(rpr_shape)
 
-    if use_contour:
-        pyrpr.ShapeSetContourIgnore(rpr_shape, not obj.rpr.visibility_contour)
+    rpr_shape.set_contour_ignore(not obj.rpr.visibility_contour)
 
     if obj.rpr.portal_light:
         # Register mesh as a portal light, set "Environment" light group
@@ -315,7 +314,6 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     mesh = kwargs.get("mesh", obj.data)
     material_override = kwargs.get("material_override", None)
     indirect_only = kwargs.get("indirect_only", False)
-    use_contour = kwargs.get("use_contour", False)
     log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
     obj_key = object.key(obj)
@@ -360,7 +358,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     rpr_shape.set_transform(transform)
     object.export_motion_blur(rpr_context, obj_key, transform)
 
-    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only, use_contour=use_contour)
+    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
 
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
@@ -382,9 +380,8 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
         indirect_only = kwargs.get("indirect_only", False)
         material_override = kwargs.get("material_override", None)
-        use_contour = kwargs.get("use_contour", False)
-
-        sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only, use_contour=use_contour)
+        
+        sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
         assign_materials(rpr_context, rpr_shape, obj, material_override)
         return True
 

@@ -80,7 +80,9 @@ class RenderEngine2(RenderEngine):
 
             log('Finish do_resolve')
 
-        self.rpr_context.set_render_update_callback(render_update_callback)
+        if not self.do_contour_pass:
+            self.rpr_context.set_render_update_callback(render_update_callback)
+
         resolve_thread = threading.Thread(target=do_resolve)
         resolve_thread.start()
 

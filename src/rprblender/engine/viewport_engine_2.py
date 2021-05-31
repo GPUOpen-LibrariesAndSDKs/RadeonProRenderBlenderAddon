@@ -155,7 +155,7 @@ class ViewportEngine2(ViewportEngine):
 
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, iteration)
                 update_iterations = 1
-                if not self.use_contour and iteration > 1:
+                if iteration > 1:
                     update_iterations = min(32, self.render_iterations - iteration)
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_iterations)
 

@@ -56,6 +56,8 @@ class Engine:
         self.background_filter = None
         self.upscale_filter = None
 
+        self.result = None
+
     def stop_render(self):
         self.rpr_context = None
         self.image_filter = None
@@ -103,6 +105,10 @@ class Engine:
             elif p.name == "Color":
                 image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
 
+            elif p.name == "Outline":
+                # set outline to black for now
+                image = zeros_image(4)
+
             else:
                 aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
                     if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
@@ -110,7 +116,7 @@ class Engine:
                             if aov['name'] == p.name), None)
                 if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
                     image = self.rpr_context.get_image(aov['rpr'])
-                else:
+                elif p.name != 'Outline':
                     log.warn(f"AOV '{p.name}' is not enabled in rpr_context "
                              f"or not found in aovs_info")
                     image = zeros_image(p.channels)
@@ -125,9 +131,10 @@ class Engine:
 
     def update_render_result(self, tile_pos, tile_size, layer_name="",
                              apply_image_filter=False):
-        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
-        self._set_render_result(result.layers[0].passes, apply_image_filter, tile_pos, tile_size)
-        self.rpr_engine.end_result(result)
+        if not self.result:
+            self.result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
+        self._set_render_result(self.result.layers[0].passes, apply_image_filter, tile_pos, tile_size)
+        self.rpr_engine.update_result(self.result)
 
     def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph, with_camera=False):
         """ Iterates evaluated objects in depsgraph with ITERATED_OBJECT_TYPES """
