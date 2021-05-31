@@ -170,7 +170,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
         col.prop(settings, 'use_gl_interop')
 
-        col.prop(settings, 'viewport_denoiser_upscale')
+        col.prop(context.scene.rpr, 'viewport_denoiser_upscale')
 
         col.separator()
         col.prop(limits, 'preview_samples')

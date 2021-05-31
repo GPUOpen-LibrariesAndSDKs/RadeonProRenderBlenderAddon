@@ -515,11 +515,11 @@ class ViewportEngine(Engine):
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # image filter
-        self.setup_image_filter(self._get_image_filter_settings())
+        self.setup_image_filter(self._get_image_filter_settings(scene))
 
         # upscale filter
         self.setup_upscale_filter({
-            'enable': settings.viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_denoiser_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -1055,12 +1055,12 @@ class ViewportEngine(Engine):
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         # image filter
-        if self.setup_image_filter(self._get_image_filter_settings()):
+        if self.setup_image_filter(self._get_image_filter_settings(scene)):
             self.denoised_image = None
             restart = True
 
         restart |= self.setup_upscale_filter({
-            'enable': get_user_settings().viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_denoiser_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -1072,9 +1072,9 @@ class ViewportEngine(Engine):
 
         return world.WorldData.init_from_shading_data(self.shading_data)
 
-    def _get_image_filter_settings(self):
+    def _get_image_filter_settings(self, scene):
         return {
-            'enable': get_user_settings().viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_denoiser_upscale,
             'resolution': (self.width, self.height),
             'filter_type': 'ML',
             'ml_color_only': False,
