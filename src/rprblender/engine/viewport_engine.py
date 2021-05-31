@@ -226,6 +226,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context = None
         self.image_filter = None
+        self.upscale_filter = None
 
     def _resolve(self):
         self.rpr_context.resolve()

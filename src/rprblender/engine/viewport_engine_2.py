@@ -47,6 +47,7 @@ class ViewportEngine2(ViewportEngine):
         self.rpr_context.set_render_update_callback(None)
         self.rpr_context = None
         self.image_filter = None
+        self.upscale_filter = None
 
     def _resolve(self):
         self.rpr_context.resolve(None if self.image_filter and self.is_last_iteration else

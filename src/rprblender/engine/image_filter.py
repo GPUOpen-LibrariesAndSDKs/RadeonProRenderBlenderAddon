@@ -198,7 +198,7 @@ class ImageFilterML(ImageFilter):
         if not models_path.is_dir():
             # set alternative path
             models_path = utils.package_root_dir() / '../../.sdk/rif/models'
-        self.filter.set_parameter('modelPath', str(models_path))
+        self.filter.set_parameter('modelPath', str(models_path.resolve()))
         
         ml_output_image = self.context.create_image(self.width, self.height, 3)
 
@@ -308,7 +308,7 @@ class ImageFilterUpscale(ImageFilter):
         if not models_path.is_dir():
             # set alternative path
             models_path = utils.package_root_dir() / '../../.sdk/rif/models'
-        self.filter.set_parameter('modelPath', str(models_path))
+        self.filter.set_parameter('modelPath', str(models_path.resolve()))
 
         self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_FAST_2X)
 
