@@ -575,6 +575,9 @@ class Shape(Object):
     def set_id(self, id):
         ShapeSetObjectID(self, id)
 
+    def set_contour_ignore(self, ignore_in_contour):
+        ShapeSetContourIgnore(self, ignore_in_contour)
+
 
 class Curve(Object):
     core_type_name = 'rpr_curve'

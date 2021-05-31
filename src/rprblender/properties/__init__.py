@@ -71,6 +71,7 @@ register, unregister = bpy.utils.register_classes_factory([
     world.RPR_EnvironmentProperties,
 
     view_layer.RPR_DenoiserProperties,
+    view_layer.RPR_ContourProperties,
     view_layer.RPR_ViewLayerProperites,
 
     material_browser.RPR_MaterialBrowserProperties,

@@ -17,6 +17,7 @@ import time
 import datetime
 import math
 import numpy as np
+import bpy
 
 import pyrpr
 
@@ -62,7 +63,11 @@ class RenderEngine(Engine):
         self.camera_data: camera.CameraData = None
         self.tile_order = None
 
-        self.use_contour = False
+        # settings to crontrol the contour render pass
+        # needs_contour_pass means this engine should execute it
+        self.needs_contour_pass = False
+        # do contour pass means that this pass currently executing is a contour one
+        self.do_contour_pass = False
 
         self.world_backplate = None
 
@@ -88,6 +93,8 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
+        render_update_samples = 1 if self.do_contour_pass else self.render_update_samples
+
         while True:
             if self.rpr_engine.test_break():
                 athena_data['End Status'] = "cancelled"
@@ -98,7 +105,7 @@ class RenderEngine(Engine):
                                  self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
 
             # if less than update_samples left, use the remainder
-            update_samples = min(self.render_update_samples,
+            update_samples = min(render_update_samples,
                                  self.render_samples - self.current_sample)
 
             # we report time/iterations left as fractions if limit enabled
@@ -110,8 +117,9 @@ class RenderEngine(Engine):
                 self.current_sample / self.render_samples,
                 self.current_render_time / self.render_time if self.render_time else 0
             )
-            info_str = f"Render Time: {time_str} sec | "\
-                       f"Samples: {self.current_sample}/{self.render_samples}"
+            info_str = "Outline Pass | " if self.do_contour_pass else ""
+            info_str += f"Render Time: {time_str} sec | "\
+                        f"Samples: {self.current_sample}/{self.render_samples}"
             log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
                       f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
             if is_adaptive_active:
@@ -152,9 +160,10 @@ class RenderEngine(Engine):
                 break
 
             self.render_iteration += 1
-            if self.render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+            if self.render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS and \
+                    not self.do_contour_pass:
                 # progressively increase update samples up to 32
-                self.render_update_samples *= 2
+                render_update_samples *= 2
 
         if self.image_filter:
             self.notify_status(1.0, "Denoising final image")
@@ -181,6 +190,17 @@ class RenderEngine(Engine):
         log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
         self.athena_send(athena_data)
 
+    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter, tile_pos, tile_size):
+        if self.do_contour_pass:
+            # the is a special mode where we set the RGBA to "Outline" pass
+            p = render_passes['Outline']
+            image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+            utils.set_prop_array_data(p.rect, image)
+
+            return
+
+        return super()._set_render_result(render_passes, apply_image_filter, tile_pos, tile_size)
+    
     def _render_tiles(self):
         athena_data = {}
 
@@ -194,6 +214,8 @@ class RenderEngine(Engine):
         athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['End Status'] = "successful"
         progress = 0.0
+
+        render_update_samples = 1 if self.do_contour_pass else self.render_update_samples
 
         for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
@@ -221,7 +243,7 @@ class RenderEngine(Engine):
                 if self.rpr_engine.test_break():
                     break
 
-                update_samples = min(self.render_update_samples, self.render_samples - sample)
+                update_samples = min(render_update_samples, self.render_samples - sample)
                 self.current_render_time = time.perf_counter() - time_begin
                 progress = (tile_index + sample/self.render_samples) / tiles_number
                 info_str = f"Render Time: {self.current_render_time:.1f} sec"\
@@ -263,9 +285,9 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
-                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+                if render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS and not self.do_contour_pass:
                     # progressively increase update samples up to 32
-                    self.render_update_samples *= 2
+                    render_update_samples *= 2
 
             if not self.rpr_engine.test_break():
                 if self.image_filter:
@@ -342,11 +364,32 @@ class RenderEngine(Engine):
         else:
             self._render()
 
+        # contour or "Outline" rendering is done as a separate render pass.  
+        if self.needs_contour_pass:
+            log(f"Doing Outline Pass")
+            
+            # set contour settings
+            self.do_contour_pass = True
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
+
+            # enable contour aovs
+            self.rpr_context.disable_aovs()
+            self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+            self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+            self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
+            self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+
+            if self.tile_size:
+                self._render_tiles()
+            else:
+                self._render()
+
         self.notify_status(1, "Finish render")
         log('Finish render')
+        self.rpr_engine.end_result(self.result)
 
     def _init_rpr_context(self, scene):
-        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=self.use_contour)
+        scene.rpr.init_rpr_context(self.rpr_context)
 
         self.rpr_context.scene.set_name(scene.name)
 
@@ -367,7 +410,6 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        self.use_contour = scene.rpr.is_contour_used()
         self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \
@@ -382,8 +424,9 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        if self.use_contour:
-            scene.rpr.export_contour_mode(self.rpr_context)
+        self.needs_contour_pass = view_layer.rpr.use_contour_render and scene.rpr.render_quality == 'FULL2'
+        if self.needs_contour_pass:
+            view_layer.rpr.contour.export_contour_settings(self.rpr_context)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
@@ -404,7 +447,7 @@ class RenderEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current, use_contour=self.use_contour)
+                        frame_current=scene.frame_current)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -424,7 +467,7 @@ class RenderEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current, use_contour=self.use_contour)
+                          frame_current=scene.frame_current)
 
             if self.rpr_engine.test_break():
                 log.warn("Syncing stopped by user termination")
@@ -526,10 +569,7 @@ class RenderEngine(Engine):
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
 
         if scene.rpr.render_quality == 'FULL2':
-            if self.use_contour:
-                self.render_update_samples = 1
-            else:
-                self.render_update_samples = scene.rpr.limits.update_samples_rpr2
+            self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples
 

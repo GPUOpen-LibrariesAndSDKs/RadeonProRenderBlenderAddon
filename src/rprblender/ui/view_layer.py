@@ -100,3 +100,46 @@ class RPR_RENDER_PT_override(RPR_Panel):
         view_layer = context.view_layer
 
         layout.prop(view_layer, "material_override")
+
+
+class RPR_RENDER_PT_contour_rendering(RPR_Panel):
+    bl_label = "Outline Rendering"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "view_layer"
+
+    def draw_header(self, context):
+        self.layout.prop(context.view_layer.rpr, 'use_contour_render', text="")
+        self.layout.enabled = context.scene.rpr.render_quality == 'FULL2'
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        contour_settings = context.view_layer.rpr.contour
+
+        main_column = self.layout.column()
+        main_column.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.render_quality == 'FULL2'
+
+        col = main_column.column(align=True)
+        col.prop(contour_settings, 'use_object_id')
+        args = col.column(align=True)
+        args.enabled = contour_settings.use_object_id
+        args.prop(contour_settings, 'object_id_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(contour_settings, 'use_material_id')
+        args = col.column(align=True)
+        args.enabled = contour_settings.use_material_id
+        args.prop(contour_settings, 'material_id_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(contour_settings, 'use_shading_normal')
+        args = col.column(align=True)
+        args.enabled = contour_settings.use_shading_normal
+        args.prop(contour_settings, 'normal_threshold', slider=True)
+        args.prop(contour_settings, 'shading_normal_line_width', slider=True)
+
+        col = main_column.column(align=True)
+        col.prop(contour_settings, 'antialiasing', slider=True)
+
+        #main_column.prop(view_layer, 'contour_debug_flag')

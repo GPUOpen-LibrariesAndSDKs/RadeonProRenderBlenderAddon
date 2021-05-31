@@ -77,6 +77,8 @@ class PreviewEngine(Engine):
 
             sample += update_samples
 
+        self.rpr_engine.end_result(self.result)
+
         # clearing scene after finishing render
         self.rpr_context.clear_scene()
 
