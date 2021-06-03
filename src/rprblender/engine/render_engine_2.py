@@ -75,13 +75,12 @@ class RenderEngine2(RenderEngine):
                     break
 
                 self.rpr_context.resolve()
-                self.update_render_result((0, 0), (self.width, self.height),
-                                          layer_name=self.render_layer_name)
+                self._update_render_result((0, 0), (self.width, self.height),
+                                           layer_name=self.render_layer_name)
 
             log('Finish do_resolve')
 
-        if not self.do_contour_pass:
-            self.rpr_context.set_render_update_callback(render_update_callback)
+        self.rpr_context.set_render_update_callback(render_update_callback)
 
         resolve_thread = threading.Thread(target=do_resolve)
         resolve_thread.start()

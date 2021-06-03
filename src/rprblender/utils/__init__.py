@@ -262,14 +262,6 @@ def get_prop_array_data(arr, dtype=np.float32):
     return data
 
 
-def set_prop_array_data(arr, data):
-    arr_data = data.reshape(len(arr), -1)
-    if hasattr(arr, 'foreach_set'):
-        arr.foreach_set(arr_data)
-    else:
-        arr = arr_data
-
-
 def is_zero(val):
     return np.all(np.isclose(val, 0.0))
 
