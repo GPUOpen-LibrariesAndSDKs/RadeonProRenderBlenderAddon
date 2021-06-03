@@ -28,6 +28,8 @@ from rprblender.utils import render_stamp
 from rprblender.utils.conversion import perfcounter_to_str
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
+from rprblender.properties.view_layer import RPR_ViewLayerProperites
+
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -66,8 +68,7 @@ class RenderEngine(Engine):
         # settings to crontrol the contour render pass
         # needs_contour_pass means this engine should execute it
         self.needs_contour_pass = False
-        # do contour pass means that this pass currently executing is a contour one
-        self.do_contour_pass = False
+        self.cached_rendered_images = {}
 
         self.world_backplate = None
 
@@ -81,6 +82,110 @@ class RenderEngine(Engine):
         self.rpr_engine.update_progress(progress)
         self.rpr_engine.update_stats(self.status_title, info)
 
+    def _update_render_result(self, tile_pos, tile_size, layer_name="",
+                              apply_image_filter=False):
+
+        def zeros_image(channels):
+            return np.zeros((self.rpr_context.height, self.rpr_context.width, channels),
+                            dtype=np.float32)
+
+        def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
+            x1, y1 = tile_pos
+            x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
+
+            for p in render_passes:
+                if p.name == "Combined":
+                    if apply_image_filter and self.image_filter:
+                        image = self.image_filter.get_data()
+
+                        if self.background_filter:
+                            # calculate background effects on denoised image and cut out by tile size
+                            self.update_background_filter_inputs(tile_pos=tile_pos,
+                                                                 color_image=image)
+                            self.background_filter.run()
+                            image = self.background_filter.get_data()[y1:y2, x1:x2, :]
+                        else:
+                            # copying alpha component from rendered image to final denoised image,
+                            # because image filter changes it to 1.0
+                            image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
+
+                    elif self.background_filter:
+                        # calculate background effects and cut out by tile size
+                        self.update_background_filter_inputs(tile_pos=tile_pos)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()[y1:y2, x1:x2, :]
+                    else:
+                        image = self.rpr_context.get_image()
+
+                elif p.name == "Color":
+                    image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+
+                elif p.name == "Outline":
+                    image = zeros_image(p.channels)
+
+                else:
+                    aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
+                        if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
+                    aov = next((aov for aov in aovs_info
+                                if aov['name'] == p.name), None)
+                    if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
+                        image = self.rpr_context.get_image(aov['rpr'])
+                    elif p.name != 'Outline':
+                        log.warn(f"AOV '{p.name}' is not enabled in rpr_context "
+                                 f"or not found in aovs_info")
+                        image = zeros_image(p.channels)
+
+                if p.channels != image.shape[2]:
+                    image = image[:, :, 0:p.channels]
+
+                if self.needs_contour_pass:
+                    # saving rendered image into cache_rendered_images
+                    if p.name not in self.cached_rendered_images:
+                        self.cached_rendered_images[p.name] = np.zeros(
+                            (self.height, self.width, p.channels), dtype=np.float32)
+
+                    self.cached_rendered_images[p.name][y1:y2, x1:x2] = image
+
+                images.append(image.flatten())
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', np.concatenate(images))
+
+        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
+        try:
+            set_render_result(result.layers[0].passes)
+
+        finally:
+            self.rpr_engine.end_result(result)
+
+    def _update_render_result_contour(self, tile_pos, tile_size, layer_name=""):
+        def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
+            x1, y1 = tile_pos
+            x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
+
+            for p in render_passes:
+                if p.name == "Outline":
+                    image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                else:
+                    # getting required rendered image from cached_rendered_images
+                    image = self.cached_rendered_images[p.name][y1:y2, x1:x2]
+
+                images.append(image.flatten())
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', np.concatenate(images))
+
+        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
+        try:
+            set_render_result(result.layers[0].passes)
+
+        finally:
+            self.rpr_engine.end_result(result)
+
     def _render(self):
         athena_data = {}
 
@@ -93,7 +198,7 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
-        render_update_samples = 1 if self.do_contour_pass else self.render_update_samples
+        render_update_samples = self.render_update_samples
 
         while True:
             if self.rpr_engine.test_break():
@@ -117,9 +222,8 @@ class RenderEngine(Engine):
                 self.current_sample / self.render_samples,
                 self.current_render_time / self.render_time if self.render_time else 0
             )
-            info_str = "Outline Pass | " if self.do_contour_pass else ""
-            info_str += f"Render Time: {time_str} sec | "\
-                        f"Samples: {self.current_sample}/{self.render_samples}"
+            info_str = f"Render Time: {time_str} sec | "\
+                       f"Samples: {self.current_sample}/{self.render_samples}"
             log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
                       f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
             if is_adaptive_active:
@@ -143,8 +247,8 @@ class RenderEngine(Engine):
             if self.background_filter:
                 self.update_background_filter_inputs()
                 self.background_filter.run()
-            self.update_render_result((0, 0), (self.width, self.height),
-                                      layer_name=self.render_layer_name)
+            self._update_render_result((0, 0), (self.width, self.height),
+                                       layer_name=self.render_layer_name)
 
             # stop at whichever comes first:
             # max samples or max time if enabled or active_pixels == 0
@@ -160,8 +264,7 @@ class RenderEngine(Engine):
                 break
 
             self.render_iteration += 1
-            if self.render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS and \
-                    not self.do_contour_pass:
+            if self.render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS:
                 # progressively increase update samples up to 32
                 render_update_samples *= 2
 
@@ -177,9 +280,9 @@ class RenderEngine(Engine):
             if self.background_filter:
                 self.update_background_filter_inputs(color_image=color_source)
                 self.background_filter.run()
-            self.update_render_result((0, 0), (self.width, self.height),
-                                      layer_name=self.render_layer_name,
-                                      apply_image_filter=True)
+            self._update_render_result((0, 0), (self.width, self.height),
+                                       layer_name=self.render_layer_name,
+                                       apply_image_filter=True)
 
         self.apply_render_stamp_to_image()
 
@@ -190,17 +293,6 @@ class RenderEngine(Engine):
         log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
         self.athena_send(athena_data)
 
-    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter, tile_pos, tile_size):
-        if self.do_contour_pass:
-            # the is a special mode where we set the RGBA to "Outline" pass
-            p = render_passes['Outline']
-            image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
-            utils.set_prop_array_data(p.rect, image)
-
-            return
-
-        return super()._set_render_result(render_passes, apply_image_filter, tile_pos, tile_size)
-    
     def _render_tiles(self):
         athena_data = {}
 
@@ -215,7 +307,7 @@ class RenderEngine(Engine):
         athena_data['End Status'] = "successful"
         progress = 0.0
 
-        render_update_samples = 1 if self.do_contour_pass else self.render_update_samples
+        render_update_samples = self.render_update_samples
 
         for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
@@ -270,8 +362,8 @@ class RenderEngine(Engine):
                 sample += update_samples
 
                 self.rpr_context.resolve()
-                self.update_render_result(tile_pos, tile_size,
-                                          layer_name=self.render_layer_name)
+                self._update_render_result(tile_pos, tile_size,
+                                           layer_name=self.render_layer_name)
 
                 # store maximum actual number of used samples for render stamp info
                 self.current_sample = max(self.current_sample, sample)
@@ -285,7 +377,7 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
-                if render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS and not self.do_contour_pass:
+                if render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS:
                     # progressively increase update samples up to 32
                     render_update_samples *= 2
 
@@ -349,6 +441,85 @@ class RenderEngine(Engine):
 
         self.athena_send(athena_data)
 
+    def _render_contour(self):
+        log(f"Doing Outline Pass")
+
+        # set contour settings
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
+
+        # enable contour aovs
+        self.rpr_context.disable_aovs()
+        self.rpr_context.resize(self.width, self.height)
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+        self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
+        self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+
+        # setting camera
+        self.camera_data.export(self.rpr_context.scene.camera)
+
+        athena_data = {}
+
+        time_begin = time.perf_counter()
+        athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['End Status'] = "successful"
+
+        self.current_sample = 0
+
+        while True:
+            if self.rpr_engine.test_break():
+                athena_data['End Status'] = "cancelled"
+                break
+
+            self.current_render_time = time.perf_counter() - time_begin
+
+            # if less than update_samples left, use the remainder
+            update_samples = 1
+
+            # we report time/iterations left as fractions if limit enabled
+            time_str = f"{self.current_render_time:.1f}/{self.render_time}" if self.render_time \
+                       else f"{self.current_render_time:.1f}"
+
+            # percent done is one of percent iterations or percent time so pick whichever is greater
+            progress = max(
+                self.current_sample / self.render_samples,
+                self.current_render_time / self.render_time if self.render_time else 0
+            )
+            info_str = f"Outline Pass | Render Time: {time_str} sec | "\
+                       f"Samples: {self.current_sample}/{self.render_samples}"
+            log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
+                      f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
+
+            self.notify_status(progress, info_str)
+
+            log(log_str)
+
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, self.render_iteration)
+            self.rpr_context.render(restart=(self.current_sample == 0))
+
+            self.current_sample += update_samples
+
+            self.rpr_context.resolve()
+            self._update_render_result_contour((0, 0), (self.width, self.height),
+                                               layer_name=self.render_layer_name)
+
+            if self.current_sample == self.render_samples:
+                break
+
+            if self.render_time and self.current_render_time >= self.render_time:
+                break
+
+            self.render_iteration += 1
+
+        athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['Samples'] = self.current_sample
+
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
+        self.athena_send(athena_data)
+
     def render(self):
         if not self.is_synced:
             return
@@ -366,27 +537,10 @@ class RenderEngine(Engine):
 
         # contour or "Outline" rendering is done as a separate render pass.  
         if self.needs_contour_pass:
-            log(f"Doing Outline Pass")
-            
-            # set contour settings
-            self.do_contour_pass = True
-            self.rpr_context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
-
-            # enable contour aovs
-            self.rpr_context.disable_aovs()
-            self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
-            self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
-            self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
-            self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
-
-            if self.tile_size:
-                self._render_tiles()
-            else:
-                self._render()
+            self._render_contour()
 
         self.notify_status(1, "Finish render")
         log('Finish render')
-        self.rpr_engine.end_result(self.result)
 
     def _init_rpr_context(self, scene):
         scene.rpr.init_rpr_context(self.rpr_context)
