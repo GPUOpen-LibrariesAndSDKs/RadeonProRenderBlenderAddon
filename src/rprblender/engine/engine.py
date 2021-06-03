@@ -21,14 +21,12 @@ Other modules in this directory could be viewport, etc.
 ''' main Render object '''
 
 import weakref
-import numpy as np
 
 import bpy
 import pyrpr
 
-from .context import RPRContext, RPRContext2
-from rprblender.export import object, instance, mesh
-from rprblender.properties.view_layer import RPR_ViewLayerProperites
+from .context import RPRContext
+from rprblender.export import object, instance
 from . import image_filter
 
 from rprblender.utils import logging
@@ -56,86 +54,11 @@ class Engine:
         self.background_filter = None
         self.upscale_filter = None
 
-        self.result = None
-
     def stop_render(self):
         self.rpr_context = None
         self.image_filter = None
         self.background_filter = None
         self.upscale_filter = None
-
-    def _set_render_result(self, render_passes: bpy.types.RenderPasses, apply_image_filter, tile_pos, tile_size):
-        """
-        Sets render result to render passes
-        :param render_passes: render passes to collect
-        :return: images
-        """
-        def zeros_image(channels):
-            return np.zeros((self.rpr_context.height, self.rpr_context.width, channels), dtype=np.float32)
-
-        images = []
-
-        x1, y1 = tile_pos
-        x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
-
-        for p in render_passes:
-            # finding corresponded aov
-
-            if p.name == "Combined":
-                if apply_image_filter and self.image_filter:
-                    image = self.image_filter.get_data()
-
-                    if self.background_filter:
-                        # calculate background effects on denoised image and cut out by tile size
-                        self.update_background_filter_inputs(tile_pos=tile_pos, color_image=image)
-                        self.background_filter.run()
-                        image = self.background_filter.get_data()[y1:y2, x1:x2, :]
-                    else:
-                        # copying alpha component from rendered image to final denoised image,
-                        # because image filter changes it to 1.0
-                        image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
-
-                elif self.background_filter:
-                    # calculate background effects and cut out by tile size
-                    self.update_background_filter_inputs(tile_pos=tile_pos)
-                    self.background_filter.run()
-                    image = self.background_filter.get_data()[y1:y2, x1:x2, :]
-                else:
-                    image = self.rpr_context.get_image()
-
-            elif p.name == "Color":
-                image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
-
-            elif p.name == "Outline":
-                # set outline to black for now
-                image = zeros_image(4)
-
-            else:
-                aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
-                    if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
-                aov = next((aov for aov in aovs_info
-                            if aov['name'] == p.name), None)
-                if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
-                    image = self.rpr_context.get_image(aov['rpr'])
-                elif p.name != 'Outline':
-                    log.warn(f"AOV '{p.name}' is not enabled in rpr_context "
-                             f"or not found in aovs_info")
-                    image = zeros_image(p.channels)
-
-            if p.channels != image.shape[2]:
-                image = image[:, :, 0:p.channels]
-
-            images.append(image.flatten())
-
-        # efficient way to copy all AOV images
-        render_passes.foreach_set('rect', np.concatenate(images))
-
-    def update_render_result(self, tile_pos, tile_size, layer_name="",
-                             apply_image_filter=False):
-        if not self.result:
-            self.result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name)
-        self._set_render_result(self.result.layers[0].passes, apply_image_filter, tile_pos, tile_size)
-        self.rpr_engine.update_result(self.result)
 
     def depsgraph_objects(self, depsgraph: bpy.types.Depsgraph, with_camera=False):
         """ Iterates evaluated objects in depsgraph with ITERATED_OBJECT_TYPES """
