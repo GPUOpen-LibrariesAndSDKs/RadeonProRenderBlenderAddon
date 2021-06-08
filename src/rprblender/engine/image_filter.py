@@ -311,6 +311,7 @@ class ImageFilterUpscale(ImageFilter):
         self.filter.set_parameter('modelPath', str(models_path.resolve()))
 
         self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_FAST_2X)
+        self.filter.set_parameter('useHDR', True)
 
         self.output_image = self.context.create_image(self.width * 2, self.height * 2)
         self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
