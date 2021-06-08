@@ -79,10 +79,22 @@ class Engine:
                 yield instance
 
     def cache_blur_data(self, depsgraph: bpy.types.Depsgraph):
-        cur_frame = depsgraph.scene.frame_current
+        scene = depsgraph.scene
+        position = scene.cycles.motion_blur_position
+
+        if position == 'END':  # shutter closes at the current frame, so [N-1 .. N]
+            start_frame = scene.frame_current - 1
+            subframe = 0.0
+        elif position == 'START':  # shutter opens at the current frame, [N .. N+1]
+            start_frame = scene.frame_current
+            subframe = 0.0
+        else:  # 'CENTER'  # shutter is opened during current frame, [N-0.5 .. N+0.5]
+            start_frame = scene.frame_current - 1
+            subframe = 0.5
+        end_frame = start_frame + 1
 
         # set to next frame and cache blur data
-        self._set_scene_frame(depsgraph.scene, cur_frame + 1, 0.0)
+        self._set_scene_frame(scene, end_frame, subframe)
 
         try:
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
@@ -92,7 +104,7 @@ class Engine:
                 instance.cache_blur_data(self.rpr_context, inst)
 
         finally:
-            self._set_scene_frame(depsgraph.scene, cur_frame, 0.0)
+            self._set_scene_frame(scene, start_frame, subframe)
 
     def _set_scene_frame(self, scene, frame, subframe=0.0):
         self.rpr_engine.frame_set(frame, subframe)

@@ -310,6 +310,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
 
         col = layout.column()
         col.enabled = context.scene.render.use_motion_blur
+        col.prop(context.scene.cycles, 'motion_blur_position', text="Position", slider=True)
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
         col = layout.column()
