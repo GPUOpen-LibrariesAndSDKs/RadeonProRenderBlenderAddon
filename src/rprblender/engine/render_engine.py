@@ -588,44 +588,48 @@ class RenderEngine(Engine):
         self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
             not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
 
-        if self.rpr_context.do_motion_blur:
-            self.cache_blur_data(depsgraph)
-            self.set_motion_blur_mode(scene)
+        cur_frame = scene.frame_current
+        try:
+            if self.rpr_context.do_motion_blur:
+                self.cache_blur_data(depsgraph)
+                self.set_motion_blur_mode(scene)
 
-        # EXPORT OBJECTS
-        objects_len = len(depsgraph.objects)
-        for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
-            self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
+            # EXPORT OBJECTS
+            objects_len = len(depsgraph.objects)
+            for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
+                self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
-            # the correct collection visibility info is stored in original object
-            indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
-            object.sync(self.rpr_context, obj,
-                        indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current)
+                # the correct collection visibility info is stored in original object
+                indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
+                object.sync(self.rpr_context, obj,
+                            indirect_only=indirect_only, material_override=material_override,
+                            frame_current=scene.frame_current)
 
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
 
-        # EXPORT INSTANCES
-        instances_len = len(depsgraph.object_instances)
-        last_instances_percent = 0
-        self.notify_status(0, "Syncing instances 0%")
+            # EXPORT INSTANCES
+            instances_len = len(depsgraph.object_instances)
+            last_instances_percent = 0
+            self.notify_status(0, "Syncing instances 0%")
 
-        for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
-            instances_percent = (i * 100) // instances_len
-            if instances_percent > last_instances_percent:
-                self.notify_status(0, f"Syncing instances {instances_percent}%")
-                last_instances_percent = instances_percent
+            for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
+                instances_percent = (i * 100) // instances_len
+                if instances_percent > last_instances_percent:
+                    self.notify_status(0, f"Syncing instances {instances_percent}%")
+                    last_instances_percent = instances_percent
 
-            indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
-            instance.sync(self.rpr_context, inst,
-                          indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current)
+                indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
+                instance.sync(self.rpr_context, inst,
+                              indirect_only=indirect_only, material_override=material_override,
+                              frame_current=scene.frame_current)
 
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
+        finally:
+            self._set_scene_frame(scene, cur_frame, 0.0)
 
         self.notify_status(0, "Syncing instances 100%")
 
@@ -680,10 +684,16 @@ class RenderEngine(Engine):
         self.notify_status(0, "Syncing particles")
         for obj in self.depsgraph_objects(depsgraph):
             particle.sync(self.rpr_context, obj)
+            if self.rpr_engine.test_break():
+                log.warn("Syncing stopped by user termination")
+                return
 
         # objects linked to scene as a collection are instanced, so walk thru them for particles
         for entry in self.depsgraph_instances(depsgraph):
             particle.sync(self.rpr_context, entry.instance_object)
+            if self.rpr_engine.test_break():
+                log.warn("Syncing stopped by user termination")
+                return
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
