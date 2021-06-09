@@ -101,8 +101,6 @@ class RPR_ContourProperties(RPR_Properties):
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_NORMAL_THRESHOLD, math.degrees(self.normal_threshold))
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_ANTIALIASING, self.antialiasing)
 
-        # rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_DEBUG_ENABLED, self.contour_debug_flag)
-
 
 class RPR_DenoiserProperties(RPR_Properties):
     """ Denoiser properties. This is a child property in RPR_ViewLayerProperties """
