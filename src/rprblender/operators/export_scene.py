@@ -175,7 +175,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         output_base = os.path.splitext(filepath)[0]
 
         devices = get_user_settings().final_devices
-        use_contour = scene.rpr.is_contour_used() and not devices.cpu_state
+        use_contour = view_layer.rpr.use_contour_render and not devices.cpu_state
 
         data = {
             'width': int(scene.render.resolution_x * scene.render.resolution_percentage / 100),
@@ -239,16 +239,16 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             device_settings[f'gpu{i}'] = int(gpu_state)
 
         if use_contour:
+            contour = view_layer.rpr.contour
             data['contour'] = {
-                "object.id": int(scene.rpr.contour_use_object_id),
-                "material.id": int(scene.rpr.contour_use_material_id),
-                "normal": int(scene.rpr.contour_use_shading_normal),
-                "threshold.normal": scene.rpr.contour_normal_threshold,
-                "linewidth.objid": scene.rpr.contour_object_id_line_width,
-                "linewidth.matid": scene.rpr.contour_material_id_line_width,
-                "linewidth.normal": scene.rpr.contour_shading_normal_line_width,
-                "antialiasing": scene.rpr.contour_antialiasing,
-                "debug": int(scene.rpr.contour_use_shading_normal)
+                "object.id": int(contour.use_object_id),
+                "material.id": int(contour.use_material_id),
+                "normal": int(contour.use_shading_normal),
+                "threshold.normal": contour.normal_threshold,
+                "linewidth.objid": contour.object_id_line_width,
+                "linewidth.matid": contour.material_id_line_width,
+                "linewidth.normal": contour.shading_normal_line_width,
+                "antialiasing": contour.antialiasing,
             }
 
         data['context'] = device_settings
