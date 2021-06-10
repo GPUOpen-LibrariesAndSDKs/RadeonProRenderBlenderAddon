@@ -89,7 +89,7 @@ def copy_rif_sdk():
     # getting rif bin_dir
     os_str = {
         'Windows': "Windows",
-        'Linux': "Ubuntu18",
+        'Linux': "Ubuntu20",
         'Darwin': "OSX"
     }[OS]
     bin_dir = rif_dir / os_str / "Dynamic"
