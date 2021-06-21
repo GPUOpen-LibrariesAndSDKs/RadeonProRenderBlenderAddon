@@ -55,13 +55,12 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
         rpr = context.object.rpr
         cycles_vis = context.object.cycles_visibility
 
-        flow = self.layout.grid_flow(row_major=True, even_columns=True)
-        flow.column().prop(cycles_vis, 'camera')
-        flow.column().prop(cycles_vis, 'glossy')
-        flow.column().prop(cycles_vis, 'transmission')
-        flow.column().prop(cycles_vis, 'diffuse')
-        flow.column().prop(cycles_vis, 'shadow')
-        flow.column().prop(rpr, 'visibility_contour')
+        self.layout.prop(cycles_vis, 'camera')
+        self.layout.prop(cycles_vis, 'diffuse')
+        self.layout.prop(cycles_vis, 'glossy')
+        self.layout.prop(cycles_vis, 'transmission')
+        self.layout.prop(cycles_vis, 'shadow')
+        self.layout.prop(rpr, 'visibility_contour')
 
 
 class RPR_OBJECT_PT_subdivision(RPR_Panel):
