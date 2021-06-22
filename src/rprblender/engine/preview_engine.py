@@ -22,6 +22,7 @@ from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
 
 
+
 CONTEXT_LIFETIME = 300.0    # 5 minutes in seconds
 
 
@@ -61,23 +62,28 @@ class PreviewEngine(Engine):
             return
 
         log(f"Start render [{self.rpr_context.width}, {self.rpr_context.height}]")
+        result = self.rpr_engine.begin_result(0, 0, self.rpr_context.width, self.rpr_context.height)
         sample = 0
-        while sample < self.render_samples:
-            if self.rpr_engine.test_break():
-                break
 
-            update_samples = min(self.render_update_samples, self.render_samples - sample)
+        try:
+            while sample < self.render_samples:
+                if self.rpr_engine.test_break():
+                    break
 
-            log(f"  samples: {sample} +{update_samples} / {self.render_samples}")
-            self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
-            self.rpr_context.render(restart=(sample == 0))
-            self.rpr_context.resolve()
-            self.update_render_result((0, 0), (self.rpr_context.width,
-                                               self.rpr_context.height))
+                update_samples = min(self.render_update_samples, self.render_samples - sample)
 
-            sample += update_samples
+                log(f"  samples: {sample} +{update_samples} / {self.render_samples}")
+                self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
+                self.rpr_context.render(restart=(sample == 0))
+                self.rpr_context.resolve()
 
-        self.rpr_engine.end_result(self.result)
+                image = self.rpr_context.get_image()
+                result.layers[0].passes.foreach_set('rect', image.flatten())
+                self.rpr_engine.update_result(result)
+
+                sample += update_samples
+        finally:
+            self.rpr_engine.end_result(result)
 
         # clearing scene after finishing render
         self.rpr_context.clear_scene()
