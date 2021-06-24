@@ -1383,12 +1383,29 @@ class ShaderNodeMath(NodeParser):
                 res = in1 > in2
             elif op == 'MODULO':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_MOD, in1, in2)
+
             else:
                 in3 = self.get_input_value(2)
                 if op == 'MULTIPLY_ADD':
                     res = in1 * in2 + in3
+                elif op == 'COMPARE':
+                    # Descriptions from Cycles: Outputs 1.0 if the difference
+                    # between the two input values is less than or equal to Epsilon.
+                    res = abs(in1 - in2) <= in3
+                elif op == 'SMOOTH_MIN':
+                    # Descriptions from Cycles: https://en.wikipedia.org/wiki/Smooth_maximum
+                    f1 = math.e ** (in1 * in3)
+                    f2 = math.e ** (in2 * in3)
+                    res = (in1 * f2 + in2 * f1) / (f1 + f2)
+                elif op == 'SMOOTH_MAX':
+                    # Descriptions from Cycles: https://en.wikipedia.org/wiki/Smooth_maximum
+                    f1 = math.e ** (in1 * in3)
+                    f2 = math.e ** (in2 * in3)
+                    res = (in1 * f1 + in2 * f2) / (f1 + f2)
+
                 else:
-                    raise ValueError("Incorrect math operation", op)
+                    res = in1
+                    log.warn("Unsupported math operation", op)
 
         if self.node.use_clamp:
             res = res.clamp()
