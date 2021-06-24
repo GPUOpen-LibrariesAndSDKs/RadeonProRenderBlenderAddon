@@ -512,7 +512,7 @@ class ViewportEngine(Engine):
 
         # upscale filter
         self.setup_upscale_filter({
-            'enable': scene.rpr.viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -1042,7 +1042,7 @@ class ViewportEngine(Engine):
             restart = True
 
         restart |= self.setup_upscale_filter({
-            'enable': scene.rpr.viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -1056,7 +1056,7 @@ class ViewportEngine(Engine):
 
     def _get_image_filter_settings(self, scene):
         return {
-            'enable': scene.rpr.viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_denoiser,
             'resolution': (self.width, self.height),
             'filter_type': 'ML',
             'ml_color_only': False,

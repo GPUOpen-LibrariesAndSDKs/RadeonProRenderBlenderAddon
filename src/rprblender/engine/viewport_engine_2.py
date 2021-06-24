@@ -228,32 +228,33 @@ class ViewportEngine2(ViewportEngine):
                 self._resolve()
 
             time_render = time.perf_counter() - time_begin
-            if self.image_filter:
-                self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
-                                   f" | Denoising...", "Render")
+            with self.render_lock:
+                if self.image_filter:
+                    self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+                                       f" | Denoising...", "Render")
 
-                # applying denoising
-                self.update_image_filter_inputs()
-                self.image_filter.run()
-                image = self.image_filter.get_data()
+                    # applying denoising
+                    self.update_image_filter_inputs()
+                    self.image_filter.run()
+                    image = self.image_filter.get_data()
 
-                time_render = time.perf_counter() - time_begin
-                status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration} | Denoised"
-            else:
-                image = self.rpr_context.get_image()
-                status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
+                    time_render = time.perf_counter() - time_begin
+                    status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration} | Denoised"
+                else:
+                    image = self.rpr_context.get_image()
+                    status_str = f"Time: {time_render:.1f} sec | Iteration: {iteration}"
 
-            if self.background_filter:
-                with self.resolve_lock:
-                    self.rendered_image = self.resolve_background_aovs(self.rendered_image)
-            else:
-                self.rendered_image = image
+                if self.background_filter:
+                    with self.resolve_lock:
+                        self.rendered_image = self.resolve_background_aovs(self.rendered_image)
+                else:
+                    self.rendered_image = image
 
-            if self.upscale_filter:
-                self.upscale_filter.update_input('color', self.rendered_image)
-                self.upscale_filter.run()
-                self.rendered_image = self.upscale_filter.get_data()
-                status_str += " | Upscaled"
+                if self.upscale_filter:
+                    self.upscale_filter.update_input('color', self.rendered_image)
+                    self.upscale_filter.run()
+                    self.rendered_image = self.upscale_filter.get_data()
+                    status_str += " | Upscaled"
 
             self.notify_status(status_str, "Rendering Done")
 
