@@ -470,12 +470,15 @@ class RPR_RenderProperties(RPR_Properties):
         default=False,
     )
 
-    
+    viewport_denoiser: BoolProperty(
+        name="Viewport Denoising",
+        description="Denoise rendered image with Machine Learning denoiser",
+        default=True,
+    )
 
-    viewport_denoiser_upscale: BoolProperty(
-        name="Viewport Denoising and Upscaling",
-        description="Denoise rendered image with Machine Learning denoiser.\n"
-                    "Rendering at 2 times lower resoluting then upscaling rendered image "
+    viewport_upscale: BoolProperty(
+        name="Viewport Upscaling",
+        description="Rendering at 2 times lower resoluting then upscaling rendered image "
                     "in the end of render",
         default=True,
     )
