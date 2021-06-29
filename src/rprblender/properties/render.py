@@ -61,6 +61,12 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=16, default=128,
     )
 
+    contour_render_samples: IntProperty(
+        name="Outline Samples",
+        description="Number of samples for Outline Rendering",
+        min=1, default=16,
+    )
+
     noise_threshold: FloatProperty(
         name="Noise Threshold",
         description="Cutoff for adaptive sampling. Once pixels are below this amount of noise, "

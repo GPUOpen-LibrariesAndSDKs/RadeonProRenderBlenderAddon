@@ -35,6 +35,7 @@ log = logging.Log(tag='properties.view_layer')
 class RPR_ContourProperties(RPR_Properties):
     """ Propoerties to do a contour pass """
     # CONTOUR render mode settings
+
     use_object_id: BoolProperty(
         name="Use Object ID",
         description="Use Object ID for Contour rendering",
