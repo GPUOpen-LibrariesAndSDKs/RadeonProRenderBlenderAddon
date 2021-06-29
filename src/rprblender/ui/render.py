@@ -136,6 +136,10 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(rpr, 'tile_y')
         col.prop(rpr, 'tile_order')
 
+        col = self.layout.column(align=True)
+        col.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.render_quality == 'FULL2'
+        col.prop(limits, 'contour_render_samples', slider=False)
+
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
     bl_label = "Viewport & Preview Sampling"
