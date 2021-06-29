@@ -69,6 +69,7 @@ class RenderEngine(Engine):
         # needs_contour_pass means this engine should execute it
         self.needs_contour_pass = False
         self.cached_rendered_images = {}
+        self.contour_pass_samples = 0
 
         self.world_backplate = None
 
@@ -483,12 +484,12 @@ class RenderEngine(Engine):
 
             # percent done is one of percent iterations or percent time so pick whichever is greater
             progress = max(
-                self.current_sample / self.render_samples,
+                self.current_sample / self.contour_pass_samples,
                 self.current_render_time / self.render_time if self.render_time else 0
             )
             info_str = f"Outline Pass | Render Time: {time_str} sec | "\
-                       f"Samples: {self.current_sample}/{self.render_samples}"
-            log_str = f"  samples: {self.current_sample} +{update_samples} / {self.render_samples}"\
+                       f"Samples: {self.current_sample}/{self.contour_pass_samples}"
+            log_str = f"  samples: {self.current_sample} +{update_samples} / {self.contour_pass_samples}"\
                       f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
 
             self.notify_status(progress, info_str)
@@ -505,7 +506,7 @@ class RenderEngine(Engine):
             self._update_render_result_contour((0, 0), (self.width, self.height),
                                                layer_name=self.render_layer_name)
 
-            if self.current_sample == self.render_samples:
+            if self.current_sample == self.contour_pass_samples:
                 break
 
             if self.render_time and self.current_render_time >= self.render_time:
@@ -731,6 +732,7 @@ class RenderEngine(Engine):
         self.rpr_context.texture_compression = scene.rpr.texture_compression
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
+        self.contour_pass_samples = scene.rpr.limits.contour_render_samples
 
         if scene.rpr.render_quality == 'FULL2':
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2
