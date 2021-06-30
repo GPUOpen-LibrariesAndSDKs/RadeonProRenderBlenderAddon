@@ -1901,6 +1901,57 @@ class ShaderNodeTexNoise(NodeParser):
         return None
 
 
+class ShaderNodeTexVoronoi(NodeParser):
+    """Create RPR Voronoi node"""
+
+    def export_rpr2(self):
+        if self.node.voronoi_dimensions in ('1D', '4D'):
+            log.warn("Unsupported dimension type", self.node.voronoi_dimensions, self.node,
+                     self.material)
+            return None
+
+        if self.node.feature != 'F1':
+            log.warn("Unsupported feature type", self.node.feature, self.node, self.material)
+            return None
+
+        if self.node.distance != 'EUCLIDEAN':
+            log.warn("Unsupported distance type", self.node.distance, self.node, self.material)
+            return None
+
+        scale = self.get_input_value('Scale')
+        scale *= 3.5 # RPR Voronoi texture visually is about 350% of Blender Voronoi
+        randomness = self.get_input_value('Randomness')
+        dimensions = 2 if self.node.voronoi_dimensions == '2D' else 3
+
+        mapping = self.get_input_link('Vector')
+        if not mapping:  # use default mapping if no external mapping nodes attached
+            mapping = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
+            })
+
+        out_type = {
+            'Distance': pyrpr.VORONOI_OUT_TYPE_DISTANCE,
+            'Color': pyrpr.VORONOI_OUT_TYPE_COLOR,
+            'Position': pyrpr.VORONOI_OUT_TYPE_POSITION
+        }[self.socket_out.name]
+
+        voronoi = self.create_node(pyrpr.MATERIAL_NODE_VORONOI_TEXTURE, {
+            pyrpr.MATERIAL_INPUT_UV: mapping,
+            pyrpr.MATERIAL_INPUT_SCALE: scale,
+            pyrpr.MATERIAL_INPUT_RANDOMNESS: randomness,
+            pyrpr.MATERIAL_INPUT_DIMENSION: dimensions,
+            pyrpr.MATERIAL_INPUT_OUTTYPE: out_type,
+        })
+
+        return voronoi
+
+    def export(self):
+        return None
+
+    def export_hybrid(self):
+        return None
+
+
 class ShaderNodeMapping(NodeParser):
     """Creating mix of lookup and math nodes to adjust texture coordinates mapping in a way Cycles do"""
 
