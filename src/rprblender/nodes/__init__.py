@@ -68,6 +68,7 @@ node_categories = [
         NodeItem('ShaderNodeTexGradient'),
         NodeItem('ShaderNodeTexImage'),
         NodeItem('ShaderNodeTexNoise'),
+        NodeItem('ShaderNodeTexVoronoi'),
         NodeItem('RPRTextureNodeLayered'),
     ],),
     RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
