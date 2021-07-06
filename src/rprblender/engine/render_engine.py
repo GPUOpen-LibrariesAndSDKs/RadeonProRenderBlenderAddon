@@ -17,6 +17,7 @@ import time
 import datetime
 import math
 import numpy as np
+import bpy
 
 import pyrpr
 
@@ -27,6 +28,8 @@ from rprblender.utils import render_stamp
 from rprblender.utils.conversion import perfcounter_to_str
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
+from rprblender.properties.view_layer import RPR_ViewLayerProperites
+
 
 from rprblender.utils import logging
 log = logging.Log(tag='RenderEngine')
@@ -62,7 +65,11 @@ class RenderEngine(Engine):
         self.camera_data: camera.CameraData = None
         self.tile_order = None
 
-        self.use_contour = False
+        # settings to crontrol the contour render pass
+        # needs_contour_pass means this engine should execute it
+        self.needs_contour_pass = False
+        self.cached_rendered_images = {}
+        self.contour_pass_samples = 0
 
         self.world_backplate = None
 
@@ -76,6 +83,110 @@ class RenderEngine(Engine):
         self.rpr_engine.update_progress(progress)
         self.rpr_engine.update_stats(self.status_title, info)
 
+    def _update_render_result(self, tile_pos, tile_size, layer_name="",
+                              apply_image_filter=False):
+
+        def zeros_image(channels):
+            return np.zeros((self.rpr_context.height, self.rpr_context.width, channels),
+                            dtype=np.float32)
+
+        def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
+            x1, y1 = tile_pos
+            x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
+
+            for p in render_passes:
+                if p.name == "Combined":
+                    if apply_image_filter and self.image_filter:
+                        image = self.image_filter.get_data()
+
+                        if self.background_filter:
+                            # calculate background effects on denoised image and cut out by tile size
+                            self.update_background_filter_inputs(tile_pos=tile_pos,
+                                                                 color_image=image)
+                            self.background_filter.run()
+                            image = self.background_filter.get_data()[y1:y2, x1:x2, :]
+                        else:
+                            # copying alpha component from rendered image to final denoised image,
+                            # because image filter changes it to 1.0
+                            image[:, :, 3] = self.rpr_context.get_image()[:, :, 3]
+
+                    elif self.background_filter:
+                        # calculate background effects and cut out by tile size
+                        self.update_background_filter_inputs(tile_pos=tile_pos)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()[y1:y2, x1:x2, :]
+                    else:
+                        image = self.rpr_context.get_image()
+
+                elif p.name == "Color":
+                    image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+
+                elif p.name == "Outline":
+                    image = zeros_image(p.channels)
+
+                else:
+                    aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
+                        if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
+                    aov = next((aov for aov in aovs_info
+                                if aov['name'] == p.name), None)
+                    if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
+                        image = self.rpr_context.get_image(aov['rpr'])
+                    elif p.name != 'Outline':
+                        log.warn(f"AOV '{p.name}' is not enabled in rpr_context "
+                                 f"or not found in aovs_info")
+                        image = zeros_image(p.channels)
+
+                if p.channels != image.shape[2]:
+                    image = image[:, :, 0:p.channels]
+
+                if self.needs_contour_pass:
+                    # saving rendered image into cache_rendered_images
+                    if p.name not in self.cached_rendered_images:
+                        self.cached_rendered_images[p.name] = np.zeros(
+                            (self.height, self.width, p.channels), dtype=np.float32)
+
+                    self.cached_rendered_images[p.name][y1:y2, x1:x2] = image
+
+                images.append(image.flatten())
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', np.concatenate(images))
+
+        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
+        try:
+            set_render_result(result.layers[0].passes)
+
+        finally:
+            self.rpr_engine.end_result(result)
+
+    def _update_render_result_contour(self, tile_pos, tile_size, layer_name=""):
+        def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
+            x1, y1 = tile_pos
+            x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
+
+            for p in render_passes:
+                if p.name == "Outline":
+                    image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                else:
+                    # getting required rendered image from cached_rendered_images
+                    image = self.cached_rendered_images[p.name][y1:y2, x1:x2]
+
+                images.append(image.flatten())
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', np.concatenate(images))
+
+        result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
+        try:
+            set_render_result(result.layers[0].passes)
+
+        finally:
+            self.rpr_engine.end_result(result)
+
     def _render(self):
         athena_data = {}
 
@@ -88,6 +199,8 @@ class RenderEngine(Engine):
         if is_adaptive:
             all_pixels = active_pixels = self.rpr_context.width * self.rpr_context.height
 
+        render_update_samples = self.render_update_samples
+
         while True:
             if self.rpr_engine.test_break():
                 athena_data['End Status'] = "cancelled"
@@ -98,7 +211,7 @@ class RenderEngine(Engine):
                                  self.rpr_context.get_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP)
 
             # if less than update_samples left, use the remainder
-            update_samples = min(self.render_update_samples,
+            update_samples = min(render_update_samples,
                                  self.render_samples - self.current_sample)
 
             # we report time/iterations left as fractions if limit enabled
@@ -135,8 +248,8 @@ class RenderEngine(Engine):
             if self.background_filter:
                 self.update_background_filter_inputs()
                 self.background_filter.run()
-            self.update_render_result((0, 0), (self.width, self.height),
-                                      layer_name=self.render_layer_name)
+            self._update_render_result((0, 0), (self.width, self.height),
+                                       layer_name=self.render_layer_name)
 
             # stop at whichever comes first:
             # max samples or max time if enabled or active_pixels == 0
@@ -152,17 +265,25 @@ class RenderEngine(Engine):
                 break
 
             self.render_iteration += 1
-            if self.render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+            if self.render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS:
                 # progressively increase update samples up to 32
-                self.render_update_samples *= 2
+                render_update_samples *= 2
 
         if self.image_filter:
-            self.notify_status(1.0, "Applying denoising final image")
+            self.notify_status(1.0, "Denoising final image")
             self.update_image_filter_inputs()
             self.image_filter.run()
-            self.update_render_result((0, 0), (self.width, self.height),
-                                      layer_name=self.render_layer_name,
-                                      apply_image_filter=True)
+            color_source = self.image_filter.get_data()
+
+            # restore alpha channel
+            alpha_source = self.rpr_context.get_image()
+            color_source[:, :, 3] = alpha_source[:, :, 3]
+            if self.background_filter:
+                self.update_background_filter_inputs(color_image=color_source)
+                self.background_filter.run()
+            self._update_render_result((0, 0), (self.width, self.height),
+                                       layer_name=self.render_layer_name,
+                                       apply_image_filter=True)
 
         self.apply_render_stamp_to_image()
 
@@ -186,6 +307,8 @@ class RenderEngine(Engine):
         athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['End Status'] = "successful"
         progress = 0.0
+
+        render_update_samples = self.render_update_samples
 
         for tile_index, (tile_pos, tile_size) in enumerate(tile_iterator()):
             if self.rpr_engine.test_break():
@@ -213,7 +336,7 @@ class RenderEngine(Engine):
                 if self.rpr_engine.test_break():
                     break
 
-                update_samples = min(self.render_update_samples, self.render_samples - sample)
+                update_samples = min(render_update_samples, self.render_samples - sample)
                 self.current_render_time = time.perf_counter() - time_begin
                 progress = (tile_index + sample/self.render_samples) / tiles_number
                 info_str = f"Render Time: {self.current_render_time:.1f} sec"\
@@ -240,8 +363,8 @@ class RenderEngine(Engine):
                 sample += update_samples
 
                 self.rpr_context.resolve()
-                self.update_render_result(tile_pos, tile_size,
-                                          layer_name=self.render_layer_name)
+                self._update_render_result(tile_pos, tile_size,
+                                           layer_name=self.render_layer_name)
 
                 # store maximum actual number of used samples for render stamp info
                 self.current_sample = max(self.current_sample, sample)
@@ -255,14 +378,17 @@ class RenderEngine(Engine):
                     break
 
                 render_iteration += 1
-                if render_iteration > 1 and self.render_update_samples < MAX_RENDER_ITERATIONS and not self.use_contour:
+                if render_iteration > 1 and render_update_samples < MAX_RENDER_ITERATIONS:
                     # progressively increase update samples up to 32
-                    self.render_update_samples *= 2
+                    render_update_samples *= 2
 
-            if self.image_filter and not self.rpr_engine.test_break():
-                self.update_image_filter_inputs(tile_pos)
+            if not self.rpr_engine.test_break():
+                if self.image_filter:
+                    self.update_image_filter_inputs(tile_pos=tile_pos)
+                if self.background_filter:
+                    self.update_background_filter_inputs(tile_pos=tile_pos)
 
-        if self.image_filter and not self.rpr_engine.test_break():
+        if (self.image_filter or self.background_filter) and not self.rpr_engine.test_break():
             self.notify_status(1.0, "Applying denoising final image")
 
             # getting already rendered images for every render pass
@@ -284,9 +410,19 @@ class RenderEngine(Engine):
 
                 # we will update only Combined pass
                 if p.name == "Combined":
-                    self.image_filter.run()
-                    image = self.image_filter.get_data()
-                    images[pos: pos + length] = image.flatten()
+                    image = None
+                    if self.image_filter:
+                        self.image_filter.run()
+                        image = self.image_filter.get_data()
+
+                    if self.background_filter:
+                        if image is not None:
+                            self.background_filter.update_input('color', image)
+                        self.background_filter.run()
+                        image = self.background_filter.get_data()
+
+                    if image is not None:
+                        images[pos: pos + length] = image.flatten()
                     break
 
                 pos += length
@@ -306,6 +442,85 @@ class RenderEngine(Engine):
 
         self.athena_send(athena_data)
 
+    def _render_contour(self):
+        log(f"Doing Outline Pass")
+
+        # set contour settings
+        self.rpr_context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
+
+        # enable contour aovs
+        self.rpr_context.disable_aovs()
+        self.rpr_context.resize(self.width, self.height)
+
+        self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
+        self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
+        self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
+        self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+
+        # setting camera
+        self.camera_data.export(self.rpr_context.scene.camera)
+
+        athena_data = {}
+
+        time_begin = time.perf_counter()
+        athena_data['Start Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['End Status'] = "successful"
+
+        self.current_sample = 0
+
+        while True:
+            if self.rpr_engine.test_break():
+                athena_data['End Status'] = "cancelled"
+                break
+
+            self.current_render_time = time.perf_counter() - time_begin
+
+            # if less than update_samples left, use the remainder
+            update_samples = 1
+
+            # we report time/iterations left as fractions if limit enabled
+            time_str = f"{self.current_render_time:.1f}/{self.render_time}" if self.render_time \
+                       else f"{self.current_render_time:.1f}"
+
+            # percent done is one of percent iterations or percent time so pick whichever is greater
+            progress = max(
+                self.current_sample / self.contour_pass_samples,
+                self.current_render_time / self.render_time if self.render_time else 0
+            )
+            info_str = f"Outline Pass | Render Time: {time_str} sec | "\
+                       f"Samples: {self.current_sample}/{self.contour_pass_samples}"
+            log_str = f"  samples: {self.current_sample} +{update_samples} / {self.contour_pass_samples}"\
+                      f", progress: {progress * 100:.1f}%, time: {self.current_render_time:.2f}"
+
+            self.notify_status(progress, info_str)
+
+            log(log_str)
+
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_samples)
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, self.render_iteration)
+            self.rpr_context.render(restart=(self.current_sample == 0))
+
+            self.current_sample += update_samples
+
+            self.rpr_context.resolve()
+            self._update_render_result_contour((0, 0), (self.width, self.height),
+                                               layer_name=self.render_layer_name)
+
+            if self.current_sample == self.contour_pass_samples:
+                break
+
+            if self.render_time and self.current_render_time >= self.render_time:
+                break
+
+            self.render_iteration += 1
+
+        athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+        athena_data['Samples'] = self.current_sample
+
+        log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
+        log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
+        self.athena_send(athena_data)
+
     def render(self):
         if not self.is_synced:
             return
@@ -321,11 +536,15 @@ class RenderEngine(Engine):
         else:
             self._render()
 
+        # contour or "Outline" rendering is done as a separate render pass.  
+        if self.needs_contour_pass:
+            self._render_contour()
+
         self.notify_status(1, "Finish render")
         log('Finish render')
 
     def _init_rpr_context(self, scene):
-        scene.rpr.init_rpr_context(self.rpr_context, use_contour_integrator=self.use_contour)
+        scene.rpr.init_rpr_context(self.rpr_context)
 
         self.rpr_context.scene.set_name(scene.name)
 
@@ -346,7 +565,6 @@ class RenderEngine(Engine):
 
         self.notify_status(0, "Start syncing")
 
-        self.use_contour = scene.rpr.is_contour_used()
         self._init_rpr_context(scene)
 
         border = ((0, 0), (1, 1)) if not scene.render.use_border else \
@@ -361,45 +579,58 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        if self.use_contour:
-            scene.rpr.export_contour_mode(self.rpr_context)
+        self.needs_contour_pass = view_layer.rpr.use_contour_render and scene.rpr.render_quality == 'FULL2'
+        if self.needs_contour_pass:
+            view_layer.rpr.contour.export_contour_settings(self.rpr_context)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
-        # EXPORT OBJECTS
-        objects_len = len(depsgraph.objects)
-        for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
-            self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
+        # CACHE BLUR DATA
+        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
+            not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
 
-            # the correct collection visibility info is stored in original object
-            indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
-            object.sync(self.rpr_context, obj,
-                        indirect_only=indirect_only, material_override=material_override,
-                        frame_current=scene.frame_current, use_contour=self.use_contour)
+        cur_frame = scene.frame_current
+        try:
+            if self.rpr_context.do_motion_blur:
+                self.cache_blur_data(depsgraph)
+                self.set_motion_blur_mode(scene)
 
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
+            # EXPORT OBJECTS
+            objects_len = len(depsgraph.objects)
+            for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
+                self.notify_status(0, "Syncing object (%d/%d): %s" % (i, objects_len, obj.name))
 
-        # EXPORT INSTANCES
-        instances_len = len(depsgraph.object_instances)
-        last_instances_percent = 0
-        self.notify_status(0, "Syncing instances 0%")
+                # the correct collection visibility info is stored in original object
+                indirect_only = obj.original.indirect_only_get(view_layer=view_layer)
+                object.sync(self.rpr_context, obj,
+                            indirect_only=indirect_only, material_override=material_override,
+                            frame_current=scene.frame_current)
 
-        for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
-            instances_percent = (i * 100) // instances_len
-            if instances_percent > last_instances_percent:
-                self.notify_status(0, f"Syncing instances {instances_percent}%")
-                last_instances_percent = instances_percent
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
 
-            indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
-            instance.sync(self.rpr_context, inst,
-                          indirect_only=indirect_only, material_override=material_override,
-                          frame_current=scene.frame_current, use_contour=self.use_contour)
+            # EXPORT INSTANCES
+            instances_len = len(depsgraph.object_instances)
+            last_instances_percent = 0
+            self.notify_status(0, "Syncing instances 0%")
 
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
+            for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
+                instances_percent = (i * 100) // instances_len
+                if instances_percent > last_instances_percent:
+                    self.notify_status(0, f"Syncing instances {instances_percent}%")
+                    last_instances_percent = instances_percent
+
+                indirect_only = inst.parent.original.indirect_only_get(view_layer=view_layer)
+                instance.sync(self.rpr_context, inst,
+                              indirect_only=indirect_only, material_override=material_override,
+                              frame_current=scene.frame_current)
+
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
+        finally:
+            self._set_scene_frame(scene, cur_frame, 0.0)
 
         self.notify_status(0, "Syncing instances 100%")
 
@@ -414,8 +645,13 @@ class RenderEngine(Engine):
         if not camera_obj:
             camera_obj = scene.camera
 
-        self.camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
-                                                              screen_width / screen_height, border)
+        self.camera_data = camera.CameraData.init_from_camera(
+            camera_obj.data, camera_obj.matrix_world, screen_width / screen_height, border)
+
+        if self.rpr_context.do_motion_blur:
+            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+            object.export_motion_blur(self.rpr_context, camera_key,
+                                      object.get_transform(camera_obj))
 
         if scene.rpr.is_tile_render_available:
             if scene.camera.data.type == 'PANO':
@@ -443,25 +679,22 @@ class RenderEngine(Engine):
         world_settings = world.sync(self.rpr_context, world_data)
         self.world_backplate = world_settings.backplate
 
-        # SYNC MOTION BLUR
-        self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
-                                          not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
-
-        if self.rpr_context.do_motion_blur:
-            self.sync_motion_blur(depsgraph)
-            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-            self.set_motion_blur_mode(scene)
-
         # EXPORT PARTICLES
         # Note: particles should be exported after motion blur,
         #       otherwise prev_location of particle will be (0, 0, 0)
         self.notify_status(0, "Syncing particles")
         for obj in self.depsgraph_objects(depsgraph):
             particle.sync(self.rpr_context, obj)
+            if self.rpr_engine.test_break():
+                log.warn("Syncing stopped by user termination")
+                return
 
         # objects linked to scene as a collection are instanced, so walk thru them for particles
         for entry in self.depsgraph_instances(depsgraph):
             particle.sync(self.rpr_context, entry.instance_object)
+            if self.rpr_engine.test_break():
+                log.warn("Syncing stopped by user termination")
+                return
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
@@ -480,8 +713,12 @@ class RenderEngine(Engine):
         # Shadow catcher
         if scene.rpr.render_quality != 'FULL':
             self.rpr_context.sync_catchers(False)
+            bg_filter_enabled = scene.render.film_transparent or self.rpr_context.use_reflection_catcher  # single Shadow Catcher AOV is handled by core
             background_filter_settings = {
-                'enable': scene.render.film_transparent,
+                'enable': bg_filter_enabled,
+                'use_background': scene.render.film_transparent,
+                'use_shadow': self.rpr_context.use_shadow_catcher,
+                'use_reflection': self.rpr_context.use_reflection_catcher,
                 'resolution': (self.width, self.height),
             }
             self.setup_background_filter(background_filter_settings)
@@ -492,14 +729,13 @@ class RenderEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
         scene.rpr.export_ray_depth(self.rpr_context)
         scene.rpr.export_pixel_filter(self.rpr_context)
+        self.rpr_context.texture_compression = scene.rpr.texture_compression
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
+        self.contour_pass_samples = scene.rpr.limits.contour_render_samples
 
         if scene.rpr.render_quality == 'FULL2':
-            if self.use_contour:
-                self.render_update_samples = 1
-            else:
-                self.render_update_samples = scene.rpr.limits.update_samples_rpr2
+            self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples
 

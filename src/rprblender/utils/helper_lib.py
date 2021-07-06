@@ -13,13 +13,11 @@
 # limitations under the License.
 #********************************************************************
 import ctypes
-import platform
 import numpy as np
 import math
 import os
 
-from . import package_root_dir, IS_WIN, IS_MAC, core_ver_str, rif_ver_str
-from .. import bl_info
+from . import package_root_dir, OS, IS_WIN, IS_DEBUG_MODE, IS_OPENVDB_SUPPORT
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
@@ -36,40 +34,50 @@ class VdbGridData(ctypes.Structure):
 
 def init():
     global lib
-    root_dir = package_root_dir()
 
-    OS = platform.system()
+    if IS_OPENVDB_SUPPORT:
+        lib_name = {
+            'Windows': "RPRBlenderHelper_vdb.dll",
+            'Linux': "libRPRBlenderHelper.so",
+            'Darwin': "libRPRBlenderHelper_vdb.dylib"
+        }[OS]
+    else:
+        lib_name = {
+            'Windows': "RPRBlenderHelper.dll",
+            'Linux': "libRPRBlenderHelper.so",
+            'Darwin': "libRPRBlenderHelper.dylib"
+        }[OS]
 
-    paths = [root_dir]
-    if OS == 'Windows':
-        lib_name = "RPRBlenderHelper.dll"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build/Release")
+    if IS_DEBUG_MODE:
+        root_dir = package_root_dir().parent.parent
+        if IS_WIN:
+            lib_dir = root_dir / 'RPRBlenderHelper/.build/Release'
+            if IS_OPENVDB_SUPPORT:
+                os.environ['PATH'] = \
+                    f"{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/Windows/bin'};" \
+                    f"{os.environ.get('PATH', '')}"
+                # NOTE for python 3.8+ we have to use os.add_dll_directory()
+                # https://docs.python.org/3.8/library/os.html#os.add_dll_directory
 
-        if (root_dir / "openvdb.dll").is_file():
-            os.environ['PATH'] += ";" + str(root_dir)
         else:
-            os.environ['PATH'] += ";" + str((root_dir / "../../RadeonProRenderSharedComponents/OpenVdb/Windows/bin")
-                                            .absolute())
-
-    elif OS == 'Darwin':
-        lib_name = "libRPRBlenderHelper.dylib"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build")
+            lib_dir = root_dir / 'RPRBlenderHelper/.build'
+            if IS_OPENVDB_SUPPORT:
+                os.environ['LD_LIBRARY_PATH'] = \
+                    f"{root_dir / 'RadeonProRenderSharedComponents/OpenVdb/OSX/lib'}:" \
+                    f"{os.environ.get('LD_LIBRARY_PATH', '')}"
 
     else:
-        lib_name = "libRPRBlenderHelper.so"
-        paths.append(root_dir / "../../RPRBlenderHelper/.build")
+        root_dir = package_root_dir()
+        lib_dir = package_root_dir()
 
-    lib_path = next(p / lib_name for p in paths if (p / lib_name).is_file())
-    log('Load lib', lib_path)
-    try:
-        lib = ctypes.cdll.LoadLibrary(str(lib_path))
-    except OSError as e:  # expand the traceback info with the exact addon version and library name
-        raise Exception(f"Failed to load library {lib_path}",
-                        f"addon version {bl_info['version']}",
-                        f"core {core_ver_str(True)}",
-                        f"rif {rif_ver_str(True)}",
-                        str(e)) \
-            from e
+    if IS_WIN and IS_OPENVDB_SUPPORT:
+        if IS_DEBUG_MODE:
+            ctypes.CDLL(str(root_dir /
+                'RadeonProRenderSharedComponents/OpenVdb/Windows/bin/Half-2_3.dll'))
+        else:
+            ctypes.CDLL(str(root_dir / 'Half-2_3.dll'))
+
+    lib = ctypes.CDLL(str(lib_dir / lib_name))
 
     # Sun & Sky functions
     lib.set_sun_horizontal_coordinate.argtypes = [ctypes.c_float, ctypes.c_float]
@@ -89,7 +97,7 @@ def init():
     lib.get_sun_azimuth.restype = ctypes.c_float
     lib.get_sun_altitude.restype = ctypes.c_float
 
-    if IS_WIN or IS_MAC:
+    if IS_OPENVDB_SUPPORT:
         # OpenVdb functions
         lib.vdb_read_grids_list.argtypes = [ctypes.c_char_p]
         lib.vdb_read_grids_list.restype = ctypes.c_char_p
@@ -178,6 +186,3 @@ def vdb_read_grid_data(vdb_file, grid_name):
     lib.vdb_free_grid_data(ctypes.byref(data))
 
     return res
-
-
-init()

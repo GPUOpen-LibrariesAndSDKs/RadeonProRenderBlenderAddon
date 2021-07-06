@@ -23,12 +23,84 @@ from bpy.props import (
 )
 
 import pyrpr
+import math
 
 from rprblender.utils import logging
 from . import RPR_Properties
 
 
 log = logging.Log(tag='properties.view_layer')
+
+
+class RPR_ContourProperties(RPR_Properties):
+    """ Propoerties to do a contour pass """
+    # CONTOUR render mode settings
+
+    use_object_id: BoolProperty(
+        name="Use Object ID",
+        description="Use Object ID for Contour rendering",
+        default=True,
+    )
+
+    use_material_id: BoolProperty(
+        name="Use Material Index",
+        description="Use Material Index for Contour rendering",
+        default=True,
+    )
+    
+    use_shading_normal: BoolProperty(
+        name="Use Shading Normal",
+        description="Use Shading Normal for Contour rendering",
+        default=True,
+    )
+
+    object_id_line_width: FloatProperty(
+        name="Line Width Object",
+        description="Line width for Object ID contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    
+    material_id_line_width: FloatProperty(
+        name="Line Width Material",
+        description="Line width for Material Index contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+    
+    shading_normal_line_width: FloatProperty(
+        name="Line Width Normal",
+        description="Line width for Shading Normal contours",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+
+    normal_threshold: FloatProperty(
+        name="Normal Threshold",
+        description="Threshold for normals, in degrees",
+        subtype='ANGLE',
+        min=0.0, max=math.radians(180.0),
+        default=math.radians(45.0),
+    )
+    
+    antialiasing: FloatProperty(
+        name="Antialiasing",
+        min=0.0, max=1.0,
+        default=1.0,
+    )
+
+    def export_contour_settings(self, rpr_context):
+        """ set Contour render mode parameters """
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_OBJECTID, self.use_object_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_MATERIALID, self.use_material_id)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_NORMAL, self.use_shading_normal)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_OBJECTID, self.object_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_MATERIALID, self.material_id_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_NORMAL, self.shading_normal_line_width)
+
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_NORMAL_THRESHOLD, math.degrees(self.normal_threshold))
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_ANTIALIASING, self.antialiasing)
 
 
 class RPR_DenoiserProperties(RPR_Properties):
@@ -342,6 +414,13 @@ class RPR_ViewLayerProperites(RPR_Properties):
         },
     )
 
+    contour_info = {
+        'rpr': pyrpr.AOV_COLOR,
+        'name': "Outline",
+        'channel': 'RGBA'
+    }
+        
+
     def aov_enabled_changed(self, context):
         """ Request update of active render passes for Render Layers compositor input node """
         context.view_layer.update_render_passes()
@@ -370,6 +449,13 @@ class RPR_ViewLayerProperites(RPR_Properties):
     # TODO: Probably better to create each aov separately like: aov_depth: BoolProperty(...)
 
     denoiser: PointerProperty(type=RPR_DenoiserProperties)
+    
+    use_contour_render: BoolProperty(
+        name="Contour",
+        description="Use Contour rendering mode. Final render only",
+        default=False
+    )
+    contour: PointerProperty(type=RPR_ContourProperties)       
 
     def export_aovs(self, view_layer: bpy.types.ViewLayer, rpr_context, rpr_engine, enable_adaptive, cryptomatte_allowed):
         """
@@ -410,6 +496,10 @@ class RPR_ViewLayerProperites(RPR_Properties):
                     aov = self.cryptomatte_aovs_info[i]
                     rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
                     rpr_context.enable_aov(aov['rpr'])
+        
+        if self.use_contour_render:
+            aov = self.contour_info
+            rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
 
     def enable_aov_by_name(self, name):
         ''' Enables a give aov name '''

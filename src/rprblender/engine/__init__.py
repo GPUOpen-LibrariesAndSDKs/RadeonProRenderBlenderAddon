@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-
+import os
 import sys
-import traceback
 
 from rprblender import config
 from rprblender import utils
@@ -23,80 +22,53 @@ from rprblender.utils import logging
 log = logging.Log(tag='engine.init')
 
 
-def pyrpr_init(bindings_import_path, rprsdk_bin_path):
-    log("pyrpr_init: bindings_path=%s, rpr_bin_path=%s" % (bindings_import_path, rprsdk_bin_path))
+if utils.IS_DEBUG_MODE:
+    project_root = utils.package_root_dir().parent.parent
+    rpr_lib_dir = project_root / '.sdk/rpr/bin'
+    rif_lib_dir = project_root / '.sdk/rif/bin'
 
-    if bindings_import_path not in sys.path:
-        sys.path.append(bindings_import_path)
+    if utils.IS_WIN:
+        os.environ['PATH'] = f"{rpr_lib_dir};{rif_lib_dir};" \
+                             f"{os.environ.get('PATH', '')}"
+    else:
+        os.environ['LD_LIBRARY_PATH'] = f"{rpr_lib_dir}:{rif_lib_dir}:" \
+                             f"{os.environ.get('LD_LIBRARY_PATH', '')}"
 
-    try:
-        import pyrpr
-        import pyhybrid
-        import pyrpr2
+    sys.path.append(str(project_root / "src/bindings/pyrpr/.build"))
+    sys.path.append(str(project_root / "src/bindings/pyrpr/src"))
 
-        rpr_version = utils.core_ver_str(full=True)
+else:
+    rpr_lib_dir = rif_lib_dir = utils.package_root_dir()
+    if utils.IS_WIN:
+        os.environ['PATH'] = f"{rpr_lib_dir};{os.environ.get('PATH', '')}"
+    else:
+        os.environ['LD_LIBRARY_PATH'] = f"{rpr_lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
-        log.info(f"RPR Core version: {rpr_version}")
-        pyrpr.lib_wrapped_log_calls = config.pyrpr_log_calls
-        pyrpr.init(logging.Log(tag='core'), rprsdk_bin_path=rprsdk_bin_path)
-
-        import pyrpr_load_store
-        pyrpr_load_store.init(rprsdk_bin_path)
-
-        import pyrprimagefilters
-        rif_version = utils.rif_ver_str(full=True)
-        log.info(f"Image Filters version {rif_version}")
-        pyrprimagefilters.lib_wrapped_log_calls = config.pyrprimagefilters_log_calls
-        pyrprimagefilters.init(log, rprsdk_bin_path=rprsdk_bin_path)
-
-        # import pyrprgltf
-        # pyrprgltf.lib_wrapped_log_calls = config.pyrprgltf_log_calls
-        # pyrprgltf.init(log, rprsdk_bin_path=rprsdk_bin_path)
-
-    except:
-        logging.critical(traceback.format_exc(), tag='')
-        return False
-
-    finally:
-        sys.path.remove(bindings_import_path)
-
-    return True
-
-
-if 'pyrpr' not in sys.modules:
-
-    # try loading pyrpr for installed addon
-    bindings_import_path = str(utils.package_root_dir())
-    rprsdk_bin_path = utils.package_root_dir()
-    if not pyrpr_init(bindings_import_path, rprsdk_bin_path):
-        logging.warn("Failed to load rpr from %s. One more attempt will be provided." % bindings_import_path)
-
-        # try loading pyrpr from source
-        src = utils.package_root_dir().parent
-        project_root = src.parent
-
-        rprsdk_bin_path = project_root / ".sdk/rpr/bin"
-
-        bindings_import_path = str(src / 'bindings/pyrpr/.build')
-        pyrpr_import_path = str(src / 'bindings/pyrpr/src')
-
-        if bindings_import_path not in sys.path:
-            sys.path.append(pyrpr_import_path)
-
-        try:
-            assert pyrpr_init(bindings_import_path, rprsdk_bin_path)
-        finally:
-            sys.path.remove(pyrpr_import_path)
-
-    logging.info('rprsdk_bin_path:', rprsdk_bin_path)
+    sys.path.append(str(utils.package_root_dir()))
 
 
 import pyrpr
 import pyhybrid
 import pyrpr2
 
+pyrpr.init(rpr_lib_dir, logging.Log(tag='core'), config.pyrpr_log_calls)
+log.info("Core version:", utils.core_ver_str(full=True))
+
+import pyrpr_load_store
+pyrpr_load_store.init(rpr_lib_dir)
+
+import pyrprimagefilters
+pyrprimagefilters.init(rif_lib_dir, logging.Log(tag='rif'), config.pyrprimagefilters_log_calls)
+log.info("RIF version:", utils.rif_ver_str(full=True))
+
+from rprblender.utils import helper_lib
+helper_lib.init()
+
 
 def register_plugins():
+    rprsdk_bin_path = utils.package_root_dir() if not utils.IS_DEBUG_MODE else \
+        utils.package_root_dir().parent.parent / '.sdk/rpr/bin'
+
     def register_plugin(ContextCls, lib_name, cache_path):
         lib_path = rprsdk_bin_path / lib_name
         ContextCls.register_plugin(lib_path, cache_path)
@@ -132,9 +104,6 @@ def register_plugins():
                         cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr2")
     except RuntimeError as err:
         log.warn(err)
-
-# we do import of helper_lib just to load RPRBlenderHelper.dll at this stage
-import rprblender.utils.helper_lib
 
 
 register_plugins()

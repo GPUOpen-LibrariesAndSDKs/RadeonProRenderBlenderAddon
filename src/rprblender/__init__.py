@@ -20,7 +20,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (3, 1, 0),
+    "version": (3, 2, 2),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
@@ -210,6 +210,9 @@ class RPREngine(bpy.types.RenderEngine):
         if layer.rpr.crytomatte_aov_object:
             for i in range(3,6):
                 do_register_pass(cryptomatte_aovs[i])
+
+        if layer.rpr.use_contour_render:
+            do_register_pass(layer.rpr.contour_info)
 
 
 @bpy.app.handlers.persistent

@@ -52,7 +52,10 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
 
         rpr_shape = rpr_context.create_instance(instance_key, rpr_mesh)
         rpr_shape.set_name(str(instance_key))
-        rpr_shape.set_transform(get_transform(instance))
+
+        transform = get_transform(instance)
+        rpr_shape.set_transform(transform)
+        object.export_motion_blur(rpr_context, instance_key, transform)
 
         # exporting visibility from source object
         indirect_only = kwargs.get("indirect_only", False)
@@ -68,3 +71,8 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
 
     else:
         raise ValueError("Unsupported object type for instance", instance, obj, obj.type)
+
+
+def cache_blur_data(rpr_context, inst: bpy.types.DepsgraphObjectInstance):
+    if inst.parent.rpr.motion_blur:
+        rpr_context.transform_cache[key(inst)] = get_transform(inst)

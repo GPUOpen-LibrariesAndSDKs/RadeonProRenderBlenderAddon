@@ -110,37 +110,43 @@ class RPR_NODE_OP_bake_all_nodes(RPR_Operator):
     def execute(self, context):
         # iterate over all objects and find unsupported nodes
         baked_materials = []
+        baked_objs = []
         selected_object = context.active_object
+        selected_layer = context.window.view_layer
 
-        for obj in context.scene.objects:
-            if obj.type != 'MESH':
-                continue
-
-            for material_slot in obj.material_slots:
-                if material_slot.material.name in baked_materials:
-                    continue
-                nt = material_slot.material.node_tree
-                if nt is None:
+        for layer in context.scene.view_layers:
+            context.window.view_layer = layer
+            for obj in layer.objects:
+                if obj.type != 'MESH' or obj.name in baked_objs:
                     continue
 
-                nodes_to_bake = []
-                for node in nt.nodes:
-                    if not get_node_parser_class(node.bl_idname):
-                        nodes_to_bake.append(node)
+                baked_objs.append(obj.name)
 
-                settings = get_user_settings()
-                resolution = settings.bake_resolution
+                for material_slot in obj.material_slots:
+                    if material_slot.material.name in baked_materials:
+                        continue
+                    nt = material_slot.material.node_tree
+                    if nt is None:
+                        continue
 
-                old_selection = obj.select_get()
-                obj.select_set(True)
-                bake_nodes(nt, nodes_to_bake, material_slot.material, int(resolution), obj)
-                obj.select_set(old_selection)
+                    nodes_to_bake = []
+                    for node in nt.nodes:
+                        if not get_node_parser_class(node.bl_idname):
+                            nodes_to_bake.append(node)
 
-                baked_materials.append(material_slot.material.name)
+                    settings = get_user_settings()
+                    resolution = settings.bake_resolution
 
+                    old_selection = obj.select_get()
+                    obj.select_set(True)
+                    bake_nodes(nt, nodes_to_bake, material_slot.material, int(resolution), obj)
+                    obj.select_set(old_selection)
+
+                    baked_materials.append(material_slot.material.name)
+
+        context.window.view_layer = selected_layer
         selected_object.select_set(True)
-
-        return {'FINISHED'}      
+        return {'FINISHED'}
 
 
 class RPR_NODE_OP_bake_selected_nodes(RPR_Operator):

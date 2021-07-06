@@ -19,12 +19,16 @@ import pyrpr
 lib = None
 
 
-def init(rpr_sdk_bin_path):
-
+def init(lib_dir):
     global lib
 
-    path = get_library_path(rpr_sdk_bin_path)
-    lib = ffi.dlopen(path)
+    lib_name = {
+        'Windows': "RprLoadStore64.dll",
+        'Linux': "libRprLoadStore64.so",
+        'Darwin': "libRprLoadStore64.dylib"
+    }[platform.system()]
+
+    lib = ffi.dlopen(str(lib_dir / lib_name))
 
 
 def export(name, context, scene, flags):
@@ -36,17 +40,3 @@ def export(name, context, scene, flags):
     #  note: without any of above flags images will not be exported.
     return lib.rprsExport(pyrpr.encode(name), context._get_handle(), scene._get_handle(),
                           0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, flags)
-
-
-def get_library_path(rpr_sdk_bin_path):
-
-    os = platform.system()
-
-    if os == "Windows":
-        return str(rpr_sdk_bin_path / 'RprLoadStore64.dll')
-    elif os == "Linux":
-        return str(rpr_sdk_bin_path / 'libRprLoadStore64.so')
-    elif os == "Darwin":
-        return str(rpr_sdk_bin_path / 'libRprLoadStore64.dylib')
-    else:
-        assert False

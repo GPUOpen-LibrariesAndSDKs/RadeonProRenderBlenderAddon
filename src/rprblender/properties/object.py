@@ -79,11 +79,16 @@ class RPR_ObjectProperites(RPR_Properties):
         default=True,
     )
 
-    # Motion Blur
+    # Motion and Deformation Blur
     motion_blur: BoolProperty(
         name="Motion Blur",
         description="Enable Motion Blur",
         default=True,
+    )
+    deformation_blur: BoolProperty(
+        name="Deformation Blur",
+        description="Enable Deformation Blur",
+        default=False,
     )
 
     # Subdivision

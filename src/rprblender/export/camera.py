@@ -224,8 +224,10 @@ class CameraData:
 
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):
-    """ Creates pyrpr.Camera from obj.data: bpy.types.Camera. Created camera sets to scene as default """
-
+    """
+    Creates pyrpr.Camera from obj.data: bpy.types.Camera.
+    Created camera sets to scene as default
+    """
     camera = obj.data
     log("sync", camera)
 
@@ -237,3 +239,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object):
 
     # set scene's camera
     rpr_context.scene.set_camera(rpr_camera)
+
+
+def cache_blur_data(rpr_context, obj: bpy.types.Object):
+    rpr_context.transform_cache[object.key(obj)] = object.get_transform(obj)

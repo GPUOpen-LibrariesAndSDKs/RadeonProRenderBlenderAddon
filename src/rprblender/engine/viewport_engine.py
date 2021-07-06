@@ -214,7 +214,6 @@ class ViewportEngine(Engine):
         self.render_time = 0
 
         self.view_mode = None
-        self.use_contour = False
         self.space_data = None
         self.selected_objects = None
 
@@ -227,6 +226,7 @@ class ViewportEngine(Engine):
 
         self.rpr_context = None
         self.image_filter = None
+        self.upscale_filter = None
 
     def _resolve(self):
         self.rpr_context.resolve()
@@ -245,8 +245,6 @@ class ViewportEngine(Engine):
         self.notify_status("Starting...", "Sync")
         time_begin = time.perf_counter()
 
-        self.use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
-
         # exporting objects
         frame_current = depsgraph.scene.frame_current
         material_override = depsgraph.view_layer.material_override
@@ -262,7 +260,7 @@ class ViewportEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=frame_current, use_contour=self.use_contour)
+                        frame_current=frame_current)
 
         # exporting instances
         instances_len = len(depsgraph.object_instances)
@@ -281,10 +279,22 @@ class ViewportEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=frame_current, use_contour=self.use_contour)
+                          frame_current=frame_current)
 
         # shadow catcher
-        self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
+        if depsgraph.scene.rpr.render_quality != 'FULL':  # non-Legacy modes
+            self.rpr_context.sync_catchers(False)
+            bg_filter_enabled = self.rpr_context.use_reflection_catcher or self.rpr_context.use_shadow_catcher
+            background_filter_settings = {
+                'enable': bg_filter_enabled,
+                'use_background': depsgraph.scene.render.film_transparent,
+                'use_shadow': self.rpr_context.use_shadow_catcher,
+                'use_reflection': self.rpr_context.use_reflection_catcher,
+                'resolution': (self.width, self.height),
+            }
+            self.setup_background_filter(background_filter_settings)
+        else:
+            self.rpr_context.sync_catchers(depsgraph.scene.render.film_transparent)
 
         self.is_synced = True
 
@@ -469,10 +479,8 @@ class ViewportEngine(Engine):
         settings = get_user_settings()
         use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
 
-        use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
-                                   use_gl_interop=use_gl_interop,
-                                   use_contour_integrator=use_contour)
+                                   use_gl_interop=use_gl_interop)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
@@ -495,19 +503,16 @@ class ViewportEngine(Engine):
         self.world_settings = self._get_world_settings(depsgraph)
         self.world_settings.export(self.rpr_context)
 
-        if scene.rpr.is_contour_used(is_final_engine=False):
-            scene.rpr.export_contour_mode(self.rpr_context)
-
         rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
         self.rpr_context.scene.set_camera(rpr_camera)
 
         # image filter
-        self.setup_image_filter(self._get_image_filter_settings())
+        self.setup_image_filter(self._get_image_filter_settings(scene))
 
         # upscale filter
         self.setup_upscale_filter({
-            'enable': settings.viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -516,6 +521,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, 1)
         scene.rpr.export_render_mode(self.rpr_context)
         scene.rpr.export_ray_depth(self.rpr_context)
+        self.rpr_context.texture_compression = scene.rpr.texture_compression
         scene.rpr.export_pixel_filter(self.rpr_context)
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0)
@@ -524,7 +530,6 @@ class ViewportEngine(Engine):
         self.restart_render_event.clear()
 
         self.view_mode = context.mode
-        self.use_contour = scene.rpr.is_contour_used(is_final_engine=False)
         self.space_data = context.space_data
         self.selected_objects = context.selected_objects
         self.sync_render_thread = threading.Thread(target=self._do_sync_render, args=(depsgraph,))
@@ -570,11 +575,9 @@ class ViewportEngine(Engine):
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
         # if view mode changed need to sync collections
-        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
         mode_updated = False
-        if self.view_mode != context.mode or self.use_contour != use_contour:
+        if self.view_mode != context.mode:
             self.view_mode = context.mode
-            self.use_contour = use_contour
             mode_updated = True
 
         if not updates and not sync_world and not sync_collection:
@@ -612,8 +615,7 @@ class ViewportEngine(Engine):
                                                      update.is_updated_transform,
                                                      indirect_only=indirect_only,
                                                      material_override=material_override,
-                                                     frame_current=frame_current,
-                                                     use_contour=self.use_contour)
+                                                     frame_current=frame_current)
                     is_obj_updated |= is_updated
                     continue
 
@@ -641,7 +643,16 @@ class ViewportEngine(Engine):
                 is_updated |= self.sync_objects_collection(depsgraph)
 
             if is_obj_updated:
-                self.rpr_context.sync_catchers()
+                if self.background_filter:
+                    self.rpr_context.sync_catchers(False)
+                    bg_filter_enabled = self.rpr_context.use_reflection_catcher or self.rpr_context.use_shadow_catcher
+                    background_filter_settings = {'enable': bg_filter_enabled, 'use_background': False,
+                                                  'use_shadow': self.rpr_context.use_shadow_catcher,
+                                                  'use_reflection': self.rpr_context.use_reflection_catcher,
+                                                  'resolution': (self.width, self.height)}
+                    self.setup_background_filter(background_filter_settings)
+                else:
+                    self.rpr_context.sync_catchers()
 
         if is_updated:
             self.restart_render_event.set()
@@ -932,8 +943,6 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
-        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
-
         for obj in self.depsgraph_objects(depsgraph):
             obj_key = object.key(obj)
             if obj_key not in object_keys_to_export:
@@ -944,7 +953,7 @@ class ViewportEngine(Engine):
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
                             indirect_only=indirect_only, material_override=material_override,
-                            frame_current=frame_current, use_contour=use_contour)
+                            frame_current=frame_current)
             else:
                 assign_materials(self.rpr_context, rpr_obj, obj, material_override)
 
@@ -957,8 +966,6 @@ class ViewportEngine(Engine):
         res = False
         frame_current = depsgraph.scene.frame_current
 
-        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
-
         for inst in self.depsgraph_instances(depsgraph):
             instance_key = instance.key(inst)
             if instance_key not in object_keys_to_export:
@@ -969,7 +976,7 @@ class ViewportEngine(Engine):
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override,
-                              frame_current=frame_current, use_contour=use_contour)
+                              frame_current=frame_current)
             else:
                 assign_materials(self.rpr_context, inst_obj, inst.object, material_override=material_override)
 
@@ -981,8 +988,6 @@ class ViewportEngine(Engine):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
         frame_current = depsgraph.scene.frame_current
-
-        use_contour = depsgraph.scene.rpr.is_contour_used(is_final_engine=False)
 
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)
@@ -1005,15 +1010,14 @@ class ViewportEngine(Engine):
 
             if object.key(obj) not in self.rpr_context.objects:
                 object.sync(self.rpr_context, obj, indirect_only=indirect_only,
-                            frame_current=frame_current, use_contour=use_contour)
+                            frame_current=frame_current)
                 updated = True
                 continue
 
             updated |= object.sync_update(self.rpr_context, obj, False, False,
                                           indirect_only=indirect_only,
                                           material_override=material_override,
-                                          frame_current=frame_current,
-                                          use_contour=use_contour)
+                                          frame_current=frame_current)
 
         return updated
 
@@ -1033,12 +1037,12 @@ class ViewportEngine(Engine):
         restart |= scene.rpr.viewport_limits.set_adaptive_params(self.rpr_context)
 
         # image filter
-        if self.setup_image_filter(self._get_image_filter_settings()):
+        if self.setup_image_filter(self._get_image_filter_settings(scene)):
             self.denoised_image = None
             restart = True
 
         restart |= self.setup_upscale_filter({
-            'enable': get_user_settings().viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_upscale,
             'resolution': (self.width, self.height),
         })
 
@@ -1050,9 +1054,9 @@ class ViewportEngine(Engine):
 
         return world.WorldData.init_from_shading_data(self.shading_data)
 
-    def _get_image_filter_settings(self):
+    def _get_image_filter_settings(self, scene):
         return {
-            'enable': get_user_settings().viewport_denoiser_upscale,
+            'enable': scene.rpr.viewport_denoiser,
             'resolution': (self.width, self.height),
             'filter_type': 'ML',
             'ml_color_only': False,

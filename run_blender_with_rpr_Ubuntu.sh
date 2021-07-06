@@ -65,6 +65,7 @@ function main()
 {
 	init
 
+  export RPR_BLENDER_DEBUG=1
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
 	python3 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py
