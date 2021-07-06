@@ -4,6 +4,7 @@ if [ -f "$cxml" ]; then
 	python3.7 src/bindings/pyrpr/src/pyrprapi.py $cxml
 	if [ -f "./bindings-ok" ]; then
 		python3.7 build.py
+		python3.9 build.py
 	else
 		echo Compiling bindings failed
 	fi

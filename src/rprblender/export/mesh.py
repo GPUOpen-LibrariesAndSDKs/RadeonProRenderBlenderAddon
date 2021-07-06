@@ -21,7 +21,7 @@ import bmesh
 import mathutils
 
 import pyrpr
-from rprblender.engine.context import RPRContext
+from rprblender.engine.context import RPRContext, RPRContext2
 from . import object, material, volume
 from rprblender.utils import get_data_from_collection
 
@@ -82,12 +82,13 @@ class MeshData:
                 data.uvs.append(uvs)
                 data.uv_indices.append(uv_indices)
 
-            secondary_uv = mesh.rpr.secondary_uv_layer(obj)
-            if secondary_uv:
-                uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
-                if len(uvs) > 0:
-                    data.uvs.append(uvs)
-                    data.uv_indices.append(uv_indices)
+            if obj:
+                secondary_uv = mesh.rpr.secondary_uv_layer(obj)
+                if secondary_uv:
+                    uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
+                    if len(uvs) > 0:
+                        data.uvs.append(uvs)
+                        data.uv_indices.append(uv_indices)
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
         data.vertex_indices = get_data_from_collection(mesh.loop_triangles, 'vertices',
@@ -241,6 +242,14 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
             rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
             rpr_shape.set_displacement_material(rpr_displacement)
+            # if no subdivision set that up to 'high' so displacement looks good
+            # note subdivision is capped to resolution
+            if rpr_shape.subdivision is None:
+                rpr_shape.subdivision = {
+                    'level': 10,
+                    'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER,
+                    'crease_weight': 10
+                }
         else:
             rpr_shape.set_displacement_material(None)
 
@@ -274,7 +283,7 @@ def export_visibility(obj, rpr_shape, indirect_only):
     obj.rpr.set_catchers(rpr_shape)
 
 
-def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False, use_contour: bool = False):
+def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, indirect_only: bool = False):
     from rprblender.engine.viewport_engine import ViewportEngine
 
     rpr_shape.set_visibility(
@@ -287,8 +296,7 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, 
     export_visibility(obj, rpr_shape, indirect_only)
     obj.rpr.export_subdivision(rpr_shape)
 
-    if use_contour:
-        pyrpr.ShapeSetContourIgnore(rpr_shape, not obj.rpr.visibility_contour)
+    rpr_shape.set_contour_ignore(not obj.rpr.visibility_contour)
 
     if obj.rpr.portal_light:
         # Register mesh as a portal light, set "Environment" light group
@@ -306,7 +314,6 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     mesh = kwargs.get("mesh", obj.data)
     material_override = kwargs.get("material_override", None)
     indirect_only = kwargs.get("indirect_only", False)
-    use_contour = kwargs.get("use_contour", False)
     log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
     obj_key = object.key(obj)
@@ -315,12 +322,26 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
         rpr_context.create_empty_object(obj_key)
         return
 
-    rpr_shape = rpr_context.create_mesh(
-        obj_key,
-        data.vertices, data.normals, data.uvs,
-        data.vertex_indices, data.normal_indices, data.uv_indices,
-        data.num_face_vertices
-    )
+    deformation_data = rpr_context.deformation_cache.get(obj_key)
+    if deformation_data and np.any(data.vertices != deformation_data.vertices) and \
+            np.any(data.normals != deformation_data.normals):
+        vertices = np.concatenate((data.vertices, deformation_data.vertices))
+        normals = np.concatenate((data.normals, deformation_data.normals))
+        rpr_shape = rpr_context.create_mesh(
+            obj_key,
+            np.ascontiguousarray(vertices), np.ascontiguousarray(normals), data.uvs,
+            data.vertex_indices, data.normal_indices, data.uv_indices,
+            data.num_face_vertices,
+            {pyrpr.MESH_MOTION_DIMENSION: 2}
+        )
+    else:
+        rpr_shape = rpr_context.create_mesh(
+            obj_key,
+            data.vertices, data.normals, data.uvs,
+            data.vertex_indices, data.normal_indices, data.uv_indices,
+            data.num_face_vertices
+        )
+
     rpr_shape.set_name(obj.name)
     rpr_shape.set_id(obj.pass_index)
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
@@ -332,9 +353,12 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     assign_materials(rpr_context, rpr_shape, obj, material_override)
 
     rpr_context.scene.attach(rpr_shape)
-    rpr_shape.set_transform(object.get_transform(obj))
 
-    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only, use_contour=use_contour)
+    transform = object.get_transform(obj)
+    rpr_shape.set_transform(transform)
+    object.export_motion_blur(rpr_context, obj_key, transform)
+
+    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
 
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
@@ -356,11 +380,19 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
         indirect_only = kwargs.get("indirect_only", False)
         material_override = kwargs.get("material_override", None)
-        use_contour = kwargs.get("use_contour", False)
-
-        sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only, use_contour=use_contour)
+        
+        sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
         assign_materials(rpr_context, rpr_shape, obj, material_override)
         return True
 
     sync(rpr_context, obj, **kwargs)
     return True
+
+
+def cache_blur_data(rpr_context, obj: bpy.types.Object, mesh=None):
+    obj_key = object.key(obj)
+    if obj.rpr.motion_blur:
+        rpr_context.transform_cache[obj_key] = object.get_transform(obj)
+
+    if obj.rpr.deformation_blur and isinstance(rpr_context, RPRContext2):
+        rpr_context.deformation_cache[obj_key] = MeshData.init_from_mesh(mesh if mesh else obj.data)

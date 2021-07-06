@@ -670,7 +670,12 @@ if __name__=='__main__':
                  'rprContextCreateCompressedImage_func',
                  'rpr_compressed_format',
                  'rpr_comressed_image_desc',
-                 'RPR_CONTEXT_CREATE_COMPRESSED_IMAGE',]
+                 'RPR_CONTEXT_CREATE_COMPRESSED_IMAGE',
+                 'rpr_framebuffer_type',
+                 'RPR_UV_CAMERA_SET_CHART_INDEX_FUNC_NAME',
+                 'RPR_CONTEXT_CREATE_FRAMEBUFFER_TYPED_FUNC_NAME',
+                 'RPR_MATERIAL_SET_INPUT_BY_S_KEY_FUNC_NAME',
+                 'RPR_MATERIALX_SET_ADDRESS_FUNC_NAME',]
     )
 
     export(
@@ -681,7 +686,9 @@ if __name__=='__main__':
             'constant': ['RIF_', 'VERSION_', 'COMMIT_'],
         },
         castxml,
-        exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD']
+        exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD',
+                 'RIF_STRINGIFY2(s)', 'RIF_STRINGIFY(s)',
+                 'rif_logger_desc', 'rifLoggerAttach']
     )
 
     # export(rpr_header_gltf, includes_gltf, json_file_name_gltf,

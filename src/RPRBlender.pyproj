@@ -47,6 +47,7 @@
     <Compile Include="rprblender\engine\image_filter.py" />
     <Compile Include="rprblender\engine\preview_engine.py" />
     <Compile Include="rprblender\engine\render_engine.py" />
+    <Compile Include="rprblender\engine\render_engine_2.py" />
     <Compile Include="rprblender\engine\render_engine_hybrid.py" />
     <Compile Include="rprblender\engine\viewport_engine.py" />
     <Compile Include="rprblender\engine\viewport_engine_2.py" />
