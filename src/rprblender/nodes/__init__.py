@@ -58,6 +58,7 @@ node_categories = [
         NodeItem('ShaderNodeMixShader'),
         NodeItem('ShaderNodeEmission'),
         NodeItem('ShaderNodeVolumePrincipled'),
+        NodeItem('ShaderNodeVolumeScatter'),
         NodeItem('RPRShaderNodeUber'),
         NodeItem('RPRShaderNodePassthrough'),
         NodeItem('RPRShaderNodeLayered'),
