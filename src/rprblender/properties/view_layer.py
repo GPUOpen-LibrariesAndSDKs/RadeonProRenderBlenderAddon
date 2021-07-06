@@ -453,7 +453,8 @@ class RPR_ViewLayerProperites(RPR_Properties):
     use_contour_render: BoolProperty(
         name="Contour",
         description="Use Contour rendering mode. Final render only",
-        default=False
+        default=False,
+        update=aov_enabled_changed,
     )
     contour: PointerProperty(type=RPR_ContourProperties)       
 
