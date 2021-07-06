@@ -451,6 +451,8 @@ class RPR_RenderProperties(RPR_Properties):
         ]
 
     def update_render_quality(self, context):
+        context.view_layer.update_render_passes()
+
         if self.render_quality in ('FULL', 'FULL2'):
             return
 
