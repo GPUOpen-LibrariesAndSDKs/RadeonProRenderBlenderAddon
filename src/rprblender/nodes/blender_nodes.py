@@ -2274,6 +2274,38 @@ class ShaderNodeVolumePrincipled(NodeParser):
         return rpr_node
 
 
+class ShaderNodeVolumeScatter(NodeParser):
+    def export(self):
+        color = self.get_input_value('Color')
+        density = self.get_input_value('Density')
+        anisotropy = self.get_input_value('Anisotropy')
+
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
+            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+        })
+
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, density)
+
+        # getting scalar data for hetero volume data since it does not work with textures
+        color = self.get_input_scalar('Color')
+        density = self.get_input_scalar('Density')
+        anisotropy = self.get_input_scalar('Anisotropy')
+
+        # storing hetero volume data as an additional field 'data' of MaterialNode object
+        rpr_node.data.data = {
+            'color': color.data[:3],
+            'density': density.get_channel(0).data,
+            'anisotropy': anisotropy.get_channel(0).data,
+        }
+
+        return rpr_node
+
+    def export_hybrid(self):
+        return None
+
+
 class ShaderNodeCombineHSV(NodeParser):
     """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
     def export(self):
