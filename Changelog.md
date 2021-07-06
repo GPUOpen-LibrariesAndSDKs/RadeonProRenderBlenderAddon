@@ -1,3 +1,38 @@
+# Version 3.2
+## New Features:
+- Subsurface Scattering and Volume shaders now work in RPR 2.0.  This allows the rendering of organic materials, such as skin, which absorb light into their interior.  Volume shaders can now also be used for simple fog boxes. Also the Volume Scatter node is supported. 
+- Viewport denoising and upscaling improves the interactivity and speed of Viewport rendering.  With the use of the Radeon Image Filter Library, this allows Radeon ProRender to render at half resolution faster, and then upscale to the full size of the Viewport.
+- Deformation motion blur gives accurate motion blur to objects which are being deformed, for example, a flag flapping in the wind or a ball squashing.  Besides, motion blur export has been optimized, and a setting for disabling deformation motion blur has been added.
+- A new RPR Toon Shader has been added.  This enables cartoon-style shading for a non-photorealistic look.  Toon shaders can be used in a “simple” mode for just setting a color or a gradient of different colors for shadow vs lit areas of the object.
+- Support for Blender 2.93 has been added.
+- The look of “blocky” displacements has been significantly improved by enabling subdivision by default on objects with displacement shaders.  However, this does render slower, and can be overridden with the RPR Object Subdivision settings.
+- Support has been added for Reflection Catcher and Transparent background in the Viewport in the Full mode.
+- Outline rendering (formerly called Contour rendering) is now moved to the view layer AOV section. Outline rendering can be enabled just as the other AOVs.  The rendering process with Outline rendering enabled will take two passes per view layer, with the second doing the Outline rendering.
+- Support for (Shutter) Position in the Motion Blur settings has been added.  This uses the cycles setting to control the shutter opening around the frame number.  
+- Support for the Voronoi Texture node is added.
+
+## Issues Fixed:
+- Improve prop name readability in Object visibility UI. 
+- Texture compression was causing artifacts in some scenes.  A “texture compression” setting has been added and defaulted to False.  You can enable this setting for faster renders, but make sure that there are no texture artifacts.
+- The issue with the add-on not loading in versions of Blender downloaded from the Windows app store has been fixed.
+- Objects set as Reflection Catchers now work in the Full mode.
+- Overbright edges of objects with Uber shaders in metalness mode ― fixed.
+- Shaders with high roughness could have artifacts with reflection or refraction ― fixed.
+- Tiled rendering with a transparent background in the Full render quality has been fixed. 
+- Occasional issues in starting the add-on in certain OSs have been fixed. 
+- The option "Viewport Denoising and Upscaling" is saved to the scene settings.
+- Memory leak in Viewport rendering with the Upscale filter enabled has been fixed.
+- Image filters on Ubuntu20 have been fixed.
+- Iterating all of view layers when baking all objects have been fixed.
+- Fixed a crash in the viewport render if an object with hair and modifiers was not enabled for viewport display.
+- Fixed an error with math nodes set to “Smooth min” or “Compare” modes.
+
+## Known Issues:
+- In RPR 2.0, heterogenous volumes, smoke and fire simulations or VDB files are not yet supported.
+- Subsurface scattering and volume shader are currently disabled on macOS due to long compile times.
+- Some AOVs may have artifacts on AMD cards with drivers earlier than 21.6.1
+
+
 # Version 3.1
 ## New Features:
 - Support for AMD Radeon™ RX 6700 XT graphics cards has been added.
