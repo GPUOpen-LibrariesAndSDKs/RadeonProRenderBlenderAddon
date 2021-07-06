@@ -16,6 +16,7 @@
 import numpy as np
 
 import bpy
+import mathutils
 
 from . import mesh, light, camera, to_mesh, volume, openvdb, particle, hair
 from rprblender.utils import logging
@@ -106,3 +107,47 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         updated |= particle.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     return updated
+
+
+def cache_blur_data(rpr_context, obj: bpy.types.Object):
+    if obj.type == 'MESH':
+        if obj.mode == 'OBJECT':
+            # if in edit mode use to_mesh
+            mesh.cache_blur_data(rpr_context, obj)
+        else:
+            to_mesh.cache_blur_data(rpr_context, obj)
+
+    elif obj.type == 'CAMERA':
+        camera.cache_blur_data(rpr_context, obj)
+
+    elif obj.type in ('CURVE', 'FONT', 'SURFACE', 'META'):
+        to_mesh.cache_blur_data(rpr_context, obj)
+
+
+def export_motion_blur(rpr_context, obj_key, transform):
+    """Use the motion_blur_cache to set the transform motion"""
+    next_transform = rpr_context.transform_cache.get(obj_key)
+    if next_transform is None or np.all(transform == next_transform):
+        return
+
+    rpr_object = rpr_context.objects[obj_key]
+    if hasattr(rpr_object, 'set_motion_transform'):
+        rpr_object.set_motion_transform(next_transform)
+
+    else:
+        m_from = mathutils.Matrix(transform)
+        m_to = mathutils.Matrix(next_transform)
+        sub = m_to - m_from
+        div = m_from @ m_to.inverted()
+        quat = div.to_quaternion()
+
+        linear = sub.to_translation()
+        angular = (*quat.axis, quat.angle) if quat.axis.length > 0.5 else (1.0, 0.0, 0.0, 0.0)
+        scale = div.to_scale() - mathutils.Vector((1, 1, 1))
+
+        rpr_object.set_linear_motion(*linear)
+        rpr_object.set_angular_motion(*angular)
+        if hasattr(rpr_object, 'set_scale_motion'):
+            rpr_object.set_scale_motion(*scale)
+
+

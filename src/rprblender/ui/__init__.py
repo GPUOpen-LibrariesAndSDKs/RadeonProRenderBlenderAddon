@@ -134,7 +134,6 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_viewport_limits,
     render.RPR_RENDER_PT_quality,
     render.RPR_RENDER_PT_max_ray_depth,
-    render.RPR_RENDER_PT_contour_rendering,
     render.RPR_RENDER_PT_pixel_filter,
     render.RPR_RENDER_PT_light_clamping,
     render.RPR_RENDER_PT_bake_textures,
@@ -176,6 +175,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     view_layer.RPR_VIEWLAYER_PT_aovs,
     view_layer.RPR_RENDER_PT_override,
     view_layer.RPR_RENDER_PT_denoiser,
+    view_layer.RPR_RENDER_PT_contour_rendering,
 
     view3d.RPR_VIEW3D_MT_menu,
     view3d.RPR_VIEW3D_PT_panel,

@@ -25,6 +25,8 @@ class RPRContext:
     _Scene = pyrpr.Scene
 
     _MaterialNode = pyrpr.MaterialNode
+    _ImageData = pyrpr.ImageData
+    _ImageFile = pyrpr.ImageFile
 
     _PointLight = pyrpr.PointLight
     _SphereLight = pyrpr.PointLight  # RPR 2.0 only feature, use PointLight instead
@@ -63,6 +65,10 @@ class RPRContext:
 
         self.do_motion_blur = False
         self.engine_type = None
+        
+        # motion data cache. each object key has a {transform: ... , deformation: ...}
+        self.transform_cache = {}
+        self.deformation_cache = {}
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
@@ -80,7 +86,10 @@ class RPRContext:
         self.use_reflection_catcher = False
         self.use_transparent_background = False
 
-    def init(self, context_flags, context_props, use_contour_integrator=False):
+        # texture compression used when images created
+        self.texture_compression = False
+
+    def init(self, context_flags, context_props):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
         self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
@@ -93,9 +102,6 @@ class RPRContext:
         #if helpers.use_mps():
         #    self.context.set_parameter('metalperformanceshader', True)
         #self.context.set_parameter('ooctexcache', helpers.get_ooc_cache_size(is_preview))
-
-        if use_contour_integrator:
-            self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, "gpucontour")
 
         self.post_effect = self._PostEffect(self.context, pyrpr.POST_EFFECT_NORMALIZATION)
 
@@ -122,6 +128,9 @@ class RPRContext:
 
         self.images = {}
 
+        self.transform_cache = {}
+        self.deformation_cache = {}
+
     def render(self, restart=False, tile=None):
         if restart:
             self.clear_frame_buffers()
@@ -136,6 +145,10 @@ class RPRContext:
 
     def get_image(self, aov_type=None):
         return self.get_frame_buffer(aov_type).get_data()
+
+    def set_integrator(self, use_contour_integrator):
+        integrator = "gpucontour" if use_contour_integrator else "gpusimple"
+        self.context.set_parameter(pyrpr.CONTEXT_GPUINTEGRATOR, integrator)
 
     def get_frame_buffer(self, aov_type=None):
         if aov_type is not None:
@@ -158,14 +171,7 @@ class RPRContext:
             for aov, fbs in self.frame_buffers_aovs.items():
                 fbs['aov'].resolve(fbs['res'], aov != pyrpr.AOV_SHADOW_CATCHER)
 
-        if self.composite:
-            if aovs and pyrpr.AOV_COLOR not in aovs:
-                return
-
-            color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
-            self.composite.compute(color_aov['composite'])
-            if self.gl_interop:
-                color_aov['composite'].resolve(color_aov['gl'])
+        self.apply_filters()
 
     def enable_aov(self, aov_type):
         if self.is_aov_enabled(aov_type):
@@ -245,10 +251,10 @@ class RPRContext:
         return False
 
     def _enable_catchers(self):
-        # Experimentally found the max value of shadow catcher,
-        # we'll need it to normalize shadow catcher AOV
-        SHADOW_CATCHER_MAX_VALUE = 2.0
+        self.enable_catcher_aovs()
+        self.create_filter_composite()
 
+    def enable_catcher_aovs(self):
         # Enable required AOVs
         self.enable_aov(pyrpr.AOV_COLOR)
         self.enable_aov(pyrpr.AOV_OPACITY)
@@ -257,6 +263,11 @@ class RPRContext:
             self.enable_aov(pyrpr.AOV_SHADOW_CATCHER)
         if self.use_reflection_catcher:
             self.enable_aov(pyrpr.AOV_REFLECTION_CATCHER)
+
+    def create_filter_composite(self):
+        # Experimentally found the max value of shadow catcher,
+        # we'll need it to normalize shadow catcher AOV
+        SHADOW_CATCHER_MAX_VALUE = 2.0
 
         # Composite frame buffer
         self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite'] = pyrpr.FrameBuffer(
@@ -267,17 +278,14 @@ class RPRContext:
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(
                 self.context, self.width, self.height)
             self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
-
         # Composite calculation elements frame buffers
         color = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
             'framebuffer.input': self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
         })
-
         alpha = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
             'framebuffer.input': self.frame_buffers_aovs[pyrpr.AOV_OPACITY]['res']
         }).get_channel(0)
         full_alpha = alpha
-
         if self.use_reflection_catcher or self.use_shadow_catcher:
             if self.use_reflection_catcher:
                 reflection_catcher = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
@@ -399,7 +407,8 @@ class RPRContext:
             self.context,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            {}
         )
         light = self._AreaLight(mesh, self.material_system)
         self.objects[key] = light
@@ -409,13 +418,15 @@ class RPRContext:
             self, key,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            mesh_info={}
     ):
         mesh = self._Mesh(
             self.context,
             vertices, normals, uvs,
             vertex_indices, normal_indices, uv_indices,
-            num_face_vertices
+            num_face_vertices,
+            mesh_info
         )
         self.objects[key] = mesh
         return mesh
@@ -451,13 +462,15 @@ class RPRContext:
         self.materials[key] = material_node
 
     def create_image_file(self, key, filepath):
-        image = pyrpr.ImageFile(self.context, filepath)
+        image = self._ImageFile(self.context, filepath)
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image
 
     def create_image_data(self, key, data):
-        image = pyrpr.ImageData(self.context, data)
+        image = self._ImageData(self.context, data)
+        image.set_compression(self.texture_compression)
         if key:
             self.images[key] = image
         return image
@@ -564,12 +577,21 @@ class RPRContext:
 
         del self.materials[key]
 
+    def apply_filters(self):
+        if self.composite:
+            color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
+            self.composite.compute(color_aov['composite'])
+            if self.gl_interop:
+                color_aov['composite'].resolve(color_aov['gl'])
+
 
 class RPRContext2(RPRContext):
     """ Manager of pyrpr calls """
 
     # Classes
     _Context = pyrpr2.Context
+
+    _Camera = pyrpr2.Camera
 
     _Mesh = pyrpr2.Mesh
     _Instance = pyrpr2.Instance
@@ -579,11 +601,17 @@ class RPRContext2(RPRContext):
     _DiskLight = pyrpr2.DiskLight
     _PostEffect = pyrpr2.PostEffect
 
-    def init(self, context_flags, context_props, use_contour_integrator=False):
+    def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-        super().init(context_flags, context_props, use_contour_integrator)
+        super().init(context_flags, context_props)
 
-    def sync_catchers(self, use_transparent_background=False):
+    def _enable_catchers(self):
+        pass
+
+    def _disable_catchers(self):
+        pass
+
+    def apply_filters(self):
         pass
 
     def sync_auto_adapt_subdivision(self, width=0, height=0):

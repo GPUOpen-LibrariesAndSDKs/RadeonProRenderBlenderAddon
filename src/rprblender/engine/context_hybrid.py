@@ -29,6 +29,8 @@ class RPRContext(context.RPRContext):
     _Scene = pyhybrid.Scene
 
     _MaterialNode = pyhybrid.MaterialNode
+    _ImageData = pyhybrid.ImageData
+    _ImageFile = pyhybrid.ImageFile
 
     _PointLight = pyhybrid.PointLight
     _SphereLight = pyhybrid.PointLight
@@ -49,7 +51,7 @@ class RPRContext(context.RPRContext):
 
     _PostEffect = pyhybrid.PostEffect
 
-    def init(self, context_flags, context_props, use_contour_integrator=False):
+    def init(self, context_flags, context_props):
         context_flags -= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
         if context_props[0] == pyrpr.CONTEXT_SAMPLER_TYPE:
             context_props = context_props[2:]

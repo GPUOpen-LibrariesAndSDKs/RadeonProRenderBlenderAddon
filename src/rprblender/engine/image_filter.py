@@ -122,9 +122,7 @@ class ImageFilter(metaclass=ABCMeta):
             GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outputImage));
             vec4 pixel = ReadPixelTyped(inputImage, coord.x, coord.y);
             vec4 pixel_alpha = ReadPixelTyped(alphaBuf, coord.x, coord.y);
-            pixel.x *= pixel_alpha.x;
-            pixel.y *= pixel_alpha.x;
-            pixel.z *= pixel_alpha.x;
+            pixel.xyz *= pixel_alpha.x;
             pixel.w = pixel_alpha.x;
             WritePixelTyped(outputImage, coord.x, coord.y, pixel);
         """
@@ -200,7 +198,7 @@ class ImageFilterML(ImageFilter):
         if not models_path.is_dir():
             # set alternative path
             models_path = utils.package_root_dir() / '../../.sdk/rif/models'
-        self.filter.set_parameter('modelPath', str(models_path))
+        self.filter.set_parameter('modelPath', str(models_path.resolve()))
         
         ml_output_image = self.context.create_image(self.width, self.height, 3)
 
@@ -310,9 +308,75 @@ class ImageFilterUpscale(ImageFilter):
         if not models_path.is_dir():
             # set alternative path
             models_path = utils.package_root_dir() / '../../.sdk/rif/models'
-        self.filter.set_parameter('modelPath', str(models_path))
+        self.filter.set_parameter('modelPath', str(models_path.resolve()))
 
-        self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_BEST_2X)
+        self.filter.set_parameter('mode', rif.AI_UPSCALE_MODE_FAST_2X)
+        self.filter.set_parameter('useHDR', True)
 
         self.output_image = self.context.create_image(self.width * 2, self.height * 2)
+        self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)
+
+
+class ImageFilterTransparentShadowReflectionCatcher(ImageFilter):
+    """ Calculate combination of shadow and reflection catchers, applies transparent background if needed """
+
+    def _create_filter(self):
+        """ Calculate reflection using reflection catcher and integrate it to color result """
+
+        use_background = self.params.get('use_background', False)
+        use_shadow = self.params.get('use_shadow', False)
+        use_reflection = self.params.get('use_reflection', False)
+
+        self.filter = self.context.create_filter(rif.IMAGE_FILTER_USER_DEFINED)
+
+        # only the outputImage is opened for writing in the USER_DEFINED filter, so work will be done in a single pass
+        # for this to work the filter code multi-string is combined here
+        code = """
+int2 coord;
+GET_COORD_OR_RETURN(coord, GET_BUFFER_SIZE(outputImage));
+vec4 pixel = ReadPixelTyped(inputImage, coord.x, coord.y);
+vec4 alpha = ReadPixelTyped(alphaImage, coord.x, coord.y);
+        """
+        self.filter.set_parameter('alphaImage', self.inputs['opacity'])
+
+        if use_reflection or use_shadow:
+            code += """
+vec4 background = ReadPixelTyped(backgroundImage, coord.x, coord.y);
+            """
+            self.filter.set_parameter('backgroundImage', self.inputs['background'])
+
+            if use_reflection:
+                code += """
+vec4 reflection = ReadPixelTyped(reflectionImage, coord.x, coord.y);
+alpha.x += reflection.x;
+                """
+                self.filter.set_parameter('reflectionImage', self.inputs['reflection_catcher'])
+
+            code += """
+pixel.xyz = background.xyz * (1.0f - alpha.x) + pixel.xyz * alpha.x;
+            """
+
+            if use_shadow:
+                # note: "shadow.x / 2.0f" doesn't work correctly, used "* 0.5f" instead
+                code += """
+vec4 shadow = ReadPixelTyped(shadowImage, coord.x, coord.y);
+float normalized = min(shadow.x * 0.5f, 1.0f);
+pixel.xyz = pixel.xyz * (1.0f - normalized);
+alpha.x = min(alpha.x + normalized, 1.0f);
+                """
+                self.filter.set_parameter('shadowImage', self.inputs['shadow_catcher'])
+
+        # apply transparent background if needed
+        if use_background:
+            code += """
+pixel.xyz *= alpha.x;
+pixel.w = alpha.x;
+            """
+
+        # save calculations result to output
+        code += """ 
+WritePixelTyped(outputImage, coord.x, coord.y, pixel);
+        """
+
+        self.filter.set_parameter('code', code)
         self.command_queue.attach_image_filter(self.filter, self.inputs['color'], self.output_image)

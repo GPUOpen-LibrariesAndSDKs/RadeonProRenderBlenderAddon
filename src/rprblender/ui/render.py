@@ -136,6 +136,10 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(rpr, 'tile_y')
         col.prop(rpr, 'tile_order')
 
+        col = self.layout.column(align=True)
+        col.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.render_quality == 'FULL2'
+        col.prop(limits, 'contour_render_samples', slider=False)
+
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
     bl_label = "Viewport & Preview Sampling"
@@ -170,7 +174,8 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
         col.prop(settings, 'use_gl_interop')
 
-        col.prop(settings, 'viewport_denoiser_upscale')
+        col.prop(context.scene.rpr, 'viewport_denoiser')
+        col.prop(context.scene.rpr, 'viewport_upscale')
 
         col.separator()
         col.prop(limits, 'preview_samples')
@@ -196,6 +201,9 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH'):
             self.layout.prop(rpr, 'hybrid_low_mem')
 
+        if rpr.render_quality == 'FULL2':
+            self.layout.prop(rpr, 'texture_compression')
+
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
     bl_label = "Max Ray Depth"
@@ -217,48 +225,6 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         col.prop(rpr_scene, 'shadow_depth', slider=True)
 
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
-
-
-class RPR_RENDER_PT_contour_rendering(RPR_Panel):
-    bl_label = "Contour Rendering"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, 'use_contour_render', text="")
-        self.layout.enabled = context.scene.rpr.render_quality == 'FULL2'
-
-    def draw(self, context):
-        self.layout.use_property_split = True
-        self.layout.use_property_decorate = False
-
-        rpr_scene = context.scene.rpr
-
-        main_column = self.layout.column()
-        main_column.enabled = context.scene.rpr.is_contour_used()
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_object_id')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_object_id
-        args.prop(rpr_scene, 'contour_object_id_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_material_id')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_material_id
-        args.prop(rpr_scene, 'contour_material_id_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_use_shading_normal')
-        args = col.column(align=True)
-        args.enabled = rpr_scene.contour_use_shading_normal
-        args.prop(rpr_scene, 'contour_normal_threshold', slider=True)
-        args.prop(rpr_scene, 'contour_shading_normal_line_width', slider=True)
-
-        col = main_column.column(align=True)
-        col.prop(rpr_scene, 'contour_antialiasing', slider=True)
-
-        main_column.prop(rpr_scene, 'contour_debug_flag')
 
 
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
@@ -349,6 +315,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
 
         col = layout.column()
         col.enabled = context.scene.render.use_motion_blur
+        col.prop(context.scene.cycles, 'motion_blur_position', text="Position", slider=True)
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
         col = layout.column()

@@ -100,8 +100,9 @@ class CurveData:
             # finding corresponded active ParticleSystemModifier
             p_modifier = next((modifier for modifier in obj.modifiers
                                if modifier.type == 'PARTICLE_SYSTEM' and
-                               modifier.show_render and
-                               modifier.particle_system.name == p_sys.name),
+                               (modifier.show_render if use_final_settings
+                                else modifier.show_viewport)
+                               and modifier.particle_system.name == p_sys.name),
                               None)
 
             if not p_modifier:
