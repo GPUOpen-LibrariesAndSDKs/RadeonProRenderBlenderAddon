@@ -20,7 +20,6 @@ import os
 import shutil
 import platform
 import sys
-import glob
 import numpy as np
 
 import bpy
@@ -47,7 +46,7 @@ def blender_root_dir():
 
 
 def blender_data_dir():
-    return Path(glob.glob(str(blender_root_dir() / '2.8*/datafiles'))[0])
+    return Path(bpy.utils.system_resource("DATAFILES"))
 
 
 def get_cpu_threads_number():
