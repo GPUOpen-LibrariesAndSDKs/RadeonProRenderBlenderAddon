@@ -29,6 +29,7 @@ from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
+from rprblender.engine.context import RPRContext2
 from rprblender.utils import BLENDER_VERSION
 
 from rprblender.utils import logging
@@ -2237,12 +2238,17 @@ class ShaderNodeVolumePrincipled(NodeParser):
             emission_color = self.get_input_value('Emission Color') * emission_strength
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
-            pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
-            pyrpr.MATERIAL_INPUT_ABSORBTION: absorption_color * density,
-            pyrpr.MATERIAL_INPUT_G: anisotropy,
             pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
             pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
         })
+
+        if isinstance(self.rpr_context, RPRContext2):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITY, density)
+        else:
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, absorption_color * density)
 
         # getting scalar data for hetero volume data since it does not work with textures
         color = self.get_input_scalar('Color')
@@ -2273,6 +2279,9 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
         return rpr_node
 
+    def export_hybrid(self):
+        return None
+
 
 class ShaderNodeVolumeScatter(NodeParser):
     def export(self):
@@ -2285,8 +2294,12 @@ class ShaderNodeVolumeScatter(NodeParser):
             pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
         })
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, density)
+        if isinstance(self.rpr_context, RPRContext2):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITY, density)
+        else:
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, density)
 
         # getting scalar data for hetero volume data since it does not work with textures
         color = self.get_input_scalar('Color')
