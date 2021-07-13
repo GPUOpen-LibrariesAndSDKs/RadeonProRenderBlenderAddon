@@ -644,15 +644,12 @@ class ViewportEngine(Engine):
 
             if is_obj_updated:
                 if self.background_filter:
-                    self.rpr_context.sync_catchers(False)
                     bg_filter_enabled = self.rpr_context.use_reflection_catcher or self.rpr_context.use_shadow_catcher
                     background_filter_settings = {'enable': bg_filter_enabled, 'use_background': False,
                                                   'use_shadow': self.rpr_context.use_shadow_catcher,
                                                   'use_reflection': self.rpr_context.use_reflection_catcher,
                                                   'resolution': (self.width, self.height)}
                     self.setup_background_filter(background_filter_settings)
-                else:
-                    self.rpr_context.sync_catchers()
 
         if is_updated:
             self.restart_render_event.set()
