@@ -265,10 +265,6 @@ def is_zero(val):
     return np.all(np.isclose(val, 0.0))
 
 
-# accept up to this number of leading zeroes in frame number in filename
-MAX_FRAME_NUMBER_LEADING_ZEROS = 6
-
-
 def get_sequence_frame_file_path(source_path, frame_number):
     """ Find sequence file path for frame number """
     if frame_number is None:
@@ -286,16 +282,14 @@ def get_sequence_frame_file_path(source_path, frame_number):
             index = i
             break
 
+    index = index if index else len(filename)
     filename = filename[:len(filename) - index]
 
     # try to locate target file using various frame number formats
-    for zeros_count in range(len(str(frame_number)), MAX_FRAME_NUMBER_LEADING_ZEROS + 1):
+    for zeros_count in range(len(str(frame_number)), index + 1):
         result = folder.joinpath(f"{filename}{frame_number:0{zeros_count}}{extension}")
         if result.is_file():
             return str(result)
 
-    log.warn(
-        f"Unable to find file {source_path} variant for frame number {frame_number}\n"
-        f"Frame number may have up to {MAX_FRAME_NUMBER_LEADING_ZEROS} leading zeroes."
-    )
+    log.warn(f"Unable to find file {source_path} variant for frame number {frame_number}.")
     return None
