@@ -656,8 +656,21 @@ class ShaderNodeTexImage(NodeParser):
             return self.node_item(ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else
                                   ERROR_IMAGE_COLOR[3])
 
-        rpr_image = image.sync(self.rpr_context, self.node.image,
-                               frame_number=self.node.image_user.frame_current)
+        frame_current = self.node.image_user.frame_current
+
+        # generating frame_current if use_auto_refresh is off, due to blender provides incorrect value in some cases
+        if not self.node.image_user.use_auto_refresh:
+            frame_duration = self.node.image_user.frame_duration
+            frame_start = self.node.image_user.frame_start
+            frame_offset = self.node.image_user.frame_offset
+            frame_finish = frame_offset + frame_duration
+            frame_current = self.rpr_context.blender_data['depsgraph'].scene.frame_current
+            if self.node.image_user.use_cyclic:
+                frame_current = (frame_current - frame_start) % frame_duration + frame_offset + 1
+            else:
+                frame_current = min(frame_current - frame_start + frame_offset + 1, frame_finish)
+
+        rpr_image = image.sync(self.rpr_context, self.node.image, frame_number=frame_current)
         if not rpr_image:
             return None
 
