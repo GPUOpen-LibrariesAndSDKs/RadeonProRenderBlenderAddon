@@ -544,11 +544,6 @@ class ViewportEngine(Engine):
         if not self.is_synced:
             return
 
-        if context.selected_objects != self.selected_objects:
-            # only a selection change
-            self.selected_objects = context.selected_objects
-            return
-
         # get supported updates and sort by priorities
         updates = []
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object,
@@ -578,6 +573,11 @@ class ViewportEngine(Engine):
                                            if node.image.source == 'SEQUENCE')
                     if use_auto_refresh:
                         updates.insert(1, (mat, None, None))
+
+        if context.selected_objects != self.selected_objects and not updates:
+            # only a selection change
+            self.selected_objects = context.selected_objects
+            return
 
         sync_collection = False
         sync_world = False
