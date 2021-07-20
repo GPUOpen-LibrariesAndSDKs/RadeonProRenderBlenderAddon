@@ -401,12 +401,14 @@ class Engine:
         return True
 
     def _enable_upscale_filter(self, settings):
+        import pyrprimagefilters as rif
         width, height = settings['resolution']
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
         self.upscale_filter = image_filter.ImageFilterUpscale(
-            self.rpr_context.context, {'color'}, {}, {}, width, height)
+            self.rpr_context.context, {'color'}, {}, {'compute_type': rif.COMPUTE_TYPE_FLOAT16},
+            width, height)
 
         self.upscale_filter.settings = settings
 
