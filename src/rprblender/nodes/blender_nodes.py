@@ -818,6 +818,11 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             transmission_roughness = self.get_input_value('Transmission Roughness')
 
         emission = self.get_input_value('Emission')
+        emission_strength = 1.0
+
+        # 'Emission Strength' in ShaderNodeBsdfPrincipled is supported from blender 2.91
+        if enabled(emission) and BLENDER_VERSION >= '2.91':
+            emission_strength = self.get_input_value('Emission Strength')
 
         alpha = self.get_input_value('Alpha')
         transparency = 1.0 - alpha
@@ -896,6 +901,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # Emission -> Emission
         if enabled(emission):
             # more related formula for emission weight:
+            emission *= emission_strength
             emission_weight = emission.average_xyz().min(1.0) * 0.5 + 0.5
 
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_WEIGHT, emission_weight)
