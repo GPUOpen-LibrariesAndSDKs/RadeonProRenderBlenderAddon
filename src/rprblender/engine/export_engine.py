@@ -60,43 +60,53 @@ class ExportEngine(Engine):
         # cache blur data
         self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
             not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
-        if self.rpr_context.do_motion_blur:
-            self.cache_blur_data(depsgraph)
-            self.set_motion_blur_mode(scene)
 
-        # camera, objects, particles
-        for obj in self.depsgraph_objects(depsgraph, with_camera=True):
-            indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
-            object.sync(self.rpr_context, obj, indirect_only=indirect_only,
-                        frame_current=scene.frame_current)
+        # with enabled motion blur, cache_blur_data() can change frame,
+        # therefore we store current frame and set it back after export process
+        cur_frame = (scene.frame_current, 0.0)
 
-        # instances
-        for inst in self.depsgraph_instances(depsgraph):
-            indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
-            instance.sync(self.rpr_context, inst, indirect_only=indirect_only,
-                          frame_current=scene.frame_current)
+        try:
+            if self.rpr_context.do_motion_blur:
+                self.cache_blur_data(depsgraph)
+                self.set_motion_blur_mode(scene)
 
-        # rpr_context parameters
-        self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
-        scene.rpr.export_ray_depth(self.rpr_context)
-        self.rpr_context.texture_compression = scene.rpr.texture_compression
+            # camera, objects, particles
+            for obj in self.depsgraph_objects(depsgraph, with_camera=True):
+                indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                object.sync(self.rpr_context, obj, indirect_only=indirect_only,
+                            frame_current=scene.frame_current)
 
-        # EXPORT CAMERA
-        camera_key = object.key(scene.camera)   # current camera key
-        rpr_camera = self.rpr_context.create_camera(camera_key)
-        self.rpr_context.scene.set_camera(rpr_camera)
-        camera_obj = depsgraph.objects.get(camera_key, None)
-        if not camera_obj:
-            camera_obj = scene.camera
+            # instances
+            for inst in self.depsgraph_instances(depsgraph):
+                indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
+                instance.sync(self.rpr_context, inst, indirect_only=indirect_only,
+                              frame_current=scene.frame_current)
 
-        camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
-                                                         self.rpr_context.width / self.rpr_context.height)
-        camera_data.export(rpr_camera)
+            # rpr_context parameters
+            self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, False)
+            scene.rpr.export_ray_depth(self.rpr_context)
+            self.rpr_context.texture_compression = scene.rpr.texture_compression
 
-        if self.rpr_context.do_motion_blur:
-            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-            object.export_motion_blur(self.rpr_context, camera_key,
-                                      object.get_transform(camera_obj))
+            # EXPORT CAMERA
+            camera_key = object.key(scene.camera)   # current camera key
+            rpr_camera = self.rpr_context.create_camera(camera_key)
+            self.rpr_context.scene.set_camera(rpr_camera)
+            camera_obj = depsgraph.objects.get(camera_key, None)
+            if not camera_obj:
+                camera_obj = scene.camera
+
+            camera_data = camera.CameraData.init_from_camera(camera_obj.data, camera_obj.matrix_world,
+                                                             self.rpr_context.width / self.rpr_context.height)
+            camera_data.export(rpr_camera)
+
+            if self.rpr_context.do_motion_blur:
+                rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+                object.export_motion_blur(self.rpr_context, camera_key,
+                                          object.get_transform(camera_obj))
+
+        finally:
+            if self.rpr_context.do_motion_blur:
+                self._set_scene_frame(scene, *cur_frame)
         
         # adaptive subdivision will be limited to the current scene render size
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
