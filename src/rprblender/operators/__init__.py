@@ -32,6 +32,7 @@ from . import (
     nodes,
     material_library,
     export_scene,
+    export_training_data,
     light,
 )
 
@@ -50,6 +51,8 @@ register_operators, unregister_operators = bpy.utils.register_classes_factory([
     material_library.RPR_MATERIAL_LIBRARY_OP_import_material,
 
     export_scene.RPR_EXPORT_OP_export_rpr_scene,
+
+    export_training_data.RPR_EXPORT_OP_export_training_data,
 
     light.RPR_LIGHT_OP_open_IES_file,
 ])
