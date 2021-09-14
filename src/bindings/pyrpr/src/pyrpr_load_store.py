@@ -39,4 +39,4 @@ def export(name, context, scene, flags):
     # RPRLOADSTORE_EXPORTFLAG_COMPRESS_IMAGE_LEVEL_2 (1 << 2) - image data will be lossy compressed during export
     #  note: without any of above flags images will not be exported.
     return lib.rprsExport(pyrpr.encode(name), context._get_handle(), scene._get_handle(),
-                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, flags)
+                          0, ffi.NULL, ffi.NULL, 0, ffi.NULL, ffi.NULL, flags, ffi.NULL)
