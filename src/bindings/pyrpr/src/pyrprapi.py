@@ -675,7 +675,8 @@ if __name__=='__main__':
                  'RPR_UV_CAMERA_SET_CHART_INDEX_FUNC_NAME',
                  'RPR_CONTEXT_CREATE_FRAMEBUFFER_TYPED_FUNC_NAME',
                  'RPR_MATERIAL_SET_INPUT_BY_S_KEY_FUNC_NAME',
-                 'RPR_MATERIALX_SET_ADDRESS_FUNC_NAME',]
+                 'RPR_MATERIALX_SET_FILE_FUNC_NAME',
+                 'RPR_MATERIALX_SET_FILE_AS_BUFFER_FUNC_NAME',]
     )
 
     export(
