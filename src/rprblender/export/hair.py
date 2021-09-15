@@ -113,8 +113,8 @@ class CurveData:
             all_uvs = np.fromiter(
                 (elem for i in range(start_index, start_index + curves_count)
                  for elem in p_sys.uv_on_emitter(p_modifier,
-                                                 particle=p_sys.particles[
-                                                     (i - start_index) % num_parents])),
+                                                 particle=p_sys.particles[(i - start_index) % num_parents],
+                                                 particle_no=i)),
                 dtype=np.float32
             ).reshape(-1, 2)
 

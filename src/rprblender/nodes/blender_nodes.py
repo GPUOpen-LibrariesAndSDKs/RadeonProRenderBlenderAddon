@@ -1051,31 +1051,23 @@ class ShaderNodeBsdfHairPrincipled(NodeParser):
         roughness_radial = self.get_input_value('Radial Roughness').clamp(0.001, 1.0)
         coat = self.get_input_scalar('Coat')
         ior = self.get_input_scalar('IOR')
+        weight = 0.0
+        melanin = 0.0
 
         if parametrization == 'ABSORPTION':
-            absorption_color = self.get_input_scalar('Absorption Coefficient')
+            absorption_color = self.get_input_value('Absorption Coefficient')
             color = (1.0 - absorption_color).min(1.0)
         elif parametrization == 'MELANIN':
             melanin = self.get_input_scalar('Melanin')
             melanin_redness = self.get_input_scalar('Melanin Redness')
-            absorption_color = self._calculate_absorption_from_melanin(melanin, melanin_redness)
-            color = (1.0 - absorption_color).min(1.0)
+            absorption_color = self._calculate_absorption_from_melanin(melanin, melanin_redness).min(1.0)
+            color = 1.0 - absorption_color
         else:  # 'COLOR'
-            color = self.get_input_scalar('Color')
-            absorption_color = self._calculate_absorption_from_color(color, roughness_radial)
+            color = self.get_input_value('Color')
+            weight = 1.0
 
-        node = self._create_absorption_node(color, absorption_color, roughness, roughness_radial, coat, ior)
+        node = self._create_absorption_node(color, weight, melanin, roughness, roughness_radial, coat, ior)
         return node
-
-    def _calculate_absorption_from_color(self, color, roughness_radial):
-        """ Use the Cycles way from bsdf_principled_hair_albedo_roughness_scale and bsdf_principled_hair_sigma_from_reflectance """
-        x = roughness_radial
-        # see the node Blender Manual https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/hair_principled.html
-        roughness_scale = (((((0.245 * x) + 5.574) * x - 10.73) * x + 2.532) * x - 0.215) * x + 5.969
-        color_log = self.node_item(tuple(math.log(e, 10) if e > 0 else 0 for e in color.data))
-        result = color_log / roughness_scale
-        result = result.max(0.0)
-        return result
 
     def _calculate_absorption_from_melanin(self, melanin, melanin_redness):
         """ Use the Cycles way from bsdf_principled_hair_sigma_from_concentration """
@@ -1085,17 +1077,17 @@ class ShaderNodeBsdfHairPrincipled(NodeParser):
         result = eumelanin * (0.506, 0.841, 1.653) + pheomelanin * (0.343, 0.733, 1.924)
         return result
 
-    def _create_absorption_node(self, color, absorption_color, roughness, roughness_radial, coat, ior):
-        base_color = (1.0 - absorption_color)
+    def _create_absorption_node(self, color, weight, melanin, roughness, roughness_radial, coat, ior):
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, weight)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 1.0 - melanin)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR, color)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0-roughness)  # length roughness increases gloss
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, (1, 1, 1, 1))
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0 - roughness)  # length roughness increases gloss
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, (1.0, 1.0, 1.0, 1.0))
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness_radial)  # decreases gloss, increases overall lightness
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
