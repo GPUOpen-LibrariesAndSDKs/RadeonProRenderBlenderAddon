@@ -5,7 +5,7 @@ has some specific requirements.
 
 ### Prerequisites:
 
-- The High Sierra OS 10.13.3 or later is required
+- The Mojave OS 10.14 or later is required.  To use RPR2, 10.15 is required.
     - We only use the Metal code path for this addon and this is the reason for this requirement
 - Install Xcode
     - SDKROOT should be set in your .profile:
