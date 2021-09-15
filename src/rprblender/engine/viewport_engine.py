@@ -28,7 +28,7 @@ import pyrpr
 from .engine import Engine
 from . import image_filter
 
-from rprblender.export import camera, material, world, object, instance
+from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
 from rprblender import utils
@@ -573,6 +573,12 @@ class ViewportEngine(Engine):
                                            if node.image.source == 'SEQUENCE')
                     if use_auto_refresh:
                         updates.insert(1, (mat, None, None))
+
+            volume_domain_mat = set(material_slot.material for obj in self.depsgraph_objects(depsgraph) if volume.get_smoke_modifier(obj)
+                              for material_slot in obj.material_slots)
+            volume_domain_mat -= set(update[0] for update in updates)
+            for mat in volume_domain_mat:
+                updates.append((mat, None, None))
 
         if context.selected_objects != self.selected_objects and not updates:
             # only a selection change

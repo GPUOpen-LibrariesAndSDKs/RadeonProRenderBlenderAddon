@@ -19,6 +19,7 @@ import math
 import bpy
 from . import object, material
 from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
+from rprblender.engine.context import RPRContext2
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.volume')
@@ -51,7 +52,7 @@ def sync(rpr_context, obj: bpy.types.Object):
 
     # find the smoke modifier
     smoke_modifier = get_smoke_modifier(obj)
-    if not smoke_modifier:
+    if not smoke_modifier or isinstance(rpr_context, RPRContext2):
         return
 
     log("sync", smoke_modifier, obj)

@@ -657,9 +657,38 @@ class Mesh(Shape):
                  vertex_indices, normal_indices, uv_indices: List[np.array],
                  num_face_vertices, mesh_info):
         super().__init__(context)
-        self.poly_count = len(num_face_vertices)
 
-        if len(uvs) > 1 or mesh_info:
+        self.poly_count = 0 if vertices is None else len(num_face_vertices) 
+
+        mesh_info_ptr = ffi.NULL
+        if mesh_info:
+            mesh_info_ptr = ffi.new(f"rpr_mesh_info[{2 * len(mesh_info) + 1}]")
+            i = 0
+            for key, val in mesh_info.items():
+                mesh_info_ptr[i] = key
+                mesh_info_ptr[i + 1] = val
+                i += 2
+            mesh_info_ptr[i] = 0
+
+        if vertices is None:
+            ContextCreateMeshEx2(
+                self.context,
+                ffi.NULL, 0, 0,
+                ffi.NULL, 0, 0,
+                ffi.NULL, 0, 0,
+                0,
+                ffi.NULL, ffi.NULL,
+                ffi.NULL,
+                ffi.NULL, 0,
+                ffi.NULL, 0,
+                ffi.NULL, ffi.NULL,
+                ffi.NULL, 0,
+                mesh_info_ptr,
+                self
+            )
+            return
+
+        if len(uvs) > 1 or mesh_info_ptr:
             # several UVs set present
             texcoords_layers_num = len(uvs)
             texcoords_uvs = ffi.new("float *[]", texcoords_layers_num)
@@ -674,14 +703,6 @@ class Mesh(Shape):
                 texcoords_nbytes[i] = uvs_set[0].nbytes
                 texcoords_ind[i] = ffi.cast('rpr_int *', uv_indices[i].ctypes.data)
                 texcoords_ind_nbytes[i] = uv_indices[i][0].nbytes
-
-            mesh_info_ptr = ffi.new(f"rpr_mesh_info[{2 * len(mesh_info) + 1}]")
-            i = 0
-            for key, val in mesh_info.items():
-                mesh_info_ptr[i] = key
-                mesh_info_ptr[i + 1] = val
-                i += 2
-            mesh_info_ptr[i] = 0
 
             ContextCreateMeshEx2(
                 self.context,
@@ -1119,6 +1140,8 @@ class MaterialNode(Object):
                 MaterialNodeSetInputImageDataByKey(self, name, None)
             elif isinstance(value, Buffer):
                 MaterialNodeSetInputBufferDataByKey(self, name, None)
+            elif isinstance(value, Grid):
+                MaterialNodeSetInputGridDataByKey(self, name, None)
         self.inputs.clear()
 
         super().delete()
@@ -1140,6 +1163,8 @@ class MaterialNode(Object):
             MaterialNodeSetInputImageDataByKey(self, name, value)
         elif isinstance(value, Buffer):
             MaterialNodeSetInputBufferDataByKey(self, name, value)
+        elif isinstance(value, Grid):
+            MaterialNodeSetInputGridDataByKey(self, name, value)
         else:
             raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
