@@ -14,16 +14,20 @@
 #********************************************************************
 from dataclasses import dataclass
 import numpy as np
+from mathutils import Matrix, Vector
 
 import bpy
 
-from . import particle, object
+from . import particle, object, instance
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.hair')
 
 
-def key(p_sys, emitter):
+def key(p_sys, emitter, inst=None):
+    if inst:
+        return instance.key(inst) + particle.key(p_sys, emitter)
+
     return particle.key(p_sys, emitter)
 
 
@@ -135,6 +139,11 @@ def sync(rpr_context, emitter: bpy.types.Object):
     """ sync the particle system """
     from rprblender.engine.render_engine import RenderEngine
 
+    inst = None
+    if isinstance(emitter, bpy.types.DepsgraphObjectInstance):
+        inst = emitter
+        emitter = emitter.object
+
     for p_sys in hair_p_sys(emitter):
         log("sync", p_sys, emitter)
 
@@ -142,7 +151,18 @@ def sync(rpr_context, emitter: bpy.types.Object):
         if not curve_data:
             return
 
-        hair_key = key(p_sys, emitter)
+        if inst:
+            hair_key = key(p_sys, emitter, inst)
+
+            #  subtract emitter transforms from hair transform and apply instance/particle transform
+            #  need because hair comes with emitter transform and applied twice
+            transform = np.array(inst.matrix_world @ emitter.matrix_world.inverted(),
+                                 dtype=np.float32)
+
+        else:
+            hair_key = key(p_sys, emitter)
+            transform = np.identity(4, dtype=np.float32)
+
         rpr_hair = rpr_context.create_curve(hair_key, curve_data.points,
                                             curve_data.points_radii,
                                             curve_data.uvs)
@@ -154,7 +174,7 @@ def sync(rpr_context, emitter: bpy.types.Object):
             rpr_hair.set_material(rpr_material)
 
         # hair uses world space
-        rpr_hair.set_transform(np.identity(4, dtype=np.float32))
+        rpr_hair.set_transform(transform)
 
 
 def sync_update(rpr_context, emitter: bpy.types.Object, is_updated_geometry, is_updated_transform):
