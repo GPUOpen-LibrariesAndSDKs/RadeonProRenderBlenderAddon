@@ -29,7 +29,7 @@ from .context import RPRContext
 from rprblender.export import object, instance
 from . import image_filter
 
-from rprblender.utils import logging
+from rprblender.utils import logging, IS_LINUX
 log = logging.Log(tag='Engine')
 
 
@@ -403,8 +403,10 @@ class Engine:
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
+        # freeze on Ubuntu with rif.COMPUTE_TYPE_FLOAT16
         self.upscale_filter = image_filter.ImageFilterUpscale(
-            self.rpr_context.context, {'color'}, {}, {'compute_type': rif.COMPUTE_TYPE_FLOAT16},
+            self.rpr_context.context, {'color'}, {},
+            {'compute_type': rif.COMPUTE_TYPE_FLOAT if IS_LINUX else rif.COMPUTE_TYPE_FLOAT16},
             width, height)
 
         self.upscale_filter.settings = settings
