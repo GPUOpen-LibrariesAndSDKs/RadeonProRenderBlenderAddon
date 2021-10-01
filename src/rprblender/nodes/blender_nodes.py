@@ -47,6 +47,22 @@ COLOR_GAMMA = 2.2
 SSS_MIN_RADIUS = 0.0001
 
 
+def enabled(val: [NodeItem, None]):
+    if val is None:
+        return False
+
+    if isinstance(val.data, float) and math.isclose(val.data, 0.0):
+        return False
+
+    if isinstance(val.data, tuple) and \
+            math.isclose(val.data[0], 0.0) and \
+            math.isclose(val.data[1], 0.0) and \
+            math.isclose(val.data[2], 0.0):
+        return False
+
+    return True
+
+
 class ShaderNodeOutputMaterial(BaseNodeParser):
     # inputs: Surface, Volume, Displacement
 
@@ -760,21 +776,6 @@ class ShaderNodeBsdfPrincipled(NodeParser):
     #    Normal, Tangent
 
     def export(self):
-        def enabled(val: [NodeItem, None]):
-            if val is None:
-                return False
-
-            if isinstance(val.data, float) and math.isclose(val.data, 0.0):
-                return False
-
-            if isinstance(val.data, tuple) and \
-               math.isclose(val.data[0], 0.0) and \
-               math.isclose(val.data[1], 0.0) and \
-               math.isclose(val.data[2], 0.0):
-                return False
-
-            return True
-
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
         base_color = self.get_input_value('Base Color')
 
@@ -2225,12 +2226,6 @@ class ShaderNodeUVMap(NodeParser):
 
 class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
-        def rgba(temperature):
-            t = temperature.data
-            if isinstance(t, tuple):
-                t = t[0]
-            return (*convert_kelvins_to_rgb(t), 1.0)
-
         # textures can be used by the RPR_MATERIAL_NODE_VOLUME shader node
         color = self.get_input_value('Color')
         density = self.get_input_value('Density')
@@ -2252,14 +2247,9 @@ class ShaderNodeVolumePrincipled(NodeParser):
             pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
             pyrpr.MATERIAL_INPUT_G: anisotropy,
             pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+            pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
+            pyrpr.MATERIAL_INPUT_ABSORBTION: absorption_color * density,
         })
-
-        if isinstance(self.rpr_context, RPRContext2):
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITY, density)
-        else:
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, absorption_color * density)
 
         # getting scalar data for hetero volume data since it does not work with textures
         color = self.get_input_scalar('Color')
@@ -2281,10 +2271,10 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
         # storing hetero volume data as an additional field 'data' of MaterialNode object
         rpr_node.data.data = {
-            'color': color.data[:3],
+            'color': tuple(color.get_channel(i).data for i in range(3)),
             'density': density.get_channel(0).data,
             'density_attr': density_attr.data,
-            'emission_color': emission_color.data[:3],
+            'emission_color': tuple(emission_color.get_channel(i).data for i in range(3)),
             'temperature_attr': temperature_attr.data,
         }
 
@@ -2294,59 +2284,129 @@ class ShaderNodeVolumePrincipled(NodeParser):
         return None
 
     def export_rpr2(self):
-        color = self.get_input_value('Color')
-        density = self.get_input_value('Density')
-        anisotropy = self.get_input_value('Anisotropy')
-        emission_strength = self.get_input_value('Emission Strength')
-        blackbody_intensity = self.get_input_value('Blackbody Intensity')
+        def domain_export():
+            if not self.object:
+                return None
 
-        if emission_strength.is_zero() and not blackbody_intensity.is_zero():
-            blackbody_tint = self.get_input_value('Blackbody Tint')
-            temperature = self.get_input_scalar('Temperature')
+            smoke_modifier = volume.get_smoke_modifier(self.object)
+            if not smoke_modifier:
+                return None
 
-            emission_color = blackbody_intensity * blackbody_tint * \
-                             (*convert_kelvins_to_rgb(temperature.get_channel(0).data), 1.0)
-        else:
-            emission_color = self.get_input_value('Emission Color') * emission_strength
+            # Heterovolumes additionally calculates grids and apply to rpr_node
+            domain = smoke_modifier.domain_settings
+            if len(domain.density_grid) == 0:
+                # empty smoke.  warn and return
+                log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
+                return None
 
-        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
-            pyrpr.MATERIAL_INPUT_COLOR: color,
-            pyrpr.MATERIAL_INPUT_DENSITY: density,
-            pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
-            pyrpr.MATERIAL_INPUT_G: anisotropy,
-            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
-        })
+            color = self.get_input_value('Color')
+            density = self.get_input_value('Density')
+            anisotropy = self.get_input_value('Anisotropy')
+            emission_strength = self.get_input_value('Emission Strength')
+            blackbody_intensity = self.get_input_value('Blackbody Intensity')
 
-        # Heterovolumes additionally calculates grids and apply to rpr_node
-        if not self.object:
+            if BLENDER_VERSION >= '2.82':
+                x, y, z = domain.domain_resolution
+            else:
+                amplify = domain.amplify if domain.use_high_resolution else 0
+                x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
+
+            if domain.use_noise:
+                # smoke noise upscale the basic domain resolution
+                x, y, z = (domain.noise_scale * e for e in (x, y, z))
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+                pyrpr.MATERIAL_INPUT_DENSITY: density,
+                pyrpr.MATERIAL_INPUT_G: anisotropy,
+                pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+            })
+
+            # set density grid
+            density_grid = self.rpr_context.create_grid_from_3d_array(
+                get_prop_array_data(domain.density_grid).reshape(x, y, z))
+            density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+                pyrpr.MATERIAL_INPUT_DATA: density_grid
+            })
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
+
+            # set color input
+            color *= 0.99   # making color slightly less, because of issue
+                            # that (1, 1, 1) color and higher disables emission
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
+
+            if enabled(emission_strength) or enabled(blackbody_intensity):
+                # set emission grid
+                emission_grid = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+                if is_zero(emission_grid):
+                    emission_grid_node = density_grid_node
+                else:
+                    emission_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+                        pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(
+                            emission_grid)
+                    })
+
+                lookup_image = self.rpr_context.create_image_data(None,
+                    np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
+                emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                    pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+                    pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
+                    pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                    pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                })
+
+                if enabled(blackbody_intensity):
+                    temperature = self.get_input_value('Temperature')
+                    blackbody_tint = self.get_input_value('Blackbody Tint')
+
+                    blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
+                        pyrpr.MATERIAL_INPUT_KELVIN: temperature,
+                        pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                    })
+
+                    emission = emission_image_node * blackbody_node * blackbody_intensity * \
+                               blackbody_tint
+
+                    # additional multiplication to be corresponded with cycles
+                    emission *= temperature * 0.005
+
+                else:
+                    emission_color = self.get_input_value('Emission Color')
+
+                    emission = emission_image_node * emission_color * emission_strength
+
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
+
             return rpr_node
 
-        smoke_modifier = volume.get_smoke_modifier(self.object)
-        if not smoke_modifier:
+        def base_export():
+            color = self.get_input_value('Color')
+            density = self.get_input_value('Density')
+            anisotropy = self.get_input_value('Anisotropy')
+            emission_strength = self.get_input_value('Emission Strength')
+            blackbody_intensity = self.get_input_value('Blackbody Intensity')
+
+            if emission_strength.is_zero() and not blackbody_intensity.is_zero():
+                blackbody_tint = self.get_input_value('Blackbody Tint')
+                temperature = self.get_input_scalar('Temperature')
+
+                emission_color = blackbody_intensity * blackbody_tint * \
+                                 (*convert_kelvins_to_rgb(temperature.get_channel(0).data), 1.0)
+            else:
+                emission_color = self.get_input_value('Emission Color') * emission_strength
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+                pyrpr.MATERIAL_INPUT_COLOR: color,
+                pyrpr.MATERIAL_INPUT_DENSITY: density,
+                pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
+                pyrpr.MATERIAL_INPUT_G: anisotropy,
+                pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+            })
+
             return rpr_node
 
-        domain = smoke_modifier.domain_settings
-        if len(domain.density_grid) == 0:
-            # empty smoke.  warn and return
-            log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
-            return rpr_node
-
-        if BLENDER_VERSION >= '2.82':
-            x, y, z = domain.domain_resolution
-        else:
-            amplify = domain.amplify if domain.use_high_resolution else 0
-            x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
-
-        if domain.use_noise:
-            # smoke noise upscale the basic domain resolution
-            x, y, z = (domain.noise_scale * e for e in (x, y, z))
-
-        # set density grid
-        density_data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
-        density_grid = self.rpr_context.create_grid_from_3d_array(np.ascontiguousarray(density_data))
-        density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER)
-        density_grid_node.set_input(pyrpr.MATERIAL_INPUT_DATA, density_grid)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
+        rpr_node = domain_export()
+        if not rpr_node:
+            rpr_node = base_export()
 
         return rpr_node
 
