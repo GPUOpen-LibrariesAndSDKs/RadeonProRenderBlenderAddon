@@ -44,6 +44,7 @@ node_categories = [
         NodeItem('ShaderNodeValue'),
         NodeItem('ShaderNodeNewGeometry'),
         NodeItem('ShaderNodeUVMap'),
+        NodeItem('ShaderNodeVolumeInfo'),
         NodeItem('RPRShaderProceduralUVNode'),
         NodeItem('RPRShaderNodeLookup'),
     ],),
