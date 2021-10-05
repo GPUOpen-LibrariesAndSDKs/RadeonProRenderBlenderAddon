@@ -18,7 +18,7 @@ import math
 
 import bpy
 from . import object, material
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero, get_domain_resolution
 from rprblender.engine.context import RPRContext2
 
 from rprblender.utils import logging
@@ -79,16 +79,7 @@ def sync(rpr_context, obj: bpy.types.Object):
     rpr_volume = rpr_context.create_hetero_volume(volume_key)
     rpr_volume.set_name(str(volume_key))
 
-    # getting smoke resolution and color_grid
-    if BLENDER_VERSION >= '2.82':
-        x, y, z = domain.domain_resolution
-    else:
-        amplify = domain.amplify if domain.use_high_resolution else 0
-        x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
-
-    if domain.use_noise:
-        # smoke noise upscale the basic domain resolution
-        x, y, z = (domain.noise_scale * e for e in (x, y, z))
+    x, y, z = get_domain_resolution(domain)
 
     color_grid = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
 
