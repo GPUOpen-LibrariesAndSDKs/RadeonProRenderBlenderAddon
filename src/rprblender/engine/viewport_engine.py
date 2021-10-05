@@ -501,8 +501,9 @@ class ViewportEngine(Engine):
 
         self.rpr_context.scene.set_name(scene.name)
 
-        self.world_settings = self._get_world_settings(depsgraph)
-        self.world_settings.export(self.rpr_context)
+        if scene.world:
+            self.world_settings = self._get_world_settings(depsgraph)
+            self.world_settings.export(self.rpr_context)
 
         rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
@@ -867,7 +868,7 @@ class ViewportEngine(Engine):
             upscale_filter_settings['resolution'] = self.width, self.height
             self.setup_upscale_filter(upscale_filter_settings)
 
-        if self.world_settings.backplate:
+        if self.world_settings and self.world_settings.backplate:
             self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
 
         self.is_resized = True
