@@ -269,6 +269,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'channel': 'XYZ'
         },
         {
+            'rpr': pyrpr.AOV_CAMERA_NORMAL,
+            'name': "Camera Normal",
+            'channel': 'XYZ'
+        },
+        {
             'rpr': pyrpr.AOV_OBJECT_GROUP_ID,
             'name': "Group Index",
             'channel': 'X'
