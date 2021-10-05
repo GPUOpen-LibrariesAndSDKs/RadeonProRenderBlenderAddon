@@ -48,6 +48,7 @@ class ExportEngine(Engine):
         depsgraph = context.evaluated_depsgraph_get()
         self.rpr_context.blender_data['depsgraph'] = depsgraph
         scene = depsgraph.scene
+        material_override = depsgraph.view_layer.material_override
 
         scene.rpr.init_rpr_context(self.rpr_context)
 
@@ -73,13 +74,13 @@ class ExportEngine(Engine):
             # camera, objects, particles
             for obj in self.depsgraph_objects(depsgraph, with_camera=True):
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                object.sync(self.rpr_context, obj, indirect_only=indirect_only,
+                object.sync(self.rpr_context, obj, indirect_only=indirect_only, material_override=material_override,
                             frame_current=scene.frame_current)
 
             # instances
             for inst in self.depsgraph_instances(depsgraph):
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
-                instance.sync(self.rpr_context, inst, indirect_only=indirect_only,
+                instance.sync(self.rpr_context, inst, indirect_only=indirect_only, material_override=material_override,
                               frame_current=scene.frame_current)
 
             # rpr_context parameters
