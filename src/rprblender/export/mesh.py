@@ -29,6 +29,9 @@ from rprblender.utils import logging
 log = logging.Log(tag='export.mesh')
 
 
+NUM_TRIANGLES_WARNING = 1000000
+
+
 @dataclass(init=False)
 class MeshData:
     """ Dataclass which holds all mesh settings. It is used also for area lights creation """
@@ -62,12 +65,14 @@ class MeshData:
         if tris_len == 0:
             return None
 
+        if tris_len > NUM_TRIANGLES_WARNING:
+            log.warn(f'Found object {obj.name_full} with {tris_len:,} triangles. '
+                     f'Consider simplifying geometry to less than {NUM_TRIANGLES_WARNING:,} triangles')
+
         data = MeshData()
         data.vertices = get_data_from_collection(mesh.vertices, 'co', (len(mesh.vertices), 3))
-
-        len_loop_triangles = len(mesh.loop_triangles)
         data.normals = get_data_from_collection(mesh.loop_triangles, 'split_normals',
-                                                (len_loop_triangles * 3, 3))
+                                                (tris_len * 3, 3))
 
         data.uvs = []
         data.uv_indices = []
@@ -76,7 +81,7 @@ class MeshData:
         if primary_uv:
             uvs = get_data_from_collection(primary_uv.data, 'uv', (len(primary_uv.data), 2))
             uv_indices = get_data_from_collection(mesh.loop_triangles, 'loops',
-                                                  (len_loop_triangles * 3,), np.int32)
+                                                  (tris_len * 3,), np.int32)
 
             if len(uvs) > 0:
                 data.uvs.append(uvs)
@@ -92,7 +97,7 @@ class MeshData:
 
         data.num_face_vertices = np.full((tris_len,), 3, dtype=np.int32)
         data.vertex_indices = get_data_from_collection(mesh.loop_triangles, 'vertices',
-                                                       (len_loop_triangles * 3,), np.int32)
+                                                       (tris_len * 3,), np.int32)
         data.normal_indices = np.arange(tris_len * 3, dtype=np.int32)
 
         if calc_area:
@@ -105,7 +110,7 @@ class MeshData:
             colors = get_data_from_collection(color_data, 'color', (len(color_data), 4))
             color_indices = data.uv_indices[0] if (data.uv_indices is not None and len(data.uv_indices) > 0) else \
                 get_data_from_collection(mesh.loop_triangles, 'loops',
-                                         (len_loop_triangles * 3,), np.int32)
+                                         (tris_len * 3,), np.int32)
 
             # preparing vertex_color buffer with the same size as vertices and
             # setting its data by indices from vertex colors
