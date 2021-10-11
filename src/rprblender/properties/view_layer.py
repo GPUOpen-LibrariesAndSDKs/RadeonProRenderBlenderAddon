@@ -269,6 +269,11 @@ class RPR_ViewLayerProperites(RPR_Properties):
             'channel': 'XYZ'
         },
         {
+            'rpr': pyrpr.AOV_CAMERA_NORMAL,
+            'name': "Camera Normal",
+            'channel': 'XYZ'
+        },
+        {
             'rpr': pyrpr.AOV_OBJECT_GROUP_ID,
             'name': "Group Index",
             'channel': 'X'
@@ -453,7 +458,8 @@ class RPR_ViewLayerProperites(RPR_Properties):
     use_contour_render: BoolProperty(
         name="Contour",
         description="Use Contour rendering mode. Final render only",
-        default=False
+        default=False,
+        update=aov_enabled_changed,
     )
     contour: PointerProperty(type=RPR_ContourProperties)       
 

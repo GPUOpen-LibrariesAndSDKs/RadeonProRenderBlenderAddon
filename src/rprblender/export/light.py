@@ -23,7 +23,6 @@ from rprblender.engine.context import RPRContext
 from rprblender.properties.light import MAX_LUMINOUS_EFFICACY
 from . import mesh, image, object
 from rprblender.utils.conversion import convert_kelvins_to_rgb
-from rprblender import utils
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.light')
@@ -45,7 +44,9 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     if light.type in ('POINT', 'SPOT'):
         units = rpr.intensity_units_point
         if units == 'DEFAULT':
-            return color * math.sqrt(light.energy)  # to match cycles
+            # to match cycles: multiplying by coefficient, which was determined with experimentation
+            default_intensity *= 0.01
+            return default_intensity
 
         # converting to lumen
         if units == 'LUMEN':
@@ -75,6 +76,8 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     elif light.type == 'AREA':
         units = rpr.intensity_units_area
         if units == 'DEFAULT':
+            # to match cycles: multiplying by coefficient, which was determined with experimentation
+            default_intensity *= 0.1
             if rpr.intensity_normalization:
                 return default_intensity / area
             return default_intensity
