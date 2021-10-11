@@ -15,7 +15,7 @@
 import numpy as np
 import bpy
 
-from . import object, light, mesh
+from . import object, light, mesh, hair
 from rprblender.utils import logging
 log = logging.Log(tag='export.instance')
 
@@ -62,6 +62,8 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
         mesh.export_visibility(instance.object, rpr_shape, indirect_only)
 
         rpr_context.scene.attach(rpr_shape)
+
+        hair.sync(rpr_context, instance)
 
     elif obj.type == 'LIGHT':
         light.sync(rpr_context, obj, instance_key)

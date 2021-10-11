@@ -28,7 +28,7 @@ import pyrpr
 from .engine import Engine
 from . import image_filter
 
-from rprblender.export import camera, material, world, object, instance
+from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
 from rprblender.utils import gl
 from rprblender import utils
@@ -216,6 +216,7 @@ class ViewportEngine(Engine):
         self.view_mode = None
         self.space_data = None
         self.selected_objects = None
+        self.frame_current = None
 
         self.user_settings = get_user_settings()
 
@@ -246,7 +247,6 @@ class ViewportEngine(Engine):
         time_begin = time.perf_counter()
 
         # exporting objects
-        frame_current = depsgraph.scene.frame_current
         material_override = depsgraph.view_layer.material_override
         objects_len = len(depsgraph.objects)
         for i, obj in enumerate(self.depsgraph_objects(depsgraph)):
@@ -260,7 +260,7 @@ class ViewportEngine(Engine):
             indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
             object.sync(self.rpr_context, obj,
                         indirect_only=indirect_only, material_override=material_override,
-                        frame_current=frame_current)
+                        frame_current=self.frame_current)
 
         # exporting instances
         instances_len = len(depsgraph.object_instances)
@@ -279,7 +279,7 @@ class ViewportEngine(Engine):
             indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
             instance.sync(self.rpr_context, inst,
                           indirect_only=indirect_only, material_override=material_override,
-                          frame_current=frame_current)
+                          frame_current=self.frame_current)
 
         # shadow catcher
         if depsgraph.scene.rpr.render_quality != 'FULL':  # non-Legacy modes
@@ -478,6 +478,7 @@ class ViewportEngine(Engine):
         view_layer = depsgraph.view_layer
         settings = get_user_settings()
         use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
+        self.frame_current = depsgraph.scene.frame_current
 
         scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
                                    use_gl_interop=use_gl_interop)
@@ -500,8 +501,9 @@ class ViewportEngine(Engine):
 
         self.rpr_context.scene.set_name(scene.name)
 
-        self.world_settings = self._get_world_settings(depsgraph)
-        self.world_settings.export(self.rpr_context)
+        if scene.world:
+            self.world_settings = self._get_world_settings(depsgraph)
+            self.world_settings.export(self.rpr_context)
 
         rpr_camera = self.rpr_context.create_camera()
         rpr_camera.set_name("Camera")
@@ -543,18 +545,46 @@ class ViewportEngine(Engine):
         if not self.is_synced:
             return
 
-        if context.selected_objects != self.selected_objects:
-            # only a selection change
-            self.selected_objects = context.selected_objects
-            return
-
-        frame_current = depsgraph.scene.frame_current
-
         # get supported updates and sort by priorities
         updates = []
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object,
                          bpy.types.Collection, bpy.types.Light):
-            updates.extend(update for update in depsgraph.updates if isinstance(update.id, obj_type))
+            for update in depsgraph.updates:
+                if isinstance(update.id, obj_type):
+                    updates.append((update.id, update.is_updated_geometry, update.is_updated_transform))
+
+        if not updates:
+            return
+
+        # despgraph doesn't provide updates for ShaderNodeTexImage with activated Auto Refresh option
+        # get materials which contain ShaderNodeTexImage with SEQUENCE source, to make force update
+        if isinstance(updates[0][0], bpy.types.Scene) and \
+                self.frame_current != depsgraph.scene.frame_current:
+            self.frame_current = depsgraph.scene.frame_current
+
+            materials = set(material_slot.material for obj in self.depsgraph_objects(depsgraph)
+                            for material_slot in obj.material_slots)
+            materials -= set(update[0] for update in updates)
+            for mat in materials:
+                image_nodes = material.get_material_nodes_by_type(mat, 'ShaderNodeTexImage')
+
+                if image_nodes:
+                    use_auto_refresh = any(node.image_user.use_auto_refresh
+                                           for node in image_nodes
+                                           if node.image.source == 'SEQUENCE')
+                    if use_auto_refresh:
+                        updates.insert(1, (mat, None, None))
+
+            volume_domain_mat = set(material_slot.material for obj in self.depsgraph_objects(depsgraph) if volume.get_smoke_modifier(obj)
+                              for material_slot in obj.material_slots)
+            volume_domain_mat -= set(update[0] for update in updates)
+            for mat in volume_domain_mat:
+                updates.append((mat, None, None))
+
+        if context.selected_objects != self.selected_objects and not updates:
+            # only a selection change
+            self.selected_objects = context.selected_objects
+            return
 
         sync_collection = False
         sync_world = False
@@ -586,7 +616,7 @@ class ViewportEngine(Engine):
         self._sync_update_before()
         with self.render_lock:
             for update in updates:
-                obj = update.id
+                obj, is_updated_geometry, is_updated_transform = update
                 log("sync_update", obj)
                 if isinstance(obj, bpy.types.Scene):
                     is_updated |= self.update_render(obj, depsgraph.view_layer)
@@ -611,11 +641,11 @@ class ViewportEngine(Engine):
                     indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                     active_and_mode_changed = mode_updated and context.active_object == obj.original
                     is_updated |= object.sync_update(self.rpr_context, obj,
-                                                     update.is_updated_geometry or active_and_mode_changed, 
-                                                     update.is_updated_transform,
+                                                     is_updated_geometry or active_and_mode_changed,
+                                                     is_updated_transform,
                                                      indirect_only=indirect_only,
                                                      material_override=material_override,
-                                                     frame_current=frame_current)
+                                                     frame_current=self.frame_current)
                     is_obj_updated |= is_updated
                     continue
 
@@ -644,15 +674,12 @@ class ViewportEngine(Engine):
 
             if is_obj_updated:
                 if self.background_filter:
-                    self.rpr_context.sync_catchers(False)
                     bg_filter_enabled = self.rpr_context.use_reflection_catcher or self.rpr_context.use_shadow_catcher
                     background_filter_settings = {'enable': bg_filter_enabled, 'use_background': False,
                                                   'use_shadow': self.rpr_context.use_shadow_catcher,
                                                   'use_reflection': self.rpr_context.use_reflection_catcher,
                                                   'resolution': (self.width, self.height)}
                     self.setup_background_filter(background_filter_settings)
-                else:
-                    self.rpr_context.sync_catchers()
 
         if is_updated:
             self.restart_render_event.set()
@@ -841,7 +868,7 @@ class ViewportEngine(Engine):
             upscale_filter_settings['resolution'] = self.width, self.height
             self.setup_upscale_filter(upscale_filter_settings)
 
-        if self.world_settings.backplate:
+        if self.world_settings and self.world_settings.backplate:
             self.world_settings.backplate.export(self.rpr_context, (self.width, self.height))
 
         self.is_resized = True
@@ -941,7 +968,6 @@ class ViewportEngine(Engine):
     def sync_collection_objects(self, depsgraph, object_keys_to_export, material_override):
         """ Export collections objects """
         res = False
-        frame_current = depsgraph.scene.frame_current
 
         for obj in self.depsgraph_objects(depsgraph):
             obj_key = object.key(obj)
@@ -953,7 +979,7 @@ class ViewportEngine(Engine):
                 indirect_only = obj.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 object.sync(self.rpr_context, obj,
                             indirect_only=indirect_only, material_override=material_override,
-                            frame_current=frame_current)
+                            frame_current=self.frame_current)
             else:
                 assign_materials(self.rpr_context, rpr_obj, obj, material_override)
 
@@ -964,7 +990,6 @@ class ViewportEngine(Engine):
     def sync_collection_instances(self, depsgraph, object_keys_to_export, material_override):
         """ Export collections instances """
         res = False
-        frame_current = depsgraph.scene.frame_current
 
         for inst in self.depsgraph_instances(depsgraph):
             instance_key = instance.key(inst)
@@ -976,7 +1001,7 @@ class ViewportEngine(Engine):
                 indirect_only = inst.parent.original.indirect_only_get(view_layer=depsgraph.view_layer)
                 instance.sync(self.rpr_context, inst,
                               indirect_only=indirect_only, material_override=material_override,
-                              frame_current=frame_current)
+                              frame_current=self.frame_current)
             else:
                 assign_materials(self.rpr_context, inst_obj, inst.object, material_override=material_override)
 
@@ -987,7 +1012,6 @@ class ViewportEngine(Engine):
     def update_material_on_scene_objects(self, mat, depsgraph):
         """ Find all mesh material users and reapply material """
         material_override = depsgraph.view_layer.material_override
-        frame_current = depsgraph.scene.frame_current
 
         if material_override and material_override.name == mat.name:
             objects = self.depsgraph_objects(depsgraph)
@@ -1010,14 +1034,14 @@ class ViewportEngine(Engine):
 
             if object.key(obj) not in self.rpr_context.objects:
                 object.sync(self.rpr_context, obj, indirect_only=indirect_only,
-                            frame_current=frame_current)
+                            frame_current=self.frame_current)
                 updated = True
                 continue
 
             updated |= object.sync_update(self.rpr_context, obj, False, False,
                                           indirect_only=indirect_only,
                                           material_override=material_override,
-                                          frame_current=frame_current)
+                                          frame_current=self.frame_current)
 
         return updated
 

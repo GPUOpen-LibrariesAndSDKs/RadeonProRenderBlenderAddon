@@ -20,7 +20,7 @@ import bpy
 bl_info = {
     "name": "Radeon ProRender",
     "author": "AMD",
-    "version": (3, 2, 2),
+    "version": (3, 3, 0),
     "blender": (2, 80, 0),
     "location": "Info header, render engine menu",
     "description": "Radeon ProRender rendering plugin for Blender 2.8x",
@@ -211,7 +211,7 @@ class RPREngine(bpy.types.RenderEngine):
             for i in range(3,6):
                 do_register_pass(cryptomatte_aovs[i])
 
-        if layer.rpr.use_contour_render:
+        if layer.rpr.use_contour_render and scene.rpr.render_quality == "FULL2":
             do_register_pass(layer.rpr.contour_info)
 
 

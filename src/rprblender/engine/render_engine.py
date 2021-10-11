@@ -589,7 +589,10 @@ class RenderEngine(Engine):
         self.rpr_context.do_motion_blur = scene.render.use_motion_blur and \
             not math.isclose(scene.camera.data.rpr.motion_blur_exposure, 0.0)
 
-        cur_frame = scene.frame_current
+        # with enabled motion blur, cache_blur_data() can change frame,
+        # therefore we store current frame and set it back after export process
+        cur_frame = (scene.frame_current, 0.0)
+
         try:
             if self.rpr_context.do_motion_blur:
                 self.cache_blur_data(depsgraph)
@@ -629,72 +632,75 @@ class RenderEngine(Engine):
                 if self.rpr_engine.test_break():
                     log.warn("Syncing stopped by user termination")
                     return
-        finally:
-            self._set_scene_frame(scene, cur_frame, 0.0)
 
-        self.notify_status(0, "Syncing instances 100%")
+            self.notify_status(0, "Syncing instances 100%")
 
-        # EXPORT CAMERA
-        camera_key = object.key(scene.camera)   # current camera key
-        rpr_camera = self.rpr_context.create_camera(camera_key)
-        self.rpr_context.scene.set_camera(rpr_camera)
+            # EXPORT CAMERA
+            camera_key = object.key(scene.camera)   # current camera key
+            rpr_camera = self.rpr_context.create_camera(camera_key)
+            self.rpr_context.scene.set_camera(rpr_camera)
 
-        # Camera object should be taken from depsgrapgh objects.
-        # Use bpy.scene.camera if none found
-        camera_obj = depsgraph.objects.get(camera_key, None)
-        if not camera_obj:
-            camera_obj = scene.camera
+            # Camera object should be taken from depsgrapgh objects.
+            # Use bpy.scene.camera if none found
+            camera_obj = depsgraph.objects.get(camera_key, None)
+            if not camera_obj:
+                camera_obj = scene.camera
 
-        self.camera_data = camera.CameraData.init_from_camera(
-            camera_obj.data, camera_obj.matrix_world, screen_width / screen_height, border)
+            self.camera_data = camera.CameraData.init_from_camera(
+                camera_obj.data, camera_obj.matrix_world, screen_width / screen_height, border)
 
-        if self.rpr_context.do_motion_blur:
-            rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
-            object.export_motion_blur(self.rpr_context, camera_key,
-                                      object.get_transform(camera_obj))
+            if self.rpr_context.do_motion_blur:
+                rpr_camera.set_exposure(scene.camera.data.rpr.motion_blur_exposure)
+                object.export_motion_blur(self.rpr_context, camera_key,
+                                          object.get_transform(camera_obj))
 
-        if scene.rpr.is_tile_render_available:
-            if scene.camera.data.type == 'PANO':
-                log.warn("Tiles rendering is not supported for Panoramic camera")
+            if scene.rpr.is_tile_render_available:
+                if scene.camera.data.type == 'PANO':
+                    log.warn("Tiles rendering is not supported for Panoramic camera")
+                else:
+                    # create adaptive subdivision camera to use total render area for calculations
+                    subdivision_camera_key = camera_key + ".RPR_ADAPTIVE_SUBDIVISION_CAMERA"
+                    subdivision_camera = self.rpr_context.create_camera(subdivision_camera_key)
+                    self.camera_data.export(subdivision_camera)
+                    self.rpr_context.scene.set_subdivision_camera(subdivision_camera)
+
+                    # apply tiles settings
+                    self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
+                    self.tile_order = scene.rpr.tile_order
+                    self.rpr_context.resize(*self.tile_size)
+
             else:
-                # create adaptive subdivision camera to use total render area for calculations
-                subdivision_camera_key = camera_key + ".RPR_ADAPTIVE_SUBDIVISION_CAMERA"
-                subdivision_camera = self.rpr_context.create_camera(subdivision_camera_key)
-                self.camera_data.export(subdivision_camera)
-                self.rpr_context.scene.set_subdivision_camera(subdivision_camera)
+                self.camera_data.export(rpr_camera)
 
-                # apply tiles settings
-                self.tile_size = (min(self.width, scene.rpr.tile_x), min(self.height, scene.rpr.tile_y))
-                self.tile_order = scene.rpr.tile_order
-                self.rpr_context.resize(*self.tile_size)
+            # Environment is synced once per frame
+            if scene.world:
+                if scene.world.is_evaluated:  # for some reason World data can came in unevaluated
+                    world_data = scene.world
+                else:
+                    world_data = scene.world.evaluated_get(depsgraph)
+                world_settings = world.sync(self.rpr_context, world_data)
+                self.world_backplate = world_settings.backplate
 
-        else:
-            self.camera_data.export(rpr_camera)
+            # EXPORT PARTICLES
+            # Note: particles should be exported after motion blur,
+            #       otherwise prev_location of particle will be (0, 0, 0)
+            self.notify_status(0, "Syncing particles")
+            for obj in self.depsgraph_objects(depsgraph):
+                particle.sync(self.rpr_context, obj)
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
 
-        # Environment is synced once per frame
-        if scene.world.is_evaluated:  # for some reason World data can came in unevaluated
-            world_data = scene.world
-        else:
-            world_data = scene.world.evaluated_get(depsgraph)
-        world_settings = world.sync(self.rpr_context, world_data)
-        self.world_backplate = world_settings.backplate
+            # objects linked to scene as a collection are instanced, so walk thru them for particles
+            for entry in self.depsgraph_instances(depsgraph):
+                particle.sync(self.rpr_context, entry.instance_object)
+                if self.rpr_engine.test_break():
+                    log.warn("Syncing stopped by user termination")
+                    return
 
-        # EXPORT PARTICLES
-        # Note: particles should be exported after motion blur,
-        #       otherwise prev_location of particle will be (0, 0, 0)
-        self.notify_status(0, "Syncing particles")
-        for obj in self.depsgraph_objects(depsgraph):
-            particle.sync(self.rpr_context, obj)
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
-
-        # objects linked to scene as a collection are instanced, so walk thru them for particles
-        for entry in self.depsgraph_instances(depsgraph):
-            particle.sync(self.rpr_context, entry.instance_object)
-            if self.rpr_engine.test_break():
-                log.warn("Syncing stopped by user termination")
-                return
+        finally:
+            if self.rpr_context.do_motion_blur:
+                self._set_scene_frame(scene, *cur_frame)
 
         # EXPORT: AOVS, adaptive sampling, shadow catcher, denoiser
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0

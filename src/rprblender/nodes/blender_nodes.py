@@ -24,12 +24,13 @@ import numpy as np
 
 import pyrpr
 
-from rprblender.export import image, material
+from rprblender.export import image, material, volume
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
-from rprblender.utils import BLENDER_VERSION
+from rprblender.engine.context import RPRContext2
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero, get_domain_resolution
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -44,6 +45,22 @@ ERROR_OUTPUT_COLOR = (1.0, 0.0, 1.0, 1.0)   # Corresponds Cycles error output co
 ERROR_IMAGE_COLOR = (1.0, 0.0, 1.0, 1.0)    # Corresponds Cycles error image color
 COLOR_GAMMA = 2.2
 SSS_MIN_RADIUS = 0.0001
+
+
+def enabled(val: [NodeItem, None]):
+    if val is None:
+        return False
+
+    if isinstance(val.data, float) and math.isclose(val.data, 0.0):
+        return False
+
+    if isinstance(val.data, tuple) and \
+            math.isclose(val.data[0], 0.0) and \
+            math.isclose(val.data[1], 0.0) and \
+            math.isclose(val.data[2], 0.0):
+        return False
+
+    return True
 
 
 class ShaderNodeOutputMaterial(BaseNodeParser):
@@ -655,8 +672,21 @@ class ShaderNodeTexImage(NodeParser):
             return self.node_item(ERROR_IMAGE_COLOR if self.socket_out.name == 'Color' else
                                   ERROR_IMAGE_COLOR[3])
 
-        rpr_image = image.sync(self.rpr_context, self.node.image,
-                               frame_number=self.node.image_user.frame_current)
+        frame_current = self.node.image_user.frame_current
+
+        # generating frame_current if use_auto_refresh is off, due to blender provides incorrect value in some cases
+        if not self.node.image_user.use_auto_refresh:
+            frame_duration = self.node.image_user.frame_duration
+            frame_start = self.node.image_user.frame_start
+            frame_offset = self.node.image_user.frame_offset
+            frame_finish = frame_offset + frame_duration
+            frame_current = self.rpr_context.blender_data['depsgraph'].scene.frame_current
+            if self.node.image_user.use_cyclic:
+                frame_current = (frame_current - frame_start) % frame_duration + frame_offset + 1
+            else:
+                frame_current = min(frame_current - frame_start + frame_offset + 1, frame_finish)
+
+        rpr_image = image.sync(self.rpr_context, self.node.image, frame_number=frame_current)
         if not rpr_image:
             return None
 
@@ -746,21 +776,6 @@ class ShaderNodeBsdfPrincipled(NodeParser):
     #    Normal, Tangent
 
     def export(self):
-        def enabled(val: [NodeItem, None]):
-            if val is None:
-                return False
-
-            if isinstance(val.data, float) and math.isclose(val.data, 0.0):
-                return False
-
-            if isinstance(val.data, tuple) and \
-               math.isclose(val.data[0], 0.0) and \
-               math.isclose(val.data[1], 0.0) and \
-               math.isclose(val.data[2], 0.0):
-                return False
-
-            return True
-
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
         base_color = self.get_input_value('Base Color')
 
@@ -804,6 +819,11 @@ class ShaderNodeBsdfPrincipled(NodeParser):
             transmission_roughness = self.get_input_value('Transmission Roughness')
 
         emission = self.get_input_value('Emission')
+        emission_strength = 1.0
+
+        # 'Emission Strength' in ShaderNodeBsdfPrincipled is supported from blender 2.91
+        if enabled(emission) and BLENDER_VERSION >= '2.91':
+            emission_strength = self.get_input_value('Emission Strength')
 
         alpha = self.get_input_value('Alpha')
         transparency = 1.0 - alpha
@@ -882,6 +902,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # Emission -> Emission
         if enabled(emission):
             # more related formula for emission weight:
+            emission *= emission_strength
             emission_weight = emission.average_xyz().min(1.0) * 0.5 + 0.5
 
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_WEIGHT, emission_weight)
@@ -1031,31 +1052,23 @@ class ShaderNodeBsdfHairPrincipled(NodeParser):
         roughness_radial = self.get_input_value('Radial Roughness').clamp(0.001, 1.0)
         coat = self.get_input_scalar('Coat')
         ior = self.get_input_scalar('IOR')
+        weight = 0.0
+        melanin = 0.0
 
         if parametrization == 'ABSORPTION':
-            absorption_color = self.get_input_scalar('Absorption Coefficient')
+            absorption_color = self.get_input_value('Absorption Coefficient')
             color = (1.0 - absorption_color).min(1.0)
         elif parametrization == 'MELANIN':
             melanin = self.get_input_scalar('Melanin')
             melanin_redness = self.get_input_scalar('Melanin Redness')
-            absorption_color = self._calculate_absorption_from_melanin(melanin, melanin_redness)
-            color = (1.0 - absorption_color).min(1.0)
+            absorption_color = self._calculate_absorption_from_melanin(melanin, melanin_redness).min(1.0)
+            color = 1.0 - absorption_color
         else:  # 'COLOR'
-            color = self.get_input_scalar('Color')
-            absorption_color = self._calculate_absorption_from_color(color, roughness_radial)
+            color = self.get_input_value('Color')
+            weight = 1.0
 
-        node = self._create_absorption_node(color, absorption_color, roughness, roughness_radial, coat, ior)
+        node = self._create_absorption_node(color, weight, melanin, roughness, roughness_radial, coat, ior)
         return node
-
-    def _calculate_absorption_from_color(self, color, roughness_radial):
-        """ Use the Cycles way from bsdf_principled_hair_albedo_roughness_scale and bsdf_principled_hair_sigma_from_reflectance """
-        x = roughness_radial
-        # see the node Blender Manual https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/hair_principled.html
-        roughness_scale = (((((0.245 * x) + 5.574) * x - 10.73) * x + 2.532) * x - 0.215) * x + 5.969
-        color_log = self.node_item(tuple(math.log(e, 10) if e > 0 else 0 for e in color.data))
-        result = color_log / roughness_scale
-        result = result.max(0.0)
-        return result
 
     def _calculate_absorption_from_melanin(self, melanin, melanin_redness):
         """ Use the Cycles way from bsdf_principled_hair_sigma_from_concentration """
@@ -1065,17 +1078,17 @@ class ShaderNodeBsdfHairPrincipled(NodeParser):
         result = eumelanin * (0.506, 0.841, 1.653) + pheomelanin * (0.343, 0.733, 1.924)
         return result
 
-    def _create_absorption_node(self, color, absorption_color, roughness, roughness_radial, coat, ior):
-        base_color = (1.0 - absorption_color)
+    def _create_absorption_node(self, color, weight, melanin, roughness, roughness_radial, coat, ior):
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, color)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, weight)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 1.0)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 1.0 - melanin)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_COLOR, color)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0-roughness)  # length roughness increases gloss
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, (1, 1, 1, 1))
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0 - roughness)  # length roughness increases gloss
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, (1.0, 1.0, 1.0, 1.0))
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness_radial)  # decreases gloss, increases overall lightness
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
@@ -2213,12 +2226,6 @@ class ShaderNodeUVMap(NodeParser):
 
 class ShaderNodeVolumePrincipled(NodeParser):
     def export(self):
-        def rgba(temperature):
-            t = temperature.data
-            if isinstance(t, tuple):
-                t = t[0]
-            return (*convert_kelvins_to_rgb(t), 1.0)
-
         # textures can be used by the RPR_MATERIAL_NODE_VOLUME shader node
         color = self.get_input_value('Color')
         density = self.get_input_value('Density')
@@ -2237,11 +2244,11 @@ class ShaderNodeVolumePrincipled(NodeParser):
             emission_color = self.get_input_value('Emission Color') * emission_strength
 
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+            pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
+            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
             pyrpr.MATERIAL_INPUT_SCATTERING: color * density,
             pyrpr.MATERIAL_INPUT_ABSORBTION: absorption_color * density,
-            pyrpr.MATERIAL_INPUT_G: anisotropy,
-            pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
-            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
         })
 
         # getting scalar data for hetero volume data since it does not work with textures
@@ -2264,14 +2271,275 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
         # storing hetero volume data as an additional field 'data' of MaterialNode object
         rpr_node.data.data = {
-            'color': color.data[:3],
+            'color': tuple(color.get_channel(i).data for i in range(3)),
             'density': density.get_channel(0).data,
             'density_attr': density_attr.data,
-            'emission_color': emission_color.data[:3],
+            'emission_color': tuple(emission_color.get_channel(i).data for i in range(3)),
             'temperature_attr': temperature_attr.data,
         }
 
         return rpr_node
+
+    def export_hybrid(self):
+        return None
+
+    def export_rpr2(self):
+        def domain_export():
+            if not self.object:
+                return None
+
+            smoke_modifier = volume.get_smoke_modifier(self.object)
+            if not smoke_modifier:
+                return None
+
+            # Heterovolumes additionally calculates grids and apply to rpr_node
+            domain = smoke_modifier.domain_settings
+            if len(domain.density_grid) == 0:
+                # empty smoke.  warn and return
+                log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
+                return None
+
+            color = self.get_input_value('Color')
+            density = self.get_input_value('Density')
+            anisotropy = self.get_input_value('Anisotropy')
+            emission_strength = self.get_input_value('Emission Strength')
+            blackbody_intensity = self.get_input_value('Blackbody Intensity')
+            density_attr = self.get_input_default('Density Attribute')
+
+            x, y, z = get_domain_resolution(domain)
+
+            def get_grid_data(name, default_name):
+                data = None
+                if name == 'color':
+                    data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
+                    data = np.average(data[:, :, :, :3], axis=3)
+                elif name == 'density':
+                    data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+                elif name == 'flame':
+                    data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+                elif name == 'temperature':
+                    data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
+                elif default_name:
+                    data = get_grid_data(default_name, None)
+
+                return data
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+                pyrpr.MATERIAL_INPUT_DENSITY: density,
+                pyrpr.MATERIAL_INPUT_G: anisotropy,
+                pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+            })
+
+            # set density grid
+            density_grid_data = get_grid_data(density_attr.data, 'density')
+            density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+                pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(
+                    density_grid_data)
+            })
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
+
+            # set color input
+            color *= 0.99   # making color slightly less, because of issue
+                            # that (1, 1, 1) color and higher disables emission
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
+
+            if enabled(emission_strength) or enabled(blackbody_intensity):
+                # set emission grid
+                if enabled(blackbody_intensity):
+                    temperature_attr = self.get_input_default('Temperature Attribute')
+                    emission_grid_data = get_grid_data(temperature_attr.data, 'temperature')
+                else:
+                    emission_grid_data = get_grid_data('flame', None)
+
+                if is_zero(emission_grid_data):
+                    emission_grid_node = density_grid_node
+                else:
+                    emission_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+                        pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(
+                            emission_grid_data)
+                    })
+
+                lookup_image = self.rpr_context.create_image_data(None,
+                    np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
+                emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                    pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+                    pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
+                    pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                    pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                })
+
+                if enabled(blackbody_intensity):
+                    temperature = self.get_input_value('Temperature')
+                    blackbody_tint = self.get_input_value('Blackbody Tint')
+
+                    blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
+                        pyrpr.MATERIAL_INPUT_KELVIN: temperature,
+                        pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                    })
+
+                    emission = emission_image_node * blackbody_node * blackbody_intensity * \
+                               blackbody_tint
+
+                    # additional multiplication to be corresponded with cycles
+                    emission *= temperature * 0.005
+
+                else:
+                    emission_color = self.get_input_value('Emission Color')
+
+                    emission = emission_image_node * emission_color * emission_strength
+
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
+
+            return rpr_node
+
+        def base_export():
+            color = self.get_input_value('Color')
+            density = self.get_input_value('Density')
+            anisotropy = self.get_input_value('Anisotropy')
+            emission_strength = self.get_input_value('Emission Strength')
+            blackbody_intensity = self.get_input_value('Blackbody Intensity')
+
+            if emission_strength.is_zero() and not blackbody_intensity.is_zero():
+                blackbody_tint = self.get_input_value('Blackbody Tint')
+                temperature = self.get_input_scalar('Temperature')
+
+                emission_color = blackbody_intensity * blackbody_tint * \
+                                 (*convert_kelvins_to_rgb(temperature.get_channel(0).data), 1.0)
+            else:
+                emission_color = self.get_input_value('Emission Color') * emission_strength
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+                pyrpr.MATERIAL_INPUT_COLOR: color,
+                pyrpr.MATERIAL_INPUT_DENSITY: density,
+                pyrpr.MATERIAL_INPUT_EMISSION: emission_color,
+                pyrpr.MATERIAL_INPUT_G: anisotropy,
+                pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+            })
+
+            return rpr_node
+
+        rpr_node = domain_export()
+        if not rpr_node:
+            rpr_node = base_export()
+
+        return rpr_node
+
+
+class ShaderNodeVolumeScatter(NodeParser):
+    def export(self):
+        color = self.get_input_value('Color')
+        density = self.get_input_value('Density')
+        anisotropy = self.get_input_value('Anisotropy')
+
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
+            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+        })
+
+        if isinstance(self.rpr_context, RPRContext2):
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITY, density)
+        else:
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_SCATTERING, color * density)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_ABSORBTION, density)
+
+        # getting scalar data for hetero volume data since it does not work with textures
+        color = self.get_input_scalar('Color')
+        density = self.get_input_scalar('Density')
+        anisotropy = self.get_input_scalar('Anisotropy')
+
+        # storing hetero volume data as an additional field 'data' of MaterialNode object
+        rpr_node.data.data = {
+            'color': color.data[:3],
+            'density': density.get_channel(0).data,
+            'anisotropy': anisotropy.get_channel(0).data,
+        }
+
+        return rpr_node
+
+    def export_hybrid(self):
+        return None
+
+    def export_rpr2(self):
+        color = self.get_input_value('Color')
+        density = self.get_input_value('Density')
+        anisotropy = self.get_input_value('Anisotropy')
+
+        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
+            pyrpr.MATERIAL_INPUT_COLOR: color,
+            pyrpr.MATERIAL_INPUT_DENSITY: density,
+            pyrpr.MATERIAL_INPUT_G: anisotropy,
+            pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+        })
+
+        # Heterovolumes additionally calculates grids and apply to rpr_node
+        if not self.object:
+            return rpr_node
+
+        smoke_modifier = volume.get_smoke_modifier(self.object)
+        if not smoke_modifier:
+            return rpr_node
+
+        domain = smoke_modifier.domain_settings
+        if len(domain.density_grid) == 0:
+            # empty smoke.  warn and return
+            log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
+            return rpr_node
+
+        x, y, z = get_domain_resolution(domain)
+
+        # set density grid
+        density_data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+        density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+            pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(density_data)
+        })
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
+
+        return rpr_node
+
+
+class ShaderNodeVolumeInfo(NodeParser):
+    def export(self):
+        return None
+
+    def export_rpr2(self):
+        if not self.object:
+            return None
+
+        smoke_modifier = volume.get_smoke_modifier(self.object)
+        if not smoke_modifier:
+            return None
+
+        domain = smoke_modifier.domain_settings
+        x, y, z = get_domain_resolution(domain)
+        lookup_image = self.rpr_context.create_image_data(
+            None, np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
+
+        def create_image_node(grid_node):
+            return self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+                pyrpr.MATERIAL_INPUT_UV: grid_node,
+                pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+            })
+
+        if self.socket_out.name == 'Color':
+            data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
+            data = np.average(data[:, :, :, :3], axis=3)
+        elif self.socket_out.name == 'Density':
+            data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+        elif self.socket_out.name == 'Flame':
+            data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+        elif self.socket_out.name == 'Temperature':
+            data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
+        else:
+            log.warn("Unsupported output type", self.socket_out.name, self.node, self.material)
+            return None
+
+        grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
+            pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(data)
+        })
+        return create_image_node(grid_node)
 
 
 class ShaderNodeCombineHSV(NodeParser):
