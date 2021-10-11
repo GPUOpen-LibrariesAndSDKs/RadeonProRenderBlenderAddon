@@ -20,7 +20,6 @@ import os
 import shutil
 import platform
 import sys
-import glob
 import numpy as np
 
 import bpy
@@ -47,7 +46,7 @@ def blender_root_dir():
 
 
 def blender_data_dir():
-    return Path(glob.glob(str(blender_root_dir() / '2.8*/datafiles'))[0])
+    return Path(bpy.utils.system_resource("DATAFILES"))
 
 
 def get_cpu_threads_number():
@@ -266,10 +265,6 @@ def is_zero(val):
     return np.all(np.isclose(val, 0.0))
 
 
-# accept up to this number of leading zeroes in frame number in filename
-MAX_FRAME_NUMBER_LEADING_ZEROS = 6
-
-
 def get_sequence_frame_file_path(source_path, frame_number):
     """ Find sequence file path for frame number """
     if frame_number is None:
@@ -287,16 +282,28 @@ def get_sequence_frame_file_path(source_path, frame_number):
             index = i
             break
 
+    index = index if index else len(filename)
     filename = filename[:len(filename) - index]
 
     # try to locate target file using various frame number formats
-    for zeros_count in range(len(str(frame_number)), MAX_FRAME_NUMBER_LEADING_ZEROS + 1):
+    for zeros_count in range(len(str(frame_number)), index + 1):
         result = folder.joinpath(f"{filename}{frame_number:0{zeros_count}}{extension}")
         if result.is_file():
             return str(result)
 
-    log.warn(
-        f"Unable to find file {source_path} variant for frame number {frame_number}\n"
-        f"Frame number may have up to {MAX_FRAME_NUMBER_LEADING_ZEROS} leading zeroes."
-    )
+    log.warn(f"Unable to find file {source_path} variant for frame number {frame_number}.")
     return None
+
+
+def get_domain_resolution(domain):
+    if BLENDER_VERSION >= '2.82':
+        x, y, z = domain.domain_resolution
+    else:
+        amplify = domain.amplify if domain.use_high_resolution else 0
+        x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
+
+    if domain.use_noise:
+        # smoke noise upscale the basic domain resolution
+        x, y, z = (domain.noise_scale * e for e in (x, y, z))
+
+    return x, y, z
