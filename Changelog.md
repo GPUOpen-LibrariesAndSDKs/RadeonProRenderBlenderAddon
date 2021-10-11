@@ -1,3 +1,47 @@
+# Version 3.3 
+## New Features:
+- Support for Fog and Heterogenous Volume rendering has been added to the RPR Full mode.  Simulated volumes are now rendered on CPU and GPU.  
+- This includes support for the Blender Volume Scatter node and Principled Volume shader.
+
+## Fixes:
+- An output socket has been added in the Render Layer compositor node for Outline renders.
+- An issue that could cause Material Previews not to work has been fixed.
+- An error when Shadow Catcher objects were enabled with viewport rendering has been corrected.
+- The following issues with Image Sequence texture not working have been fixed:
+- Viewport and Final renders using texture sequences now look correct;
+- Cyclic and Auto Refresh options in the image texture now work correctly;
+- Support for numeric image filenames has been added.
+- Hide/unhide could sometimes not work correctly with viewport rendering — fixed.
+- Viewport upscaling now always uses 16-bit depth, which has fixed an issue with upscaling working on macOS.
+- Emission Strength values > 1.0 now work correctly in the Principled Shader.
+- Motion blur now works correctly with the “Center on Frame” and “Frame End” options.
+- Setting the minimum samples option from 1 to 16 is now allowed (default is still 64).
+- Hair rendering fixes:
+    - Hair UVs now work correctly;
+    - Textures are now supported for the color input of the Principled Hair BSDF and Hair BSDF;
+    - The color and melanin settings of the Principled Hair BSDF now look more accurate.
+    - Particle objects with hair on them were not rendering the hair — fixed.
+- An issue with the “World” light being empty has been fixed.
+- An AOV output “Camera Space Normal” has been added.
+- Exporting .rpr files now takes into account material overrides.
+- A warning is now added when an object with an excessive number of faces is exported.
+- When a shader node was “muted,” that was not working in some cases — fixed.
+- Differences in point lights between Cycles and ProRender have been mitigated.
+- The Albedo AOV now passes the “Base color” on the Toon shader.
+- A halo no longer appears around shadow and reflection catcher objects.
+- AOVs passed through transparent or refractive materials — fixed.
+- Noise convergence with emissive materials using textures has been improved.
+- Performance with outline rendering has been improved.
+- Performance regression on WX7100 GPUs has been fixed.
+- The Object ID Lookup node now works in the Full mode.
+- Objects with Toon shaders attached now cast shadows correctly if the flag is disabled.
+- An issue detected on the latest NVidia drivers has been fixed.
+
+## Known Issues:
+- Volumes are not implemented on macOS.
+- Vega GPUs with AMD 21.10 drivers can cause an issue when using the ML Denoiser.
+
+
 # Version 3.2
 ## New Features:
 - Subsurface Scattering and Volume shaders now work in RPR 2.0.  This allows the rendering of organic materials, such as skin, which absorb light into their interior.  Volume shaders can now also be used for simple fog boxes. Also the Volume Scatter node is supported. 
