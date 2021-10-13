@@ -158,6 +158,10 @@ class RPR_EXPORT_OP_export_training_data(RPR_Operator):
             for aov in AOVS:
                 rpr_context.enable_aov(aov_type=aov[0])
 
+            if rpr_context.do_motion_blur and scene.rpr.render_quality == 'FULL2':
+                flag = not bool(scene.rpr.motion_blur_in_velocity_aov)
+                rpr_context.set_parameter(pyrpr.CONTEXT_BEAUTY_MOTION_BLUR, flag)
+
             for cam in cameras:
                 # EXPORT CAMERA
                 camera_key = object.key(cam)  # current camera key
