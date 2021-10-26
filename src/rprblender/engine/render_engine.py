@@ -456,6 +456,7 @@ class RenderEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
         self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
         self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+        self.rpr_context.enable_aov(pyrpr.AOV_UV)
 
         # setting camera
         self.camera_data.export(self.rpr_context.scene.camera)
