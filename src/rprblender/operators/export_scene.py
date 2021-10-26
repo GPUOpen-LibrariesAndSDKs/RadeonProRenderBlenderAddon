@@ -16,6 +16,7 @@
 Export scene in a specific RPR-compatible file format
 """
 import time
+import math
 
 from bpy.props import StringProperty, BoolProperty, IntProperty, EnumProperty
 
@@ -35,7 +36,7 @@ import pyrpr
 log = Log(tag='operators.export_scene')
 
 
-CONTOUR_AOVS = (pyrpr.AOV_GEOMETRIC_NORMAL, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_OBJECT_ID)
+CONTOUR_AOVS = (pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_OBJECT_ID, pyrpr.AOV_UV)
 
 
 class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
@@ -244,10 +245,13 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
                 "object.id": int(contour.use_object_id),
                 "material.id": int(contour.use_material_id),
                 "normal": int(contour.use_shading_normal),
+                "uv": int(contour.use_uv),
                 "threshold.normal": contour.normal_threshold,
+                "threshold.uv": math.radians(contour.uv_threshold * 180),
                 "linewidth.objid": contour.object_id_line_width,
                 "linewidth.matid": contour.material_id_line_width,
                 "linewidth.normal": contour.shading_normal_line_width,
+                "linewidth.uv": contour.uv_line_width,
                 "antialiasing": contour.antialiasing,
             }
 
