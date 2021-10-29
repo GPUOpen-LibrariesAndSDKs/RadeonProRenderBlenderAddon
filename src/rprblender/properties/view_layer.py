@@ -411,32 +411,32 @@ class RPR_ViewLayerProperites(RPR_Properties):
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT0,
             'name': "Cryptomatte Mat0",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT1,
             'name': "Cryptomatte Mat1",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT2,
             'name': "Cryptomatte Mat2",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ0,
             'name': "Cryptomatte Obj0",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ1,
             'name': "Cryptomatte Obj1",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ2,
             'name': "Cryptomatte Obj2",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
     )
 
