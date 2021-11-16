@@ -1523,7 +1523,6 @@ class RPRShaderNodeToon(RPRShaderNode):
         ramp_sockets = ['Shadow Color', "Mid Level","Mid Color", "Highlight Level", "Highlight Color"]
         mix_sockets = ["Mid Level Mix", "Highlight Level Mix"]
         if self.show_advanced:
-            self.inputs['Color'].enabled = False
             for socket in ramp_sockets:
                 self.inputs[socket].enabled = True
             for socket in mix_sockets:
@@ -1531,7 +1530,6 @@ class RPRShaderNodeToon(RPRShaderNode):
         else:
             for socket in ramp_sockets + mix_sockets:
                 self.inputs[socket].enabled = False
-            self.inputs['Color'].enabled = True
 
     show_advanced: BoolProperty(name="Advanced", default=False, update=advanced_changed)
     show_mix_levels: BoolProperty(name="Mix Levels", default=False, update=advanced_changed)
@@ -1593,7 +1591,7 @@ class RPRShaderNodeToon(RPRShaderNode):
                 })
 
                 toon_shader = self.create_node(pyrpr.MATERIAL_NODE_TOON_CLOSURE, {
-                    pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0, 1.0),
+                    pyrpr.MATERIAL_INPUT_COLOR: self.get_input_value('Color'),
                     pyrpr.MATERIAL_INPUT_ROUGHNESS: self.get_input_value('Roughness'),
                     pyrpr.MATERIAL_INPUT_DIFFUSE_RAMP: ramp
                 })
