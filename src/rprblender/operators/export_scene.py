@@ -199,6 +199,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
             pyrpr.AOV_DIRECT_REFLECT: 'direct.reflect',
             pyrpr.AOV_EMISSION: 'emission',
             pyrpr.AOV_GEOMETRIC_NORMAL: 'normal.geom',
+            pyrpr.AOV_CAMERA_NORMAL: 'normal.camera',
             pyrpr.AOV_INDIRECT_DIFFUSE: 'indirect.diffuse',
             pyrpr.AOV_INDIRECT_ILLUMINATION: 'indirect.illumination',
             pyrpr.AOV_INDIRECT_REFLECT: 'indirect.reflect',
