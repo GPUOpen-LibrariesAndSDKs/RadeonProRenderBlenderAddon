@@ -159,8 +159,6 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col.prop(limits, 'max_samples')
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
-        if context.scene.rpr.render_quality == 'FULL2':
-            row.enabled = False
 
         adapt_resolution = context.scene.rpr.render_quality in ('FULL', 'FULL2')
         col1 = col.column()
