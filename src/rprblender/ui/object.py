@@ -13,6 +13,7 @@
 # limitations under the License.
 #********************************************************************
 from . import RPR_Panel
+from rprblender.utils import BLENDER_VERSION
 
 
 class RPR_OBJECT_PT_object(RPR_Panel):
@@ -52,15 +53,25 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
-        rpr = context.object.rpr
-        cycles_vis = context.object.cycles_visibility
+        obj = context.object
 
-        self.layout.prop(cycles_vis, 'camera')
-        self.layout.prop(cycles_vis, 'diffuse')
-        self.layout.prop(cycles_vis, 'glossy')
-        self.layout.prop(cycles_vis, 'transmission')
-        self.layout.prop(cycles_vis, 'shadow')
-        self.layout.prop(rpr, 'visibility_contour')
+        if BLENDER_VERSION >= '3.0':
+            self.layout.prop(obj, 'visible_camera', text="Camera")
+            self.layout.prop(obj, 'visible_diffuse', text="Diffuse")
+            self.layout.prop(obj, 'visible_glossy', text="Glossy")
+            self.layout.prop(obj, 'visible_transmission', text="Transmission")
+            self.layout.prop(obj, 'visible_shadow', text="Shadow")
+
+        else:
+            visibility = obj.cycles_visibility
+
+            self.layout.prop(visibility, 'camera')
+            self.layout.prop(visibility, 'diffuse')
+            self.layout.prop(visibility, 'glossy')
+            self.layout.prop(visibility, 'transmission')
+            self.layout.prop(visibility, 'shadow')
+
+        self.layout.prop(obj.rpr, 'visibility_contour')
 
 
 class RPR_OBJECT_PT_subdivision(RPR_Panel):
