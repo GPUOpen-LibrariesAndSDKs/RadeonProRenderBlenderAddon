@@ -77,11 +77,14 @@ def register_plugins():
 
     cache_dir = utils.core_cache_dir()
 
-    register_plugin(pyrpr.Context,
-                    {'Windows': 'Tahoe64.dll',
-                     'Linux': 'libTahoe64.so',
-                     'Darwin': 'libTahoe64.dylib'}[utils.OS],
-                    cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr")
+    try:
+        register_plugin(pyrpr.Context,
+                        {'Windows': 'Tahoe64.dll',
+                         'Linux': 'libTahoe64.so',
+                         'Darwin': 'libTahoe64.dylib'}[utils.OS],
+                        cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr")
+    except RuntimeError as err:
+        log.warn(err)
 
     # enabling hybrid only for Windows and Linux
     pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
@@ -99,8 +102,8 @@ def register_plugins():
     try:
         register_plugin(pyrpr2.Context,
                         {'Windows': 'Northstar64.dll',
-                            'Linux': 'libNorthstar64.so',
-                            'Darwin': 'libNorthstar64.dylib'}[utils.OS],
+                         'Linux': 'libNorthstar64.so',
+                         'Darwin': 'libNorthstar64.dylib'}[utils.OS],
                         cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr2")
     except RuntimeError as err:
         log.warn(err)
@@ -108,5 +111,9 @@ def register_plugins():
 
 register_plugins()
 
-pyrpr.Context.load_devices()
+if pyrpr.Context.plugin_id >= 0:
+    pyrpr.Context.load_devices()
+else:
+    pyrpr2.Context.load_devices()
+
 log(f"Loaded devices: cpu={pyrpr.Context.cpu_device}, gpu={pyrpr.Context.gpu_devices}")

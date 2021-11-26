@@ -183,12 +183,11 @@ OS = platform.system()
 IS_WIN = OS == 'Windows'
 IS_MAC = OS == 'Darwin'
 IS_LINUX = OS == 'Linux'
+SYSTEM_PROCESSOR = platform.uname().machine
 
 BLENDER_VERSION = f'{bpy.app.version[0]}.{bpy.app.version[1]}'
 
 IS_DEBUG_MODE = bool(int(os.environ.get('RPR_BLENDER_DEBUG', 0)))
-
-IS_OPENVDB_SUPPORT = (BLENDER_VERSION <= "2.92") and (IS_WIN or IS_MAC)
 
 
 from . import logging
