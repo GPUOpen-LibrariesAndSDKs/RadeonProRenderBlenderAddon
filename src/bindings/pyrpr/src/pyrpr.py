@@ -192,7 +192,7 @@ class Context(Object):
     ''' Context wraps the rpr_context type with useful methods '''
     core_type_name = 'rpr_context'
 
-    plugin_id = None
+    plugin_id = -1
     cache_path = None
     cpu_device = None
     gpu_devices = []

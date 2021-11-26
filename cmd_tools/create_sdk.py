@@ -19,6 +19,7 @@ import shutil
 
 
 OS = platform.system()
+PROC = platform.uname().machine
 sdk_dir = Path(".sdk")
 
 
@@ -87,11 +88,15 @@ def copy_rif_sdk():
     shutil.copytree(str(rif_dir / "models"), str(sdk_rif_dir / "models"))
 
     # getting rif bin_dir
-    os_str = {
-        'Windows': "Windows",
-        'Linux': "Ubuntu20",
-        'Darwin': "OSX"
-    }[OS]
+    if OS == 'Windows':
+        os_str = "Windows"
+    elif OS == 'Linux':
+        os_str = "Ubuntu20"
+    else:   # Darwin
+        if PROC == 'x86_64':
+            os_str = "OSX"
+        else:
+            os_str = "MacOS_ARM"
     bin_dir = rif_dir / os_str / "Dynamic"
 
     # copying inc files
@@ -127,8 +132,9 @@ def copy_rif_sdk():
     elif OS == 'Darwin':
         shutil.copy(str(find_file(bin_dir, "libRadeonImageFilters*.dylib")),
                     str(sdk_bin_dir / "libRadeonImageFilters.dylib"))
-        shutil.copy(str(find_file(bin_dir, "libOpenImageDenoise*.dylib")),
-                    str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
+        if PROC == 'x86_64':
+            shutil.copy(str(find_file(bin_dir, "libOpenImageDenoise*.dylib")),
+                        str(sdk_bin_dir / "libOpenImageDenoise.dylib"))
         shutil.copy(str(find_file(bin_dir, "libRadeonML_MPS*.dylib")),
                     str(sdk_bin_dir / "libRadeonML_MPS.dylib"))
         shutil.copy(str(find_file(bin_dir, "libRadeonML.0*.dylib")),
@@ -136,7 +142,8 @@ def copy_rif_sdk():
 
         # adjusting id of RIF libs
         install_name_tool('-id', "@rpath/libRadeonImageFilters.dylib", sdk_bin_dir / "libRadeonImageFilters.dylib")
-        install_name_tool('-id', "@rpath/libOpenImageDenoise.dylib", sdk_bin_dir / "libOpenImageDenoise.dylib")
+        if PROC == 'x86_64':
+            install_name_tool('-id', "@rpath/libOpenImageDenoise.dylib", sdk_bin_dir / "libOpenImageDenoise.dylib")
         install_name_tool('-id', "@rpath/libRadeonML_MPS.dylib", sdk_bin_dir / "libRadeonML_MPS.dylib")
         install_name_tool('-id', "@rpath/libRadeonML.0.dylib", sdk_bin_dir / "libRadeonML.0.dylib")
 

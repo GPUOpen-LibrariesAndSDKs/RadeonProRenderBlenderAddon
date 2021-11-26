@@ -53,6 +53,12 @@ target_link_libraries(RPRBlenderHelper ${LIBS})
 
 
 # Building RPRBlenderHelper with OPENVDB support
+
+if("${UNIX}" OR ("${APPLE}" AND ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "arm64"))
+    # for Linux and Mac with arm64 openvdb isn't supported yet
+    return()
+endif()
+
 set(OPENVDB_SDK_PATH ${SHARED_DIR}/OpenVdb)
 
 list(APPEND SOURCES
@@ -78,9 +84,6 @@ elseif(${APPLE})
         ${OPENVDB_SDK_PATH}/OSX/lib/libboost_iostreams.a
         ${OPENVDB_SDK_PATH}/OSX/lib/libtbb.a
     )
-
-else()
-    return()
 
 endif()
 
