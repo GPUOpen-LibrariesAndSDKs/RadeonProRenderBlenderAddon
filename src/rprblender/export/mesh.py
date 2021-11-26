@@ -23,7 +23,7 @@ import mathutils
 import pyrpr
 from rprblender.engine.context import RPRContext, RPRContext2
 from . import object, material, volume
-from rprblender.utils import get_data_from_collection
+from rprblender.utils import get_data_from_collection, BLENDER_VERSION
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.mesh')
@@ -273,17 +273,24 @@ def assign_override_material(rpr_context, rpr_shape, obj, material_override) -> 
 
 def export_visibility(obj, rpr_shape, indirect_only):
     """ Exports visibility settings """
-    cycles_visibility = obj.cycles_visibility
+    if BLENDER_VERSION >= '3.0':
+        rpr_shape.set_visibility_primary_only(obj.visible_camera and not indirect_only)
+        rpr_shape.set_visibility_ex("visible.reflection", obj.visible_glossy)
+        rpr_shape.set_visibility_ex("visible.reflection.glossy", obj.visible_glossy)
+        rpr_shape.set_visibility_ex("visible.refraction", obj.visible_transmission)
+        rpr_shape.set_visibility_ex("visible.refraction.glossy", obj.visible_transmission)
+        rpr_shape.set_visibility_ex("visible.diffuse", obj.visible_diffuse)
+        rpr_shape.set_shadow(obj.visible_shadow)
 
-    camera_visibility = cycles_visibility.camera and not indirect_only
-
-    rpr_shape.set_visibility_primary_only(camera_visibility)
-    rpr_shape.set_visibility_ex("visible.reflection", cycles_visibility.glossy)
-    rpr_shape.set_visibility_ex("visible.reflection.glossy", cycles_visibility.glossy)
-    rpr_shape.set_visibility_ex("visible.refraction", cycles_visibility.transmission)
-    rpr_shape.set_visibility_ex("visible.refraction.glossy", cycles_visibility.transmission)
-    rpr_shape.set_visibility_ex("visible.diffuse", cycles_visibility.diffuse)
-    rpr_shape.set_shadow(cycles_visibility.shadow)
+    else:
+        visibility = obj.cycles_visibility
+        rpr_shape.set_visibility_primary_only(visibility.camera and not indirect_only)
+        rpr_shape.set_visibility_ex("visible.reflection", visibility.glossy)
+        rpr_shape.set_visibility_ex("visible.reflection.glossy", visibility.glossy)
+        rpr_shape.set_visibility_ex("visible.refraction", visibility.transmission)
+        rpr_shape.set_visibility_ex("visible.refraction.glossy", visibility.transmission)
+        rpr_shape.set_visibility_ex("visible.diffuse", visibility.diffuse)
+        rpr_shape.set_shadow(visibility.shadow)
 
     obj.rpr.set_catchers(rpr_shape)
 
