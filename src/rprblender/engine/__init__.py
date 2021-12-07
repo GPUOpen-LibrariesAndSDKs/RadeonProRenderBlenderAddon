@@ -77,15 +77,6 @@ def register_plugins():
 
     cache_dir = utils.core_cache_dir()
 
-    try:
-        register_plugin(pyrpr.Context,
-                        {'Windows': 'Tahoe64.dll',
-                         'Linux': 'libTahoe64.so',
-                         'Darwin': 'libTahoe64.dylib'}[utils.OS],
-                        cache_dir / f"{hex(pyrpr.API_VERSION)}_rpr")
-    except RuntimeError as err:
-        log.warn(err)
-
     # enabling hybrid only for Windows and Linux
     pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
     if pyhybrid.enabled:
