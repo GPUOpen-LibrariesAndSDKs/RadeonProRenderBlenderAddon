@@ -504,6 +504,9 @@ class Shape(Object):
         ShapeSetShadowCatcher(self, shadow_catcher)
         self.shadow_catcher = shadow_catcher
 
+    def set_shadow_color(self, r, g, b):
+        ShapeSetShadowColor(self, r, g, b)
+
     def set_reflection_catcher(self, reflection_catcher):
         ShapeSetReflectionCatcher(self, reflection_catcher)
         self.reflection_catcher = reflection_catcher
