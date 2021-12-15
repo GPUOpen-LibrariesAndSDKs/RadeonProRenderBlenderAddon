@@ -29,6 +29,7 @@ from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context import RPRContext2
 from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero, get_domain_resolution
 
@@ -91,7 +92,7 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             # checking if we have connected node to Volume socket
             volume_rpr_node = material.sync(self.rpr_context, self.material, 'Volume')
             if volume_rpr_node:
-                if isinstance(self.rpr_context, RPRContextHybrid):
+                if isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
                     return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
                         pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
                         pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY: (1.0, 1.0, 1.0),
@@ -126,7 +127,7 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
 
             if input_socket_key == 'Surface':
                 # creating error shader
-                if isinstance(self.rpr_context, RPRContextHybrid):
+                if isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
                     return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
                         pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: ERROR_OUTPUT_COLOR
                     })

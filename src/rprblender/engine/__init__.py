@@ -49,6 +49,7 @@ else:
 
 import pyrpr
 import pyhybrid
+import pyhybridpro
 import pyrpr2
 
 pyrpr.init(rpr_lib_dir, logging.Log(tag='core'), config.pyrpr_log_calls)
@@ -77,18 +78,6 @@ def register_plugins():
 
     cache_dir = utils.core_cache_dir()
 
-    # enabling hybrid only for Windows and Linux
-    pyhybrid.enabled = config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
-    if pyhybrid.enabled:
-        try:
-            register_plugin(pyhybrid.Context,
-                            {'Windows': 'Hybrid.dll',
-                             'Linux': 'Hybrid.so'}[utils.OS],
-                            cache_dir / f"{hex(pyrpr.API_VERSION)}_hybrid")
-        except RuntimeError as err:
-            log.warn(err)
-            pyhybrid.enabled = False
-
     # enabling RPR 2
     try:
         register_plugin(pyrpr2.Context,
@@ -99,12 +88,33 @@ def register_plugins():
     except RuntimeError as err:
         log.warn(err)
 
+    # enabling HybridPro for Windows and Linux
+    pyhybridpro.enabled = config.enable_hybridpro and (utils.IS_WIN or utils.IS_LINUX)
+    if pyhybridpro.enabled:
+        try:
+            register_plugin(pyhybridpro.Context,
+                            {'Windows': 'HybridPro.dll',
+                             'Linux': 'HybridPro.so'}[utils.OS],
+                            cache_dir / f"{hex(pyrpr.API_VERSION)}_hybridpro")
+        except RuntimeError as err:
+            log.warn(err)
+            pyhybridpro.enabled = False
+
+    # enabling Hybrid only for Windows and Linux if HybridPro is disabled
+    pyhybrid.enabled = not pyhybridpro.enabled and config.enable_hybrid and (utils.IS_WIN or utils.IS_LINUX)
+    if pyhybrid.enabled:
+        try:
+            register_plugin(pyhybrid.Context,
+                            {'Windows': 'Hybrid.dll',
+                             'Linux': 'Hybrid.so'}[utils.OS],
+                            cache_dir / f"{hex(pyrpr.API_VERSION)}_hybrid")
+        except RuntimeError as err:
+            log.warn(err)
+            pyhybrid.enabled = False
+
+
 
 register_plugins()
 
-if pyrpr.Context.plugin_id >= 0:
-    pyrpr.Context.load_devices()
-else:
-    pyrpr2.Context.load_devices()
-
+pyrpr2.Context.load_devices()
 log(f"Loaded devices: cpu={pyrpr.Context.cpu_device}, gpu={pyrpr.Context.gpu_devices}")
