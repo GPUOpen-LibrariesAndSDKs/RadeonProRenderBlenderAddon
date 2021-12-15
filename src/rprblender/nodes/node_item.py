@@ -16,6 +16,7 @@ import math
 
 import pyrpr
 from rprblender.engine import context_hybrid
+from rprblender.engine import context_hybridpro
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.node')
@@ -230,7 +231,7 @@ class NodeItem:
         return NodeItem(self.rpr_context, result_data)
 
     def blend(self, color0, color1):
-        if isinstance(self.rpr_context, context_hybrid.RPRContext):
+        if isinstance(self.rpr_context, (context_hybrid.RPRContext, context_hybridpro.RPRContext)):
             return self * color1 + (1.0 - self) * color0
 
         data0 = color0.data if isinstance(color0, NodeItem) else color0

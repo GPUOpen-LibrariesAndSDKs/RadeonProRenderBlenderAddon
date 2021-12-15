@@ -56,6 +56,10 @@ from .engine.render_engine_hybrid import RenderEngine as RenderEngineHybrid
 from .engine.viewport_engine_hybrid import ViewportEngine as ViewportEngineHybrid
 from .engine.animation_engine_hybrid import AnimationEngine as AnimationEngineHybrid
 
+from .engine.render_engine_hybridpro import RenderEngine as RenderEngineHybridPro
+from .engine.viewport_engine_hybridpro import ViewportEngine as ViewportEngineHybridPro
+from .engine.animation_engine_hybridpro import AnimationEngine as AnimationEngineHybridPro
+
 log = logging.Log(tag='init')
 log("Loading RPR addon {}".format(bl_info['version']))
 
@@ -66,6 +70,7 @@ render_engine_cls = {
     'MEDIUM': RenderEngineHybrid,
     'LOW': RenderEngineHybrid,
     'FULL2': RenderEngine2,
+    'HYBRIDPRO': RenderEngineHybridPro,
 }
 animation_engine_cls = {
     'FULL': AnimationEngine,
@@ -73,6 +78,7 @@ animation_engine_cls = {
     'MEDIUM': AnimationEngineHybrid,
     'LOW': AnimationEngineHybrid,
     'FULL2': AnimationEngine2,
+    'HYBRIDPRO': AnimationEngineHybridPro,
 }
 viewport_engine_cls = {
     'FULL': ViewportEngine,
@@ -80,6 +86,7 @@ viewport_engine_cls = {
     'MEDIUM': ViewportEngineHybrid,
     'LOW': ViewportEngineHybrid,
     'FULL2': ViewportEngine2,
+    'HYBRIDPRO': ViewportEngineHybridPro,
 }
 
 

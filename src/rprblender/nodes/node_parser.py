@@ -19,6 +19,7 @@ import pyrpr
 
 from rprblender.engine.context import RPRContext, RPRContext2
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from .node_item import NodeItem
 
 from rprblender.utils import logging
@@ -295,6 +296,8 @@ class NodeParser(BaseNodeParser):
             node_item = self.export_muted()
         elif isinstance(self.rpr_context, RPRContextHybrid):
             node_item = self.export_hybrid()
+        elif isinstance(self.rpr_context, RPRContextHybridPro):
+            node_item = self.export_hybridpro()
         elif isinstance(self.rpr_context, RPRContext2):
             node_item = self.export_rpr2()
         else:
@@ -314,6 +317,9 @@ class NodeParser(BaseNodeParser):
 
     def export_hybrid(self) -> [NodeItem, None]:
         return self.export()
+
+    def export_hybridpro(self) -> [NodeItem, None]:
+        return self.export_hybrid()
 
     def export_rpr2(self) -> [NodeItem, None]:
         return self.export()
