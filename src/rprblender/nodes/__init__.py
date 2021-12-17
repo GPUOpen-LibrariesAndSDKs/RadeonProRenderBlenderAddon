@@ -32,9 +32,12 @@ class RPR_ShaderNodeCategory(NodeCategory):
         return context.scene.render.engine == "RPR"\
                and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
 
+def sorted_items(items:list):
+    items.sort(key=lambda x: x.label)
+    return items
 
 node_categories = [
-    RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=[
+    RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=sorted_items([
         NodeItem('ShaderNodeAmbientOcclusion'),
         NodeItem('ShaderNodeFresnel'),
         NodeItem('ShaderNodeLayerWeight'),
@@ -47,11 +50,11 @@ node_categories = [
         NodeItem('ShaderNodeVolumeInfo'),
         NodeItem('RPRShaderProceduralUVNode'),
         NodeItem('RPRShaderNodeLookup'),
-    ],),
-    RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=[
+    ])),
+    RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=sorted_items([
         NodeItem('ShaderNodeOutputMaterial'),
-    ],),
-    RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=[
+    ])),
+    RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=sorted_items([
         NodeItem('ShaderNodeBsdfPrincipled'),
         NodeItem('ShaderNodeBsdfHair'),
         NodeItem('ShaderNodeBsdfHairPrincipled'),
@@ -64,31 +67,40 @@ node_categories = [
         NodeItem('RPRShaderNodePassthrough'),
         NodeItem('RPRShaderNodeLayered'),
         NodeItem('RPRShaderNodeToon'),
-    ]),
-    RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=[
+        NodeItem('ShaderNodeBsdfAnisotropic'),
+        NodeItem('ShaderNodeBsdfDiffuse'),
+        NodeItem('ShaderNodeBsdfGlass'),
+        NodeItem('ShaderNodeBsdfGlossy'),
+        NodeItem('ShaderNodeBsdfRefraction'),
+        NodeItem('ShaderNodeBsdfTranslucent'),
+        NodeItem('ShaderNodeBsdfTransparent'),
+        NodeItem('ShaderNodeBsdfVelvet'),
+        NodeItem('ShaderNodeSubsurfaceScattering'),
+    ])),
+    RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=sorted_items([
         NodeItem('ShaderNodeTexChecker'),
         NodeItem('ShaderNodeTexGradient'),
         NodeItem('ShaderNodeTexImage'),
         NodeItem('ShaderNodeTexNoise'),
         NodeItem('ShaderNodeTexVoronoi'),
         NodeItem('RPRTextureNodeLayered'),
-    ],),
-    RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=[
+    ])),
+    RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=sorted_items([
         NodeItem('ShaderNodeBrightContrast'),
         NodeItem('ShaderNodeGamma'),
         NodeItem('ShaderNodeInvert'),
         NodeItem('ShaderNodeMixRGB'),
         NodeItem('ShaderNodeRGBCurve'),
         NodeItem('ShaderNodeHueSaturation'),
-    ]),
-    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=[
+    ])),
+    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=sorted_items([
         NodeItem('ShaderNodeBump'),
         NodeItem('ShaderNodeDisplacement'),
         NodeItem('ShaderNodeMapping'),
         NodeItem('ShaderNodeNormal'),
         NodeItem('ShaderNodeNormalMap'),
-    ]),
-    RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=[
+    ])),
+    RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=sorted_items([
         NodeItem('ShaderNodeBlackbody'),
         NodeItem('ShaderNodeValToRGB'),
         NodeItem('ShaderNodeCombineXYZ'),
@@ -101,10 +113,11 @@ node_categories = [
         NodeItem('ShaderNodeSeparateHSV'),
         NodeItem('ShaderNodeVectorMath'),
         NodeItem('RPRValueNode_Math'),
-    ]),
-    RPR_ShaderNodeCategory('Layout', "Layout", items=[
+    ])),
+    RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
         NodeItem('NodeReroute'),
-    ])
+        NodeItem('NodeFrame'),
+    ]), )
 ]
 
 

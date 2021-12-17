@@ -192,7 +192,7 @@ class Context(Object):
     ''' Context wraps the rpr_context type with useful methods '''
     core_type_name = 'rpr_context'
 
-    plugin_id = None
+    plugin_id = -1
     cache_path = None
     cpu_device = None
     gpu_devices = []
@@ -503,6 +503,9 @@ class Shape(Object):
     def set_shadow_catcher(self, shadow_catcher):
         ShapeSetShadowCatcher(self, shadow_catcher)
         self.shadow_catcher = shadow_catcher
+
+    def set_shadow_color(self, r, g, b):
+        ShapeSetShadowColor(self, r, g, b)
 
     def set_reflection_catcher(self, reflection_catcher):
         ShapeSetReflectionCatcher(self, reflection_catcher)

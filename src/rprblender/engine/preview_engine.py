@@ -16,7 +16,8 @@ import bpy
 import pyrpr
 
 from .engine import Engine
-from rprblender.export import object, camera, particle, world
+from rprblender.export import object, camera, world
+from .context import RPRContext2
 
 from rprblender.utils import logging
 log = logging.Log(tag='PreviewEngine')
@@ -31,6 +32,7 @@ class PreviewEngine(Engine):
 
     TYPE = 'PREVIEW'
 
+    _RPRContext = RPRContext2
     rpr_context = None
 
     def __init__(self, rpr_engine):

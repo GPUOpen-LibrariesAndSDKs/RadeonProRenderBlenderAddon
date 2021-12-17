@@ -23,6 +23,12 @@ class Context(pyrpr.Context):
         super().__init__(flags, props, use_cache)
         self.render_update_callback = None
 
+    @classmethod
+    def load_devices(cls):
+        super().load_devices()
+        pyrpr.Context.cpu_device = cls.cpu_device
+        pyrpr.Context.gpu_devices = cls.gpu_devices
+
     def set_render_update_callback(self, callback_func):
         if callback_func:
             @pyrpr.ffi.callback("void(float, void *)")

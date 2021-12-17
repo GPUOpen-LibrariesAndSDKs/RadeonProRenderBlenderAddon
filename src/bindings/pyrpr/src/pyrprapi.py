@@ -689,7 +689,7 @@ if __name__=='__main__':
         castxml,
         exclude=['RIF_DEPRECATED', 'RIF_MAKE_VERSION', 'RIF_API_VERSION', 'VERSION_BUILD',
                  'RIF_STRINGIFY2(s)', 'RIF_STRINGIFY(s)',
-                 'rif_logger_desc', 'rifLoggerAttach']
+                 'rif_logger_desc', 'rifLoggerAttach', 'rifGetModelMemorySize']
     )
 
     # export(rpr_header_gltf, includes_gltf, json_file_name_gltf,

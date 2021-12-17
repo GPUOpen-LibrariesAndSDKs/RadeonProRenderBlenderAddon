@@ -40,7 +40,8 @@ def get_transform(obj: bpy.types.Object):
 def get_smoke_modifier(obj: bpy.types.Object):
     if BLENDER_VERSION >= '2.82':
         return next((modifier for modifier in obj.modifiers
-                     if modifier.type == 'FLUID' and modifier.fluid_type == 'DOMAIN'), None)
+                     if modifier.type == 'FLUID' and modifier.fluid_type == 'DOMAIN'
+                     and modifier.domain_settings.domain_type == 'GAS'), None)
     else:
         return next((modifier for modifier in obj.modifiers
                      if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
