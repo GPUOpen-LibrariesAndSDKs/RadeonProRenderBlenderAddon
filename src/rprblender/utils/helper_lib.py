@@ -17,10 +17,13 @@ import numpy as np
 import math
 import os
 
-from . import package_root_dir, OS, IS_WIN, IS_DEBUG_MODE, IS_OPENVDB_SUPPORT
+from . import package_root_dir, OS, IS_WIN, IS_MAC, IS_DEBUG_MODE, BLENDER_VERSION, SYSTEM_PROCESSOR
 
 from . import logging
 log = logging.Log(tag='utils.helper_lib')
+
+
+IS_OPENVDB_SUPPORT = (BLENDER_VERSION <= "2.92") and (IS_WIN or (IS_MAC and SYSTEM_PROCESSOR == 'x86_64'))
 
 
 lib = None
@@ -38,7 +41,7 @@ def init():
     if IS_OPENVDB_SUPPORT:
         lib_name = {
             'Windows': "RPRBlenderHelper_vdb.dll",
-            'Linux': "libRPRBlenderHelper.so",
+            'Linux': "libRPRBlenderHelper_vdb.so",
             'Darwin': "libRPRBlenderHelper_vdb.dylib"
         }[OS]
     else:

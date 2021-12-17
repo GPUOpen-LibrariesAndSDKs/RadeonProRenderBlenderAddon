@@ -39,7 +39,7 @@ def run_module_call(*args):
     module_args = ('-m', *args, '--user')
     log(f"Running subprocess.check_call {module_args}")
 
-    subprocess.check_call([bpy.app.binary_path_python, *module_args], timeout=60.0)
+    subprocess.check_call([sys.executable, *module_args], timeout=60.0)
 
 
 def run_pip(*args):

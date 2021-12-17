@@ -17,6 +17,7 @@ import os
 
 import pyrpr
 import pyhybrid
+import pyhybridpro
 import pyrpr2
 import pyrprimagefilters as rif
 
@@ -40,7 +41,7 @@ class ImageFilter(metaclass=ABCMeta):
             else:
                 self.context = rif.ContextMetal(rpr_context)
         elif pyrpr.is_gpu_enabled(creation_flags) and \
-                not isinstance(rpr_context, (pyhybrid.Context, pyrpr2.Context)):
+                not isinstance(rpr_context, (pyhybrid.Context, pyhybridpro.Context, pyrpr2.Context)):
             self.context = rif.ContextOpenCL(rpr_context)
         else:
             self.context = rif.Context(rpr_context)

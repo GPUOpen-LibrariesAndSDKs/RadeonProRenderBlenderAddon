@@ -17,6 +17,7 @@
 
 import sys
 import os
+import shutil
 import platform
 import subprocess
 from pathlib import Path
@@ -40,10 +41,11 @@ subprocess.check_call([sys.executable, 'rpr.py'])
 subprocess.check_call([sys.executable, 'rpr_load_store.py'])
 os.chdir(cwd)
 
-if sys.version_info.major == 3 and sys.version_info.minor == 7:
-    # we are going to build RPRBlenderHelper only for python 3.7
+if sys.version_info.major == 3 and sys.version_info.minor == 9:
+    # we are going to build RPRBlenderHelper only for python 3.9
     os.chdir('RPRBlenderHelper')
-    os.makedirs('.build', exist_ok=True)
+    shutil.rmtree('.build', ignore_errors=True)
+    os.makedirs('.build')
     os.chdir('.build')
     if 'Windows' == platform.system():
         subprocess.check_call(['cmake', '-G', 'Visual Studio 14 2015 Win64',  '..'])

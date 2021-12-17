@@ -142,4 +142,11 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
         col = main_column.column(align=True)
         col.prop(contour_settings, 'antialiasing', slider=True)
 
+        col = main_column.column(align=True)
+        col.prop(contour_settings, 'use_uv')
+        args = col.column(align=True)
+        args.enabled = contour_settings.use_uv
+        args.prop(contour_settings, 'uv_line_width', slider=True)
+        args.prop(contour_settings, 'uv_threshold', slider=True)
+
         #main_column.prop(view_layer, 'contour_debug_flag')
