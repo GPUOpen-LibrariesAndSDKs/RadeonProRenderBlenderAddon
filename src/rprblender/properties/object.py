@@ -21,6 +21,7 @@ from bpy.props import (
     PointerProperty,
     IntProperty,
     EnumProperty,
+    FloatVectorProperty
 )
 import pyrpr
 from . import RPR_Properties
@@ -78,6 +79,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="This object will be visible in Contour render mode",
         default=True,
     )
+    shadow_color: FloatVectorProperty(
+        name='Shadow Color', description="Shdadow Color which overrides object shadow",
+        subtype='COLOR', min=0.0, max=1.0, size=3,
+        default=(0.0, 0.0, 0.0)
+    )
 
     # Motion and Deformation Blur
     motion_blur: BoolProperty(
@@ -129,6 +135,11 @@ class RPR_ObjectProperites(RPR_Properties):
     def set_catchers(self, rpr_shape):
         rpr_shape.set_shadow_catcher(self.shadowcatcher)
         rpr_shape.set_reflection_catcher(self.reflection_catcher)
+
+    def set_shadow_color(self, rpr_shape):
+        color = list(self.shadow_color)
+        if color != [0.0, 0.0, 0.0]:
+            rpr_shape.set_shadow_color(*color)
 
     def export_subdivision(self, rpr_shape):
         """ Exports subdivision settings """

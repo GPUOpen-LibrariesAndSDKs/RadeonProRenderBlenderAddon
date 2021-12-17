@@ -159,8 +159,6 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col.prop(limits, 'max_samples')
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
-        if context.scene.rpr.render_quality == 'FULL2':
-            row.enabled = False
 
         adapt_resolution = context.scene.rpr.render_quality in ('FULL', 'FULL2')
         col1 = col.column()
@@ -198,7 +196,7 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         if len(rpr.render_quality_items) > 1:
             self.layout.prop(rpr, 'render_quality')
         
-        if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH'):
+        if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH', 'HYBRIDPRO'):
             self.layout.prop(rpr, 'hybrid_low_mem')
 
         if rpr.render_quality == 'FULL2':

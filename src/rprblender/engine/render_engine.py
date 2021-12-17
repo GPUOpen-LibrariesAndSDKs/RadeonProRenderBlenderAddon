@@ -456,6 +456,7 @@ class RenderEngine(Engine):
         self.rpr_context.enable_aov(pyrpr.AOV_OBJECT_ID)
         self.rpr_context.enable_aov(pyrpr.AOV_MATERIAL_ID)
         self.rpr_context.enable_aov(pyrpr.AOV_SHADING_NORMAL)
+        self.rpr_context.enable_aov(pyrpr.AOV_UV)
 
         # setting camera
         self.camera_data.export(self.rpr_context.scene.camera)
@@ -798,7 +799,8 @@ class RenderEngine(Engine):
         # temporary ignore getting texture sizes with hybrid,
         # until it'll be fixed on hybrid core side
         from . context_hybrid import RPRContext as RPRContextHybrid
-        if not isinstance(self.rpr_context, RPRContextHybrid):
+        from . context_hybridpro import RPRContext as RPRContextHybridPro
+        if not isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
             data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
                                     // (1024 * 1024)  # in MB
 

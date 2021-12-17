@@ -54,6 +54,12 @@ class RPR_ContourProperties(RPR_Properties):
         default=True,
     )
 
+    use_uv: BoolProperty(
+        name="Use UV",
+        description="Use UV extraction for Contour rendering",
+        default=True,
+    )
+
     object_id_line_width: FloatProperty(
         name="Line Width Object",
         description="Line width for Object ID contours",
@@ -75,12 +81,24 @@ class RPR_ContourProperties(RPR_Properties):
         default=1.0,
     )
 
+    uv_line_width: FloatProperty(
+        name="Line Width UV",
+        min=1.0, max=10.0,
+        default=1.0,
+    )
+
     normal_threshold: FloatProperty(
         name="Normal Threshold",
         description="Threshold for normals, in degrees",
         subtype='ANGLE',
         min=0.0, max=math.radians(180.0),
         default=math.radians(45.0),
+    )
+
+    uv_threshold: FloatProperty(
+        name="Threshold UV",
+        min=0.0, max=1.0,
+        default=1.0,
     )
     
     antialiasing: FloatProperty(
@@ -94,12 +112,15 @@ class RPR_ContourProperties(RPR_Properties):
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_OBJECTID, self.use_object_id)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_MATERIALID, self.use_material_id)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_NORMAL, self.use_shading_normal)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_UV, self.use_uv)
 
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_OBJECTID, self.object_id_line_width)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_MATERIALID, self.material_id_line_width)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_NORMAL, self.shading_normal_line_width)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_UV, self.uv_line_width)
 
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_NORMAL_THRESHOLD, math.degrees(self.normal_threshold))
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_UV_THRESHOLD, math.radians(self.uv_threshold * 180))
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_ANTIALIASING, self.antialiasing)
 
 
@@ -390,32 +411,32 @@ class RPR_ViewLayerProperites(RPR_Properties):
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT0,
             'name': "Cryptomatte Mat0",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT1,
             'name': "Cryptomatte Mat1",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT2,
             'name': "Cryptomatte Mat2",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ0,
             'name': "Cryptomatte Obj0",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ1,
             'name': "Cryptomatte Obj1",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ2,
             'name': "Cryptomatte Obj2",
-            'channel': 'RGB'
+            'channel': 'RGBA'
         },
     )
 
