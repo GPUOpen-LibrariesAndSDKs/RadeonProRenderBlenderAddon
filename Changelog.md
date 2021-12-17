@@ -1,3 +1,33 @@
+# Version 3.3.16
+## New Features:
+- Support for Blender 3.0 has been added.
+- Updates to the Render Quality modes:
+    - RPR Interactive is a new mode supporting GPUs that use the Vulkan ray tracing extension, and is optimized for fast viewport rendering;
+    - RPR Final, previously “Full” mode. It is intended for final rendering with the utmost physical correctness and image quality;  
+    - Both modes produce similar images;
+    - Both modes support full MaterialX shader networks.
+- Support for ARM-based Apple Macs has been added.
+- The ability to override the color of an object’s shadow has been added (in the visibility settings).
+
+## Bugs Fixed:
+- Blender objects using the “Fluid Modifier” were not rendering correctly — fixed.
+- Outline rendering can now use UV mapping to generate the outline.
+- Noise Threshold was previously locked in the viewport settings — fixed.
+- The “Key Error 41” issue when exporting a .rpr file has been fixed.
+- Incorrect Subsurface Scattering on Vega GPUS has been fixed.
+- Black rendering of toon shaders on macOS has been fixed.
+- A crash that could occur when processing emission shaders objects with subdivision added has been eliminated.
+- The startup time for CPU rendering has been reduced.
+- Low utilization on macOS with CPU + GPU rendering has been eliminated.
+- Performance in scenes with many transparent materials has been improved.
+- An issue with artifacts in alpha texture masks has been fixed.
+- The render performance on Vega and Polaris GPUs has been improved.
+- Particle motion blur on GPUs now works correctly.
+- A bug in the “Monster Under the Bed” scene has been fixed.
+- A crash that could occur when using .tif textures with zip compression has been eliminated.
+- An issue with emission shaders disappearing in volume objects has been fixed.
+
+
 # Version 3.3 
 ## New Features:
 - Support for Fog and Heterogenous Volume rendering has been added to the RPR Full mode.  Simulated volumes are now rendered on CPU and GPU.  
