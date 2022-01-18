@@ -31,11 +31,11 @@ class RPR_VIEWLAYER_PT_aovs(RPR_Panel):
                 # not displaying "Combined" pass as it is always enabled by Blender
                 continue
 
-            col = col1 if i <= len(view_layer.enable_aovs) // 2 else col2
+            col = col1 if i <= (len(view_layer.enable_aovs) // 2) + 1 else col2
             r = col.row()
             r.prop(view_layer, 'enable_aovs', index=i, text=aov['name'])
 
-        col1.prop(view_layer, 'crytomatte_aov_object')
+        col2.prop(view_layer, 'crytomatte_aov_object')
         col2.prop(view_layer, 'crytomatte_aov_material')
 
 
