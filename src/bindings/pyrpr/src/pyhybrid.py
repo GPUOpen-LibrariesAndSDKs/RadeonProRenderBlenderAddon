@@ -171,6 +171,9 @@ class EmptyMaterialNode(MaterialNode):
     def set_input(self, name, value):
         pass
 
+    def set_id(self, id):
+        pass
+
 
 class Shape(pyrpr.Shape):
     def set_volume_material(self, material):
