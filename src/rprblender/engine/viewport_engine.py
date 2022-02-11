@@ -563,7 +563,7 @@ class ViewportEngine(Engine):
             self.frame_current = depsgraph.scene.frame_current
 
             materials = set(material_slot.material for obj in self.depsgraph_objects(depsgraph)
-                            for material_slot in obj.material_slots)
+                            for material_slot in obj.material_slots if material_slot.material)
             materials -= set(update[0] for update in updates)
             for mat in materials:
                 image_nodes = material.get_material_nodes_by_type(mat, 'ShaderNodeTexImage')
@@ -571,12 +571,12 @@ class ViewportEngine(Engine):
                 if image_nodes:
                     use_auto_refresh = any(node.image_user.use_auto_refresh
                                            for node in image_nodes
-                                           if node.image.source == 'SEQUENCE')
+                                           if node.image and node.image.source == 'SEQUENCE')
                     if use_auto_refresh:
                         updates.insert(1, (mat, None, None))
 
             volume_domain_mat = set(material_slot.material for obj in self.depsgraph_objects(depsgraph) if volume.get_smoke_modifier(obj)
-                              for material_slot in obj.material_slots)
+                              for material_slot in obj.material_slots if material_slot.material)
             volume_domain_mat -= set(update[0] for update in updates)
             for mat in volume_domain_mat:
                 updates.append((mat, None, None))
