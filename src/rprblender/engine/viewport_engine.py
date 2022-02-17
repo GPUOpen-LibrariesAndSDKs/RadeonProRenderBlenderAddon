@@ -556,6 +556,11 @@ class ViewportEngine(Engine):
         if not updates:
             return
 
+        # Check if only camera transform is updated
+        # It removes glitches while the active camera moving or whether "Camera to View" is enabled
+        if len(updates) == 1 and isinstance(updates[0][0], bpy.types.Object) and updates[0][0].type == 'CAMERA':
+            return
+
         # despgraph doesn't provide updates for ShaderNodeTexImage with activated Auto Refresh option
         # get materials which contain ShaderNodeTexImage with SEQUENCE source, to make force update
         if isinstance(updates[0][0], bpy.types.Scene) and \
