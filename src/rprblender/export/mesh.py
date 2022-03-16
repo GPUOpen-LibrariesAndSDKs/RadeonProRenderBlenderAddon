@@ -292,6 +292,7 @@ def export_visibility(obj, rpr_shape, indirect_only):
         rpr_shape.set_visibility_ex("visible.diffuse", visibility.diffuse)
         rpr_shape.set_shadow(visibility.shadow)
 
+    rpr_shape.set_visibility_ex("visible.receive_shadow", obj.rpr.receive_shadow)
     obj.rpr.set_shadow_color(rpr_shape)
     obj.rpr.set_catchers(rpr_shape)
 

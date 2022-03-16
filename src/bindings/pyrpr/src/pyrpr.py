@@ -529,6 +529,7 @@ class Shape(Object):
             "visible.refraction": SHAPE_VISIBILITY_REFRACTION,
             "visible.reflection": SHAPE_VISIBILITY_REFLECTION,
             "visible.shadow": SHAPE_VISIBILITY_SHADOW,
+            "visible.receive_shadow": SHAPE_VISIBILITY_RECEIVE_SHADOW,
             "visible.primary": SHAPE_VISIBILITY_PRIMARY_ONLY_FLAG,
             }
         ShapeSetVisibilityFlag(self, flags[visibility_type], visible)
