@@ -215,6 +215,48 @@ class WorldData:
             rpr_light.set_image(rpr_image)
             set_light_rotation(rpr_light, (rotation[0], rotation[1], rotation[2] + self.azimuth))
 
+
+    @dataclass(init=False, eq=True)
+    class FogData:
+        color: tuple
+        distance: float
+        height: float
+        height_offset: float
+        fog_direction: tuple
+
+        def __init__(self, world):
+            self.color = tuple(world.rpr.fog_color)
+            self.distance = world.rpr.fog_distance if world and world.rpr.enabled_fog and \
+                                                      world.rpr.fog_distance else -1.0
+            self.height = world.rpr.fog_height
+            self.height_offset = world.rpr.fog_height_offset
+            self.fog_direction = (*world.rpr.fog_direction, 0.0)
+
+        def export(self, rpr_context):
+            rpr_context.set_parameter(pyrpr.CONTEXT_FOG_COLOR, self.color)
+            rpr_context.set_parameter(pyrpr.CONTEXT_FOG_DISTANCE, self.distance)
+            rpr_context.set_parameter(pyrpr.CONTEXT_FOG_HEIGHT, self.height)
+            rpr_context.set_parameter(pyrpr.CONTEXT_FOG_HEIGHT_OFFSET, self.height_offset)
+            rpr_context.set_parameter(pyrpr.CONTEXT_FOG_DIRECTION, self.fog_direction)
+
+
+    @dataclass(init=False, eq=True)
+    class AtmosphereData:
+        color: tuple
+        density: float
+        clamp: float
+
+        def __init__(self, world):
+            self.color = tuple(world.rpr.atmosphere_volume_color)
+            self.density = world.rpr.atmosphere_volume_density if world.rpr.enabled_atmosphere_volume and world else 0.0
+            self.clamp = world.rpr.atmosphere_volume_radiance_clamp
+
+        def export(self, rpr_context):
+            rpr_context.set_parameter(pyrpr.CONTEXT_ATMOSPHERE_VOLUME_COLOR, self.color)
+            rpr_context.set_parameter(pyrpr.CONTEXT_ATMOSPHERE_VOLUME_DENSITY, self.density)
+            rpr_context.set_parameter(pyrpr.CONTEXT_ATMOSPHERE_VOLUME_RADIANCE_CLAMP, self.clamp)
+
+
     intensity: float = 0.0
     ibl: IblData = None
     sun_sky: SunSkyData = None
@@ -223,6 +265,9 @@ class WorldData:
     rotation: tuple = None
     group: int = 0
 
+    fog: FogData = None
+    atmosphere_volume: AtmosphereData = None
+
     @staticmethod
     def init_from_world(world: bpy.types.World):
         """ Returns WorldData from bpy.types.World """
@@ -230,6 +275,10 @@ class WorldData:
         data = WorldData()
 
         rpr = world.rpr
+
+        data.fog = WorldData.FogData(world)
+        data.atmosphere_volume = WorldData.AtmosphereData(world)
+
         if not rpr.enabled:
             return data
 
@@ -294,6 +343,10 @@ class WorldData:
         return data
 
     def export(self, rpr_context, use_backplate=True):
+
+        self.fog.export(rpr_context)
+        self.atmosphere_volume.export(rpr_context)
+
         def export_override(override_type):
             pyrpr_key = getattr(pyrpr, f'ENVIRONMENT_LIGHT_OVERRIDE_{override_type.upper()}')
             override = self.overrides.get(override_type, None)
