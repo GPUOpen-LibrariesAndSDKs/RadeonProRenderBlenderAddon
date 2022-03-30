@@ -27,6 +27,7 @@ bl_info = {
     "warning": "",
     "tracker_url": "",
     "wiki_url": "",
+    "doc_url": "",
     "category": "Render"
 }
 

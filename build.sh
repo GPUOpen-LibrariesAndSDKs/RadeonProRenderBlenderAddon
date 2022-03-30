@@ -5,6 +5,7 @@ if [ -f "$cxml" ]; then
 	if [ -f "./bindings-ok" ]; then
 		python3.7 build.py
 		python3.9 build.py
+		python3.10 build.py
 	else
 		echo Compiling bindings failed
 	fi
