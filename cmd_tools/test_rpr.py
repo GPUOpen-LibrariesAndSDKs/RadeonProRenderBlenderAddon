@@ -15,10 +15,6 @@
 
 #script to load addon from within blender text editor
 
-import faulthandler
-
-faulthandler.enable()
-
 from pathlib import Path
 
 src_path = str((Path(__file__).parent.parent/'src').resolve())
