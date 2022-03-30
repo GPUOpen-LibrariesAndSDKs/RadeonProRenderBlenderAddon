@@ -571,14 +571,19 @@ class RPR_RenderProperties(RPR_Properties):
                 os.mkdir(self.texture_cache_dir)
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
-            # set ocio config file to blender included one
-            # TODO can use blender render set render space, and check for custom ocio setting
-            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH, 
-                                      os.path.join(bpy.utils.resource_path('LOCAL'),
-                                                   'datafiles', 'colormanagement',
-                                                   'config.ocio'))
-            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_RENDERING_COLOR_SPACE, 
-                                      "Linear")
+            # check for custom ocio setting and use it if exists
+            ocio_config_path = os.path.join(utils.package_root_dir(),'ocio_config',
+                                            utils.BLENDER_VERSION, 'config.ocio')
+
+            if not os.path.exists(ocio_config_path):
+                # set ocio config file to blender included one
+                ocio_config_path = os.path.join(bpy.utils.resource_path('LOCAL'),
+                                                'datafiles', 'colormanagement',
+                                                'config.ocio')
+
+            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH, ocio_config_path)
+            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_RENDERING_COLOR_SPACE, "Linear")
+            log('Loaded OCIO config file:', ocio_config_path)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """

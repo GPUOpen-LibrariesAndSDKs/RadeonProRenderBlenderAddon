@@ -132,6 +132,9 @@ class BaseNodeParser(metaclass=ABCMeta):
     def get_input_default(self, socket_key):
         """ Returns default value of input socket """
 
+        if isinstance(socket_key, str) and socket_key not in self.node.inputs.keys():
+            raise MaterialError("Invalid socket", socket_key, self.node, self.material)
+
         socket_in = self.node.inputs[socket_key]
         return self._parse_val(socket_in.default_value)
 
@@ -142,6 +145,9 @@ class BaseNodeParser(metaclass=ABCMeta):
         :arg accepted_type: accepted types result filter, optional
         :type accepted_type: class, tuple or None
         """
+
+        if isinstance(socket_key, str) and socket_key not in self.node.inputs.keys():
+            raise MaterialError("Invalid socket", socket_key, self.node, self.material)
 
         socket_in = self.node.inputs[socket_key]
 
