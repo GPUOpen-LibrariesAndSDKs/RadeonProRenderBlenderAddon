@@ -586,8 +586,10 @@ class ViewportEngine(Engine):
             for mat in volume_domain_mat:
                 updates.append((mat, None, None))
 
-        if context.selected_objects != self.selected_objects and not updates:
-            # only a selection change
+        # only a selection change
+        if context.selected_objects != self.selected_objects \
+                and len(updates) == 1 and isinstance(updates[0][0], bpy.types.Scene) \
+                and not updates[0][1] and not updates[0][2]:
             self.selected_objects = context.selected_objects
             return
 
