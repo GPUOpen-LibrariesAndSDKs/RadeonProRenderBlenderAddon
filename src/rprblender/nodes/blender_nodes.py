@@ -1760,6 +1760,33 @@ class ShaderNodeValToRGB(NodeParser):
         return self.node_item(val)
 
 
+class ShaderNodeMapRange(NodeParser):
+    """ Just a simple range conversion
+    """
+    def export(self):
+        # TODO add suport for more than just linear mapping
+
+        ''' Get an input value like this.  
+            This creates rpr "shader nodes" behind the scenes.
+        '''
+        from_min = self.get_input_value('From Min')  
+        from_max = self.get_input_value('From Max')
+        to_min = self.get_input_value('To Min')
+        to_max = self.get_input_value('To Max')
+        
+        ''' Doing math like this is actually compiled into a 
+            shader that is executed at runtime. '''
+        from_range = from_max - from_min  
+        to_range = to_max - to_min
+        value = self.get_input_value('Value')
+        if self.node.clamp:  # you can access node values like this
+            value = value.clamp(from_min, from_max)
+        point_in_from_range = value - from_min
+        result_shader_node = from_min + point_in_from_range * (to_range / from_range)
+
+        return result_shader_node
+
+
 class ShaderNodeTexGradient(NodeParser):
     """ Makes a gradiant on vector input or P
     """
