@@ -106,6 +106,7 @@ node_categories = [
         NodeItem('ShaderNodeCombineXYZ'),
         NodeItem('ShaderNodeCombineRGB'),
         NodeItem('ShaderNodeCombineHSV'),
+        NodeItem('ShaderNodeMapRange'),
         NodeItem('ShaderNodeMath'),
         NodeItem('ShaderNodeRGBToBW'),
         NodeItem('ShaderNodeSeparateRGB'),
