@@ -505,10 +505,13 @@ class RPR_ViewLayerProperites(RPR_Properties):
             if aov['rpr'] == pyrpr.AOV_VARIANCE and not enable_adaptive:
                 continue
 
-            if aov['name'] not in ["Combined", "Depth"]:
-                # TODO this seems to assume that combine and depth enabled already?
-                rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
+            if aov['name'] == 'Combined' and bpy.context.view_layer.use_pass_combined:
+                continue
 
+            if aov['name'] == 'Depth' and bpy.context.view_layer.use_pass_z:
+                continue
+
+            rpr_engine.add_pass(aov['name'], len(aov['channel']), aov['channel'], layer=view_layer.name)
             rpr_context.enable_aov(aov['rpr'])
 
         if cryptomatte_allowed:
