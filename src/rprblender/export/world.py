@@ -218,19 +218,29 @@ class WorldData:
 
     @dataclass(init=False, eq=True)
     class FogData:
-        color: tuple
-        distance: float
-        height: float
-        height_offset: float
-        fog_direction: tuple
+        distance: float = -1.0
+        color: tuple = (0.0, 0.0, 0.0, 1.0)
+        height: float = 0.0
+        height_offset: float = 0.0
+        fog_direction: tuple = (0.0, 0.0, 1.0, 0.0)
 
-        def __init__(self, world):
-            self.color = tuple(world.rpr.fog_color)
-            self.distance = world.rpr.fog_distance if world and world.rpr.enabled_fog and \
-                                                      world.rpr.fog_distance else -1.0
-            self.height = world.rpr.fog_height
-            self.height_offset = world.rpr.fog_height_offset
-            self.fog_direction = (*world.rpr.fog_direction, 0.0)
+        @staticmethod
+        def init_from_world(world: bpy.types.World):
+            data = WorldData.FogData()
+            if world.rpr.enabled_fog and world.rpr.fog_distance:
+                data.distance = world.rpr.fog_distance
+
+            data.color = tuple(world.rpr.fog_color)
+            data.height = world.rpr.fog_height
+            data.height_offset = world.rpr.fog_height_offset
+            data.fog_direction = (*world.rpr.fog_direction, 0.0)
+            return data
+
+        @staticmethod
+        def init_from_shading_data():
+            # retuns FogData for Viewport Shading mode
+            # as if Fog feature is turned off (distance: float = -1.0)
+            return WorldData.FogData()
 
         def export(self, rpr_context):
             rpr_context.set_parameter(pyrpr.CONTEXT_FOG_COLOR, self.color)
@@ -242,14 +252,25 @@ class WorldData:
 
     @dataclass(init=False, eq=True)
     class AtmosphereData:
-        color: tuple
-        density: float
-        clamp: float
+        density: float = 0.0
+        color: tuple = (0.0, 0.0, 0.0, 1.0)
+        clamp: float = 100.0
 
-        def __init__(self, world):
-            self.color = tuple(world.rpr.atmosphere_volume_color)
-            self.density = world.rpr.atmosphere_volume_density if world.rpr.enabled_atmosphere_volume and world else 0.0
-            self.clamp = world.rpr.atmosphere_volume_radiance_clamp
+        @staticmethod
+        def init_from_world(world: bpy.types.World):
+            data = WorldData.AtmosphereData()
+            if world.rpr.enabled_atmosphere_volume:
+                data.density = world.rpr.atmosphere_volume_density
+
+            data.color = tuple(world.rpr.atmosphere_volume_color)
+            data.clamp = world.rpr.atmosphere_volume_radiance_clamp
+            return data
+
+        @staticmethod
+        def init_from_shading_data():
+            # retuns AtmosphereData for Viewport Shading mode
+            # as if Atmosphere Volume feature is turned off (density: float = 0.0)
+            return WorldData.AtmosphereData()
 
         def export(self, rpr_context):
             rpr_context.set_parameter(pyrpr.CONTEXT_ATMOSPHERE_VOLUME_COLOR, self.color)
@@ -273,11 +294,10 @@ class WorldData:
         """ Returns WorldData from bpy.types.World """
 
         data = WorldData()
+        data.fog = WorldData.FogData.init_from_world(world)
+        data.atmosphere_volume = WorldData.AtmosphereData.init_from_world(world)
 
         rpr = world.rpr
-
-        data.fog = WorldData.FogData(world)
-        data.atmosphere_volume = WorldData.AtmosphereData(world)
 
         if not rpr.enabled:
             return data
@@ -329,6 +349,8 @@ class WorldData:
         data.intensity = shading.studio_light_intensity
         data.ibl = WorldData.IblData.init_from_shading(shading)
         data.rotation = (0.0, 0.0, shading.studio_light_rotate_z)
+        data.fog = WorldData.FogData.init_from_shading_data()
+        data.atmosphere_volume = WorldData.AtmosphereData.init_from_shading_data()
 
         bg_data = WorldData.OverrideData()
         bg_data.rotation = data.rotation
@@ -343,10 +365,6 @@ class WorldData:
         return data
 
     def export(self, rpr_context, use_backplate=True):
-
-        self.fog.export(rpr_context)
-        self.atmosphere_volume.export(rpr_context)
-
         def export_override(override_type):
             pyrpr_key = getattr(pyrpr, f'ENVIRONMENT_LIGHT_OVERRIDE_{override_type.upper()}')
             override = self.overrides.get(override_type, None)
@@ -371,6 +389,9 @@ class WorldData:
             else:
                 if pyrpr_key in rpr_context.scene.environment_overrides:
                     rpr_context.scene.remove_environment_override(pyrpr_key)
+
+        self.fog.export(rpr_context)
+        self.atmosphere_volume.export(rpr_context)
 
         if not self.ibl and not self.sun_sky:
             remove_environment_lights(rpr_context)
