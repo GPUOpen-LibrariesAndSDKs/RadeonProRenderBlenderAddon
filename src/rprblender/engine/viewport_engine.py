@@ -34,7 +34,7 @@ from rprblender.utils import gl
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
-from rprblender.utils import logging
+from rprblender.utils import logging, BLENDER_VERSION
 log = logging.Log(tag='viewport_engine')
 
 
@@ -558,6 +558,10 @@ class ViewportEngine(Engine):
                 if isinstance(update.id, obj_type):
                     updates.append((update.id, update.is_updated_geometry, update.is_updated_transform))
 
+                # Handles Geometry Node updates
+                elif BLENDER_VERSION >= '3.0' and isinstance(update.id, bpy.types.GeometryNodeTree):
+                    sync_collection = True
+
         if updates:
             # Check if only camera transform is updated
             # It removes glitches while the active camera moving or whether "Camera to View" is enabled
@@ -653,6 +657,18 @@ class ViewportEngine(Engine):
                                                      material_override=material_override,
                                                      frame_current=self.frame_current)
                     is_obj_updated |= is_updated
+
+                    if sync_collection:
+                        continue
+
+                    if BLENDER_VERSION < '3.0':
+                        continue
+
+                    # Geometry Nodes can instantiate from the current object
+                    for modifier in obj.modifiers:
+                        if isinstance(modifier, bpy.types.NodesModifier) and modifier.show_viewport:
+                            sync_collection = True
+                            break
                     continue
 
                 if isinstance(obj, bpy.types.Light):
@@ -1023,8 +1039,10 @@ class ViewportEngine(Engine):
             objects = self.depsgraph_objects(depsgraph)
             active_mat = material_override
         else:
+            # Geometry Nodes allowed to apply material via node tree, in that case slot name always ''
+            # it's needed to check material name instead
             objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
-                            if mat.name in obj.material_slots.keys())
+                            if mat.name in (getattr(ms.material, 'name', '') for ms in obj.material_slots))
             active_mat = mat
 
         updated = False
