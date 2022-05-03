@@ -18,12 +18,13 @@ from rprblender.engine.context import RPRContext
 from rprblender.nodes.blender_nodes import ShaderNodeOutputMaterial
 
 from rprblender.utils import logging
+from . import object
 log = logging.Log(tag='export.Material')
 
 
 def key(material: bpy.types.Material, obj=None, input_socket_key='Surface'):
     mat_key = material.name_full
-    obj_name = obj.name_full if obj is not None else ''
+    obj_name = object.key(obj) if obj is not None else ''
 
     return (mat_key, obj_name, input_socket_key)
 
