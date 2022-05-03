@@ -131,6 +131,9 @@ def write_api(api_desc_fpath, f, abi_mode):
           print('#define', name, pyrprapi.eval_constant(c.value) if abi_mode else '...', file=f)
     for name, t in api.types.items():
         print(name, t.kind)
+        # causes error while parsing 'rpr_stat', 'rpr_stats' in RadeonProRender_Baikal.h
+        if name in ('rpr_stat', 'rpr_stats'):
+            continue
         if 'struct' == t.kind:
             print('typedef struct', name, '{', file=f)
             for field in t.fields:
