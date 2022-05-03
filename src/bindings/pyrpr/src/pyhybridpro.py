@@ -16,10 +16,16 @@ import numpy as np
 import functools
 
 import pyrpr
+from pyrprwrap import *
 from rprblender.config import hybridpro_unsupported_log_warn
 
 from rprblender.utils import logging
 log = logging.Log(tag='hybridpro')
+
+SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_COLOR, pyrpr.AOV_UV,
+                  pyrpr.AOV_OBJECT_ID, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_WORLD_COORDINATE,
+                  pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_BACKGROUND, pyrpr.AOV_EMISSION,
+                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO}
 
 
 def ignore_unsupported(function):
@@ -73,6 +79,19 @@ class Context(pyrpr.Context):
         iterations = self.parameters.get(pyrpr.CONTEXT_ITERATIONS, 1)
         for _ in range(iterations):
             super().render()
+
+    def attach_aov(self, aov, frame_buffer):
+        if aov not in SUPPORTED_AOVS:
+            log.warn("Unsupported AOV", aov)
+            return
+
+        super().attach_aov(aov, frame_buffer)
+
+    def detach_aov(self, aov):
+        if aov not in SUPPORTED_AOVS:
+            return
+
+        super().detach_aov(aov)
 
     @classmethod
     def register_plugin(cls, lib_path, cache_path):
