@@ -136,7 +136,11 @@ class MeshData:
                 bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=segments, radius=0.5)
 
             elif shape_type == 'SPHERE':
-                bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+                if BLENDER_VERSION < '3.0':
+                    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+
+                else:
+                    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, radius=0.5)
 
             elif shape_type == 'CUBE':
                 bmesh.ops.create_cube(bm, size=size)
