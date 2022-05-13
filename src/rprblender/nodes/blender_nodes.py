@@ -1187,11 +1187,11 @@ class ShaderNodeObjectInfo(NodeParser):
                 return self.node_item((1.0, 1.0, 1.0, 1.0))
         elif self.socket_out.name == 'Object Index':
             if self.object:
-                return self.node_item(self.object.pass_index)
+                return self.node_item(float(self.object.pass_index))
             else:
-                return self.node_item(0)
+                return self.node_item(0.0)
         elif self.socket_out.name == 'Material Index':
-            return self.node_item(self.material.pass_index)
+            return self.node_item(float(self.material.pass_index))
         elif self.socket_out.name == 'Random':
             return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
                                     {pyrpr.MATERIAL_INPUT_VALUE:
@@ -1200,7 +1200,7 @@ class ShaderNodeObjectInfo(NodeParser):
     def export_hybrid(self):
         if self.socket_out.name == 'Random':
             log.warn(f"Unsupported random object info in Hybrid modes")
-            return self.node_item(self.object.pass_index)
+            return self.node_item(float(self.object.pass_index))
         else:
             return self.export()
 
