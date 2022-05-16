@@ -62,6 +62,18 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, soft_min=16, default=128,
     )
 
+    seed: IntProperty(
+        name="Seed",
+        description="Seed to get different noise pattern",
+        min=0, default=0,
+    )
+
+    anim_seed: BoolProperty(
+        name="Animated Seed",
+        description="Use current frame as value",
+        default=False,
+    )
+
     contour_render_samples: IntProperty(
         name="Outline Samples",
         description="Number of samples for Outline Rendering",
@@ -122,6 +134,15 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_TILE_SIZE, self.adaptive_tile_size)
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP, self.min_samples)
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_THRESHOLD, self.noise_threshold)
+        return res
+
+    def set_random_seed(self, rpr_context):
+        res = False
+        seed = self.seed
+        if self.anim_seed:
+            seed = abs(rpr_context.blender_data['depsgraph'].scene.frame_current)
+
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RANDOM_SEED, seed)
         return res
 
 

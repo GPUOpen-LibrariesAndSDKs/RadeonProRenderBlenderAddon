@@ -137,7 +137,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(rpr, 'tile_order')
 
         col = self.layout.column(align=True)
-        col.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.render_quality == 'FULL2'
+        col.enabled = context.view_layer.rpr.use_contour_render and rpr.render_quality == 'FULL2'
         col.prop(limits, 'contour_render_samples', slider=False)
 
 
@@ -150,7 +150,8 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
-        limits = context.scene.rpr.viewport_limits
+        rpr = context.scene.rpr
+        limits = rpr.viewport_limits
         settings = get_user_settings()
 
         col = self.layout.column(align=True)
@@ -160,7 +161,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
 
-        adapt_resolution = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+        adapt_resolution = rpr.render_quality in ('FULL', 'FULL2')
         col1 = col.column()
         col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
@@ -172,12 +173,35 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
         col.prop(settings, 'use_gl_interop')
 
-        col.prop(context.scene.rpr, 'viewport_denoiser')
-        col.prop(context.scene.rpr, 'viewport_upscale')
+        col.prop(rpr, 'viewport_denoiser')
+        col.prop(rpr, 'viewport_upscale')
 
         col.separator()
         col.prop(limits, 'preview_samples')
         col.prop(limits, 'preview_update_samples')
+
+
+class RPR_RENDER_PT_advanced(RPR_Panel):
+    bl_label = "Advanced"
+    bl_parent_id = 'RPR_RENDER_PT_limits'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.rpr.render_quality == 'FULL2'
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        rpr = context.scene.rpr
+        limits = rpr.limits
+
+        if rpr.render_quality == 'FULL2':
+            col = self.layout.column(align=True)
+            row = col.row(align=True)
+            row.prop(limits, 'seed')
+            row.prop(limits, 'anim_seed', text="", icon='TIME')
 
 
 class RPR_RENDER_PT_quality(RPR_Panel):
