@@ -24,7 +24,7 @@ log = logging.Log(tag='export.object')
 
 
 def key(obj: bpy.types.Object):
-    return f'{obj.name_full}_{obj.as_pointer()}'
+    return f'{obj.name_full}_{obj.data.name_full}'
 
 
 def get_transform(obj: bpy.types.Object):
