@@ -374,7 +374,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
             data.num_face_vertices
         )
 
-    rpr_shape.set_name(object.key(obj))
+    rpr_shape.set_name(obj_key)
     rpr_shape.set_id(obj.pass_index)
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
                                      obj.pass_index, obj.pass_index, 1.0)
