@@ -410,32 +410,32 @@ class RPR_ViewLayerProperites(RPR_Properties):
     cryptomatte_aovs_info = (
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT0,
-            'name': "Cryptomatte Mat0",
+            'name': "CryptoMaterial00",
             'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT1,
-            'name': "Cryptomatte Mat1",
+            'name': "CryptoMaterial01",
             'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_MAT2,
-            'name': "Cryptomatte Mat2",
+            'name': "CryptoMaterial02",
             'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ0,
-            'name': "Cryptomatte Obj0",
+            'name': "CryptoObject00",
             'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ1,
-            'name': "Cryptomatte Obj1",
+            'name': "CryptoObject01",
             'channel': 'RGBA'
         },
         {
             'rpr': pyrpr.AOV_CRYPTOMATTE_OBJ2,
-            'name': "Cryptomatte Obj2",
+            'name': "CryptoObject02",
             'channel': 'RGBA'
         },
     )
@@ -460,14 +460,14 @@ class RPR_ViewLayerProperites(RPR_Properties):
     )
 
     crytomatte_aov_object: BoolProperty(
-        name="Cryptomatte Object AOVs",
+        name="Cryptomatte Object",
         description="Enable Object Cryptomatte AOVs",
         default=False,
         update=aov_enabled_changed,
     )
 
     crytomatte_aov_material: BoolProperty(
-        name="Cryptomatte Material AOVs",
+        name="Cryptomatte Material",
         description="Enable Material Cryptomatte AOVs",
         default=False,
         update=aov_enabled_changed,
