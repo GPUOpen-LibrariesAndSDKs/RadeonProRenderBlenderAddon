@@ -19,17 +19,14 @@ import numpy as np
 import bpy
 
 import pyrpr
-from rprblender.utils import helper_lib, is_zero
+from rprblender.utils import helper_lib
 from rprblender.utils import get_sequence_frame_file_path
+from rprblender.engine.context import RPRContext2
 
-from . import mesh, object, material
+from . import object, material, volume
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.openvdb')
-
-
-def key(obj: bpy.types.Object):
-    return (object.key(obj), 'openvdb')
 
 
 def get_transform(obj: bpy.types.Object):
@@ -102,92 +99,35 @@ def get_volume_file_path(volume, scene_frame):
 
 
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):
-    if not helper_lib.IS_OPENVDB_SUPPORT:
+    if not isinstance(rpr_context, RPRContext2):
+        return
+
+    if not helper_lib.is_openvdb_support:
         log.warn("OpenVDB is not supported")
         return
 
-    # getting openvdb grid data
-    volume = obj.data
+    volume_node = get_volume_material(rpr_context, obj)
+    if not volume_node:  # nothing to export
+        return
+
+    # creating volume
     obj_key = object.key(obj)
-
-    vdb_file = get_volume_file_path(volume, kwargs['frame_current'])
-    if not vdb_file:  # nothing to export
-        return
-
-    grids = helper_lib.vdb_read_grids_list(vdb_file)
-
-    def get_rpr_grid(grid_name):
-        if grid_name not in grids:
-            return None
-
-        data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
-
-        values = data['values']
-        m = values.max()
-        if m > 1.0:
-            values /= m
-
-        return rpr_context.create_grid_from_array_indices(
-            *data['size'], values, data['indices'])
-
-    material_data = get_material_data(rpr_context, obj)
-
-    density_grid = get_rpr_grid(material_data['density_attr'])
-    if not density_grid:
-        log.warn(f"No '{material_data['density_attr']}' grid in {vdb_file}.", obj)
-        return
-
-    # creating hetero volume
-    volume_key = key(obj)
-    rpr_volume = rpr_context.create_hetero_volume(volume_key)
-    rpr_volume.set_name(str(volume_key))
-
-    rpr_volume.set_grid('density', density_grid)
-    rpr_volume.set_grid('albedo', density_grid)
-
-    emission_color = material_data['emission_color']
-    if not is_zero(emission_color):
-        emission_grid = density_grid
-        if material_data['temperature_attr'] != material_data['density_attr']:
-            emission_grid = get_rpr_grid(material_data['temperature_attr'])
-            if not emission_grid:
-                log.warn(f"No '{material_data['temperature_attr']}' grid in {vdb_file} for "
-                         f"emission, '{material_data['density_attr']}' grid will be used.", obj)
-                emission_grid = density_grid
-
-        rpr_volume.set_grid('emission', emission_grid)
-
-    assign_material(rpr_volume, material_data)
-
-    # creating bound box shape
-    mesh_data = mesh.MeshData.init_from_shape_type('CUBE', 1.0, 1.0, 0)
-    rpr_shape = rpr_context.create_mesh(
-        obj_key,
-        mesh_data.vertices, mesh_data.normals, mesh_data.uvs,
-        mesh_data.vertex_indices, mesh_data.normal_indices, mesh_data.uv_indices,
-        mesh_data.num_face_vertices
-    )
-    rpr_shape.set_name(obj.name)
-
-    transform = get_transform(obj)
-    rpr_shape.set_transform(transform)
-
-    mat = rpr_context.create_material_node(pyrpr.MATERIAL_NODE_TRANSPARENT)
-    mat.set_input(pyrpr.MATERIAL_INPUT_COLOR, (1.0, 1.0, 1.0))
-
-    rpr_shape.set_material(mat)
-    rpr_context.scene.attach(rpr_shape)
-
-    # attaching rpr_volume to rpr_shape
-    rpr_volume.set_transform(transform)
-
-    rpr_context.scene.attach(rpr_volume)
-    rpr_shape.set_hetero_volume(rpr_volume)
+    rpr_mesh = rpr_context.create_mesh(
+            obj_key,
+            None, None, None,
+            None, None, None,
+            None,
+            {pyrpr.MESH_VOLUME_FLAG: 1}
+        )
+    rpr_mesh.set_name(str(obj_key))
+    rpr_mesh.set_volume_material(volume_node)
+    rpr_mesh.set_transform(get_transform(obj))
+    rpr_context.scene.attach(rpr_mesh)
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
-    if not (IS_WIN or IS_MAC):
-        return
+    if not helper_lib.is_openvdb_support:
+        return False
 
     obj_key = object.key(obj)
 
@@ -198,11 +138,7 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         sync(rpr_context, obj, **kwargs)
         return True
 
-    material_data = get_material_data(rpr_context, obj)
-    rpr_volume = rpr_context.volumes[key(obj)]
-
-    emission_changed = ('emission' in rpr_volume.grids) == is_zero(material_data['emission_color'])
-    if is_updated_geometry or emission_changed:
+    if is_updated_geometry:
         # mesh exists, but its settings were changed => recreating mesh with volume
         rpr_context.remove_object(obj_key)
         sync(rpr_context, obj, **kwargs)
@@ -213,39 +149,28 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
         transform = get_transform(obj)
         rpr_mesh.set_transform(transform)
 
-        rpr_volume.set_transform(transform)
-
-    assign_material(rpr_volume, material_data)
+    volume_node = get_volume_material(rpr_context, obj)
+    rpr_mesh.set_volume_material(volume_node)
 
     return True
 
 
-def get_material_data(rpr_context, obj):
+def get_volume_material(rpr_context, obj):
     if obj.material_slots and obj.material_slots[0].material:
-        mat = material.sync(rpr_context, obj.material_slots[0].material, 'Volume')
-        if mat:
-            return mat.data
+        volume_node = material.sync(rpr_context, obj.material_slots[0].material, 'Volume', obj=obj)
+        if volume_node:
+            return volume_node
+
+    density_grid_node = volume.create_grid_sampler_node(rpr_context, obj, 'density', None)
+    if not density_grid_node:
+        return None
 
     d = obj.data.display.density
-    return {
-        'color': (d, d, d),
-        'density': d,
-        'density_attr': "density",
-        'emission_color': (0.0, 0.0, 0.0),
-        'temperature_attr': "temperature",
-    }
+    volume_node = rpr_context.create_material_node(pyrpr.MATERIAL_NODE_VOLUME)
+    volume_node.set_input(pyrpr.MATERIAL_INPUT_DENSITY, d * 5)
+    volume_node.set_input(pyrpr.MATERIAL_INPUT_G, 0.0)
+    volume_node.set_input(pyrpr.MATERIAL_INPUT_MULTISCATTER, True)
+    volume_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, (0.7, 0.7, 0.7))
+    volume_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
 
-
-def assign_material(rpr_volume, material_data):
-    d = material_data['density']
-    rpr_volume.set_lookup('density', np.array([0.0, 0.0, 0.0, d, d, d],
-                                              dtype=np.float32).reshape(-1, 3))
-
-    color = material_data['color']
-    rpr_volume.set_lookup('albedo', np.array([0.0, 0.0, 0.0, *color],
-                                             dtype=np.float32).reshape(-1, 3))
-
-    emission_color = material_data['emission_color']
-    if not is_zero(emission_color):
-        rpr_volume.set_lookup('emission', np.array([0.0, 0.0, 0.0, *emission_color],
-                                                 dtype=np.float32).reshape(-1, 3))
+    return volume_node
