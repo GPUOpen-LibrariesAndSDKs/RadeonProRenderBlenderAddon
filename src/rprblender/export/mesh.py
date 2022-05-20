@@ -49,7 +49,9 @@ class MeshData:
     @staticmethod
     def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False, obj=None):
         """ Returns MeshData from bpy.types.Mesh """
-
+        uv_mesh = mesh
+        if obj and obj.mode != 'OBJECT':
+            mesh = obj.data
         # Looks more like Blender's bug that we have to check that mesh has calc_normals_split().
         # It is possible after deleting corresponded object with such mesh from the scene.
         if not hasattr(mesh, 'calc_normals_split'):
@@ -77,7 +79,15 @@ class MeshData:
         data.uvs = []
         data.uv_indices = []
 
-        primary_uv = mesh.rpr.primary_uv_layer
+        if not hasattr(mesh, 'calc_normals_split'):
+            log.warn("No calc_normals_split() in mesh", mesh)
+            uv_mesh = mesh
+
+        uv_mesh.calc_normals_split()
+        uv_mesh.calc_loop_triangles()
+
+
+        primary_uv = uv_mesh.rpr.primary_uv_layer
         if primary_uv:
             uvs = get_data_from_collection(primary_uv.data, 'uv', (len(primary_uv.data), 2))
             uv_indices = get_data_from_collection(mesh.loop_triangles, 'loops',
@@ -88,7 +98,7 @@ class MeshData:
                 data.uv_indices.append(uv_indices)
 
             if obj:
-                secondary_uv = mesh.rpr.secondary_uv_layer(obj)
+                secondary_uv = uv_mesh.rpr.secondary_uv_layer(obj)
                 if secondary_uv:
                     uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
                     if len(uvs) > 0:
