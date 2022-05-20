@@ -101,6 +101,12 @@ class RPR_ContourProperties(RPR_Properties):
         default=1.0,
     )
     
+    use_uv_secondary: BoolProperty(
+        name="Use Secondary UV",
+        description="Use secondary UV extraction for Contour rendering",
+        default=False,
+    )
+
     antialiasing: FloatProperty(
         name="Antialiasing",
         min=0.0, max=1.0,
@@ -113,6 +119,7 @@ class RPR_ContourProperties(RPR_Properties):
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_MATERIALID, self.use_material_id)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_NORMAL, self.use_shading_normal)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_USE_UV, self.use_uv)
+        rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_UV_SECONDARY, self.use_uv and self.use_uv_secondary)
 
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_OBJECTID, self.object_id_line_width)
         rpr_context.set_parameter(pyrpr.CONTEXT_CONTOUR_LINEWIDTH_MATERIALID, self.material_id_line_width)
