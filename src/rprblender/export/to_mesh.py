@@ -32,9 +32,7 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     try:
         # This operation adds new mesh into bpy.data.meshes, that's why it should be removed
         # after usage. obj.to_mesh() could also return None for META objects.
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        obj = obj.evaluated_get(depsgraph)
-        new_mesh = obj.to_mesh() if obj.type != 'MESH' else obj.data
+        new_mesh = obj.to_mesh()
         log("sync", obj, new_mesh)
 
         if new_mesh:
