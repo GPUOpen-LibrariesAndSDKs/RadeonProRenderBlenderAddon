@@ -24,7 +24,13 @@ log = logging.Log(tag='export.object')
 
 
 def key(obj: bpy.types.Object):
-    return f'{obj.name_full}_{obj.data.name_full}'
+    # since Blender 3.1 mesh of instance or object in edit mode has a name 'Mesh'
+    if obj.type == 'MESH':
+        if obj.is_from_instancer:
+            return f'{obj.name_full}_{obj.data.name_full}'
+
+    return obj.name_full
+
 
 
 def get_transform(obj: bpy.types.Object):
