@@ -128,7 +128,7 @@ class RenderEngine(Engine):
 
                 else:
                     aovs_info = RPR_ViewLayerProperites.cryptomatte_aovs_info \
-                        if "Cryptomatte" in p.name else RPR_ViewLayerProperites.aovs_info
+                        if "Crypto" in p.name else RPR_ViewLayerProperites.aovs_info
                     aov = next((aov for aov in aovs_info
                                 if aov['name'] == p.name), None)
                     if aov and self.rpr_context.is_aov_enabled(aov['rpr']):
