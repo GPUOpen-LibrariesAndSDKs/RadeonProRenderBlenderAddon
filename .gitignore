@@ -57,6 +57,7 @@ kernelsCache/
 .tex_cache
 
 vscode/
-
+/venv
+/tmp
 
 /src/rprblender/utils/athena.bin

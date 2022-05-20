@@ -41,14 +41,14 @@ subprocess.check_call([sys.executable, 'rpr.py'])
 subprocess.check_call([sys.executable, 'rpr_load_store.py'])
 os.chdir(cwd)
 
-if sys.version_info.major == 3 and sys.version_info.minor == 9:
-    # we are going to build RPRBlenderHelper only for python 3.9
+if sys.version_info.major == 3 and sys.version_info.minor == 10:
+    # we are going to build RPRBlenderHelper only for python 3.10
     os.chdir('RPRBlenderHelper')
     shutil.rmtree('.build', ignore_errors=True)
     os.makedirs('.build')
     os.chdir('.build')
     if 'Windows' == platform.system():
-        subprocess.check_call(['cmake', '-G', 'Visual Studio 14 2015 Win64',  '..'])
+        subprocess.check_call(['cmake', '-G', 'Visual Studio 16 2019',  '..'])
     else:
         subprocess.check_call(['cmake', '..'])
     subprocess.check_call(['cmake', '--build',  '.', '--config', 'Release', '--clean-first'])

@@ -31,7 +31,7 @@ from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context import RPRContext2
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero, get_domain_resolution
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -2312,19 +2312,14 @@ class ShaderNodeVolumePrincipled(NodeParser):
         return None
 
     def export_rpr2(self):
-        def domain_export():
+        def volume_export():
             if not self.object:
                 return None
 
-            smoke_modifier = volume.get_smoke_modifier(self.object)
-            if not smoke_modifier:
-                return None
-
-            # Heterovolumes additionally calculates grids and apply to rpr_node
-            domain = smoke_modifier.domain_settings
-            if len(domain.density_grid) == 0:
-                # empty smoke.  warn and return
-                log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
+            density_attr = self.get_input_default('Density Attribute')
+            density_grid_node = volume.create_grid_sampler_node(
+                self.rpr_context, self.object, density_attr.data, 'density')
+            if not density_grid_node:
                 return None
 
             color = self.get_input_value('Color')
@@ -2332,60 +2327,30 @@ class ShaderNodeVolumePrincipled(NodeParser):
             anisotropy = self.get_input_value('Anisotropy')
             emission_strength = self.get_input_value('Emission Strength')
             blackbody_intensity = self.get_input_value('Blackbody Intensity')
-            density_attr = self.get_input_default('Density Attribute')
 
-            x, y, z = get_domain_resolution(domain)
-
-            def get_grid_data(name, default_name):
-                data = None
-                if name == 'color':
-                    data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
-                    data = np.average(data[:, :, :, :3], axis=3)
-                elif name == 'density':
-                    data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
-                elif name == 'flame':
-                    data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
-                elif name == 'temperature':
-                    data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
-                elif default_name:
-                    data = get_grid_data(default_name, None)
-
-                return data
+            color *= 0.99   # making color slightly less, because of issue
+                            # that (1, 1, 1) color and higher disables emission
 
             rpr_node = self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {
                 pyrpr.MATERIAL_INPUT_DENSITY: density,
                 pyrpr.MATERIAL_INPUT_G: anisotropy,
                 pyrpr.MATERIAL_INPUT_MULTISCATTER: True,
+                pyrpr.MATERIAL_INPUT_DENSITYGRID: density_grid_node,
+                pyrpr.MATERIAL_INPUT_COLOR: color,
             })
-
-            # set density grid
-            density_grid_data = get_grid_data(density_attr.data, 'density')
-            density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
-                pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(
-                    density_grid_data)
-            })
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
-
-            # set color input
-            color *= 0.99   # making color slightly less, because of issue
-                            # that (1, 1, 1) color and higher disables emission
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR, color)
 
             if enabled(emission_strength) or enabled(blackbody_intensity):
                 # set emission grid
                 if enabled(blackbody_intensity):
                     temperature_attr = self.get_input_default('Temperature Attribute')
-                    emission_grid_data = get_grid_data(temperature_attr.data, 'temperature')
+                    emission_grid_node = volume.create_grid_sampler_node(
+                        self.rpr_context, self.object, temperature_attr.data, 'temperature')
                 else:
-                    emission_grid_data = get_grid_data('flame', None)
+                    emission_grid_node = volume.create_grid_sampler_node(
+                        self.rpr_context, self.object, 'flame', None)
 
-                if is_zero(emission_grid_data):
+                if not emission_grid_node:
                     emission_grid_node = density_grid_node
-                else:
-                    emission_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
-                        pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(
-                            emission_grid_data)
-                    })
 
                 lookup_image = self.rpr_context.create_image_data(None,
                     np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
@@ -2446,7 +2411,8 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
             return rpr_node
 
-        rpr_node = domain_export()
+        rpr_node = volume_export()
+
         if not rpr_node:
             rpr_node = base_export()
 
@@ -2504,23 +2470,10 @@ class ShaderNodeVolumeScatter(NodeParser):
         if not self.object:
             return rpr_node
 
-        smoke_modifier = volume.get_smoke_modifier(self.object)
-        if not smoke_modifier:
+        density_grid_node = volume.create_grid_sampler_node(self.rpr_context, self.object, 'density', None)
+        if not density_grid_node:
             return rpr_node
 
-        domain = smoke_modifier.domain_settings
-        if len(domain.density_grid) == 0:
-            # empty smoke.  warn and return
-            log.warn("Empty smoke domain", domain, smoke_modifier, self.object)
-            return rpr_node
-
-        x, y, z = get_domain_resolution(domain)
-
-        # set density grid
-        density_data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
-        density_grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
-            pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(density_data)
-        })
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_DENSITYGRID, density_grid_node)
 
         return rpr_node
@@ -2534,40 +2487,19 @@ class ShaderNodeVolumeInfo(NodeParser):
         if not self.object:
             return None
 
-        smoke_modifier = volume.get_smoke_modifier(self.object)
-        if not smoke_modifier:
+        grid_node = volume.create_grid_sampler_node(self.rpr_context, self.object, self.socket_out.name, None)
+        if not grid_node:
             return None
 
-        domain = smoke_modifier.domain_settings
-        x, y, z = get_domain_resolution(domain)
         lookup_image = self.rpr_context.create_image_data(
             None, np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
 
-        def create_image_node(grid_node):
-            return self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
-                pyrpr.MATERIAL_INPUT_DATA: lookup_image,
-                pyrpr.MATERIAL_INPUT_UV: grid_node,
-                pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-                pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-            })
-
-        if self.socket_out.name == 'Color':
-            data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
-            data = np.average(data[:, :, :, :3], axis=3)
-        elif self.socket_out.name == 'Density':
-            data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
-        elif self.socket_out.name == 'Flame':
-            data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
-        elif self.socket_out.name == 'Temperature':
-            data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
-        else:
-            log.warn("Unsupported output type", self.socket_out.name, self.node, self.material)
-            return None
-
-        grid_node = self.create_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER, {
-            pyrpr.MATERIAL_INPUT_DATA: self.rpr_context.create_grid_from_3d_array(data)
+        return self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+            pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+            pyrpr.MATERIAL_INPUT_UV: grid_node,
+            pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+            pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
         })
-        return create_image_node(grid_node)
 
 
 class ShaderNodeCombineHSV(NodeParser):
