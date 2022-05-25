@@ -14,12 +14,14 @@
 #********************************************************************
 
 import numpy as np
-import math
 
 import bpy
+import pyrpr
+
 from . import object, material
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero, get_domain_resolution
+from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
 from rprblender.engine.context import RPRContext2
+from rprblender.utils import helper_lib
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.volume')
@@ -45,6 +47,74 @@ def get_smoke_modifier(obj: bpy.types.Object):
     else:
         return next((modifier for modifier in obj.modifiers
                      if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
+
+
+def get_domain_resolution(domain):
+    if BLENDER_VERSION >= '2.82':
+        x, y, z = domain.domain_resolution
+    else:
+        amplify = domain.amplify if domain.use_high_resolution else 0
+        x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
+
+    if domain.use_noise:
+        # smoke noise upscale the basic domain resolution
+        x, y, z = (domain.noise_scale * e for e in (x, y, z))
+
+    return x, y, z
+
+
+def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
+    from . import openvdb
+
+    grid = None
+    smoke_modifier = get_smoke_modifier(obj)
+    grid_name = grid_name.lower()
+
+    if smoke_modifier:
+        domain = smoke_modifier.domain_settings
+        if len(domain.density_grid) == 0:
+            return None
+
+        x, y, z = get_domain_resolution(domain)
+        data = None
+        if grid_name == 'color':
+            data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
+            data = np.average(data[:, :, :, :3], axis=3)
+        elif grid_name == 'density':
+            data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+        elif grid_name == 'flame':
+            data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+        elif grid_name == 'temperature':
+            data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
+        elif default_grid_name:
+            return create_grid_sampler_node(rpr_context, obj, default_grid_name, None)
+
+        if is_zero(data):
+            return None
+
+        grid = rpr_context.create_grid_from_3d_array(data)
+
+    elif obj.type == 'VOLUME':
+        if not helper_lib.is_openvdb_support:
+            return None
+
+        vdb_file = openvdb.get_volume_file_path(obj.data, 0)
+        if not vdb_file:  # nothing to export
+            return None
+
+        grids = helper_lib.vdb_read_grids_list(vdb_file)
+        if grid_name not in grids:
+            return None
+
+        data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
+        grid = rpr_context.create_grid_from_array_indices(*data['size'], data['values'], data['indices'])
+
+    if not grid:
+        return None
+
+    node = rpr_context.create_material_node(pyrpr.MATERIAL_NODE_GRID_SAMPLER)
+    node.set_input(pyrpr.MATERIAL_INPUT_DATA, grid)
+    return node
 
 
 def sync(rpr_context, obj: bpy.types.Object):

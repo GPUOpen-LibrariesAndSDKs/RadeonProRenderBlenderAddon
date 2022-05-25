@@ -34,7 +34,7 @@ from rprblender.utils import gl
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
-from rprblender.utils import logging
+from rprblender.utils import logging, BLENDER_VERSION
 log = logging.Log(tag='viewport_engine')
 
 
@@ -545,6 +545,11 @@ class ViewportEngine(Engine):
         if not self.is_synced:
             return
 
+        sync_collection = False
+        sync_world = False
+        is_updated = False
+        is_obj_updated = False
+
         # get supported updates and sort by priorities
         updates = []
         for obj_type in (bpy.types.Scene, bpy.types.World, bpy.types.Material, bpy.types.Object,
@@ -553,46 +558,59 @@ class ViewportEngine(Engine):
                 if isinstance(update.id, obj_type):
                     updates.append((update.id, update.is_updated_geometry, update.is_updated_transform))
 
-        if not updates:
-            return
+                # Handles Geometry Node updates
+                elif BLENDER_VERSION >= '3.0' and isinstance(update.id, bpy.types.GeometryNodeTree):
+                    sync_collection = True
 
-        # despgraph doesn't provide updates for ShaderNodeTexImage with activated Auto Refresh option
-        # get materials which contain ShaderNodeTexImage with SEQUENCE source, to make force update
-        if isinstance(updates[0][0], bpy.types.Scene) and \
-                self.frame_current != depsgraph.scene.frame_current:
-            self.frame_current = depsgraph.scene.frame_current
+        if updates:
+            # Check if only camera transform is updated
+            # It removes glitches while the active camera moving or whether "Camera to View" is enabled
+            if len(updates) == 1 and isinstance(updates[0][0], bpy.types.Object) and updates[0][0].type == 'CAMERA':
+                return
 
-            materials = set(material_slot.material for obj in self.depsgraph_objects(depsgraph)
-                            for material_slot in obj.material_slots)
-            materials -= set(update[0] for update in updates)
-            for mat in materials:
-                image_nodes = material.get_material_nodes_by_type(mat, 'ShaderNodeTexImage')
+            # despgraph doesn't provide updates for ShaderNodeTexImage with activated Auto Refresh option
+            # get materials which contain ShaderNodeTexImage with SEQUENCE source, to make force update
+            if isinstance(updates[0][0], bpy.types.Scene) and \
+                    self.frame_current != depsgraph.scene.frame_current:
+                self.frame_current = depsgraph.scene.frame_current
 
-                if image_nodes:
-                    use_auto_refresh = any(node.image_user.use_auto_refresh
-                                           for node in image_nodes
-                                           if node.image.source == 'SEQUENCE')
-                    if use_auto_refresh:
-                        updates.insert(1, (mat, None, None))
+                materials = set(material_slot.material for obj in self.depsgraph_objects(depsgraph)
+                                for material_slot in obj.material_slots if material_slot.material)
+                materials -= set(update[0] for update in updates)
+                for mat in materials:
+                    image_nodes = material.get_material_nodes_by_type(mat, 'ShaderNodeTexImage')
 
-            volume_domain_mat = set(material_slot.material for obj in self.depsgraph_objects(depsgraph) if volume.get_smoke_modifier(obj)
-                              for material_slot in obj.material_slots)
-            volume_domain_mat -= set(update[0] for update in updates)
-            for mat in volume_domain_mat:
-                updates.append((mat, None, None))
+                    if image_nodes:
+                        use_auto_refresh = any(node.image_user.use_auto_refresh
+                                               for node in image_nodes
+                                               if node.image and node.image.source == 'SEQUENCE')
+                        if use_auto_refresh:
+                            updates.insert(1, (mat, None, None))
 
-        if context.selected_objects != self.selected_objects and not updates:
+                volume_domain_mat = set(material_slot.material for obj in self.depsgraph_objects(depsgraph) if volume.get_smoke_modifier(obj)
+                                  for material_slot in obj.material_slots if material_slot.material)
+                volume_domain_mat -= set(update[0] for update in updates)
+                for mat in volume_domain_mat:
+                    updates.append((mat, None, None))
+
             # only a selection change
-            self.selected_objects = context.selected_objects
-            return
+            if context.selected_objects != self.selected_objects \
+                    and len(updates) == 1 and isinstance(updates[0][0], bpy.types.Scene) \
+                    and not updates[0][1] and not updates[0][2]:
+                self.selected_objects = context.selected_objects
+                return
 
-        sync_collection = False
-        sync_world = False
-        is_updated = False
-        is_obj_updated = False
+            material_override = depsgraph.view_layer.material_override
 
-        material_override = depsgraph.view_layer.material_override
+            # if view mode changed need to sync collections
+            mode_updated = False
+            if self.view_mode != context.mode:
+                self.view_mode = context.mode
+                mode_updated = True
 
+        self.rpr_context.blender_data['depsgraph'] = depsgraph
+
+        # Viewport Shading changes
         shading_data = ShadingData(context)
         if self.shading_data != shading_data:
             sync_world = True
@@ -601,14 +619,6 @@ class ViewportEngine(Engine):
                 sync_collection = True
 
             self.shading_data = shading_data
-
-        self.rpr_context.blender_data['depsgraph'] = depsgraph
-
-        # if view mode changed need to sync collections
-        mode_updated = False
-        if self.view_mode != context.mode:
-            self.view_mode = context.mode
-            mode_updated = True
 
         if not updates and not sync_world and not sync_collection:
             return
@@ -647,6 +657,18 @@ class ViewportEngine(Engine):
                                                      material_override=material_override,
                                                      frame_current=self.frame_current)
                     is_obj_updated |= is_updated
+
+                    if sync_collection:
+                        continue
+
+                    if BLENDER_VERSION < '3.0':
+                        continue
+
+                    # Geometry Nodes can instantiate from the current object
+                    for modifier in obj.modifiers:
+                        if isinstance(modifier, bpy.types.NodesModifier) and modifier.show_viewport:
+                            sync_collection = True
+                            break
                     continue
 
                 if isinstance(obj, bpy.types.Light):
@@ -1017,8 +1039,10 @@ class ViewportEngine(Engine):
             objects = self.depsgraph_objects(depsgraph)
             active_mat = material_override
         else:
+            # Geometry Nodes allowed to apply material via node tree, in that case slot name always ''
+            # it's needed to check material name instead
             objects = tuple(obj for obj in self.depsgraph_objects(depsgraph)
-                            if mat.name in obj.material_slots.keys())
+                            if mat.name in (getattr(ms.material, 'name', '') for ms in obj.material_slots))
             active_mat = mat
 
         updated = False

@@ -131,6 +131,9 @@ class Engine:
         elif self.image_filter:
             self._disable_image_filter()
 
+        else:
+            return False
+
         return True
 
     def _enable_image_filter(self, settings):
@@ -394,6 +397,9 @@ class Engine:
 
         elif self.upscale_filter:
             self._disable_upscale_filter()
+
+        else:
+            return False
 
         return True
 

@@ -68,6 +68,7 @@ class RPR_OBJECT_PT_visibility(RPR_Panel):
             self.layout.prop(visibility, 'shadow')
 
         self.layout.prop(obj.rpr, 'shadow_color')
+        self.layout.prop(obj.rpr, 'receive_shadow')
         self.layout.prop(obj.rpr, 'visibility_contour')
 
 
