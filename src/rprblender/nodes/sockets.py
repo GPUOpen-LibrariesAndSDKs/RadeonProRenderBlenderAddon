@@ -12,170 +12,171 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-from bpy.types import NodeSocket
+from bpy.types import NodeSocket, NodeSocketInterface
 from bpy.props import (
     BoolProperty,
     EnumProperty,
     FloatProperty,
     FloatVectorProperty,
 )
-import math
+
+from rprblender.utils import BLENDER_VERSION
 
 
 COLORS = {
     'color': (0.78, 0.78, 0.16, 1.0),
     'gray': (0.78, 0.78, 0.78, 0.5),
     'float': (0.63, 0.63, 0.63, 1.0),
-    'normal': (0.78, 0.16, 0.78, 1.0),
+    'vector': (0.39, 0.39, 0.78, 1.0),
     'link': (0.78, 0.16, 0.78, 1.0),
 }
 
 
-class RPRSocketColor(NodeSocket):
+# Blender 3.0 and upper requires NodeSocketInterface classes for correct draw in Material Properties panel
+class RPRNodeSocketInterface(NodeSocketInterface):
+    def draw(self, context, layout):
+        pass
+
+    def draw_color(self, context):
+        pass
+
+
+class RPRNodeSocket(NodeSocket):
+    def update(self, context):
+        if BLENDER_VERSION >= "3.1":
+            self.node.socket_value_update(context)
+
+    def draw(self, context, layout, node, text):
+        if self.is_linked:
+            layout.label(text=self.name)
+        else:
+            layout.prop(self, 'default_value', text=self.name)
+
+    def draw_color(self, context, node):
+        return COLORS['float']
+
+
+class RPRSocketColorInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_color'
+
+
+class RPRSocketColor(RPRNodeSocket):
     bl_idname = 'rpr_socket_color'
     bl_label = "Color socket"
 
     default_value: FloatVectorProperty(name='Color', subtype='COLOR', min=0.0, soft_max=1.0,
-                                                  size=4, default=(1.0, 1.0, 1.0, 1.0))
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked or self.is_output:
-            layout.label(text=self.name)
-        else:
-            row = layout.row()
-            row.label(text=text)
-            row.prop(self, 'default_value', text='')
+                                       size=4, default=(1.0, 1.0, 1.0, 1.0), update=RPRNodeSocket.update)
 
     def draw_color(self, context, node):
         return COLORS['color']
 
 
-class RPRSocketFloat(NodeSocket):
+class RPRSocketFloatInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_float'
+
+
+class RPRSocketFloat(RPRNodeSocket):
     bl_idname = 'rpr_socket_float'
     bl_label = "Float socket"
 
-    default_value: FloatProperty(name="Float", default=0.0)
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name)
-
-    def draw_color(self, context, node):
-        return COLORS['gray']
+    default_value: FloatProperty(name="Float", default=0.0,
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketWeight(NodeSocket):
+class RPRSocketWeightInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_weight'
+
+
+class RPRSocketWeight(RPRNodeSocket):
     bl_idname = 'rpr_socket_weight'
     bl_label = "Weight socket"
 
-    default_value: FloatProperty(name="Weight", default=0.0, min=0.0, soft_max=1.0, subtype='FACTOR')
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name)
-
-    def draw_color(self, context, node):
-        return COLORS['gray']
+    default_value: FloatProperty(name="Weight", default=0.0, min=0.0, soft_max=1.0, subtype='FACTOR',
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketMin1Max1(NodeSocket):
+class RPRSocketMin1Max1Interface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_float_min1_max1'
+
+
+class RPRSocketMin1Max1(RPRNodeSocket):
     bl_idname = 'rpr_socket_float_min1_max1'
     bl_label = "Min 1 Max 1 socket"
 
-    default_value: FloatProperty(name="Float", default=0.0, min=-1.0, max=1.0, subtype='FACTOR')
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name)
-
-    def draw_color(self, context, node):
-        return COLORS['gray']
+    default_value: FloatProperty(name="Float", default=0.0, min=-1.0, max=1.0, subtype='FACTOR',
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketAngle360(NodeSocket):
+class RPRSocketAngle360Interface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_angle360'
+
+
+class RPRSocketAngle360(RPRNodeSocket):
     bl_idname = 'rpr_socket_angle360'
     bl_label = 'Angle360 socket'
 
-    default_value: FloatProperty(name="Angle", soft_min=0.0, soft_max=1.0, default=0.0, subtype='ANGLE')
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name, slider=True)
-
-    def draw_color(self, context, node):
-        return COLORS['float']
+    default_value: FloatProperty(name="Angle", soft_min=0.0, soft_max=1.0, default=0.0, subtype='ANGLE',
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketLink(NodeSocket):
+class RPRSocketLinkInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_link'
+
+
+class RPRSocketLink(RPRNodeSocket):
     bl_idname = 'rpr_socket_link'
     bl_label = "Normal socket"
 
-    default_value: FloatVectorProperty(name="Vector4", size=4)
+    default_value: FloatVectorProperty(name="Vector4", size=4,
+                                       update=RPRNodeSocket.update)
 
     def draw(self, context, layout, node, text):
         layout.label(text=self.name)
     
     def draw_color(self, context, node):
-        return COLORS['normal']
+        return COLORS['vector']
 
 
-class RPRSocketIOR(NodeSocket):
+class RPRSocketIORInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_ior'
+
+
+class RPRSocketIOR(RPRNodeSocket):
     bl_idname = 'rpr_socket_ior'
     bl_label = 'IOR socket'
 
-    default_value: FloatProperty(name="IOR", min=0.0, soft_max=3.0, default=1.5)
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name, slider=True)
-
-    def draw_color(self, context, node):
-        return COLORS['float']
+    default_value: FloatProperty(name="IOR", min=0.0, soft_max=3.0, default=1.5, update=RPRNodeSocket.update)
 
 
-class RPRSocket_Float_Min0_SoftMax10(NodeSocket):
+class RPRSocket_Float_Min0_SoftMax10Interface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_float_min0_softmax10'
+
+
+class RPRSocket_Float_Min0_SoftMax10(RPRNodeSocket):
     bl_idname = 'rpr_socket_float_min0_softmax10'
     bl_label = 'Float_Min0_SoftMax10 socket'
 
-    default_value: FloatProperty(name="Float_Min0_SoftMax10", min=0.0, soft_max=10.0, subtype='FACTOR')
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name, slider=True)
-
-    def draw_color(self, context, node):
-        return COLORS['float']
+    default_value: FloatProperty(name="Float_Min0_SoftMax10", min=0.0, soft_max=10.0, subtype='FACTOR',
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketWeightSoft(NodeSocket):
+class RPRSocketWeightSoftInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_weight_soft'
+
+
+class RPRSocketWeightSoft(RPRNodeSocket):
     bl_idname = 'rpr_socket_weight_soft'
     bl_label = "Weight socket soft"
 
-    default_value: FloatProperty(name="Weight Soft", min=0.0, soft_max=1.0, default=0.5, subtype='FACTOR')
-
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=self.name)
-        else:
-            layout.prop(self, 'default_value', text=self.name)
-
-    def draw_color(self, context, node):
-        return COLORS['gray']
+    default_value: FloatProperty(name="Weight Soft", min=0.0, soft_max=1.0, default=0.5, subtype='FACTOR',
+                                 update=RPRNodeSocket.update)
 
 
-class RPRSocketValue(NodeSocket):
+class RPRSocketValueInterface(RPRNodeSocketInterface):
+    bl_socket_idname = 'rpr_socket_value'
+
+
+class RPRSocketValue(RPRNodeSocket):
     """ Socket to represent value as a float/vector/color by display_type """
     bl_idname = 'rpr_socket_value'
     bl_label = 'RPR socket value'
@@ -259,6 +260,7 @@ class RPRSocketValue(NodeSocket):
     show: BoolProperty(
         name="Show/Hide",
         default=False,
+        update=RPRNodeSocket.update
     )
 
     def draw(self, context, layout, node, text):
@@ -280,4 +282,4 @@ class RPRSocketValue(NodeSocket):
                     col.prop(self, 'value_vector4', text='')
 
     def draw_color(self, context, node):
-        return COLORS['float']
+        return COLORS.get(self.display_type.lower(), COLORS['float'])

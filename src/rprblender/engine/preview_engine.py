@@ -109,7 +109,8 @@ class PreviewEngine(Engine):
             object.sync(self.rpr_context, obj)
 
         # export camera
-        camera.sync(self.rpr_context, depsgraph.objects[depsgraph.scene.camera.name])
+        preview_camera = next((obj for obj in depsgraph.objects if isinstance(obj.data, bpy.types.Camera)))
+        camera.sync(self.rpr_context, preview_camera)
 
         # export world only if active_material.use_preview_world is enabled
         preview_obj = next((obj for obj in self.depsgraph_objects(depsgraph)

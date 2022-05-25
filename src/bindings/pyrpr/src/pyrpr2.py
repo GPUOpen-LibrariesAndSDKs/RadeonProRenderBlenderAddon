@@ -110,6 +110,9 @@ class DiskLight(pyrpr.Light):
         # Use external angle oangle
         pyrpr.DiskLightSetAngle(self, oangle)
 
+    def set_inner_angle(self, iangle):
+        pyrpr.DiskLightSetInnerAngle(self, iangle)
+
     def set_radius(self, radius):
         radius = max(radius, 0.01)
         self._radius_squared = radius * radius

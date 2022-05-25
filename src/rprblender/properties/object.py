@@ -59,6 +59,11 @@ class RPR_ObjectProperites(RPR_Properties):
         description="This object will cast shadows",
         default=True,
     )
+    receive_shadow: BoolProperty(
+        name="Receive Shadows",
+        description="This object will receive shadows",
+        default=True,
+    )
     shadowcatcher: BoolProperty(
         name="Shadow Catcher",
         description="Use this object as a shadowcatcher",

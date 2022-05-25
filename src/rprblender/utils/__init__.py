@@ -292,17 +292,3 @@ def get_sequence_frame_file_path(source_path, frame_number):
 
     log.warn(f"Unable to find file {source_path} variant for frame number {frame_number}.")
     return None
-
-
-def get_domain_resolution(domain):
-    if BLENDER_VERSION >= '2.82':
-        x, y, z = domain.domain_resolution
-    else:
-        amplify = domain.amplify if domain.use_high_resolution else 0
-        x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
-
-    if domain.use_noise:
-        # smoke noise upscale the basic domain resolution
-        x, y, z = (domain.noise_scale * e for e in (x, y, z))
-
-    return x, y, z

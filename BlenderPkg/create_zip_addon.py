@@ -53,7 +53,7 @@ def enumerate_addon_data():
         if not f.is_file() or f.name in ("configdev.py", "rprblender.log"):
             continue
 
-        if f.name.endswith('.py') or f.name in ('athena.bin', 'EULA.html'):
+        if f.name.endswith(('.py', '.ocio', '.spi1d', '.spi3d', '.spimtx')) or f.name in ('athena.bin', 'EULA.html'):
             yield f, f.relative_to(rprblender_dir)
 
     # copying Core libs
@@ -69,10 +69,6 @@ def enumerate_addon_data():
     for f in models_dir.glob("**/*"):
         if f.is_file():
             yield f, Path("data/models") / f.relative_to(models_dir)
-
-    if OS == 'Windows':
-        for lib in (repo_dir / "RadeonProRenderSharedComponents/OpenVdb/Windows/bin").glob("*"):
-            yield lib, lib.name
 
 
 def get_version():

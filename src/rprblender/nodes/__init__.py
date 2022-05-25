@@ -106,6 +106,7 @@ node_categories = [
         NodeItem('ShaderNodeCombineXYZ'),
         NodeItem('ShaderNodeCombineRGB'),
         NodeItem('ShaderNodeCombineHSV'),
+        NodeItem('ShaderNodeMapRange'),
         NodeItem('ShaderNodeMath'),
         NodeItem('ShaderNodeRGBToBW'),
         NodeItem('ShaderNodeSeparateRGB'),
@@ -132,15 +133,25 @@ from . import sockets
 from . import rpr_nodes
 
 register_classes, unregister_classes = bpy.utils.register_classes_factory([
+    sockets.RPRSocketColorInterface,
     sockets.RPRSocketColor,
+    sockets.RPRSocketFloatInterface,
     sockets.RPRSocketFloat,
+    sockets.RPRSocketWeightInterface,
     sockets.RPRSocketWeight,
+    sockets.RPRSocketWeightSoftInterface,
     sockets.RPRSocketWeightSoft,
+    sockets.RPRSocketMin1Max1Interface,
     sockets.RPRSocketMin1Max1,
+    sockets.RPRSocketLinkInterface,
     sockets.RPRSocketLink,
+    sockets.RPRSocketIORInterface,
     sockets.RPRSocketIOR,
+    sockets.RPRSocket_Float_Min0_SoftMax10Interface,
     sockets.RPRSocket_Float_Min0_SoftMax10,
+    sockets.RPRSocketAngle360Interface,
     sockets.RPRSocketAngle360,
+    sockets.RPRSocketValueInterface,
     sockets.RPRSocketValue,
 
     rpr_nodes.RPRShaderNodeUber,

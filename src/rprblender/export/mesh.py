@@ -49,7 +49,9 @@ class MeshData:
     @staticmethod
     def init_from_mesh(mesh: bpy.types.Mesh, calc_area=False, obj=None):
         """ Returns MeshData from bpy.types.Mesh """
-
+        uv_mesh = mesh
+        if obj and obj.mode != 'OBJECT':
+            mesh = obj.data
         # Looks more like Blender's bug that we have to check that mesh has calc_normals_split().
         # It is possible after deleting corresponded object with such mesh from the scene.
         if not hasattr(mesh, 'calc_normals_split'):
@@ -77,7 +79,15 @@ class MeshData:
         data.uvs = []
         data.uv_indices = []
 
-        primary_uv = mesh.rpr.primary_uv_layer
+        if not hasattr(mesh, 'calc_normals_split'):
+            log.warn("No calc_normals_split() in mesh", mesh)
+            uv_mesh = mesh
+
+        uv_mesh.calc_normals_split()
+        uv_mesh.calc_loop_triangles()
+
+
+        primary_uv = uv_mesh.rpr.primary_uv_layer
         if primary_uv:
             uvs = get_data_from_collection(primary_uv.data, 'uv', (len(primary_uv.data), 2))
             uv_indices = get_data_from_collection(mesh.loop_triangles, 'loops',
@@ -88,7 +98,7 @@ class MeshData:
                 data.uv_indices.append(uv_indices)
 
             if obj:
-                secondary_uv = mesh.rpr.secondary_uv_layer(obj)
+                secondary_uv = uv_mesh.rpr.secondary_uv_layer(obj)
                 if secondary_uv:
                     uvs = get_data_from_collection(secondary_uv.data, 'uv', (len(secondary_uv.data), 2))
                     if len(uvs) > 0:
@@ -136,7 +146,11 @@ class MeshData:
                 bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=segments, radius=0.5)
 
             elif shape_type == 'SPHERE':
-                bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+                if BLENDER_VERSION < '3.0':
+                    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, diameter=1.0)
+
+                else:
+                    bmesh.ops.create_uvsphere(bm, u_segments=segments, v_segments=segments, radius=0.5)
 
             elif shape_type == 'CUBE':
                 bmesh.ops.create_cube(bm, size=size)
@@ -292,6 +306,7 @@ def export_visibility(obj, rpr_shape, indirect_only):
         rpr_shape.set_visibility_ex("visible.diffuse", visibility.diffuse)
         rpr_shape.set_shadow(visibility.shadow)
 
+    rpr_shape.set_visibility_ex("visible.receive_shadow", obj.rpr.receive_shadow)
     obj.rpr.set_shadow_color(rpr_shape)
     obj.rpr.set_catchers(rpr_shape)
 
@@ -369,7 +384,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
             data.num_face_vertices
         )
 
-    rpr_shape.set_name(obj.name)
+    rpr_shape.set_name(obj_key)
     rpr_shape.set_id(obj.pass_index)
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
                                      obj.pass_index, obj.pass_index, 1.0)

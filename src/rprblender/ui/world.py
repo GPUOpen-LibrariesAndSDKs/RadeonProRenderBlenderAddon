@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import bpy.props
+
 from . import RPR_Panel
 
 from rprblender.operators.world import FOG_KEY
@@ -99,6 +101,7 @@ class RPR_EnvironmentOverride(RPR_Panel):
         if getattr(rpr, f'{self.type}_rotation_override', False):
             layout.prop(rpr, f'{self.type}_rotation')
 
+
 class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
     bl_label = "Background Override"
     type = 'background'
@@ -129,6 +132,7 @@ class RPR_WORLD_PT_background_override(RPR_EnvironmentOverride):
         row.prop(rpr, 'background_rotation_override')
         if getattr(rpr, 'background_rotation_override', False):
             layout.prop(rpr, 'background_rotation')
+
 
 class RPR_WORLD_PT_reflection_override(RPR_EnvironmentOverride):
     bl_label = "Reflection Override"
@@ -201,32 +205,56 @@ class RPR_WORLD_PT_fog(RPR_Panel):
     bl_context = 'world'
     bl_options = {'DEFAULT_CLOSED'}
 
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.scene.world and context.scene.rpr.render_quality == 'FULL2'
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.world.rpr, 'enabled_fog', text="")
+
     def draw(self, context):
         layout = self.layout
+
+        rpr = context.scene.world.rpr
+        layout.enabled = rpr.enabled_fog
+
         layout.use_property_split = True
         layout.use_property_decorate = False
+        rpr = context.scene.world.rpr
 
-        fog_object = context.scene.objects.get(FOG_KEY)
-        if not fog_object:
-            layout.operator('rpr.op_create_fog_object')
-            return
-
-        col = layout.column()
-        col.enabled = False
-        col.prop(fog_object, 'name', text="Fog Object")
-
-        if not fog_object.data.materials:
-            layout.label(text="Incorrect fog material")
-            return
-
-        mat = fog_object.data.materials[0]
-        volume_node = get_material_input_node(mat, 'Volume')
-        if not volume_node or volume_node.bl_idname != 'ShaderNodeVolumePrincipled':
-            layout.label(text="Incorrect fog material")
-            return
-
+        col = layout.column(align=False)
+        col.prop(rpr, 'fog_color')
         col = layout.column(align=True)
-        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Color'])
-        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Density'])
-        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Anisotropy'])
-        col.template_node_view(mat.node_tree, volume_node, volume_node.inputs['Absorption Color'])
+        col.prop(rpr, 'fog_distance')
+        col.prop(rpr, 'fog_height')
+        col.prop(rpr, 'fog_height_offset')
+        col.prop(rpr, 'fog_direction')
+
+
+class RPR_WORLD_PT_atmosphere_volume(RPR_Panel):
+    bl_label = "Atmosphere Volume"
+    bl_space_type = "PROPERTIES"
+    bl_context = 'world'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.scene.world and context.scene.rpr.render_quality == 'FULL2'
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.world.rpr, 'enabled_atmosphere_volume', text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        rpr = context.scene.world.rpr
+        layout.enabled = rpr.enabled_atmosphere_volume
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        rpr = context.scene.world.rpr
+
+        col = layout.column(align=False)
+        col.prop(rpr, 'atmosphere_volume_color')
+        col.prop(rpr, 'atmosphere_volume_density')
+        col.prop(rpr, 'atmosphere_volume_radiance_clamp')

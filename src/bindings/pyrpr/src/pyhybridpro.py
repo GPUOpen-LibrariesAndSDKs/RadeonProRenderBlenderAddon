@@ -16,10 +16,16 @@ import numpy as np
 import functools
 
 import pyrpr
+from pyrprwrap import *
 from rprblender.config import hybridpro_unsupported_log_warn
 
 from rprblender.utils import logging
 log = logging.Log(tag='hybridpro')
+
+SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_COLOR, pyrpr.AOV_UV,
+                  pyrpr.AOV_OBJECT_ID, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_WORLD_COORDINATE,
+                  pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_BACKGROUND, pyrpr.AOV_EMISSION,
+                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO}
 
 
 def ignore_unsupported(function):
@@ -73,6 +79,19 @@ class Context(pyrpr.Context):
         iterations = self.parameters.get(pyrpr.CONTEXT_ITERATIONS, 1)
         for _ in range(iterations):
             super().render()
+
+    def attach_aov(self, aov, frame_buffer):
+        if aov not in SUPPORTED_AOVS:
+            log.warn("Unsupported AOV", aov)
+            return
+
+        super().attach_aov(aov, frame_buffer)
+
+    def detach_aov(self, aov):
+        if aov not in SUPPORTED_AOVS:
+            return
+
+        super().detach_aov(aov)
 
     @classmethod
     def register_plugin(cls, lib_path, cache_path):
@@ -186,6 +205,9 @@ class EmptyMaterialNode(MaterialNode):
     def set_input(self, name, value):
         pass
 
+    def set_id(self, id):
+        pass
+
 
 class Shape(pyrpr.Shape):
     def set_volume_material(self, material):
@@ -227,7 +249,7 @@ class Instance(pyrpr.Instance, Shape):
 @class_ignore_unsupported
 class Scene(pyrpr.Scene):
     def attach(self, obj):
-        if isinstance(obj, (Curve, HeteroVolume)):
+        if isinstance(obj, HeteroVolume):
             return
 
         super().attach(obj)
@@ -255,21 +277,8 @@ class PostEffect:
         pass
 
 
-class Curve:
-    def __init__(self, context, control_points, points_radii, uvs):
-        pass
-
-    def delete(self):
-        pass
-
-    def set_material(self, material):
-        pass
-
-    def set_transform(self, transform: np.array, transpose=True):
-        pass
-
-    def set_name(self, name):
-        self.name = name
+class Curve(pyrpr.Curve):
+    pass
 
 
 class HeteroVolume:
