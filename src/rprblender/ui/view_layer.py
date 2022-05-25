@@ -148,5 +148,6 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
         args.enabled = contour_settings.use_uv
         args.prop(contour_settings, 'uv_line_width', slider=True)
         args.prop(contour_settings, 'uv_threshold', slider=True)
+        args.prop(contour_settings, 'use_uv_secondary')
 
         #main_column.prop(view_layer, 'contour_debug_flag')

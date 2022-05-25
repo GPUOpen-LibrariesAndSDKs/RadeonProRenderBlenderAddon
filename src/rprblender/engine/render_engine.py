@@ -707,6 +707,9 @@ class RenderEngine(Engine):
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive, self.cryptomatte_allowed)
 
+        if scene.rpr.render_quality == 'FULL2':
+            scene.rpr.limits.set_random_seed(self.rpr_context)
+
         if enable_adaptive:
             # if adaptive is enable turn on aov and settings
             self.rpr_context.enable_aov(pyrpr.AOV_VARIANCE)

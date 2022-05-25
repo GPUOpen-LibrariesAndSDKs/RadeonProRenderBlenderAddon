@@ -31,7 +31,7 @@ from .blender_nodes import SSS_MIN_RADIUS, COLOR_GAMMA, ERROR_IMAGE_COLOR
 
 from rprblender.export import image as image_export
 
-from rprblender.utils import logging
+from rprblender.utils import logging, BLENDER_VERSION
 log = logging.Log(tag='export.rpr_nodes')
 
 
@@ -352,7 +352,8 @@ class RPRShaderNodeUber(RPRShaderNode):
     
         'Emission Weight': ('rpr_socket_weight_soft', 1.0, "self.enable_emission"),
         'Emission Color': ('rpr_socket_color', (1.0, 1.0, 1.0, 1.0), "self.enable_emission"),
-    
+        'Emission Intensity': ('rpr_socket_weight', 1.0, "self.enable_emission"),
+
         'Subsurface Weight': ('rpr_socket_weight_soft', 1.0, "self.enable_sss"),
         'Subsurface Color': ('rpr_socket_color', (0.436, 0.227, 0.131, 1.0), "self.enable_sss and not self.sss_use_diffuse_color"),
         'Subsurface Radius': ('NodeSocketVector', (3.67, 1.37, 0.68), "self.enable_sss"),
@@ -373,6 +374,9 @@ class RPRShaderNodeUber(RPRShaderNode):
             # eval the socket enable string
             eval_string = self.node_sockets[socket_name][2]
             socket.enabled = eval(eval_string)
+
+        if BLENDER_VERSION >= "3.1" and context:
+            self.socket_value_update(context)
 
     enable_diffuse: BoolProperty(name="Diffuse", description="Enable Diffuse", default=True, update=update_visibility)
     diffuse_use_shader_normal: BoolProperty(name="Diffuse use shader normal", description="Use the master shader normal (disable to override)", default=True, update=update_visibility)
@@ -400,7 +404,6 @@ class RPRShaderNodeUber(RPRShaderNode):
     enable_sheen: BoolProperty(name="Sheen", description="Enable Sheen", default=False, update=update_visibility)
 
     enable_emission: BoolProperty(name="Emission", description="Enable Emission", default=False, update=update_visibility)
-    emission_intensity: FloatProperty(name="Emission Intensity", description="Emission intensity", default=1.0, min=0.0)
     emission_doublesided: BoolProperty(name="Emission Doublesided", description="Enable emission doublesided", default=False, update=update_visibility)
 
     enable_sss: BoolProperty(name="Subsurface", description="Enable Subsurface", default=False, update=update_visibility)
@@ -475,7 +478,6 @@ class RPRShaderNodeUber(RPRShaderNode):
             box = col.box()
             c = box.column(align=True)
             c.prop(self, 'emission_doublesided')
-            c.prop(self, 'emission_intensity')
 
         if self.enable_sss:
             box = col.box()
@@ -625,10 +627,11 @@ class RPRShaderNodeUber(RPRShaderNode):
             if self.node.enable_emission:
                 emission_weight = self.get_input_value('Emission Weight')
                 emission_color = self.get_input_value('Emission Color')
+                emission_intensity = self.get_input_value('Emission Intensity')
 
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_WEIGHT, emission_weight)
 
-                emission_color *= self.node.emission_intensity
+                emission_color *= emission_intensity
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_COLOR, emission_color)
 
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_EMISSION_MODE,
@@ -1134,10 +1137,17 @@ class RPRValueNode_Math(RPRShaderNode):
     bl_label = 'RPR Math'
     bl_width_min = 150  # for better fit of value type selector
 
+    def toggle_clamp(self, context):
+        if BLENDER_VERSION >= "3.1" and context:
+            self.socket_value_update(context)
+
     def change_display_type(self, context):
         """ Change inputs display type to new node display_type mode """
+        self.outputs[0].display_type = self.display_type
         for i in range(3):
             self.inputs[i].display_type = self.display_type
+        if BLENDER_VERSION >= "3.1" and context:
+            self.socket_value_update(context)
 
     def change_operation(self, context):
         """ Enable input sockets and change input names by selected operation settings """
@@ -1149,6 +1159,8 @@ class RPRValueNode_Math(RPRShaderNode):
                 self.inputs[i].name = params[i]
             else:
                 self.inputs[i].enabled = False
+        if BLENDER_VERSION >= "3.1" and context:
+            self.socket_value_update(context)
 
     # Operations settings:
     # (ID, {
@@ -1396,7 +1408,8 @@ class RPRValueNode_Math(RPRShaderNode):
     use_clamp: BoolProperty(
         name='Clamp',
         description='Clamp result to 0..1 range',
-        default=False
+        default=False,
+        update=toggle_clamp,
     )
 
     def init(self, context):

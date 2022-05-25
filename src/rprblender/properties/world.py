@@ -348,6 +348,74 @@ class RPR_EnvironmentProperties(RPR_Properties):
         size=3,
     )
 
+    # fog
+    enabled_fog: BoolProperty(
+        name="Enable Fog",
+        description="Enable Fog",
+        default=False
+    )
+    fog_color: FloatVectorProperty(
+        name="Color",
+        description="",
+        subtype='COLOR', min=0.0, max=1.0, size=4,
+        default=(0.5, 0.5, 0.5, 1.0)
+    )
+
+    fog_distance: FloatProperty(
+        name="Distance",
+        description="",
+        default=0.0,
+        min=0.0
+    )
+
+    fog_height: FloatProperty(
+        name="Height",
+        description="",
+        default=0.0
+    )
+
+    fog_height_offset: FloatProperty(
+        name="Height Offset",
+        description="",
+        default=0.0
+    )
+
+    fog_direction: FloatVectorProperty(
+        name="Direction",
+        description="",
+        subtype='XYZ', min=-1.0, max=1.0, size=3,
+        default=(0.0, 0.0, 1.0)
+    )
+
+    # atmosphere volume
+    enabled_atmosphere_volume: BoolProperty(
+        name="Enable Atmosphere Volume",
+        description="Enable Atmosphere Volume",
+        default=False
+    )
+
+    atmosphere_volume_color: FloatVectorProperty(
+        name="Color",
+        description="",
+        subtype='COLOR', min=0.0, max=1.0, size=4,
+        default=(0.5, 0.5, 0.5, 1.0)
+    )
+
+    atmosphere_volume_density: FloatProperty(
+        name="Density",
+        description="",
+        min=0.0,
+        max=1.0,
+        default=0.0
+    )
+
+    atmosphere_volume_radiance_clamp: FloatProperty(
+        name="Radiance Clamp",
+        description="",
+        min=0.0,
+        default=100.0
+    )
+
     # LIGHT GROUP AOV
     group: EnumProperty(
         name="Light Group",

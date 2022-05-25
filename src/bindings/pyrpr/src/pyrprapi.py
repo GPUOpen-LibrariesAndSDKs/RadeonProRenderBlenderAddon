@@ -676,7 +676,9 @@ if __name__=='__main__':
                  'RPR_CONTEXT_CREATE_FRAMEBUFFER_TYPED_FUNC_NAME',
                  'RPR_MATERIAL_SET_INPUT_BY_S_KEY_FUNC_NAME',
                  'RPR_MATERIALX_SET_FILE_FUNC_NAME',
-                 'RPR_MATERIALX_SET_FILE_AS_BUFFER_FUNC_NAME',]
+                 'RPR_MATERIALX_SET_FILE_AS_BUFFER_FUNC_NAME',
+                 'rpr_vector_component_type',
+                 ]
     )
 
     export(

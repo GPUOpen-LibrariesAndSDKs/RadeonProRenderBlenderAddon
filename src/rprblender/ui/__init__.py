@@ -132,6 +132,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     render.RPR_RENDER_PT_viewport_devices,
     render.RPR_RENDER_PT_limits,
     render.RPR_RENDER_PT_viewport_limits,
+    render.RPR_RENDER_PT_advanced,
     render.RPR_RENDER_PT_quality,
     render.RPR_RENDER_PT_max_ray_depth,
     render.RPR_RENDER_PT_light_clamping,
@@ -169,6 +170,8 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     world.RPR_WORLD_PT_reflection_override,
     world.RPR_WORLD_PT_refraction_override,
     world.RPR_WORLD_PT_transparency_override,
+    world.RPR_WORLD_PT_fog,
+    world.RPR_WORLD_PT_atmosphere_volume,
 
     view_layer.RPR_VIEWLAYER_PT_aovs,
     view_layer.RPR_RENDER_PT_override,

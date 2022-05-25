@@ -54,8 +54,8 @@ target_link_libraries(RPRBlenderHelper ${LIBS})
 
 # Building RPRBlenderHelper with OPENVDB support
 
-if("${UNIX}" OR ("${APPLE}" AND ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "arm64"))
-    # for Linux and Mac with arm64 openvdb isn't supported yet
+if("${UNIX}" OR "${APPLE}")
+    # for Linux and Mac openvdb isn't supported yet
     return()
 endif()
 
@@ -71,20 +71,8 @@ include_directories(
 if(WIN32)
     list(APPEND LIBS
         ${OPENVDB_SDK_PATH}/Windows/lib/openvdb.lib
-        ${OPENVDB_SDK_PATH}/Windows/lib/Half-2_3.lib
         ${OPENVDB_SDK_PATH}/Windows/lib/tbb.lib
     )
-
-elseif(${APPLE})
-    list(APPEND LIBS
-        ${OPENVDB_SDK_PATH}/OSX/lib/libopenvdb.a
-        ${OPENVDB_SDK_PATH}/OSX/lib/libz.a
-        ${OPENVDB_SDK_PATH}/OSX/lib/libblosc.a
-        ${OPENVDB_SDK_PATH}/OSX/lib/libsnappy.a
-        ${OPENVDB_SDK_PATH}/OSX/lib/libboost_iostreams.a
-        ${OPENVDB_SDK_PATH}/OSX/lib/libtbb.a
-    )
-
 endif()
 
 add_library(RPRBlenderHelper_vdb SHARED ${SOURCES})

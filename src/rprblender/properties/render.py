@@ -62,6 +62,18 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         min=1, soft_min=16, default=128,
     )
 
+    seed: IntProperty(
+        name="Seed",
+        description="Seed to get different noise pattern",
+        min=0, default=0,
+    )
+
+    anim_seed: BoolProperty(
+        name="Animated Seed",
+        description="Use current frame as value",
+        default=False,
+    )
+
     contour_render_samples: IntProperty(
         name="Outline Samples",
         description="Number of samples for Outline Rendering",
@@ -122,6 +134,15 @@ class RPR_RenderLimits(bpy.types.PropertyGroup):
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_TILE_SIZE, self.adaptive_tile_size)
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_MIN_SPP, self.min_samples)
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_ADAPTIVE_SAMPLING_THRESHOLD, self.noise_threshold)
+        return res
+
+    def set_random_seed(self, rpr_context):
+        res = False
+        seed = self.seed
+        if self.anim_seed:
+            seed = abs(rpr_context.blender_data['depsgraph'].scene.frame_current)
+
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RANDOM_SEED, seed)
         return res
 
 
@@ -571,14 +592,19 @@ class RPR_RenderProperties(RPR_Properties):
                 os.mkdir(self.texture_cache_dir)
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
-            # set ocio config file to blender included one
-            # TODO can use blender render set render space, and check for custom ocio setting
-            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH, 
-                                      os.path.join(bpy.utils.resource_path('LOCAL'),
-                                                   'datafiles', 'colormanagement',
-                                                   'config.ocio'))
-            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_RENDERING_COLOR_SPACE, 
-                                      "Linear")
+            # check for custom ocio setting and use it if exists
+            ocio_config_path = os.path.join(utils.package_root_dir(),'ocio_config',
+                                            utils.BLENDER_VERSION, 'config.ocio')
+
+            if not os.path.exists(ocio_config_path):
+                # set ocio config file to blender included one
+                ocio_config_path = os.path.join(bpy.utils.resource_path('LOCAL'),
+                                                'datafiles', 'colormanagement',
+                                                'config.ocio')
+
+            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH, ocio_config_path)
+            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_RENDERING_COLOR_SPACE, "Linear")
+            log('Loaded OCIO config file:', ocio_config_path)
 
     def get_devices(self, is_final_engine=True):
         """ Get render devices settings for current mode """
