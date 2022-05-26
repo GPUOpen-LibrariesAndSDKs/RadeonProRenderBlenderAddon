@@ -1,3 +1,63 @@
+# Version 3.4
+## New Features:
+- Support for Blender 3.1 and 3.2 has been added.
+- A new option for overriding an object’s ability to receive shadows has been added.  If this option is set to false, shadows from other objects will not be shown.
+- Support for Atmosphere and Fog in the World Properties Panel has been added.  Artists can now add a dense (or sparse) fog to render real world atmospheres more realistically.  There are settings for density, falloff, height above the ground, and more.
+- Support for the Map Range node (linear mode) has been added.
+- Hair now works with the RPR Interactive mode.
+- A setting has been added to change the Random Seed for renders (similar to Blender’s Cycles feature), which allows changing the noise pattern.
+- An option has been to use the secondary UV set for creating the outlines in toon renders.
+
+## Fixes:
+- Partially transparent and reflective Uber shaders could be darker than physically correct — fixed.
+- Incorrect rotational motion blur has been fixed.
+- Issues with IES lights and atmosphere volumes have been fixed.
+- Albedo AOV now shows the mid color of toon shaders.
+- The Blender spot light parameter “Spot Blend” now works as expected.
+- An exception that could happen with unsupported material nodes has been fixed.
+- An error could occur when changing frames when viewport rendering was running — fixed.
+- Better response is seen now when viewport rendering is active and the camera is moved.
+- Better checking has been achieved for the need to update viewport renders when selecting an object.
+- Depth AOV support for Blender 3.0.1 and above has been fixed.
+- Errors could occur when viewport render and material previews happening simultaneously — fixed.
+- A crash could occur with the RPR Interactive mode and unsupported AOVs — fixed.
+- Support for Geometry nodes in viewport and final rendering has been fixed and improved.
+- An error with “halo” type particles in Blender 3.0 and above has been corrected.
+- Object Index, Material Index and Random in the Object Info node — fixed.
+Cryptomatte AOVs work again in the Blender Compositor.
+- An issue where the mesh in Edit mode could be missing in Blender 3.1 and above — fixed.
+- OpenVDB volume support for Blender 3.2 has been re-enabled (the OpenVDB version was changed in Blender).
+
+# Version 3.3.16
+## New Features:
+- Support for Blender 3.0 has been added.
+- Updates to the Render Quality modes:
+    - RPR Interactive is a new mode supporting GPUs that use the Vulkan ray tracing extension, and is optimized for fast viewport rendering;
+    - RPR Final, previously “Full” mode. It is intended for final rendering with the utmost physical correctness and image quality;  
+    - Both modes produce similar images;
+    - Both modes support full MaterialX shader networks.
+- Support for ARM-based Apple Macs has been added.
+- The ability to override the color of an object’s shadow has been added (in the visibility settings).
+
+## Bugs Fixed:
+- Blender objects using the “Fluid Modifier” were not rendering correctly — fixed.
+- Outline rendering can now use UV mapping to generate the outline.
+- Noise Threshold was previously locked in the viewport settings — fixed.
+- The “Key Error 41” issue when exporting a .rpr file has been fixed.
+- Incorrect Subsurface Scattering on Vega GPUS has been fixed.
+- Black rendering of toon shaders on macOS has been fixed.
+- A crash that could occur when processing emission shaders objects with subdivision added has been eliminated.
+- The startup time for CPU rendering has been reduced.
+- Low utilization on macOS with CPU + GPU rendering has been eliminated.
+- Performance in scenes with many transparent materials has been improved.
+- An issue with artifacts in alpha texture masks has been fixed.
+- The render performance on Vega and Polaris GPUs has been improved.
+- Particle motion blur on GPUs now works correctly.
+- A bug in the “Monster Under the Bed” scene has been fixed.
+- A crash that could occur when using .tif textures with zip compression has been eliminated.
+- An issue with emission shaders disappearing in volume objects has been fixed.
+
+
 # Version 3.3 
 ## New Features:
 - Support for Fog and Heterogenous Volume rendering has been added to the RPR Full mode.  Simulated volumes are now rendered on CPU and GPU.  
