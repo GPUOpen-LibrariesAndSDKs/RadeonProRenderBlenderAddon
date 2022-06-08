@@ -49,14 +49,14 @@ def get_smoke_modifier(obj: bpy.types.Object):
                      if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
 
 
-def get_domain_resolution(domain):
+def get_domain_resolution(domain, grid_name):
     if BLENDER_VERSION >= '2.82':
         x, y, z = domain.domain_resolution
     else:
         amplify = domain.amplify if domain.use_high_resolution else 0
         x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
 
-    if domain.use_noise:
+    if domain.use_noise and grid_name not in ('velocity', 'heat'):
         # smoke noise upscale the basic domain resolution
         x, y, z = (domain.noise_scale * e for e in (x, y, z))
 
@@ -75,17 +75,21 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         if len(domain.density_grid) == 0:
             return None
 
-        x, y, z = get_domain_resolution(domain)
         data = None
         if grid_name == 'color':
-            data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
+            data = get_prop_array_data(domain.color_grid).reshape(*get_domain_resolution(domain, grid_name), -1)
+            data = np.average(data[:, :, :, :3], axis=3)
+        elif grid_name == 'velocity':
+            data = get_prop_array_data(domain.velocity_grid).reshape(*get_domain_resolution(domain, grid_name), -1)
             data = np.average(data[:, :, :, :3], axis=3)
         elif grid_name == 'density':
-            data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.density_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif grid_name == 'flame':
-            data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.flame_grid).reshape(*get_domain_resolution(domain, grid_name))
+        elif grid_name == 'heat':
+            data = get_prop_array_data(domain.heat_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif grid_name == 'temperature':
-            data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.temperature_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif default_grid_name:
             return create_grid_sampler_node(rpr_context, obj, default_grid_name, None)
 
@@ -104,6 +108,12 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
 
         grids = helper_lib.vdb_read_grids_list(vdb_file)
         if grid_name not in grids:
+            return None
+
+        # TODO: add support for float vector grid
+        obj.data.grids.load()
+        if obj.data.grids[grid_name].channels != 1:
+            obj.data.grids.unload()
             return None
 
         data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
