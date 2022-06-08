@@ -112,11 +112,11 @@ class BaseNodeParser(metaclass=ABCMeta):
         if isinstance(val, (int, float)):
             return float(val)
 
-        if len(val) in (3, 4):
-            return tuple(val)
-
         if isinstance(val, str):
             return val
+
+        if len(val) in (3, 4):
+            return tuple(val)
 
         raise TypeError("Unknown value type to pass to rpr", val)
 
