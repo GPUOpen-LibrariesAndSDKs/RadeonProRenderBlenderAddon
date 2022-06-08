@@ -2319,7 +2319,11 @@ class ShaderNodeVolumePrincipled(NodeParser):
             density_attr = self.get_input_default('Density Attribute')
             density_grid_node = volume.create_grid_sampler_node(
                 self.rpr_context, self.object, density_attr.data, 'density')
+
             if not density_grid_node:
+                if self.object.type == 'VOLUME' or volume.get_smoke_modifier(self.object):
+                    return self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {pyrpr.MATERIAL_INPUT_DENSITY: 0.0})
+
                 return None
 
             color = self.get_input_value('Color')
@@ -2349,39 +2353,37 @@ class ShaderNodeVolumePrincipled(NodeParser):
                     emission_grid_node = volume.create_grid_sampler_node(
                         self.rpr_context, self.object, 'flame', None)
 
-                if not emission_grid_node:
-                    emission_grid_node = density_grid_node
-
-                lookup_image = self.rpr_context.create_image_data(None,
-                    np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
-                emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
-                    pyrpr.MATERIAL_INPUT_DATA: lookup_image,
-                    pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
-                    pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-                    pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-                })
-
-                if enabled(blackbody_intensity):
-                    temperature = self.get_input_value('Temperature')
-                    blackbody_tint = self.get_input_value('Blackbody Tint')
-
-                    blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
-                        pyrpr.MATERIAL_INPUT_KELVIN: temperature,
-                        pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                if emission_grid_node:
+                    lookup_image = self.rpr_context.create_image_data(None,
+                        np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32).reshape(-1, 1, 3))
+                    emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                        pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+                        pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
+                        pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                        pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
                     })
 
-                    emission = emission_image_node * blackbody_node * blackbody_intensity * \
-                               blackbody_tint
+                    if enabled(blackbody_intensity):
+                        temperature = self.get_input_value('Temperature')
+                        blackbody_tint = self.get_input_value('Blackbody Tint')
 
-                    # additional multiplication to be corresponded with cycles
-                    emission *= temperature * 0.005
+                        blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
+                            pyrpr.MATERIAL_INPUT_KELVIN: temperature,
+                            pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                        })
 
-                else:
-                    emission_color = self.get_input_value('Emission Color')
+                        emission = emission_image_node * blackbody_node * blackbody_intensity * \
+                                   blackbody_tint
 
-                    emission = emission_image_node * emission_color * emission_strength
+                        # additional multiplication to be corresponded with cycles
+                        emission *= temperature * 0.005
 
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
+                    else:
+                        emission_color = self.get_input_value('Emission Color')
+
+                        emission = emission_image_node * emission_color * emission_strength
+
+                    rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
 
             return rpr_node
 
