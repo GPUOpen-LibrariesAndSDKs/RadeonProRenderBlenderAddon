@@ -32,10 +32,10 @@ def key(obj: bpy.types.Object, smoke_modifier):
 
 
 def get_transform(obj: bpy.types.Object):
-    # Set volume transform. Note: it should be scaled by 2.0
     transform = object.get_transform(obj)
     scale = np.identity(4, dtype=np.float32)
-    scale[0, 0], scale[1, 1], scale[2, 2] = 2.0, 2.0, 2.0
+    scale[0, 0], scale[1, 1], scale[2, 2] = (abs(obj.dimensions[i] / obj.scale[i]) if obj.scale[i] != 0 else 0.0
+                                             for i in range(3))
     return transform @ scale
 
 
