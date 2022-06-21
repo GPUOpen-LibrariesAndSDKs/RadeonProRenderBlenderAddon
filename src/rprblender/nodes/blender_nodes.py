@@ -1631,6 +1631,9 @@ class ShaderNodeBump(NodeParser):
             # nothing hooked up to height?  Just use normal
             return self.get_input_normal('Normal')
 
+        # RPR "ShaderNodeBump" strength visually needs to be about 10 times greater to match Cycles result.
+        strength *= 10.0
+
         # mix normal with bump over normal via strength factor
         # strength is named "factor" in other nodes
 

@@ -137,23 +137,4 @@ def export_motion_blur(rpr_context, obj_key, transform):
         return
 
     rpr_object = rpr_context.objects[obj_key]
-    if hasattr(rpr_object, 'set_motion_transform'):
-        rpr_object.set_motion_transform(next_transform)
-
-    else:
-        m_from = mathutils.Matrix(transform)
-        m_to = mathutils.Matrix(next_transform)
-        sub = m_to - m_from
-        div = m_from @ m_to.inverted()
-        quat = div.to_quaternion()
-
-        linear = sub.to_translation()
-        angular = (*quat.axis, quat.angle) if quat.axis.length > 0.5 else (1.0, 0.0, 0.0, 0.0)
-        scale = div.to_scale() - mathutils.Vector((1, 1, 1))
-
-        rpr_object.set_linear_motion(*linear)
-        rpr_object.set_angular_motion(*angular)
-        if hasattr(rpr_object, 'set_scale_motion'):
-            rpr_object.set_scale_motion(*scale)
-
-
+    rpr_object.set_motion_transform(next_transform)
