@@ -64,7 +64,6 @@ def get_domain_resolution(domain, grid_name):
 
 
 def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
-    from . import openvdb
 
     grid = None
     smoke_modifier = get_smoke_modifier(obj)
@@ -102,19 +101,24 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         if not helper_lib.is_openvdb_support:
             return None
 
-        vdb_file = openvdb.get_volume_file_path(obj.data, 0)
+        if not obj.data.grids.is_loaded:
+            obj.data.grids.load()
+
+        vdb_file = obj.data.grids.frame_filepath
         if not vdb_file:  # nothing to export
             return None
 
         grids = helper_lib.vdb_read_grids_list(vdb_file)
         if grid_name not in grids:
+            obj.data.grids.unload()
             return None
 
         # TODO: add support for float vector grid
-        obj.data.grids.load()
         if obj.data.grids[grid_name].channels != 1:
             obj.data.grids.unload()
             return None
+
+        obj.data.grids.unload()
 
         data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
         grid = rpr_context.create_grid_from_array_indices(*data['size'], data['values'], data['indices'])
