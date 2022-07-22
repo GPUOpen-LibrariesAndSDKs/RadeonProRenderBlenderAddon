@@ -281,7 +281,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
-            rpr_node.set_name(str(node_key))
+            rpr_node.set_name(self.material_key[0])
 
         return rpr_node
 
@@ -313,7 +313,7 @@ class NodeParser(BaseNodeParser):
         if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
-            rpr_node.set_name(str(node_key))
+            rpr_node.set_name(self.material_key[0])
 
         return rpr_node
 
