@@ -243,7 +243,7 @@ class RPRContext:
 
     def _sync_mat_hash(self):
         for key in self.material_nodes.keys():
-            key = str(key)
+            key = str(key[0][0])
             self.material_nodes_hashes[get_cryptomatte_name(key)] = get_cryptomatte_hash(key)
 
     def sync_catchers(self, use_transparent_background=None):
