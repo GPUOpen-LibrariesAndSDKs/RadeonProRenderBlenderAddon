@@ -666,6 +666,7 @@ if __name__=='__main__':
                  'RPR_MESH_UPDATE_FUNC_NAME',
                  'RPR_SHAPE_SET_TRANSFORM_BATCH_FUNC_NAME',
                  'rprDirectionalLightSetRasterShadowSplits',
+                 'rprContextCreateMeshInstanceWithUniqueAttributes',
                  'RPR_CONTEXT_CREATE_MESH_EDITABLE_FUNC_NAME',
                  'rprContextCreateCompressedImage_func',
                  'rpr_compressed_format',

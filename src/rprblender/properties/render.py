@@ -627,7 +627,7 @@ class RPR_RenderProperties(RPR_Properties):
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_RADIANCE_CLAMP, self.clamp_radiance if \
             self.use_clamp_radiance else sys.float_info.max)
 
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPISLON,
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPSILON,
                                          self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
@@ -643,11 +643,10 @@ class RPR_RenderProperties(RPR_Properties):
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """
         filter_type = getattr(pyrpr, f"FILTER_{self.pixel_filter}")
-        filter_radius = getattr(pyrpr, f"CONTEXT_IMAGE_FILTER_{self.pixel_filter}_RADIUS")
 
         res = False
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_IMAGE_FILTER_TYPE, filter_type)
-        res |= rpr_context.set_parameter(filter_radius, self.pixel_filter_width)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_IMAGE_FILTER_RADIUS, self.pixel_filter_width)
         return res
 
     def export_render_quality(self, rpr_context):
