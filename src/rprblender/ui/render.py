@@ -267,6 +267,10 @@ class RPR_RENDER_PT_pixel_filter(RPR_Panel):
     bl_label = "Pixel Filter"
     bl_parent_id = 'RPR_RENDER_PT_quality'
 
+    @classmethod
+    def poll(cls, context):
+        return super().poll(context) and context.scene.rpr.render_quality == 'FULL2'
+
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
@@ -274,7 +278,6 @@ class RPR_RENDER_PT_pixel_filter(RPR_Panel):
         rpr_scene = context.scene.rpr
 
         col = self.layout.column()
-        col.prop(rpr_scene, 'pixel_filter')
         col.prop(rpr_scene, 'pixel_filter_width')
 
 
