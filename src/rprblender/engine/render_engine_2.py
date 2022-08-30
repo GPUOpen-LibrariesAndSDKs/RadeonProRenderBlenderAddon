@@ -34,6 +34,22 @@ class RenderEngine2(RenderEngine):
     def _update_athena_data(self, data):
         data['Quality'] = "rpr2"
 
+    def sync(self, depsgraph):
+        super().sync(depsgraph)
+
+        def sync_time(timems):
+            log(f"sync_time: {timems * 0.001:.3f}")
+
+        def delta_render_time(timems):
+            log(f"delta_render_time: {timems * 0.001:.3f}")
+
+        def first_iteration_time(timems):
+            log(f"first_iteration_time: {timems * 0.001:.3f}")
+
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_UPDATE_TIME_CALLBACK_FUNC, sync_time)
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_RENDER_TIME_CALLBACK_FUNC, delta_render_time)
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_FIRST_ITERATION_TIME_CALLBACK_FUNC, first_iteration_time)
+
     def _render(self):
         resolve_event = threading.Event()
         is_finished = False
