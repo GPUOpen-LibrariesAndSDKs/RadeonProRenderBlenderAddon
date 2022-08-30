@@ -328,8 +328,22 @@ class ViewportEngine2(ViewportEngine):
 
     def sync(self, context, depsgraph):
         super().sync(context, depsgraph)
+
         self.resolve_thread = threading.Thread(target=self._do_resolve)
         self.resolve_thread.start()
+
+        def sync_time(timems):
+            log(f"sync_time: {timems * 0.001:.3f}")
+
+        def delta_render_time(timems):
+            log(f"delta_render_time: {timems * 0.001:.3f}")
+
+        def first_iteration_time(timems):
+            log(f"first_iteration_time: {timems * 0.001:.3f}")
+
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_UPDATE_TIME_CALLBACK_FUNC, sync_time)
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_RENDER_TIME_CALLBACK_FUNC, delta_render_time)
+        self.rpr_context.set_time_callback(pyrpr.CONTEXT_FIRST_ITERATION_TIME_CALLBACK_FUNC, first_iteration_time)
 
     def _sync_update_after(self):
         self.rpr_engine.update_stats("Render", "Syncing...")
