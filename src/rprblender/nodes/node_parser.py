@@ -161,7 +161,7 @@ class BaseNodeParser(metaclass=ABCMeta):
             result = self._export_node(link.from_node, link.from_socket)
 
             # check if result type is allowed by acceptance filter
-            if accepted_type and not isinstance(result, accepted_type):
+            if link.from_node.bl_idname == 'NodeUndefined' or accepted_type and not isinstance(result, accepted_type):
                 return None
 
             return result
