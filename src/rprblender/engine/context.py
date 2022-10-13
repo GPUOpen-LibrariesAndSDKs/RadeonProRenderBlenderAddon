@@ -467,6 +467,11 @@ class RPRContext:
         self.curves[key] = curve
         return curve
 
+    def create_curve_object(self, key, control_points, points_radii, uvs):
+        curve = self._Curve(self.context, control_points, points_radii, uvs)
+        self.objects[key] = curve
+        return curve
+
     def create_hetero_volume(self, key):
         volume = self._HeteroVolume(self.context)
         self.volumes[key] = volume

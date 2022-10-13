@@ -16,7 +16,6 @@
 import numpy as np
 
 import bpy
-import mathutils
 
 from . import mesh, light, camera, to_mesh, volume, openvdb, particle, hair
 from rprblender.utils import logging
@@ -63,6 +62,9 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     elif obj.type == 'VOLUME':
         openvdb.sync(rpr_context, obj, **kwargs)
 
+    elif obj.type == 'CURVES':
+        hair.sync_curves(rpr_context, obj)
+
     elif obj.type == 'EMPTY':
         pass
 
@@ -103,6 +105,9 @@ def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_upda
 
     elif obj.type == 'VOLUME':
         updated |= openvdb.sync_update(rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs)
+
+    elif obj.type == 'CURVES':
+        updated |= hair.sync_update_curves(rpr_context, obj, is_updated_geometry, is_updated_transform)
 
     else:
         log.warn("Not supported object to sync_update", obj, obj.type)
