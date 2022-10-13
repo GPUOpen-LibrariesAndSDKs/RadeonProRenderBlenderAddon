@@ -145,6 +145,10 @@ def sync(rpr_context, emitter: bpy.types.Object):
         emitter = emitter.object
 
     for p_sys in hair_p_sys(emitter):
+        if p_sys.settings.render_type != 'PATH':
+            log.warn("Skipping hair particle system type", p_sys.settings.render_type, p_sys, emitter)
+            return
+
         log("sync", p_sys, emitter)
 
         curve_data = CurveData.init(p_sys, emitter, rpr_context.engine_type == RenderEngine.TYPE)
