@@ -1658,6 +1658,9 @@ class ShaderNodeBump(NodeParser):
 
         return strength.blend(normal_node, bump_node + normal_node)
 
+    def export_hybridpro(self):
+        return None
+
 
 class ShaderNodeValue(NodeParser):
     """ simply return val """
