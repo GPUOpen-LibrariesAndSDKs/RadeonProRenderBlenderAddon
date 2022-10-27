@@ -22,10 +22,12 @@ import bpy
 import mathutils
 
 import pyrpr
+from pyhybridpro import DEFAULT_COLORSPACE
 
 from . import image
 from .image import ImagePixels
 from rprblender.engine.context import RPRContext
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.utils import helper_lib
 
 from rprblender.utils import logging
@@ -50,6 +52,9 @@ def set_light_image(rpr_context, rpr_light, image_name):
 def set_light_studio_image(rpr_context, rpr_light, studio_light):
     file_path = image.cache_image_file_path(studio_light, rpr_context.blender_data['depsgraph'])
     rpr_image = rpr_context.create_image_file(None, file_path)
+    if isinstance(rpr_context, RPRContextHybridPro):  # Requires colorspace to be set explicitly
+        image.set_image_gamma(rpr_image, None, DEFAULT_COLORSPACE, rpr_context)
+
     rpr_light.set_image(rpr_image)
 
 
@@ -211,6 +216,8 @@ class WorldData:
 
             im = helper_lib.generate_sky_image(self.resolution, self.resolution)
             rpr_image = rpr_context.create_image_data(None, im)
+            if isinstance(rpr_context, RPRContextHybridPro):  # Requires colorspace to be set explicitly
+                image.set_image_gamma(rpr_image, None, DEFAULT_COLORSPACE, rpr_context)
 
             rpr_light.set_image(rpr_image)
             set_light_rotation(rpr_light, (rotation[0], rotation[1], rotation[2] + self.azimuth))

@@ -27,6 +27,11 @@ SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_COLOR, pyrpr.AOV_U
                   pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_BACKGROUND, pyrpr.AOV_EMISSION,
                   pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO}
 
+# HybridPro requires color space to be set explicitly for every ImageData and ImageFile instances
+# Avoid usage of ImageSetOcioColorspace more than one time for particular instance,
+# so it can cause double conversion of color space
+DEFAULT_COLORSPACE = 'RAW'
+
 
 def ignore_unsupported(function):
     """Function decorator which ignores UNSUPPORTED and INVALID_PARAMETER core errors"""
@@ -156,8 +161,9 @@ class AreaLight(pyrpr.AreaLight):
 @class_ignore_unsupported
 class EnvironmentLight(pyrpr.EnvironmentLight):
     def set_color(self, r, g, b):
-        img = pyrpr.ImageData(self.context,
-                              np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        img = pyrpr.ImageData(self.context, np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        # Requires colorspace to be set explicitly
+        img.set_colorspace(DEFAULT_COLORSPACE)
         self.set_image(img)
 
 
@@ -267,6 +273,12 @@ class Scene(pyrpr.Scene):
             self.remove_environment_light()
 
         super().clear()
+
+    def set_background_color(self, r, g, b):
+        img = pyrpr.ImageData(self.context, np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        # Requires colorspace to be set explicitly
+        img.set_colorspace(DEFAULT_COLORSPACE)
+        self.set_background_image(img)
 
 
 class PostEffect:
