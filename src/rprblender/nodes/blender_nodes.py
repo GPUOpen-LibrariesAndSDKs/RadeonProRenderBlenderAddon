@@ -2139,6 +2139,43 @@ class ShaderNodeSeparateRGB(NodeParser):
         return value.get_channel(2)
 
 
+class ShaderNodeCombineColor(NodeParser):
+    """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
+    def export(self):
+        mode = self.node.mode
+
+        value1 = self.get_input_value(0)
+        value2 = self.get_input_value(1)
+        value3 = self.get_input_value(2)
+
+        res = value1.combine(value2, value3)
+
+        if mode == 'HSL':
+            return res.hsl_to_rgb()
+
+        elif mode == 'HSV':
+            return res.hsv_to_rgb()
+
+        return res
+
+
+class ShaderNodeSeparateColor(NodeParser):
+    """ Split input value(color) to 3 separate values by RGB, HSV, HSL channels """
+    def export(self):
+        value = self.get_input_value(0)
+        mode = self.node.mode
+        socket = {'Red': 0, 'Green': 1, 'Blue': 2,
+                  'Hue': 0, 'Saturation': 1, 'Value': 2, 'Lightness': 2,}[self.socket_out.name]
+
+        if mode == 'HSL':
+            return value.rgb_to_hsl().get_channel(socket)
+
+        elif mode == 'HSV':
+            return value.rgb_to_hsv().get_channel(socket)
+
+        return value.get_channel(socket)
+
+
 class ShaderNodeSeparateXYZ(NodeParser):
     """ Split input value(vector) to 3 separate values by X-Y-Z channels """
     def export(self):
