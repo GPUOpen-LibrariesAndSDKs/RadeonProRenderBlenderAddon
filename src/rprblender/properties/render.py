@@ -38,6 +38,7 @@ from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
 from rprblender.engine import context
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 
 from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
@@ -592,6 +593,7 @@ class RPR_RenderProperties(RPR_Properties):
                 os.mkdir(self.texture_cache_dir)
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
+        if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
             # check for custom ocio setting and use it if exists
             ocio_config_path = os.path.join(utils.package_root_dir(),'ocio_config',
                                             utils.BLENDER_VERSION, 'config.ocio')
