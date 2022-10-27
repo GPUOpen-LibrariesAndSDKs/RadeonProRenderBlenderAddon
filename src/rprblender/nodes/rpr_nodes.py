@@ -1141,6 +1141,35 @@ class RPRShaderNodeBlend(RPRShaderNode):
             return self.get_input_link(1)
 
 
+class RPRShaderNodeDoublesided(RPRShaderNode):
+    """ Doublesided node """
+    bl_label = 'RPR Doublesided'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketShader', 'Front')
+        self.inputs.new('NodeSocketShader', 'Back')
+
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    class Exporter(NodeParser):
+        def export(self):
+            shader1 = self.get_input_link(0)
+            shader2 = self.get_input_link(1)
+
+            # like the Blender Mix Shader return default gray diffuse if no shaders connected
+            if not shader1 and not shader2:
+                return self.create_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_TWOSIDED, {})
+            if shader1:
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR0, shader1)
+            if shader2:
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR1, shader2)
+
+            return rpr_node
+
+
 class RPRValueNode_Math(RPRShaderNode):
     """ RPR node for all Arithmetics operations, equivalent of Math, Vector Math, RGB Mix with some nice additions.
     Display different number of input sockets for various operations. """
