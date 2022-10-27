@@ -22,10 +22,14 @@ from rprblender.config import hybridpro_unsupported_log_warn
 from rprblender.utils import logging
 log = logging.Log(tag='hybridpro')
 
-SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_COLOR, pyrpr.AOV_UV,
+SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_UV,
                   pyrpr.AOV_OBJECT_ID, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_WORLD_COORDINATE,
                   pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_BACKGROUND, pyrpr.AOV_EMISSION,
-                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO}
+                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO,
+                  pyrpr.AOV_DIRECT_REFLECT, pyrpr.AOV_INDIRECT_REFLECT, pyrpr.AOV_VOLUME,
+                  pyrpr.AOV_INDIRECT_DIFFUSE, pyrpr.AOV_DIRECT_DIFFUSE, pyrpr.AOV_VARIANCE,
+                  pyrpr.AOV_DIRECT_ILLUMINATION, pyrpr.AOV_INDIRECT_ILLUMINATION, pyrpr.AOV_REFRACT,
+                  pyrpr.AOV_GEOMETRIC_NORMAL, pyrpr.AOV_CAMERA_NORMAL, pyrpr.AOV_OBJECT_GROUP_ID}
 
 # HybridPro requires color space to be set explicitly for every ImageData and ImageFile instances
 # Avoid usage of ImageSetOcioColorspace more than one time for particular instance,
