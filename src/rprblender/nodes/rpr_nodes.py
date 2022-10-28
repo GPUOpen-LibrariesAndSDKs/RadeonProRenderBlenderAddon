@@ -1163,9 +1163,9 @@ class RPRShaderNodeDoublesided(RPRShaderNode):
 
             rpr_node = self.create_node(pyrpr.MATERIAL_NODE_TWOSIDED, {})
             if shader1:
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR0, shader1)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_FRONTFACE, shader1)
             if shader2:
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR1, shader2)
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_BACKFACE, shader2)
 
             return rpr_node
 
