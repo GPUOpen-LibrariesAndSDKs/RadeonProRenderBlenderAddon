@@ -803,7 +803,6 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
         we use this for both shapes and triplanar
     """
     bl_label = 'RPR Procedural UV'
-    bl_width_min = 260
 
     procedural_type: EnumProperty(
         name='Type',
@@ -920,15 +919,6 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
 
         def export_hybrid(self):
             return None
-
-        def export_hybridpro(self):
-            procedural_type = self.node.procedural_type
-            if procedural_type != 'TRIPLANAR':
-                log.warn("Ignoring unsupported RPR procedural type",
-                         procedural_type, self.node, self.material)
-                return None
-
-            return self.export()
 
 
 class RPRShaderNodeBumpMap(RPRShaderNode):
@@ -1564,9 +1554,6 @@ class RPRValueNode_Math(RPRShaderNode):
                          op, self.node, self.material)
                 return None
 
-            return self.export()
-
-        def export_hybridpro(self):
             return self.export()
 
 

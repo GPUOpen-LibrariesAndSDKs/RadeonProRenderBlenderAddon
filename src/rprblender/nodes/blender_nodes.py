@@ -253,15 +253,6 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
 
         return result
 
-    def export_hybridpro(self):
-        result = self.export_hybrid()
-        if result:
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE, pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, 1.0)
-
-        return result
-
 
 class ShaderNodeBsdfDiffuse(RuleNodeParser):
     # inputs: Color, Roughness, Normal
@@ -655,9 +646,6 @@ class ShaderNodeTexChecker(NodeParser):
 
     def export_hybrid(self):
         return None
-
-    def export_hybridpro(self):
-        return self.export()
 
 
 class ShaderNodeTexImage(NodeParser):
@@ -1658,10 +1646,17 @@ class ShaderNodeBump(NodeParser):
         })
 
         # use surface normal if not hooked up
-        if normal:
-            bump_node.set_input(pyrpr.MATERIAL_INPUT_BASE_NORMAL, normal)
+        if normal is None:
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N
+            })
+        else:
+            # RPR normal map seems stronger than cycles here.  But this is expected?
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_NORMAL_MAP, {
+                pyrpr.MATERIAL_INPUT_COLOR: normal,
+            })
 
-        return bump_node
+        return strength.blend(normal_node, bump_node + normal_node)
 
     def export_hybridpro(self):
         return None
@@ -2686,26 +2681,3 @@ class ShaderNodeEeveeSpecular(NodeParser):
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, normal)
 
         return rpr_node
-
-
-class ShaderNodeBevel(NodeParser):
-    def export(self):
-        samples = self.node.samples
-        radius = self.get_input_value('Radius')
-        normal = self.get_input_link('Normal')
-
-        if radius.is_zero():
-            return self.get_input_normal('Normal')
-
-        bevel = self.create_node(pyrpr.MATERIAL_NODE_ROUNDED_CORNER, {
-            pyrpr.MATERIAL_INPUT_SAMPLES: samples,
-            pyrpr.MATERIAL_INPUT_RADIUS: radius,
-        })
-
-        if normal is None:
-            return bevel
-
-        return (bevel + normal).normalize()
-
-    def export_hybrid(self):
-        return None

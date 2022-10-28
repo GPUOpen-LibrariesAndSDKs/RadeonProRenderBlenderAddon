@@ -62,7 +62,6 @@ node_categories = [
         NodeItem('ShaderNodeVolumeInfo'),
         NodeItem('RPRShaderProceduralUVNode'),
         NodeItem('RPRShaderNodeLookup'),
-        NodeItem('ShaderNodeBevel'),
     ])),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=sorted_items([
         NodeItem('ShaderNodeOutputMaterial'),
