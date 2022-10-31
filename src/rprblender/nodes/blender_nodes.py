@@ -1151,7 +1151,22 @@ class ShaderNodeNewGeometry(RuleNodeParser):
 
         "hybrid:Position": None,
         "hybrid:Normal": None,
-        "hybrid:incoming": None,
+        "hybrid:Incoming": None,
+
+        "hybridpro:Position": {
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+            "params": {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P,
+            }
+        },
+        "hybridpro:Normal": {
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+            "params": {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
+            }
+        },
+
+        "hybridpro:Incoming": None,
     }
 
 
@@ -1537,6 +1552,9 @@ class ShaderNodeVectorMath(NodeParser):
             return None
 
         # other operations are supported by Hybrid
+        return self.export()
+
+    def export_hybridpro(self) -> [NodeItem, None]:
         return self.export()
 
 
