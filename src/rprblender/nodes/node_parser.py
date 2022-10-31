@@ -506,6 +506,15 @@ class RuleNodeParser(NodeParser):
 
         return self.export()
 
+    def export_hybridpro(self):
+        """ Looking for base node_rule_key = 'hybridpro:<socket_out.name> """
+
+        node_rule_key = 'hybridpro:' + self.socket_out.name
+        if node_rule_key in self.nodes:
+            return self._export_node_rule_by_key(node_rule_key)
+
+        return self.export_hybrid()
+
 
 def get_node_parser_class(node_idname: str):
     """ Returns NodeParser class for node_idname or None if not found """
