@@ -239,8 +239,10 @@ class Shape(pyrpr.Shape):
         super().set_material(material)
 
     def set_material_faces(self, material, face_indices: np.array):
-        if not self.materials:
-            self.set_material(material)
+        if isinstance(material, EmptyMaterialNode):
+            material = None
+
+        super().set_material_faces(material, face_indices)
 
     def set_hetero_volume(self, hetero_volume):
         pass
