@@ -101,7 +101,8 @@ class NodeItem:
                                        lambda a, b: a / b if not math.isclose(b, 0.0) else 0.0)
 
     def __mod__(self, other):
-        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_MOD, lambda a, b: a % b)
+        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_MOD,
+                                       lambda a, b: a % b if not math.isclose(b, 0.0) else 0.0)
 
     def __pow__(self, other):
         return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_POW, lambda a, b: a ** b)
