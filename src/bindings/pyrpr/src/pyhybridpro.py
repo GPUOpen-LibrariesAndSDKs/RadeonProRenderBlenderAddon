@@ -119,10 +119,8 @@ class Context(pyrpr.Context):
 
 
 @class_ignore_unsupported
-class IESLight(pyrpr.PointLight):
-    # IESLight is not supported, that's why we change it to PointLight
-    def set_image_from_file(self, image_path, nx, ny):
-        pass
+class IESLight(pyrpr.IESLight):
+    pass
 
 
 @class_ignore_unsupported
