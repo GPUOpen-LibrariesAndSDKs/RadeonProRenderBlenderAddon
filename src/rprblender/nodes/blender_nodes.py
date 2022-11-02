@@ -1676,10 +1676,17 @@ class ShaderNodeBump(NodeParser):
         })
 
         # use surface normal if not hooked up
-        if normal:
-            bump_node.set_input(pyrpr.MATERIAL_INPUT_BASE_NORMAL, normal)
+        if normal is None:
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N
+            })
+        else:
+            # RPR normal map seems stronger than cycles here.  But this is expected?
+            normal_node = self.create_node(pyrpr.MATERIAL_NODE_NORMAL_MAP, {
+                pyrpr.MATERIAL_INPUT_COLOR: normal,
+            })
 
-        return bump_node
+        return strength.blend(normal_node, bump_node + normal_node)
 
     def export_hybridpro(self):
         return None
