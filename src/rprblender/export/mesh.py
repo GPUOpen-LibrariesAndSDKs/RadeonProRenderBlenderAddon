@@ -263,12 +263,20 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
             rpr_shape.set_displacement_material(rpr_displacement)
             # if no subdivision set that up to 'high' so displacement looks good
             # note subdivision is capped to resolution
-            if rpr_shape.subdivision is None:
-                rpr_shape.subdivision = {
-                    'level': 10,
-                    'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER,
-                    'crease_weight': 10
-                }
+
+            # TODO
+            # Turn off this params to avoid memory leak in certain cases.
+            # Second, majority of user cases it doesn't take into account at all but should.
+            # Verify after this https://amdrender.atlassian.net/browse/RPR-1149
+            # PR to apply https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/pull/557
+            #
+            # if rpr_shape.subdivision is None:
+            #     rpr_shape.subdivision = {
+            #         'level': 10,
+            #         'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER,
+            #         'crease_weight': 10
+            #     }
+
         else:
             rpr_shape.set_displacement_material(None)
 
