@@ -803,6 +803,7 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
         we use this for both shapes and triplanar
     """
     bl_label = 'RPR Procedural UV'
+    bl_width_min = 260
 
     procedural_type: EnumProperty(
         name='Type',
@@ -919,6 +920,15 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
 
         def export_hybrid(self):
             return None
+
+        def export_hybridpro(self):
+            procedural_type = self.node.procedural_type
+            if procedural_type != 'TRIPLANAR':
+                log.warn("Ignoring unsupported RPR procedural type",
+                         procedural_type, self.node, self.material)
+                return None
+
+            return self.export()
 
 
 class RPRShaderNodeBumpMap(RPRShaderNode):
@@ -1129,6 +1139,35 @@ class RPRShaderNodeBlend(RPRShaderNode):
                     })
 
             return self.get_input_link(1)
+
+
+class RPRShaderNodeDoublesided(RPRShaderNode):
+    """ Doublesided node """
+    bl_label = 'RPR Doublesided'
+
+    def init(self, context):
+        self.inputs.new('NodeSocketShader', 'Front')
+        self.inputs.new('NodeSocketShader', 'Back')
+
+        # adding output socket
+        self.outputs.new('NodeSocketShader', "Shader")
+
+    class Exporter(NodeParser):
+        def export(self):
+            shader1 = self.get_input_link(0)
+            shader2 = self.get_input_link(1)
+
+            # like the Blender Mix Shader return default gray diffuse if no shaders connected
+            if not shader1 and not shader2:
+                return self.create_node(pyrpr.MATERIAL_NODE_DIFFUSE)
+
+            rpr_node = self.create_node(pyrpr.MATERIAL_NODE_TWOSIDED, {})
+            if shader1:
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_FRONTFACE, shader1)
+            if shader2:
+                rpr_node.set_input(pyrpr.MATERIAL_INPUT_BACKFACE, shader2)
+
+            return rpr_node
 
 
 class RPRValueNode_Math(RPRShaderNode):
@@ -1525,6 +1564,9 @@ class RPRValueNode_Math(RPRShaderNode):
                          op, self.node, self.material)
                 return None
 
+            return self.export()
+
+        def export_hybridpro(self):
             return self.export()
 
 

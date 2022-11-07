@@ -18,6 +18,7 @@ import datetime
 import math
 import numpy as np
 import bpy
+import json
 
 import pyrpr
 
@@ -25,7 +26,7 @@ from rprblender import utils
 from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
 from rprblender.utils import render_stamp
-from rprblender.utils.conversion import perfcounter_to_str
+from rprblender.utils.conversion import perfcounter_to_str, get_cryptomatte_hash
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
 from rprblender.properties.view_layer import RPR_ViewLayerProperites
@@ -161,6 +162,31 @@ class RenderEngine(Engine):
         finally:
             self.rpr_engine.end_result(result)
 
+    def stamp_data_add_field(self):
+        result = self.rpr_engine.get_result()
+
+        self.apply_render_stamp_to_image()
+
+        if self.cryptomatte_allowed:
+            view_layer = self.rpr_context.blender_data['depsgraph'].view_layer
+
+            if view_layer.rpr.crytomatte_aov_material:
+                self.add_cryptomatte_metadata("ViewLayer.CryptoMaterial",
+                                              self.rpr_context.material_nodes_hashes, result)
+
+            if view_layer.rpr.crytomatte_aov_object:
+                self.add_cryptomatte_metadata("ViewLayer.CryptoObject",
+                                              self.rpr_context.object_hashes, result)
+
+    def add_cryptomatte_metadata(self, pass_name, manifest, result):
+        pass_hash = get_cryptomatte_hash(pass_name)
+        manifest = json.dumps(manifest)
+
+        result.stamp_data_add_field(f"cryptomatte/{pass_hash}/name", pass_name)
+        result.stamp_data_add_field(f"cryptomatte/{pass_hash}/hash", "MurmurHash3_32")
+        result.stamp_data_add_field(f"cryptomatte/{pass_hash}/conversion", "uint32_to_float32")
+        result.stamp_data_add_field(f"cryptomatte/{pass_hash}/manifest", manifest)
+
     def _update_render_result_contour(self, tile_pos, tile_size, layer_name=""):
         def set_render_result(render_passes: bpy.types.RenderPasses):
             images = []
@@ -285,7 +311,8 @@ class RenderEngine(Engine):
                                        layer_name=self.render_layer_name,
                                        apply_image_filter=True)
 
-        self.apply_render_stamp_to_image()
+        # apply stamp data and metadata to render result
+        self.stamp_data_add_field()
 
         athena_data['Stop Time'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
         athena_data['Samples'] = self.current_sample
@@ -743,6 +770,9 @@ class RenderEngine(Engine):
 
         self.render_samples, self.render_time = (scene.rpr.limits.max_samples, scene.rpr.limits.seconds)
         self.contour_pass_samples = scene.rpr.limits.contour_render_samples
+
+        if self.cryptomatte_allowed:
+            self.rpr_context.sync_cryptomatte_hash()
 
         if scene.rpr.render_quality == 'FULL2':
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2

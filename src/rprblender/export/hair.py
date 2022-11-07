@@ -14,11 +14,11 @@
 #********************************************************************
 from dataclasses import dataclass
 import numpy as np
-from mathutils import Matrix, Vector
 
 import bpy
 
-from . import particle, object, instance
+from . import particle, object, instance, material
+from rprblender.utils import get_data_from_collection
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.hair')
@@ -130,6 +130,39 @@ class CurveData:
 
         return data
 
+    @staticmethod
+    def init_curves(obj: bpy.types.Object):
+        curves = obj.data
+
+        data = CurveData()
+        points_length = get_data_from_collection(curves.curves, 'points_length',
+                                                 (len(curves.curves),), dtype=np.int32)
+        points_length_max = np.max(points_length)
+        points_length_min = np.min(points_length)
+        if points_length_min == points_length_max:
+            data.points = get_data_from_collection(curves.points, 'position',
+                                                   (len(curves.curves), points_length_max, 3))
+
+        else:
+            points = get_data_from_collection(curves.points, 'position', (len(curves.points), 3))
+            points_index = get_data_from_collection(curves.curves, 'first_point_index',
+                                                    (len(curves.curves),), dtype=np.int32)
+            data.points = np.zeros((len(curves.curves), points_length_max, 3), dtype=np.float32)
+            for i in range(len(curves.curves)):
+                for j in range(points_length_max):
+                    data.points[i, j, :] = points[(points_index[i] + min(j, points_length[i] - 1)), :]
+
+        # setting curve root radius same as in Cycles
+        root_radius = 0.005
+        tip_radius = root_radius / 2
+        data.points_radii = np.fromiter(
+            (root_radius + (tip_radius - root_radius) * i / (points_length_max - 1)
+             for i in range(points_length_max)), dtype=np.float32)
+
+        data.uvs = None     # it is unavailable to get UVs from Blender
+
+        return data
+
 
 def hair_p_sys(emitter):
     return (p_sys for p_sys in emitter.particle_systems if p_sys.settings.type == 'HAIR')
@@ -145,6 +178,10 @@ def sync(rpr_context, emitter: bpy.types.Object):
         emitter = emitter.object
 
     for p_sys in hair_p_sys(emitter):
+        if p_sys.settings.render_type != 'PATH':
+            log.warn("Skipping hair particle system type", p_sys.settings.render_type, p_sys, emitter)
+            return
+
         log("sync", p_sys, emitter)
 
         curve_data = CurveData.init(p_sys, emitter, rpr_context.engine_type == RenderEngine.TYPE)
@@ -191,3 +228,57 @@ def sync_update(rpr_context, emitter: bpy.types.Object, is_updated_geometry, is_
         updated = True
 
     return updated
+
+
+def sync_curves(rpr_context, obj: bpy.types.Object):
+    log("sync_curves", obj, obj.data)
+
+    try:
+        curve_data = CurveData.init_curves(obj)
+    except ValueError as e:
+        log.error(e)
+        return
+
+    obj_key = object.key(obj)
+
+    rpr_hair = rpr_context.create_curve_object(obj_key, curve_data.points, curve_data.points_radii, curve_data.uvs)
+    rpr_hair.set_name(str(obj_key))
+    rpr_context.scene.attach(rpr_hair)
+
+    if obj.material_slots:
+        slot = obj.material_slots[0]
+        if slot.material:
+            rpr_material = material.sync(rpr_context, slot.material, obj=obj)
+            if rpr_material:
+                rpr_hair.set_material(rpr_material)
+
+    transform = object.get_transform(obj)
+    rpr_hair.set_transform(transform)
+
+
+def sync_update_curves(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform):
+    log("sync_update_curves", obj, obj.data)
+
+    obj_key = object.key(obj)
+    rpr_hair = rpr_context.objects.get(obj_key, None)
+    if not rpr_hair:
+        sync_curves(rpr_context, obj)
+        return obj_key in rpr_context.objects
+
+    if is_updated_geometry:
+        rpr_context.remove_object(obj_key)
+        sync_curves(rpr_context, obj)
+        return True
+
+    if is_updated_transform:
+        rpr_hair.set_transform(object.get_transform(obj))
+        return True
+
+    rpr_material = None
+    if obj.material_slots:
+        slot = obj.material_slots[0]
+        if slot.material:
+            rpr_material = material.sync(rpr_context, slot.material, obj=obj)
+
+    rpr_hair.set_material(rpr_material)
+    return True

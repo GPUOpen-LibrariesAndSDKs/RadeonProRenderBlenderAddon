@@ -101,3 +101,7 @@ class RPRContext(context.RPRContext):
     def create_tiled_image(self, key):
         # Tiled images are unsupported by HybridPro
         return None
+
+    def sync_auto_adapt_subdivision(self, width=0, height=0):
+        # Subdivision is unsupported by HybridPro
+        pass

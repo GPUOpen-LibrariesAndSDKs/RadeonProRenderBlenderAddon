@@ -22,10 +22,19 @@ from rprblender.config import hybridpro_unsupported_log_warn
 from rprblender.utils import logging
 log = logging.Log(tag='hybridpro')
 
-SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_COLOR, pyrpr.AOV_UV,
+SUPPORTED_AOVS = {pyrpr.AOV_COLOR, pyrpr.AOV_DEPTH, pyrpr.AOV_UV,
                   pyrpr.AOV_OBJECT_ID, pyrpr.AOV_MATERIAL_ID, pyrpr.AOV_WORLD_COORDINATE,
                   pyrpr.AOV_SHADING_NORMAL, pyrpr.AOV_BACKGROUND, pyrpr.AOV_EMISSION,
-                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO}
+                  pyrpr.AOV_VELOCITY, pyrpr.AOV_OPACITY, pyrpr.AOV_DIFFUSE_ALBEDO,
+                  pyrpr.AOV_DIRECT_REFLECT, pyrpr.AOV_INDIRECT_REFLECT, pyrpr.AOV_VOLUME,
+                  pyrpr.AOV_INDIRECT_DIFFUSE, pyrpr.AOV_DIRECT_DIFFUSE, pyrpr.AOV_VARIANCE,
+                  pyrpr.AOV_DIRECT_ILLUMINATION, pyrpr.AOV_INDIRECT_ILLUMINATION, pyrpr.AOV_REFRACT,
+                  pyrpr.AOV_GEOMETRIC_NORMAL, pyrpr.AOV_CAMERA_NORMAL, pyrpr.AOV_OBJECT_GROUP_ID}
+
+# HybridPro requires color space to be set explicitly for every ImageData and ImageFile instances
+# Avoid usage of ImageSetOcioColorspace more than one time for particular instance,
+# so it can cause double conversion of color space
+DEFAULT_COLORSPACE = 'RAW'
 
 
 def ignore_unsupported(function):
@@ -110,10 +119,8 @@ class Context(pyrpr.Context):
 
 
 @class_ignore_unsupported
-class IESLight(pyrpr.PointLight):
-    # IESLight is not supported, that's why we change it to PointLight
-    def set_image_from_file(self, image_path, nx, ny):
-        pass
+class IESLight(pyrpr.IESLight):
+    pass
 
 
 @class_ignore_unsupported
@@ -156,8 +163,9 @@ class AreaLight(pyrpr.AreaLight):
 @class_ignore_unsupported
 class EnvironmentLight(pyrpr.EnvironmentLight):
     def set_color(self, r, g, b):
-        img = pyrpr.ImageData(self.context,
-                              np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        img = pyrpr.ImageData(self.context, np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        # Requires colorspace to be set explicitly
+        img.set_colorspace(DEFAULT_COLORSPACE)
         self.set_image(img)
 
 
@@ -229,8 +237,10 @@ class Shape(pyrpr.Shape):
         super().set_material(material)
 
     def set_material_faces(self, material, face_indices: np.array):
-        if not self.materials:
-            self.set_material(material)
+        if isinstance(material, EmptyMaterialNode):
+            material = None
+
+        super().set_material_faces(material, face_indices)
 
     def set_hetero_volume(self, hetero_volume):
         pass
@@ -267,6 +277,12 @@ class Scene(pyrpr.Scene):
             self.remove_environment_light()
 
         super().clear()
+
+    def set_background_color(self, r, g, b):
+        img = pyrpr.ImageData(self.context, np.full((64, 64, 4), (r, g, b, 1.0), dtype=np.float32))
+        # Requires colorspace to be set explicitly
+        img.set_colorspace(DEFAULT_COLORSPACE)
+        self.set_background_image(img)
 
 
 class PostEffect:

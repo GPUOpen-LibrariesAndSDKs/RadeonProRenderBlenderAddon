@@ -253,6 +253,15 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
 
         return result
 
+    def export_hybridpro(self):
+        result = self.export_hybrid()
+        if result:
+            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
+            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE, pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, 1.0)
+
+        return result
+
 
 class ShaderNodeBsdfDiffuse(RuleNodeParser):
     # inputs: Color, Roughness, Normal
@@ -646,6 +655,9 @@ class ShaderNodeTexChecker(NodeParser):
 
     def export_hybrid(self):
         return None
+
+    def export_hybridpro(self):
+        return self.export()
 
 
 class ShaderNodeTexImage(NodeParser):
@@ -1139,7 +1151,22 @@ class ShaderNodeNewGeometry(RuleNodeParser):
 
         "hybrid:Position": None,
         "hybrid:Normal": None,
-        "hybrid:incoming": None,
+        "hybrid:Incoming": None,
+
+        "hybridpro:Position": {
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+            "params": {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P,
+            }
+        },
+        "hybridpro:Normal": {
+            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
+            "params": {
+                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
+            }
+        },
+
+        "hybridpro:Incoming": None,
     }
 
 
@@ -1527,6 +1554,9 @@ class ShaderNodeVectorMath(NodeParser):
         # other operations are supported by Hybrid
         return self.export()
 
+    def export_hybridpro(self) -> [NodeItem, None]:
+        return self.export()
+
 
 class ShaderNodeMixShader(NodeParser):
     # inputs = ['Fac', 1, 2]
@@ -1631,6 +1661,9 @@ class ShaderNodeBump(NodeParser):
             # nothing hooked up to height?  Just use normal
             return self.get_input_normal('Normal')
 
+        # RPR "ShaderNodeBump" strength visually needs to be about 10 times greater to match Cycles result.
+        strength *= 10.0
+
         # mix normal with bump over normal via strength factor
         # strength is named "factor" in other nodes
 
@@ -1654,6 +1687,9 @@ class ShaderNodeBump(NodeParser):
             })
 
         return strength.blend(normal_node, bump_node + normal_node)
+
+    def export_hybridpro(self):
+        return None
 
 
 class ShaderNodeValue(NodeParser):
@@ -2133,6 +2169,43 @@ class ShaderNodeSeparateRGB(NodeParser):
         return value.get_channel(2)
 
 
+class ShaderNodeCombineColor(NodeParser):
+    """ Combine 3 input values to vector/color (v1, v2, v3, 0.0), accept input maps """
+    def export(self):
+        mode = self.node.mode
+
+        value1 = self.get_input_value(0)
+        value2 = self.get_input_value(1)
+        value3 = self.get_input_value(2)
+
+        res = value1.combine(value2, value3)
+
+        if mode == 'HSL':
+            return res.hsl_to_rgb()
+
+        elif mode == 'HSV':
+            return res.hsv_to_rgb()
+
+        return res
+
+
+class ShaderNodeSeparateColor(NodeParser):
+    """ Split input value(color) to 3 separate values by RGB, HSV, HSL channels """
+    def export(self):
+        value = self.get_input_value(0)
+        mode = self.node.mode
+        socket = {'Red': 0, 'Green': 1, 'Blue': 2,
+                  'Hue': 0, 'Saturation': 1, 'Value': 2, 'Lightness': 2,}[self.socket_out.name]
+
+        if mode == 'HSL':
+            return value.rgb_to_hsl().get_channel(socket)
+
+        elif mode == 'HSV':
+            return value.rgb_to_hsv().get_channel(socket)
+
+        return value.get_channel(socket)
+
+
 class ShaderNodeSeparateXYZ(NodeParser):
     """ Split input value(vector) to 3 separate values by X-Y-Z channels """
     def export(self):
@@ -2319,7 +2392,11 @@ class ShaderNodeVolumePrincipled(NodeParser):
             density_attr = self.get_input_default('Density Attribute')
             density_grid_node = volume.create_grid_sampler_node(
                 self.rpr_context, self.object, density_attr.data, 'density')
+
             if not density_grid_node:
+                if self.object.type == 'VOLUME' or volume.get_smoke_modifier(self.object):
+                    return self.create_node(pyrpr.MATERIAL_NODE_VOLUME, {pyrpr.MATERIAL_INPUT_DENSITY: 0.0})
+
                 return None
 
             color = self.get_input_value('Color')
@@ -2349,39 +2426,37 @@ class ShaderNodeVolumePrincipled(NodeParser):
                     emission_grid_node = volume.create_grid_sampler_node(
                         self.rpr_context, self.object, 'flame', None)
 
-                if not emission_grid_node:
-                    emission_grid_node = density_grid_node
-
-                lookup_image = self.rpr_context.create_image_data(None,
-                    np.array([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype=np.float32).reshape(-1, 1, 3))
-                emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
-                    pyrpr.MATERIAL_INPUT_DATA: lookup_image,
-                    pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
-                    pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-                    pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-                })
-
-                if enabled(blackbody_intensity):
-                    temperature = self.get_input_value('Temperature')
-                    blackbody_tint = self.get_input_value('Blackbody Tint')
-
-                    blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
-                        pyrpr.MATERIAL_INPUT_KELVIN: temperature,
-                        pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                if emission_grid_node:
+                    lookup_image = self.rpr_context.create_image_data(None,
+                        np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32).reshape(-1, 1, 3))
+                    emission_image_node = self.create_node(pyrpr.MATERIAL_NODE_IMAGE_TEXTURE, {
+                        pyrpr.MATERIAL_INPUT_DATA: lookup_image,
+                        pyrpr.MATERIAL_INPUT_UV: emission_grid_node,
+                        pyrpr.MATERIAL_INPUT_WRAP_U: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
+                        pyrpr.MATERIAL_INPUT_WRAP_V: pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
                     })
 
-                    emission = emission_image_node * blackbody_node * blackbody_intensity * \
-                               blackbody_tint
+                    if enabled(blackbody_intensity):
+                        temperature = self.get_input_value('Temperature')
+                        blackbody_tint = self.get_input_value('Blackbody Tint')
 
-                    # additional multiplication to be corresponded with cycles
-                    emission *= temperature * 0.005
+                        blackbody_node = self.create_node(pyrpr.MATERIAL_NODE_BLACKBODY, {
+                            pyrpr.MATERIAL_INPUT_KELVIN: temperature,
+                            pyrpr.MATERIAL_INPUT_TEMPERATURE: 1.0,
+                        })
 
-                else:
-                    emission_color = self.get_input_value('Emission Color')
+                        emission = emission_image_node * blackbody_node * blackbody_intensity * \
+                                   blackbody_tint
 
-                    emission = emission_image_node * emission_color * emission_strength
+                        # additional multiplication to be corresponded with cycles
+                        emission *= temperature * 0.005
 
-                rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
+                    else:
+                        emission_color = self.get_input_value('Emission Color')
+
+                        emission = emission_image_node * emission_color * emission_strength
+
+                    rpr_node.set_input(pyrpr.MATERIAL_INPUT_EMISSION, emission)
 
             return rpr_node
 
@@ -2636,3 +2711,26 @@ class ShaderNodeEeveeSpecular(NodeParser):
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_COATING_NORMAL, normal)
 
         return rpr_node
+
+
+class ShaderNodeBevel(NodeParser):
+    def export(self):
+        samples = self.node.samples
+        radius = self.get_input_value('Radius')
+        normal = self.get_input_link('Normal')
+
+        if radius.is_zero():
+            return self.get_input_normal('Normal')
+
+        bevel = self.create_node(pyrpr.MATERIAL_NODE_ROUNDED_CORNER, {
+            pyrpr.MATERIAL_INPUT_SAMPLES: samples,
+            pyrpr.MATERIAL_INPUT_RADIUS: radius,
+        })
+
+        if normal is None:
+            return bevel
+
+        return (bevel + normal).normalize()
+
+    def export_hybrid(self):
+        return None

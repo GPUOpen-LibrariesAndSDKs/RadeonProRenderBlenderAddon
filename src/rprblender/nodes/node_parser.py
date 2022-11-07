@@ -112,11 +112,11 @@ class BaseNodeParser(metaclass=ABCMeta):
         if isinstance(val, (int, float)):
             return float(val)
 
-        if len(val) in (3, 4):
-            return tuple(val)
-
         if isinstance(val, str):
             return val
+
+        if len(val) in (3, 4):
+            return tuple(val)
 
         raise TypeError("Unknown value type to pass to rpr", val)
 
@@ -161,7 +161,7 @@ class BaseNodeParser(metaclass=ABCMeta):
             result = self._export_node(link.from_node, link.from_socket)
 
             # check if result type is allowed by acceptance filter
-            if accepted_type and not isinstance(result, accepted_type):
+            if link.from_node.bl_idname == 'NodeUndefined' or accepted_type and not isinstance(result, accepted_type):
                 return None
 
             return result
@@ -281,7 +281,7 @@ class BaseNodeParser(metaclass=ABCMeta):
         if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
-            rpr_node.set_name(str(node_key))
+            rpr_node.set_name(self.material_key[0])
 
         return rpr_node
 
@@ -313,7 +313,7 @@ class NodeParser(BaseNodeParser):
         if isinstance(rpr_node, pyrpr.MaterialNode):
             node_key = key(self.material_key, self.node, self.socket_out, self.group_nodes)
             self.rpr_context.set_material_node_key(node_key, rpr_node)
-            rpr_node.set_name(str(node_key))
+            rpr_node.set_name(self.material_key[0])
 
         return rpr_node
 
@@ -505,6 +505,15 @@ class RuleNodeParser(NodeParser):
             return self._export_node_rule_by_key(node_rule_key)
 
         return self.export()
+
+    def export_hybridpro(self):
+        """ Looking for base node_rule_key = 'hybridpro:<socket_out.name> """
+
+        node_rule_key = 'hybridpro:' + self.socket_out.name
+        if node_rule_key in self.nodes:
+            return self._export_node_rule_by_key(node_rule_key)
+
+        return self.export_hybrid()
 
 
 def get_node_parser_class(node_idname: str):

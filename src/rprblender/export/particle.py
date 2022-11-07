@@ -101,18 +101,10 @@ def sync(rpr_context, emitter: bpy.types.Object):
 
             # do motion blur.
             if rpr_context.do_motion_blur:
-                if hasattr(instance, 'set_motion_transform'):
-                    prev_loc = mathutils.Matrix.Translation(particle.prev_location)
-                    prev_mat = np.array(prev_loc @ rot.to_matrix().to_4x4() @ scale,
-                                        dtype=np.float32).reshape(4, 4)
-                    instance.set_motion_transform(prev_mat)
-                else:
-                    velocity = (particle.location[i] - particle.prev_location[i] for i in range(3))
-                    instance.set_linear_motion(*velocity)
-
-                # TODO angular motion doesn't work right.
-                #rotation = (particle.rotation[i] - particle.prev_rotation[i] for i in range(4))
-                #instance.set_angular_motion(*rotation)
+                prev_loc = mathutils.Matrix.Translation(particle.prev_location)
+                prev_mat = np.array(prev_loc @ rot.to_matrix().to_4x4() @ scale,
+                                    dtype=np.float32).reshape(4, 4)
+                instance.set_motion_transform(prev_mat)
 
 
 def sync_update(rpr_context, emitter: bpy.types.Object,
