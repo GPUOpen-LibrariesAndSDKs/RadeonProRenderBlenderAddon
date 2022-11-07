@@ -23,7 +23,7 @@ from nodeitems_builtins import (
     ShaderNodeCategory,
 )
 
-from rprblender.utils import is_rpr_active
+from rprblender.utils import is_rpr_active, BLENDER_VERSION
 
 
 class RPR_ShaderNodeCategory(NodeCategory):
@@ -35,6 +35,18 @@ class RPR_ShaderNodeCategory(NodeCategory):
 def sorted_items(items:list):
     items.sort(key=lambda x: x.label)
     return items
+
+def get_current_convert_nodes():
+    nodes = []
+    if BLENDER_VERSION >= '3.3':
+        nodes.extend([NodeItem('ShaderNodeSeparateColor'),
+                      NodeItem('ShaderNodeCombineColor')])
+    else:
+        nodes.extend([NodeItem('ShaderNodeSeparateRGB'),
+                      NodeItem('ShaderNodeSeparateHSV'),
+                      NodeItem('ShaderNodeCombineRGB'),
+                      NodeItem('ShaderNodeCombineHSV')])
+    return nodes
 
 node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=sorted_items([
@@ -50,6 +62,7 @@ node_categories = [
         NodeItem('ShaderNodeVolumeInfo'),
         NodeItem('RPRShaderProceduralUVNode'),
         NodeItem('RPRShaderNodeLookup'),
+        NodeItem('ShaderNodeBevel'),
     ])),
     RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=sorted_items([
         NodeItem('ShaderNodeOutputMaterial'),
@@ -67,6 +80,7 @@ node_categories = [
         NodeItem('RPRShaderNodePassthrough'),
         NodeItem('RPRShaderNodeLayered'),
         NodeItem('RPRShaderNodeToon'),
+        NodeItem('RPRShaderNodeDoublesided'),
         NodeItem('ShaderNodeBsdfAnisotropic'),
         NodeItem('ShaderNodeBsdfDiffuse'),
         NodeItem('ShaderNodeBsdfGlass'),
@@ -104,16 +118,13 @@ node_categories = [
         NodeItem('ShaderNodeBlackbody'),
         NodeItem('ShaderNodeValToRGB'),
         NodeItem('ShaderNodeCombineXYZ'),
-        NodeItem('ShaderNodeCombineRGB'),
-        NodeItem('ShaderNodeCombineHSV'),
         NodeItem('ShaderNodeMapRange'),
         NodeItem('ShaderNodeMath'),
         NodeItem('ShaderNodeRGBToBW'),
-        NodeItem('ShaderNodeSeparateRGB'),
         NodeItem('ShaderNodeSeparateXYZ'),
-        NodeItem('ShaderNodeSeparateHSV'),
         NodeItem('ShaderNodeVectorMath'),
         NodeItem('RPRValueNode_Math'),
+        *get_current_convert_nodes(),
     ])),
     RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
         NodeItem('NodeReroute'),
@@ -158,6 +169,7 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory([
     rpr_nodes.RPRShaderNodeDiffuse,
     rpr_nodes.RPRShaderNodePassthrough,
     rpr_nodes.RPRShaderNodeBlend,
+    rpr_nodes.RPRShaderNodeDoublesided,
     rpr_nodes.RPRShaderNodeEmissive,
     rpr_nodes.RPRShaderNodeNormalMap,
     rpr_nodes.RPRShaderNodeBumpMap,

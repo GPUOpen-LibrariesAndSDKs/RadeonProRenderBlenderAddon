@@ -32,10 +32,10 @@ def key(obj: bpy.types.Object, smoke_modifier):
 
 
 def get_transform(obj: bpy.types.Object):
-    # Set volume transform. Note: it should be scaled by 2.0
     transform = object.get_transform(obj)
     scale = np.identity(4, dtype=np.float32)
-    scale[0, 0], scale[1, 1], scale[2, 2] = 2.0, 2.0, 2.0
+    scale[0, 0], scale[1, 1], scale[2, 2] = (abs(obj.dimensions[i] / obj.scale[i]) if obj.scale[i] != 0 else 0.0
+                                             for i in range(3))
     return transform @ scale
 
 
@@ -49,14 +49,14 @@ def get_smoke_modifier(obj: bpy.types.Object):
                      if modifier.type == 'SMOKE' and modifier.smoke_type == 'DOMAIN'), None)
 
 
-def get_domain_resolution(domain):
+def get_domain_resolution(domain, grid_name):
     if BLENDER_VERSION >= '2.82':
         x, y, z = domain.domain_resolution
     else:
         amplify = domain.amplify if domain.use_high_resolution else 0
         x, y, z = ((amplify + 1) * i for i in domain.domain_resolution)
 
-    if domain.use_noise:
+    if domain.use_noise and grid_name not in ('velocity', 'heat'):
         # smoke noise upscale the basic domain resolution
         x, y, z = (domain.noise_scale * e for e in (x, y, z))
 
@@ -64,7 +64,6 @@ def get_domain_resolution(domain):
 
 
 def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
-    from . import openvdb
 
     grid = None
     smoke_modifier = get_smoke_modifier(obj)
@@ -75,17 +74,21 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         if len(domain.density_grid) == 0:
             return None
 
-        x, y, z = get_domain_resolution(domain)
         data = None
         if grid_name == 'color':
-            data = get_prop_array_data(domain.color_grid).reshape(x, y, z, -1)
+            data = get_prop_array_data(domain.color_grid).reshape(*get_domain_resolution(domain, grid_name), -1)
+            data = np.average(data[:, :, :, :3], axis=3)
+        elif grid_name == 'velocity':
+            data = get_prop_array_data(domain.velocity_grid).reshape(*get_domain_resolution(domain, grid_name), -1)
             data = np.average(data[:, :, :, :3], axis=3)
         elif grid_name == 'density':
-            data = get_prop_array_data(domain.density_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.density_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif grid_name == 'flame':
-            data = get_prop_array_data(domain.flame_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.flame_grid).reshape(*get_domain_resolution(domain, grid_name))
+        elif grid_name == 'heat':
+            data = get_prop_array_data(domain.heat_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif grid_name == 'temperature':
-            data = get_prop_array_data(domain.temperature_grid).reshape(x, y, z)
+            data = get_prop_array_data(domain.temperature_grid).reshape(*get_domain_resolution(domain, grid_name))
         elif default_grid_name:
             return create_grid_sampler_node(rpr_context, obj, default_grid_name, None)
 
@@ -98,13 +101,24 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         if not helper_lib.is_openvdb_support:
             return None
 
-        vdb_file = openvdb.get_volume_file_path(obj.data, 0)
+        if not obj.data.grids.is_loaded:
+            obj.data.grids.load()
+
+        vdb_file = obj.data.grids.frame_filepath
         if not vdb_file:  # nothing to export
             return None
 
         grids = helper_lib.vdb_read_grids_list(vdb_file)
         if grid_name not in grids:
+            obj.data.grids.unload()
             return None
+
+        # TODO: add support for float vector grid
+        if obj.data.grids[grid_name].channels != 1:
+            obj.data.grids.unload()
+            return None
+
+        obj.data.grids.unload()
 
         data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
         grid = rpr_context.create_grid_from_array_indices(*data['size'], data['values'], data['indices'])

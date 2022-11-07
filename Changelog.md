@@ -1,3 +1,33 @@
+# Version 3.5
+## New Features:
+- Support for Blender 3.3 and Blender 3.4 has been added, including support for the new hair system.
+- The RPR Interactive mode has been improved with the following developments:
+  - Better support for more shader node types;
+  - Even faster rendering with optimized settings out of the box;
+  - Hair rendering support;
+  - More AOVs supported;
+  - Support for OpenColorIO texture spaces;
+  - Shadow Catcher support;
+  - Per face materials are supported;
+  - IES lights are now supported.
+- A new Bevel Shader node has been added. This can be used to create small rounded edges on objects. In the physical world, objects rarely have completely sharp edges like polygons. Using this node will enhance the details of artists’ renders.
+- Support for the Double Sided node has been added, which allows attaching a different shader to each side of an object mesh.
+- The “Pixel Filter” (anti-aliasing) setting for the RPR Final mode has been re-enabled.
+
+## Bugs Fixed:
+- Contour outline settings using the “UV threshold” for setting the Outline have been fixed.
+- The Temperature, Velocity and Heat settings in the Principled Volume Shader node have been fixed. Attributes are now supported as well.
+- Fixed an issue where smoke simulations were scaled incorrectly — fixed.
+- OpenVDB sequences of files are now supported.
+- Hair Particle type exporting has been optimized.
+- The issue has been fixed where a “halo” could appear around objects with a shadow catcher or reflection catcher attached.
+- Emissive objects with transparent shadows could cast the wrong shadow — fixed.
+- Reflection catcher was not “catching” emission lights — fixed.
+
+## Known Issues:
+- In some scenes, the hardware feature Smart Access Memory can cause slower renders with the RPR Final mode.
+
+
 # Version 3.4
 ## New Features:
 - Support for Blender 3.1 and 3.2 has been added.

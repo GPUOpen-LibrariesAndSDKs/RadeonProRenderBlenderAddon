@@ -21,6 +21,7 @@ import bpy_extras
 
 from rprblender import utils
 from rprblender.engine import context
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 
 from rprblender.utils import logging
 from rprblender.utils import get_sequence_frame_file_path
@@ -122,7 +123,7 @@ def sync(rpr_context, image: bpy.types.Image, use_color_space=None, frame_number
 
 def set_image_gamma(rpr_image, image, color_space, rpr_context):
    # RPRImageTexture node color space names are in caps, unlike in Blender
-    if isinstance(rpr_context, context.RPRContext2):
+    if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
         rpr_image.set_colorspace(color_space)
     elif color_space in ('sRGB', 'BD16', 'Filmic Log', 'SRGB'):
         rpr_image.set_gamma(2.2)
@@ -185,7 +186,7 @@ class ImagePixels:
         rpr_image = rpr_context.create_image_data(None, np.ascontiguousarray(np.flipud(pixels)))
         rpr_image.set_name(self.name)
 
-        if isinstance(rpr_context, context.RPRContext2):
+        if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
             rpr_image.set_colorspace(self.color_space)
         elif self.color_space in ('sRGB', 'BD16', 'Filmic Log'):
             rpr_image.set_gamma(2.2)
