@@ -17,6 +17,8 @@ import threading
 import pyrpr
 import pyrpr2
 
+from rprblender.utils.conversion import get_cryptomatte_name, get_cryptomatte_hash
+
 class RPRContext:
     """ Manager of pyrpr calls """
 
@@ -60,6 +62,7 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
+        self.object_hashes = {}
         self.curves = {}
         self.volumes = {}
 
@@ -72,6 +75,7 @@ class RPRContext:
 
         # TODO: probably better make nodes more close to materials in one data structure
         self.material_nodes = {}
+        self.material_nodes_hashes = {}
         self.materials = {}
 
         self.images = {}
@@ -219,6 +223,28 @@ class RPRContext:
 
         if composite:
             self._enable_catchers()
+
+    def sync_cryptomatte_hash(self):
+        view_layer = self.blender_data['depsgraph'].view_layer
+
+        if view_layer.rpr.crytomatte_aov_material:
+            self._sync_mat_hash()
+
+        if view_layer.rpr.crytomatte_aov_object:
+            self._sync_obj_hash()
+
+    def _sync_obj_hash(self):
+        for key, value in self.objects.items():
+            if not isinstance(value, (pyrpr.Mesh, pyrpr.Instance)):
+                continue
+
+            key = str(key)
+            self.object_hashes[get_cryptomatte_name(key)] = get_cryptomatte_hash(key)
+
+    def _sync_mat_hash(self):
+        for key in self.material_nodes.keys():
+            key = str(key[0][0])
+            self.material_nodes_hashes[get_cryptomatte_name(key)] = get_cryptomatte_hash(key)
 
     def sync_catchers(self, use_transparent_background=None):
         prev_state = (self.use_shadow_catcher, self.use_reflection_catcher,
@@ -441,6 +467,11 @@ class RPRContext:
         self.curves[key] = curve
         return curve
 
+    def create_curve_object(self, key, control_points, points_radii, uvs):
+        curve = self._Curve(self.context, control_points, points_radii, uvs)
+        self.objects[key] = curve
+        return curve
+
     def create_hetero_volume(self, key):
         volume = self._HeteroVolume(self.context)
         self.volumes[key] = volume
@@ -632,6 +663,9 @@ class RPRContext2(RPRContext):
 
     def set_render_update_callback(self, func):
         self.context.set_render_update_callback(func)
+
+    def set_time_callback(self, callback_type, func):
+        self.context.set_time_callback(callback_type, func)
 
     def create_tiled_image(self, key):
         image = pyrpr2.TiledImage(self.context)

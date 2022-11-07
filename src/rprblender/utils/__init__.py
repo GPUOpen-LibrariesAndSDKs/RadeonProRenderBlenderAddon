@@ -233,8 +233,7 @@ def clear_temp_dir():
 
 
 def get_data_from_collection(collection, attribute, size, dtype=np.float32):
-    len = np.prod(size)
-    data = np.zeros(len, dtype=dtype)
+    data = np.zeros(np.prod(size), dtype=dtype)
     collection.foreach_get(attribute, data)
     return data.reshape(size)
 

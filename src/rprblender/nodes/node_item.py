@@ -101,7 +101,8 @@ class NodeItem:
                                        lambda a, b: a / b if not math.isclose(b, 0.0) else 0.0)
 
     def __mod__(self, other):
-        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_MOD, lambda a, b: a % b)
+        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_MOD,
+                                       lambda a, b: a % b if not math.isclose(b, 0.0) else 0.0)
 
     def __pow__(self, other):
         return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_POW, lambda a, b: a ** b)
@@ -300,7 +301,29 @@ class NodeItem:
 
         p = abs((h + K).fract() * 6.0 - K_w)
         return s.blend(K_x, (p-K_x).clamp()) * v
-    
+
+    def hsl_to_rgb(self):
+        ''' convert hsv back to rgb.
+            see https://github.com/blender/blender/blob/master/intern/cycles/kernel/osl/shaders/node_color.h#L181 '''
+        h = self.get_channel(0)
+        s = self.get_channel(1)
+        l = self.get_channel(2)
+
+        nr = abs(h * 6.0 - 3.0) - 1.0;
+        ng = 2.0 - abs(h * 6.0 - 2.0);
+        nb = 2.0 - abs(h * 6.0 - 4.0);
+
+        nr = nr.clamp(0.0, 1.0);
+        nb = nb.clamp(0.0, 1.0);
+        ng = ng.clamp(0.0, 1.0);
+
+        chroma = (1.0 - abs(2.0 * l - 1.0)) * s;
+        nr = (nr - 0.5) * chroma + l
+        ng = (ng - 0.5) * chroma + l
+        nb = (nb - 0.5) * chroma + l
+
+        return nr.combine(ng, nb)
+
     def rgb_to_hsv(self):
         ''' convert rgb back to hsv
             see cycles osl code for reference '''
@@ -322,6 +345,29 @@ class NodeItem:
         v = mx
 
         return h.combine(s, v)
+
+    def rgb_to_hsl(self):
+        ''' convert rgb back to hsl
+            see https://github.com/blender/blender/blob/master/intern/cycles/kernel/osl/shaders/node_color.h#L152 '''
+        r = self.get_channel(0)
+        g = self.get_channel(1)
+        b = self.get_channel(2)
+
+        mx = r.max(g.max(b))
+        mn = r.min(g.min(b))
+        df = mx - mn
+        sm = mx + mn
+
+        h = (mx == mn).if_else(0.0,
+            (mx == r).if_else((g - b) / df + 6.0,
+            (mx == g).if_else((b - r) / df + 2.0,
+                              (r - g) / df + 4.0)))
+        h = (h % 6.0) / 6.0
+
+        l = sm / 2.0
+        s = (l <= 0.5).if_else(df / sm, df / (1.999 - sm))  # replaced 2.0 with 1.999 to avoid black pixels
+
+        return h.combine(s, l)
 
     def normalize(self):
         norm = self._arithmetic_helper(None, pyrpr.MATERIAL_NODE_OP_NORMALIZE3, lambda a: a)

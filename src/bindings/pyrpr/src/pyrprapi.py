@@ -666,6 +666,7 @@ if __name__=='__main__':
                  'RPR_MESH_UPDATE_FUNC_NAME',
                  'RPR_SHAPE_SET_TRANSFORM_BATCH_FUNC_NAME',
                  'rprDirectionalLightSetRasterShadowSplits',
+                 'rprContextCreateMeshInstanceWithUniqueAttributes',
                  'RPR_CONTEXT_CREATE_MESH_EDITABLE_FUNC_NAME',
                  'rprContextCreateCompressedImage_func',
                  'rpr_compressed_format',
@@ -678,6 +679,8 @@ if __name__=='__main__':
                  'RPR_MATERIALX_SET_FILE_FUNC_NAME',
                  'RPR_MATERIALX_SET_FILE_AS_BUFFER_FUNC_NAME',
                  'rpr_vector_component_type',
+                 'rpr_format_ext',
+                 'RPR_CONTEXT_CREATE_IMAGE_FROM_EXTERNAL_HANDLE',
                  ]
     )
 

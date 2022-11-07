@@ -491,14 +491,8 @@ class Shape(Object):
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
-    def set_linear_motion(self, x, y, z):
-        ShapeSetLinearMotion(self, x, y, z)
-
-    def set_angular_motion(self, x, y, z, w):
-        ShapeSetAngularMotion(self, x, y, z, w)
-
-    def set_scale_motion(self, x, y, z):
-        ShapeSetScaleMotion(self, x, y, z)
+    def set_motion_transform(self, transform:np.array, transpose=True, time_index=1): # Blender needs matrix to be transposed
+        ShapeSetMotionTransform(self, transpose, ffi.cast('float*', transform.ctypes.data), time_index)
 
     def set_shadow_catcher(self, shadow_catcher):
         ShapeSetShadowCatcher(self, shadow_catcher)
@@ -850,8 +844,8 @@ class Camera(Object):
         CameraSetMode(self, mode)
 
     def look_at(self, pos, at, up):
-        CameraLookAt(self, pos[0], pos[1], pos[2], 
-                     at[0], at[1], at[2], 
+        CameraLookAt(self, pos[0], pos[1], pos[2],
+                     at[0], at[1], at[2],
                      up[0], up[1], up[2])
 
     def set_lens_shift(self, shiftx, shifty):
@@ -880,11 +874,8 @@ class Camera(Object):
         CameraSetOrthoWidth(self, width)
         CameraSetOrthoHeight(self, height)
 
-    def set_angular_motion(self, x, y, z, w):
-        CameraSetAngularMotion(self, x, y, z, w)
-
-    def set_linear_motion(self, x, y, z):
-        CameraSetLinearMotion(self, x, y, z)
+    def set_motion_transform(self, transform:np.array, transpose=True, time_index = 1): # Blender needs matrix to be transposed
+        CameraSetMotionTransform(self, transpose, ffi.cast('float*', transform.ctypes.data), time_index)
 
     def set_exposure(self, exposure):
         CameraSetExposure(self, exposure)
@@ -1336,14 +1327,8 @@ class AreaLight(Light):
     def set_group_id(self, group_id):
         self.mesh.set_light_group_id(group_id)
 
-    def set_linear_motion(self, x, y, z):
-        self.mesh.set_linear_motion(x, y, z)
-
-    def set_angular_motion(self, x, y, z, w):
-        self.mesh.set_angular_motion(x, y, z, w)
-
-    def set_scale_motion(self, x, y, z):
-        self.mesh.set_scale_motion(x, y, z)
+    def set_motion_transform(self, transform:np.array, transpose=True, time_index=1):
+        self.mesh.set_motion_transform(transform, transpose, time_index)
 
 
 class Image(Object):

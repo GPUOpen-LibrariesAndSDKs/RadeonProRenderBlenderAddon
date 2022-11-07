@@ -22,6 +22,7 @@ class Context(pyrpr.Context):
     def __init__(self, flags: [set, int], props: list = None, use_cache=True):
         super().__init__(flags, props, use_cache)
         self.render_update_callback = None
+        self.time_callbacks = {}
 
     @classmethod
     def load_devices(cls):
@@ -43,6 +44,19 @@ class Context(pyrpr.Context):
             pyrpr.ContextSetParameterByKeyPtr(self, pyrpr.CONTEXT_RENDER_UPDATE_CALLBACK_FUNC,
                                               pyrpr.ffi.NULL)
             self.render_update_callback = None
+
+    def set_time_callback(self, callback_type, callback_func):
+        if callback_func:
+            @pyrpr.ffi.callback("void(float, void *)")
+            def time_callback(timems, data):
+                callback_func(timems)
+
+            pyrpr.ContextSetParameterByKeyPtr(self, callback_type, time_callback)
+            self.time_callbacks[callback_type] = time_callback
+
+        else:
+            pyrpr.ContextSetParameterByKeyPtr(self, callback_type, pyrpr.ffi.NULL)
+            del self.time_callbacks[callback_type]
 
 
 class Camera(pyrpr.Camera):

@@ -38,6 +38,7 @@ from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
 from rprblender.engine import context
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 
 from rprblender.utils import logging
 log = logging.Log(tag='properties.render')
@@ -566,8 +567,16 @@ class RPR_RenderProperties(RPR_Properties):
             context_props.extend([
                 pyrpr.CONTEXT_CREATEPROP_HYBRID_VERTEX_MEMORY_SIZE, vertex_mem_size,
                 pyrpr.CONTEXT_CREATEPROP_HYBRID_ACC_MEMORY_SIZE, acc_mem_size])
-               
-        context_props.append(0) # should be followed by 0
+
+        #  this functionality requires additional memory on
+        #  both CPU and GPU even when no per-face materials set in scene.
+        #  checking has_multimaterial_object before enable CONTEXT_CREATEPROP_HYBRID_ENABLE_PER_FACE_MATERIALS.
+        if isinstance(rpr_context, RPRContextHybridPro):
+            if next((True for i in bpy.context.scene.objects
+                     if len(i.material_slots) > 1 and len([m for m in i.material_slots if m.material]) > 1), False):
+                context_props.extend([pyrpr.CONTEXT_CREATEPROP_HYBRID_ENABLE_PER_FACE_MATERIALS, pyrpr.ffi.new('int*', 1)])
+
+        context_props.append(0)  # should be followed by 0
 
         if self.trace_dump:
             if not os.path.isdir(self.trace_dump_folder):
@@ -592,6 +601,7 @@ class RPR_RenderProperties(RPR_Properties):
                 os.mkdir(self.texture_cache_dir)
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
+        if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
             # check for custom ocio setting and use it if exists
             ocio_config_path = os.path.join(utils.package_root_dir(),'ocio_config',
                                             utils.BLENDER_VERSION, 'config.ocio')
@@ -627,7 +637,7 @@ class RPR_RenderProperties(RPR_Properties):
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_RADIANCE_CLAMP, self.clamp_radiance if \
             self.use_clamp_radiance else sys.float_info.max)
 
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPISLON,
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPSILON,
                                          self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
@@ -643,11 +653,10 @@ class RPR_RenderProperties(RPR_Properties):
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """
         filter_type = getattr(pyrpr, f"FILTER_{self.pixel_filter}")
-        filter_radius = getattr(pyrpr, f"CONTEXT_IMAGE_FILTER_{self.pixel_filter}_RADIUS")
 
         res = False
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_IMAGE_FILTER_TYPE, filter_type)
-        res |= rpr_context.set_parameter(filter_radius, self.pixel_filter_width)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_IMAGE_FILTER_RADIUS, self.pixel_filter_width)
         return res
 
     def export_render_quality(self, rpr_context):

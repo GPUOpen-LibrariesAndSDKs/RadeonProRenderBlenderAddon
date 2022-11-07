@@ -20,7 +20,6 @@ import bpy
 
 import pyrpr
 from rprblender.utils import helper_lib
-from rprblender.utils import get_sequence_frame_file_path
 from rprblender.engine.context import RPRContext2
 
 from . import object, material, volume
@@ -43,59 +42,6 @@ def get_transform(obj: bpy.types.Object):
 
     # result is: object matrix * bound matrix
     return object.get_transform(obj) @ bound_mat
-
-
-def sequence_frame_number(scene_frame, mode, start, duration, offset):
-    """ Get sequence frame number from sequence settings and current scene frame """
-    frame = scene_frame - start + 1
-    if mode == 'CLIP':
-        if frame < 1 or frame > duration:
-            return None
-
-    elif mode == 'EXTEND':
-        frame = min(max(frame, 1), duration)
-
-    elif mode == 'REPEAT':
-        frame %= duration
-        if frame < 0:
-            frame += duration
-        if frame == 0:
-            frame = duration
-
-    else:  # mode == 'PING_PONG'
-        pingpong_duration = duration * 2 - 2
-        frame %= pingpong_duration
-        if frame < 0:
-            frame += pingpong_duration
-        if frame == 0:
-            frame = pingpong_duration
-        if frame > duration:
-            frame = duration * 2 - frame
-    frame += offset
-
-    return frame
-
-
-def get_volume_file_path(volume, scene_frame):
-    """ Get full file path for VDB grids data """
-    source_path = bpy.path.abspath(volume.filepath)
-
-    if not volume.is_sequence:  # use filename for non-sequence
-        if not os.path.exists(source_path):
-            log.warn(f"Unable to find OpenVDB file {source_path}")
-            return None
-
-        return source_path
-
-    # get VDB frame number for current scene frame
-    frame_duration = volume.frame_duration
-    frame_start = volume.frame_start
-    frame_offset = volume.frame_offset
-
-    mode = volume.sequence_mode
-
-    frame_number = sequence_frame_number(scene_frame, mode, frame_start, frame_duration, frame_offset)
-    return get_sequence_frame_file_path(source_path, frame_number)
 
 
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):

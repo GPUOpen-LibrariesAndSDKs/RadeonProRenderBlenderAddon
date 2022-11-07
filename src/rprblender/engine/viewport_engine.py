@@ -26,7 +26,6 @@ from bpy_extras import view3d_utils
 
 import pyrpr
 from .engine import Engine
-from . import image_filter
 
 from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
