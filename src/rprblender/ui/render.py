@@ -19,12 +19,13 @@ from . import RPR_Panel
 from rprblender import bl_info
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
-
+from . import icons
+from ..ui.icons import icon_manager
 
 class RPR_RENDER_PT_devices(RPR_Panel):
     bl_label = "Render Devices"
     bl_context = 'render'
-
+    
     def draw(self, context):
         settings = get_user_settings()
         devices = settings.final_devices
@@ -55,7 +56,10 @@ class RPR_RENDER_PT_devices(RPR_Panel):
             col = layout.column(align=True)
             for i, gpu_device in enumerate(pyrpr.Context.gpu_devices):
                 col.prop(devices, 'gpu_states', index=i, text=gpu_device['name'])
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_viewport_devices(RPR_Panel):
     bl_label = "Separate Viewport & Preview Devices"
@@ -102,7 +106,10 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
             col = layout.column(align=True)
             for i, gpu_device in enumerate(pyrpr.Context.gpu_devices):
                 col.prop(devices, 'gpu_states', index=i, text=gpu_device['name'])
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_limits(RPR_Panel):
     bl_label = "Sampling"
@@ -140,6 +147,9 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.enabled = context.view_layer.rpr.use_contour_render and rpr.render_quality == 'FULL2'
         col.prop(limits, 'contour_render_samples', slider=False)
 
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
     bl_label = "Viewport & Preview Sampling"
@@ -179,7 +189,10 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col.separator()
         col.prop(limits, 'preview_samples')
         col.prop(limits, 'preview_update_samples')
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_advanced(RPR_Panel):
     bl_label = "Advanced"
@@ -202,7 +215,10 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
             row = col.row(align=True)
             row.prop(limits, 'seed')
             row.prop(limits, 'anim_seed', text="", icon='TIME')
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_quality(RPR_Panel):
     """ This is a parent Panel for (RPR_RENDER_PT_max_ray_depth, RPR_RENDER_PT_light_clamping)"""
@@ -226,6 +242,10 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         if rpr.render_quality == 'FULL2':
             self.layout.prop(rpr, 'texture_compression')
 
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
     bl_label = "Max Ray Depth"
@@ -247,7 +267,10 @@ class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
         col.prop(rpr_scene, 'shadow_depth', slider=True)
 
         self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
     bl_label = "Node Baking"
@@ -261,7 +284,10 @@ class RPR_RENDER_PT_bake_textures(RPR_Panel):
 
         self.layout.prop(settings, 'bake_resolution')
         self.layout.operator('rpr.bake_all_nodes')
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_pixel_filter(RPR_Panel):
     bl_label = "Pixel Filter"
@@ -279,15 +305,18 @@ class RPR_RENDER_PT_pixel_filter(RPR_Panel):
 
         col = self.layout.column()
         col.prop(rpr_scene, 'pixel_filter_width')
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_light_clamping(RPR_Panel):
     bl_label = "Clamping"
     bl_parent_id = 'RPR_RENDER_PT_quality'
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, 'use_clamp_radiance', text="")
-
+        self.layout.prop(context.scene.rpr, 'use_clamp_radiance', text="", icon_value=icon_manager.get_icon_id("logo"))
+    
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
@@ -310,7 +339,7 @@ class RPR_RENDER_PT_render_stamp(RPR_Panel):
         return super().poll(context) and utils.IS_WIN
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.rpr, 'use_render_stamp', text="")
+        self.layout.prop(context.scene.rpr, 'use_render_stamp', text="", icon_value=icon_manager.get_icon_id("logo"))
 
     def draw(self, context):
         layout = self.layout
@@ -326,7 +355,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
-        self.layout.prop(context.scene.render, 'use_motion_blur', text="")
+        self.layout.prop(context.scene.render, 'use_motion_blur', text="", icon_value=icon_manager.get_icon_id("logo"))
 
     def draw(self, context):
         layout = self.layout
@@ -360,7 +389,10 @@ class RPR_RENDER_PT_film_transparency(RPR_Panel):
         scene = context.scene
 
         layout.prop(scene.render, "film_transparent", text="Transparent Background")
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_help_about(RPR_Panel):
     ''' Help/About UI panel '''
@@ -399,7 +431,10 @@ class RPR_RENDER_PT_help_about(RPR_Panel):
         row.alignment = 'CENTER'
         row.operator('rpr.op_open_web_page', text="Community").page = 'community'
         row.operator('rpr.op_open_web_page', text="Bug Reports").page = 'bug_reports'
-
+    
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
 
 class RPR_RENDER_PT_debug(RPR_Panel):
     ''' Sub panel under Help/About panel with debug options '''
@@ -431,3 +466,6 @@ class RPR_RENDER_PT_debug(RPR_Panel):
         layout.row().prop(rpr, 'texture_cache_dir')
         layout.row().operator('rpr.op_clear_tex_cache', text='Clear Cache')
 
+    def draw_header(self, context):
+        layout = self.layout
+        layout.label(text="", icon_value=icon_manager.get_icon_id("logo"))
