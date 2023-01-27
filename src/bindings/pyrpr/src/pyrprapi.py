@@ -681,6 +681,7 @@ if __name__=='__main__':
                  'rpr_vector_component_type',
                  'rpr_format_ext',
                  'RPR_CONTEXT_CREATE_IMAGE_FROM_EXTERNAL_HANDLE',
+                 'rprGetSupportedDevices',
                  ]
     )
 
