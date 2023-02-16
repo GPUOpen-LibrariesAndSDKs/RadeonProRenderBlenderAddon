@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import numpy as np
 import bpy
 import pyrpr
 
@@ -19,7 +20,7 @@ from .engine import Engine
 from rprblender.export import object, camera, world
 from .context import RPRContext2
 
-from rprblender.utils import logging
+from rprblender.utils import logging, BLENDER_VERSION
 log = logging.Log(tag='PreviewEngine')
 
 
@@ -79,8 +80,16 @@ class PreviewEngine(Engine):
                 self.rpr_context.render(restart=(sample == 0))
                 self.rpr_context.resolve()
 
-                image = self.rpr_context.get_image()
-                result.layers[0].passes.foreach_set('rect', image.flatten())
+                image = self.rpr_context.get_image().flatten()
+                if BLENDER_VERSION >= '3.4':
+                    # before version 3.4 result.layers[0].passes == ['Combined']
+                    # since version 3.4 result.layers[0].passes == ['Combined', 'Depth']
+                    # we need to add Depth AOV to keep correct array size while using foreach_set
+                    image = np.concatenate(
+                        (image, self.rpr_context.get_image(pyrpr.AOV_DEPTH).flatten())
+                    )
+
+                result.layers[0].passes.foreach_set('rect', image)
                 self.rpr_engine.update_result(result)
 
                 sample += update_samples
