@@ -531,6 +531,19 @@ class RPR_RenderProperties(RPR_Properties):
         default=True,
     )
 
+    viewport_upscale_quality: EnumProperty(
+        name="Viewport Upscale Quality",
+        description="Viewport upscaler quality mode",
+        items=(
+            ('FSR2_QUALITY_ULTRA_QUALITY', "Ultra Quality", "Ultra Quality"),
+            ('FSR2_QUALITY_MODE_QUALITY', "Quality", "Quality"),
+            ('FSR2_QUALITY_MODE_BALANCE', "Balance", "Balance"),
+            ('FSR2_QUALITY_MODE_PERFORMANCE', "Performance", "Performance"),
+            ('FSR2_QUALITY_MODE_ULTRA_PERFORMANCE', "Ultra Performance", "Ultra Performance"),
+        ),
+        default='FSR2_QUALITY_MODE_BALANCE',
+    )
+
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
         """ Initializes rpr_context by device settings """
 

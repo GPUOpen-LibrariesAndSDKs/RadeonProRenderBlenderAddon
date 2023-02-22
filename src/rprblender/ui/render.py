@@ -174,7 +174,14 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col.prop(settings, 'use_gl_interop')
 
         col.prop(rpr, 'viewport_denoiser')
-        col.prop(rpr, 'viewport_upscale')
+        col1 = col.column()
+
+        col1.prop(rpr, 'viewport_upscale')
+        if rpr.render_quality == 'HYBRIDPRO':
+            col1.enabled = rpr.viewport_denoiser
+            col2 = col.column()
+            col2.enabled = rpr.viewport_upscale and rpr.viewport_denoiser
+            col2.prop(rpr, 'viewport_upscale_quality')
 
         col.separator()
         col.prop(limits, 'preview_samples')
