@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import bpy
+
 from . import viewport_engine
 from . import context_hybridpro
 
@@ -62,13 +64,26 @@ class ViewportEngine(viewport_engine.ViewportEngine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PT_DENOISER,
                                        pyrpr.DENOISER_SVGF if self.is_denoised else pyrpr.DENOISER_NONE)
 
+    def setup_upscale_filter(self, settings):
+        res = False
+        scene = bpy.context.scene
+
+        # UPSCALER_FSR2 works only if denoiser is enabled
+        self.is_upscaled = settings['enable'] and self.is_denoised
+        if self.is_upscaled:
+            res |= self.rpr_context.set_parameter(pyrpr.CONTEXT_UPSCALER, pyrpr.UPSCALER_FSR2)
+            res |= self.rpr_context.set_parameter(pyrpr.CONTEXT_FSR2_QUALITY,
+                                                 getattr(pyrpr, scene.rpr.viewport_upscale_quality))
+        else:
+            res |= self.rpr_context.set_parameter(pyrpr.CONTEXT_UPSCALER, pyrpr.UPSCALER_NONE)
+
+        return res
+
     def notify_status(self, info, status):
         # Adding " | Denoised" to status message
         if self.is_denoised and status in ("Render", "Rendering Done") and info != "Starting...":
-            upscaled_index = info.rfind(" | Upscaled")
-            if upscaled_index >= 0:
-                info = info[:upscaled_index] + " | Denoised" + info[upscaled_index:]
-            else:
-                info += " | Denoised"
+            info += " | Denoised"
+            if self.is_upscaled:
+                info += " | Upscaled"
 
         super().notify_status(info, status)
