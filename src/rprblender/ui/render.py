@@ -117,7 +117,7 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         self.layout.prop(rpr, 'final_render_mode')
         self.layout.prop(rpr, 'final_render_quality')
         self.layout.prop(rpr, 'final_render_denoise')
-
+        self.layout.separator_spacer()
         self.layout.prop(rpr, 'viewport_render_mode')
         self.layout.prop(rpr, 'viewport_render_quality')
         self.layout.prop(rpr, 'viewport_upscale')
