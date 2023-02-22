@@ -104,6 +104,25 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
                 col.prop(devices, 'gpu_states', index=i, text=gpu_device['name'])
 
 
+class RPR_RENDER_PT_quality(RPR_Panel):
+    bl_label = "Quality"
+    bl_context = 'render'
+    
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        rpr = context.scene.rpr
+
+        self.layout.prop(rpr, 'final_render_mode')
+        self.layout.prop(rpr, 'final_render_quality')
+        self.layout.prop(rpr, 'final_render_denoise')
+
+        self.layout.prop(rpr, 'viewport_render_mode')
+        self.layout.prop(rpr, 'viewport_render_quality')
+        self.layout.prop(rpr, 'viewport_upscale')
+
+
 class RPR_RENDER_PT_limits(RPR_Panel):
     bl_label = "Sampling"
     bl_context = 'render'

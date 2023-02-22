@@ -482,22 +482,74 @@ class RPR_RenderProperties(RPR_Properties):
             ('LOW', "Low", "Low render quality"),
         ]
 
-    def update_render_quality(self, context):
+    def update_final_render_mode(self, context):
         context.view_layer.update_render_passes()
 
-        if self.render_quality in ('FULL', 'FULL2'):
+        if self.final_render_mode in ('FULL', 'FULL2'):
             return
 
         settings = get_user_settings()
         settings.final_devices.cpu_state = False
-        settings.viewport_devices.cpu_state = False
-
-    render_quality: EnumProperty(
-        name="Render Quality",
-        description="RPR render quality",
+        
+    final_render_mode: EnumProperty(
+        name="Render Mode",
+        description="RPR final render mode",
         items=render_quality_items,
         default='FULL2',
-        update=update_render_quality
+        update=update_final_render_mode
+    )
+
+    final_render_denoise: BoolProperty(
+        name="Denoise",
+        description="Enable use denoising",
+        default=True,
+    )
+
+    def update_viewport_render_mode(self, context):
+        context.view_layer.update_render_passes()
+
+        if self.viewport_render_mode in ('FULL', 'FULL2'):
+            return
+
+        settings = get_user_settings()
+        settings.viewport_devices.cpu_state = False
+
+    viewport_render_mode: EnumProperty(
+        name="Viewport Mode",
+        description="RPR viewport mode",
+        items=render_quality_items,
+        default='HYBRIDPRO',
+        update=update_viewport_render_mode
+    )
+
+    quality_presets = [
+            ('ACCURATE', "Accurate", "High render quality"),
+            ('MEDIUM', "Medium", "Medium render quality"),
+            ('FAST', "Fast", "Fast render quality"),
+    ]
+
+    def update_final_render_preset(self, context):
+        '''TODO update settings based on preset value'''
+        pass
+        
+    final_render_quality: EnumProperty(
+        name="Quality",
+        description="RPR final render quality preset",
+        items=quality_presets,
+        default='ACCURATE',
+        update=update_final_render_preset
+    )
+
+    def update_viewport_render_preset(self, context):
+        '''TODO update settings based on preset value'''
+        pass
+        
+    viewport_render_quality: EnumProperty(
+        name="Quality",
+        description="RPR viewport render quality preset",
+        items=quality_presets,
+        default='FAST',
+        update=update_viewport_render_preset
     )
 
     hybrid_low_mem: BoolProperty(
