@@ -125,6 +125,9 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
 
     area = 0.0
     light_key = object.key(obj) if not instance_key else instance_key
+    rpr_light = rpr_context.objects.get(light_key, None)
+    if rpr_light:
+        return rpr_light
 
     if light.type == 'POINT':
         if light.rpr.ies_file:
@@ -185,6 +188,8 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, instance_key=None):
     rpr_light.set_group_id(int(light.rpr.group))
 
     rpr_context.scene.attach(rpr_light)
+
+    return rpr_light
 
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform) -> bool:

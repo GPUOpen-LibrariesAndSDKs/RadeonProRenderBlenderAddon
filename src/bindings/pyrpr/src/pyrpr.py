@@ -1160,6 +1160,8 @@ class MaterialNode(Object):
             MaterialNodeSetInputBufferDataByKey(self, name, value)
         elif isinstance(value, Grid):
             MaterialNodeSetInputGridDataByKey(self, name, value)
+        elif isinstance(value, Light):
+            MaterialNodeSetInputLightDataByKey(self, name, value)
         else:
             raise TypeError("Incorrect type for MaterialNodeSetInput*", self, name, value)
 
