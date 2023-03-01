@@ -32,21 +32,11 @@ class RPR_ShaderNodeCategory(NodeCategory):
         return context.scene.render.engine == "RPR"\
                and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
 
+
 def sorted_items(items:list):
     items.sort(key=lambda x: x.label)
     return items
 
-def get_current_convert_nodes():
-    nodes = []
-    if BLENDER_VERSION >= '3.3':
-        nodes.extend([NodeItem('ShaderNodeSeparateColor'),
-                      NodeItem('ShaderNodeCombineColor')])
-    else:
-        nodes.extend([NodeItem('ShaderNodeSeparateRGB'),
-                      NodeItem('ShaderNodeSeparateHSV'),
-                      NodeItem('ShaderNodeCombineRGB'),
-                      NodeItem('ShaderNodeCombineHSV')])
-    return nodes
 
 node_categories = [
     RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=sorted_items([
@@ -103,7 +93,9 @@ node_categories = [
         NodeItem('ShaderNodeBrightContrast'),
         NodeItem('ShaderNodeGamma'),
         NodeItem('ShaderNodeInvert'),
-        NodeItem('ShaderNodeMixRGB'),
+        NodeItem("ShaderNodeMix", label="Mix Color",
+                 settings={"data_type": "'RGBA'"}, poll=lambda cls: BLENDER_VERSION >= "3.4"),
+        NodeItem('ShaderNodeMixRGB', poll=lambda cls: BLENDER_VERSION < "3.4"),
         NodeItem('ShaderNodeRGBCurve'),
         NodeItem('ShaderNodeHueSaturation'),
     ])),
@@ -124,7 +116,13 @@ node_categories = [
         NodeItem('ShaderNodeSeparateXYZ'),
         NodeItem('ShaderNodeVectorMath'),
         NodeItem('RPRValueNode_Math'),
-        *get_current_convert_nodes(),
+        NodeItem("ShaderNodeMix", poll=lambda cls: BLENDER_VERSION >= "3.4"),
+        NodeItem('ShaderNodeSeparateColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
+        NodeItem('ShaderNodeCombineColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
+        NodeItem('ShaderNodeSeparateRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
+        NodeItem('ShaderNodeSeparateHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
+        NodeItem('ShaderNodeCombineRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
+        NodeItem('ShaderNodeCombineHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
     ])),
     RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
         NodeItem('NodeReroute'),
