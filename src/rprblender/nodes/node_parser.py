@@ -158,6 +158,11 @@ class BaseNodeParser(metaclass=ABCMeta):
             if not self.is_link_allowed(link):
                 raise MaterialError("Invalid link found", link, socket_in, self.node, self.material)
 
+            # in case the output socket is linked but hidden the link is set to be hidden in UI,
+            # therefore the parser needs to consider the link as disabled
+            if link.is_hidden:
+                return None
+
             result = self._export_node(link.from_node, link.from_socket)
 
             # check if result type is allowed by acceptance filter
