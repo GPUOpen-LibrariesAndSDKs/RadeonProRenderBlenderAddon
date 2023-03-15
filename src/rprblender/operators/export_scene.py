@@ -152,7 +152,7 @@ class RPR_EXPORT_OP_export_rpr_scene(RPR_Operator, ExportHelper):
         return {'FINISHED'}
 
     def export_scene_to_file(self, context, scene, filepath, filepath_json, flags):
-        if scene.rpr.render_quality == 'FULL':  # Export Legacy mode using RPR1
+        if scene.rpr.final_render_mode == 'FULL':  # Export Legacy mode using RPR1
             exporter = ExportEngine()
             engine_lib_name = {
                 'Windows': "RadeonProRender64.dll",

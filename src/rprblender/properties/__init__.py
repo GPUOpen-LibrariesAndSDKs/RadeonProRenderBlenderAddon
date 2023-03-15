@@ -53,6 +53,7 @@ from . import (
 
 
 register, unregister = bpy.utils.register_classes_factory([
+    render.RPR_RenderRayDepth,
     render.RPR_RenderLimits,
     render.RPR_RenderDevices,
     render.RPR_UserSettings,

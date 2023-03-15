@@ -109,7 +109,7 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
 
     def draw_header(self, context):
         self.layout.prop(context.view_layer.rpr, 'use_contour_render', text="")
-        self.layout.enabled = context.scene.rpr.render_quality == 'FULL2'
+        self.layout.enabled = context.scene.rpr.final_render_mode == 'FULL2'
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -118,7 +118,7 @@ class RPR_RENDER_PT_contour_rendering(RPR_Panel):
         contour_settings = context.view_layer.rpr.contour
 
         main_column = self.layout.column()
-        main_column.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.render_quality == 'FULL2'
+        main_column.enabled = context.view_layer.rpr.use_contour_render and context.scene.rpr.final_render_mode == 'FULL2'
 
         col = main_column.column(align=True)
         col.prop(contour_settings, 'use_object_id')

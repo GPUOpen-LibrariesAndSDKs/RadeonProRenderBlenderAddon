@@ -43,7 +43,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+                col.enabled = context.scene.rpr.final_render_quality in ('FULL', 'FULL2')
 
                 col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
@@ -90,7 +90,7 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
+                col.enabled = context.scene.rpr.viewport_render_mode in ('FULL', 'FULL2')
 
                 col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
@@ -117,15 +117,21 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         self.layout.prop(rpr, 'final_render_mode')
         self.layout.prop(rpr, 'final_render_quality')
         self.layout.prop(rpr, 'final_render_denoise')
-        self.layout.separator_spacer()
+        self.layout.separator()
         self.layout.prop(rpr, 'viewport_render_mode')
         self.layout.prop(rpr, 'viewport_render_quality')
-        self.layout.prop(rpr, 'viewport_upscale')
+        if rpr.viewport_render_mode == 'HYBRIDPRO':
+            self.layout.prop(rpr, 'viewport_denoiser')
+            col1 = self.layout.column()
+            col1.prop(rpr, 'viewport_upscale')
+            col1.enabled = rpr.viewport_denoiser
 
 
 class RPR_RENDER_PT_limits(RPR_Panel):
-    bl_label = "Sampling"
+    bl_label = "Final Render"
+    bl_parent_id = 'RPR_RENDER_PT_settings'
     bl_context = 'render'
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -146,7 +152,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.render_quality in ('FULL', 'FULL2')
+        col.enabled = rpr.final_render_quality in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
@@ -156,13 +162,13 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(rpr, 'tile_order')
 
         col = self.layout.column(align=True)
-        col.enabled = context.view_layer.rpr.use_contour_render and rpr.render_quality == 'FULL2'
+        col.enabled = context.view_layer.rpr.use_contour_render and rpr.final_render_mode == 'FULL2'
         col.prop(limits, 'contour_render_samples', slider=False)
 
 
 class RPR_RENDER_PT_viewport_limits(RPR_Panel):
-    bl_label = "Viewport & Preview Sampling"
-    bl_parent_id = 'RPR_RENDER_PT_limits'
+    bl_label = "Viewport & Preview"
+    bl_parent_id = 'RPR_RENDER_PT_settings'
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
@@ -180,7 +186,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
 
-        adapt_resolution = rpr.render_quality in ('FULL', 'FULL2')
+        adapt_resolution = rpr.viewport_render_quality in ('FULL', 'FULL2')
         col1 = col.column()
         col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
@@ -196,7 +202,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col1 = col.column()
 
         col1.prop(rpr, 'viewport_upscale')
-        if rpr.render_quality == 'HYBRIDPRO':
+        if rpr.viewport_render_mode == 'HYBRIDPRO':
             col1.enabled = rpr.viewport_denoiser
             col2 = col.column()
             col2.enabled = rpr.viewport_upscale and rpr.viewport_denoiser
@@ -214,7 +220,7 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.rpr.render_quality == 'FULL2'
+        return context.scene.rpr.final_render_quality == 'FULL2'
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -223,61 +229,72 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
         rpr = context.scene.rpr
         limits = rpr.limits
 
-        if rpr.render_quality == 'FULL2':
+        if rpr.final_render_mode == 'FULL2':
             col = self.layout.column(align=True)
             row = col.row(align=True)
             row.prop(limits, 'seed')
             row.prop(limits, 'anim_seed', text="", icon='TIME')
 
 
-class RPR_RENDER_PT_quality(RPR_Panel):
-    """ This is a parent Panel for (RPR_RENDER_PT_max_ray_depth, RPR_RENDER_PT_light_clamping)"""
-
-    bl_label = "Quality"
-    bl_context = 'render'
+class RPR_RENDER_PT_settings(RPR_Panel):
+    bl_label = "Settings"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
-        rpr = context.scene.rpr
-
-        if len(rpr.render_quality_items) > 1:
-            self.layout.prop(rpr, 'render_quality')
-        
-        if rpr.render_quality in ('LOW', 'MEDIUM', 'HIGH', 'HYBRIDPRO'):
-            self.layout.prop(rpr, 'hybrid_low_mem')
-
-        if rpr.render_quality == 'FULL2':
-            self.layout.prop(rpr, 'texture_compression')
-
 
 class RPR_RENDER_PT_max_ray_depth(RPR_Panel):
-    bl_label = "Max Ray Depth"
-    bl_parent_id = 'RPR_RENDER_PT_quality'
+    bl_label = "Ray Depth"
+    bl_parent_id = 'RPR_RENDER_PT_limits'
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
-        rpr_scene = context.scene.rpr
+        ray_depth = context.scene.rpr.ray_depth
 
-        self.layout.prop(rpr_scene, 'max_ray_depth', slider=True)
+        self.layout.prop(ray_depth, 'max_ray_depth', slider=True)
 
         col = self.layout.column(align=True)
-        col.prop(rpr_scene, 'diffuse_depth', slider=True)
-        col.prop(rpr_scene, 'glossy_depth', slider=True)
-        col.prop(rpr_scene, 'refraction_depth', slider=True)
-        col.prop(rpr_scene, 'glossy_refraction_depth', slider=True)
-        col.prop(rpr_scene, 'shadow_depth', slider=True)
+        col.prop(ray_depth, 'diffuse_depth', slider=True)
+        col.prop(ray_depth, 'glossy_depth', slider=True)
+        col.prop(ray_depth, 'refraction_depth', slider=True)
+        col.prop(ray_depth, 'glossy_refraction_depth', slider=True)
+        col.prop(ray_depth, 'shadow_depth', slider=True)
 
-        self.layout.prop(rpr_scene, 'ray_cast_epsilon', slider=True)
+        self.layout.prop(ray_depth, 'ray_cast_epsilon', slider=True)
+
+
+class RPR_RENDER_PT_viewport_max_ray_depth(RPR_Panel):
+    bl_label = "Ray Depth"
+    bl_parent_id = 'RPR_RENDER_PT_viewport_limits'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        self.layout.use_property_split = True
+        self.layout.use_property_decorate = False
+
+        viewport_ray_depth = context.scene.rpr.viewport_ray_depth
+
+        self.layout.prop(viewport_ray_depth, 'max_ray_depth', slider=True)
+
+        col = self.layout.column(align=True)
+        col.prop(viewport_ray_depth, 'diffuse_depth', slider=True)
+        col.prop(viewport_ray_depth, 'glossy_depth', slider=True)
+        col.prop(viewport_ray_depth, 'refraction_depth', slider=True)
+        col.prop(viewport_ray_depth, 'glossy_refraction_depth', slider=True)
+        col.prop(viewport_ray_depth, 'shadow_depth', slider=True)
+
+        self.layout.prop(viewport_ray_depth, 'ray_cast_epsilon', slider=True)
 
 
 class RPR_RENDER_PT_bake_textures(RPR_Panel):
     bl_label = "Node Baking"
-    bl_parent_id = 'RPR_RENDER_PT_quality'
+    bl_parent_id = 'RPR_RENDER_PT_settings'
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -291,11 +308,12 @@ class RPR_RENDER_PT_bake_textures(RPR_Panel):
 
 class RPR_RENDER_PT_pixel_filter(RPR_Panel):
     bl_label = "Pixel Filter"
-    bl_parent_id = 'RPR_RENDER_PT_quality'
+    bl_parent_id = 'RPR_RENDER_PT_settings'
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and context.scene.rpr.render_quality == 'FULL2'
+        return super().poll(context)
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -309,7 +327,8 @@ class RPR_RENDER_PT_pixel_filter(RPR_Panel):
 
 class RPR_RENDER_PT_light_clamping(RPR_Panel):
     bl_label = "Clamping"
-    bl_parent_id = 'RPR_RENDER_PT_quality'
+    bl_parent_id = 'RPR_RENDER_PT_settings'
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw_header(self, context):
         self.layout.prop(context.scene.rpr, 'use_clamp_radiance', text="")
@@ -370,7 +389,7 @@ class RPR_RENDER_PT_motion_blur(RPR_Panel):
         col.prop(context.scene.camera.data.rpr, 'motion_blur_exposure', text="Shutter Opening ratio", slider=True)
 
         col = layout.column()
-        col.enabled = context.scene.render.use_motion_blur and context.scene.rpr.render_quality == 'FULL2'
+        col.enabled = context.scene.render.use_motion_blur and context.scene.rpr.final_render_mode == 'FULL2'
         col.prop(context.scene.rpr, "motion_blur_in_velocity_aov")
 
 

@@ -136,7 +136,7 @@ class RPR_EXPORT_OP_export_training_data(RPR_Operator):
             depsgraph = context.evaluated_depsgraph_get()
             scene = depsgraph.scene
 
-            if scene.rpr.render_quality == 'FULL':  # Export Legacy mode using RPR1
+            if scene.rpr.final_render_mode == 'FULL':  # Export Legacy mode using RPR1
                 exporter = ExportEngine()
             else:  # Other quality modes export using RPR2
                 exporter = ExportEngine2()
@@ -158,7 +158,7 @@ class RPR_EXPORT_OP_export_training_data(RPR_Operator):
             for aov in AOVS:
                 rpr_context.enable_aov(aov_type=aov[0])
 
-            if rpr_context.do_motion_blur and scene.rpr.render_quality == 'FULL2':
+            if rpr_context.do_motion_blur and scene.rpr.final_render_mode == 'FULL2':
                 flag = not bool(scene.rpr.motion_blur_in_velocity_aov)
                 rpr_context.set_parameter(pyrpr.CONTEXT_BEAUTY_MOTION_BLUR, flag)
 
