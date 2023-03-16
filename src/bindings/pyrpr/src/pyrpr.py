@@ -596,6 +596,13 @@ class Curve(Object):
                 yield points_radii[segment_steps[e]]
                 yield points_radii[segment_steps[e + 3]]
 
+        def iter_all_segments_radii():
+            """ Get root and tip radii for each curve segment for all curves"""
+            for i in range(num_curves):
+                for e in range(0, curve_length, 4):
+                    yield points_radii[i][segment_steps[e]]
+                    yield points_radii[i][segment_steps[e + 3]]
+
         super().__init__()
         self.context = context
         self.material = None
@@ -622,8 +629,15 @@ class Curve(Object):
         indices = np.arange(len(points), dtype=np.uint32)
 
         # list full radius values for each curve
-        curve_radii = np.fromiter(iter_segments_radii(), dtype=np.float32)
-        radii = np.full((num_curves, len(curve_radii)), curve_radii, dtype=np.float32)
+        if len(points_radii.shape) > 1:
+            # radius is not the same for all curves, it can be achieved using geometry nodes
+            curve_radii = np.fromiter(iter_all_segments_radii(), dtype=np.float32)
+            radii = np.reshape(curve_radii, (num_curves, -1))
+
+        # usual case for hair particles, a radius the same for all curves
+        else:
+            curve_radii = np.fromiter(iter_segments_radii(), dtype=np.float32)
+            radii = np.full((num_curves, len(curve_radii)), curve_radii, dtype=np.float32)
 
         is_tapered = not np.all(radii == curve_radii[0])
 
