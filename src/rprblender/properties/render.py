@@ -40,7 +40,7 @@ from . import RPR_Properties
 from rprblender.engine import context
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 
-from rprblender.utils import logging, IS_MAC
+from rprblender.utils import logging, IS_MAC, preset_root_dir
 log = logging.Log(tag='properties.render')
 
 
@@ -543,39 +543,10 @@ class RPR_RenderProperties(RPR_Properties):
     ]
 
     def update_final_render_preset(self, context):
-        quality = self.final_render_quality
-        if quality == 'ACCURATE':
-            self.ray_depth.max_ray_depth = 32
-            self.ray_depth.diffuse_depth = 32
-            self.ray_depth.glossy_depth = 32
-            self.ray_depth.shadow_depth = 32
-            self.ray_depth.refraction_depth = 32
-            self.ray_depth.glossy_refraction_depth = 32
-
-            self.limits.min_samples = 64
-            self.limits.max_samples = 128
-
-        elif quality == 'MEDIUM':
-            self.ray_depth.max_ray_depth = 16
-            self.ray_depth.diffuse_depth = 16
-            self.ray_depth.glossy_depth = 16
-            self.ray_depth.shadow_depth = 16
-            self.ray_depth.refraction_depth = 16
-            self.ray_depth.glossy_refraction_depth = 16
-
-            self.limits.min_samples = 32
-            self.limits.max_samples = 64
-
-        else:  # FAST
-            self.ray_depth.max_ray_depth = 8
-            self.ray_depth.diffuse_depth = 8
-            self.ray_depth.glossy_depth = 8
-            self.ray_depth.shadow_depth = 8
-            self.ray_depth.refraction_depth = 8
-            self.ray_depth.glossy_refraction_depth = 8
-
-            self.limits.min_samples = 16
-            self.limits.max_samples = 32
+        quality = self.final_render_quality.lower() + '.py'
+        bpy.ops.script.execute_preset(
+            filepath=str(preset_root_dir() / "final" / quality), menu_idname='RPR_RENDER_PT_quality'
+        )
         
     final_render_quality: EnumProperty(
         name="Quality",
@@ -586,46 +557,11 @@ class RPR_RenderProperties(RPR_Properties):
     )
 
     def update_viewport_render_preset(self, context):
-        quality = self.viewport_render_quality
-        if quality == 'ACCURATE':
-            self.viewport_ray_depth.max_ray_depth = 32
-            self.viewport_ray_depth.diffuse_depth = 32
-            self.viewport_ray_depth.glossy_depth = 32
-            self.viewport_ray_depth.shadow_depth = 32
-            self.viewport_ray_depth.refraction_depth = 32
-            self.viewport_ray_depth.glossy_refraction_depth = 32
+        quality = self.viewport_render_quality.lower() + '.py'
+        bpy.ops.script.execute_preset(
+            filepath=str(preset_root_dir() / "viewport" / quality), menu_idname='RPR_RENDER_PT_quality'
+        )
 
-            self.viewport_limits.min_samples = 64
-            self.viewport_limits.max_samples = 128
-
-            self.viewport_upscale_quality = 'FSR2_QUALITY_ULTRA_QUALITY'
-
-        elif quality == 'MEDIUM':
-            self.viewport_ray_depth.max_ray_depth = 16
-            self.viewport_ray_depth.diffuse_depth = 16
-            self.viewport_ray_depth.glossy_depth = 16
-            self.viewport_ray_depth.shadow_depth = 16
-            self.viewport_ray_depth.refraction_depth = 16
-            self.viewport_ray_depth.glossy_refraction_depth = 16
-
-            self.viewport_limits.min_samples = 32
-            self.viewport_limits.max_samples = 64
-
-            self.viewport_upscale_quality = 'FSR2_QUALITY_MODE_BALANCE'
-
-        else:  # FAST
-            self.viewport_ray_depth.max_ray_depth = 8
-            self.viewport_ray_depth.diffuse_depth = 8
-            self.viewport_ray_depth.glossy_depth = 8
-            self.viewport_ray_depth.shadow_depth = 8
-            self.viewport_ray_depth.refraction_depth = 8
-            self.viewport_ray_depth.glossy_refraction_depth = 8
-
-            self.viewport_limits.min_samples = 16
-            self.viewport_limits.max_samples = 32
-
-            self.viewport_upscale_quality = 'FSR2_QUALITY_MODE_ULTRA_PERFORMANCE'
-        
     viewport_render_quality: EnumProperty(
         name="Quality",
         description="RPR viewport render quality preset",
