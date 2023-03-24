@@ -124,6 +124,7 @@ node_categories = [
         NodeItem('ShaderNodeSeparateHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
         NodeItem('ShaderNodeCombineRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
         NodeItem('ShaderNodeCombineHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
+        NodeItem('ShaderNodeFloatCurve', poll=lambda cls: BLENDER_VERSION >= "3.0"),
     ])),
     RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
         NodeItem('NodeReroute'),
