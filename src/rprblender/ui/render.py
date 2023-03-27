@@ -43,7 +43,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         else:
             if pyrpr.Context.cpu_device:
                 col = layout.column(align=True)
-                col.enabled = context.scene.rpr.final_render_quality in ('FULL', 'FULL2')
+                col.enabled = context.scene.rpr.final_render_mode in ('FULL', 'FULL2')
 
                 col.prop(devices, 'cpu_state', text=pyrpr.Context.cpu_device['name'])
                 row = col.row()
@@ -152,7 +152,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.prop(limits, 'seconds')
 
         col = self.layout.column(align=True)
-        col.enabled = rpr.final_render_quality in ('FULL', 'FULL2')
+        col.enabled = rpr.final_render_mode in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
