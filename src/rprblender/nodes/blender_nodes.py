@@ -120,6 +120,22 @@ def blend_color(factor: NodeItem, color1: NodeItem, color2: NodeItem, blend_type
     return rpr_node
 
 
+def eval_curve(mapping: bpy.types.CurveMapping, curve_index: int, value: float) -> float:
+    """ Evaluate 'value' on 'mapping' RGB Curve 'curve_index', clip to limits if needed """
+    if mapping.use_clip:
+        value = min(max(value, mapping.clip_min_x), mapping.clip_max_x)
+
+    if BLENDER_VERSION >= '2.82':  # CurveMapping and CurveMap were changed in Blender release 2.82
+        res = mapping.evaluate(mapping.curves[curve_index], value)
+    else:
+        res = mapping.curves[curve_index].evaluate(value)
+
+    if mapping.use_clip:
+        res = min(max(res, mapping.clip_min_y), mapping.clip_max_y)
+
+    return res
+
+
 class ShaderNodeOutputMaterial(BaseNodeParser):
     # inputs: Surface, Volume, Displacement
 
@@ -1917,34 +1933,64 @@ class ShaderNodeTexGradient(NodeParser):
         return val
 
 
+class ShaderNodeFloatCurve(NodeParser):
+    """ Similar to color ramp, except read channel and apply mapping
+        There are two inputs here, Value and Factor.  What cycles does is remap value with the mapping
+        and mix between in value and remapped one with factor.
+    """
+    def export(self):
+        """ create a buffer from ramp data and sample it in nodes if connected """
+        BUFFER_SIZE = 256  # hard code, this is what cycles does
+
+        in_val = self.get_input_value('Value')
+        fac = self.get_input_value('Factor')
+        mapping = self.node.mapping
+
+        # these need to be initialized for some reason
+        mapping.initialize()
+
+        if isinstance(in_val.data, (float, int)):
+            out_val = eval_curve(mapping, 0, in_val.data)
+
+        else:
+            arr = np.fromiter((eval_curve(mapping, 0, i / (BUFFER_SIZE - 1)) for i in range(BUFFER_SIZE)),
+                              dtype=np.float32).reshape(-1, 1)
+            rpr_buffer = self.rpr_context.create_buffer(arr, pyrpr.BUFFER_ELEMENT_TYPE_FLOAT32)
+
+            # apply mapping to each channel
+            out_val = self.create_node(pyrpr.MATERIAL_NODE_BUFFER_SAMPLER, {
+                pyrpr.MATERIAL_INPUT_DATA: rpr_buffer,
+                pyrpr.MATERIAL_INPUT_UV: in_val * float(BUFFER_SIZE)
+            })
+
+        return fac.blend(in_val, out_val)
+
+    def export_hybrid(self):
+        """ Convert value using curve """
+        in_val = self.get_input_scalar('Value')
+        fac = self.get_input_scalar('Factor')
+        mapping = self.node.mapping
+
+        # these need to be initialized for some reason
+        mapping.initialize()
+
+        out_val = eval_curve(mapping, 0, in_val.get_channel(0).data)
+
+        return fac.blend(in_val, out_val)
+
+
 class ShaderNodeRGBCurve(NodeParser):
     """ Similar to color ramp, except read each channel and apply mapping
         There are two inputs here, color and Fac.  What cycles does is remap color with the mapping
         and mix between in color and remapped one with fac.
     """
-    @staticmethod
-    def eval_curve(mapping: bpy.types.CurveMapping, curve_index: int, value: float) -> float:
-        """ Evaluate 'value' on 'mapping' RGB Curve 'curve_index', clip to limits if needed """
-        if mapping.use_clip:
-            value = min(max(value, mapping.clip_min_x), mapping.clip_max_x)
-
-        if BLENDER_VERSION >= '2.82':  # CurveMapping and CurveMap were changed in Blender release 2.82
-            res = mapping.evaluate(mapping.curves[curve_index], value)
-        else:
-            res = mapping.curves[curve_index].evaluate(value)
-
-        if mapping.use_clip:
-            res = min(max(res, mapping.clip_min_y), mapping.clip_max_y)
-
-        return res
-
     def export(self):
         """ create a buffer from ramp data and sample it in nodes if connected """
         def rgba(i):
-            c = self.eval_curve(mapping, 3, i / (BUFFER_SIZE - 1))
-            return (self.eval_curve(mapping, 0, c),
-                    self.eval_curve(mapping, 1, c),
-                    self.eval_curve(mapping, 2, c),
+            c = eval_curve(mapping, 3, i / (BUFFER_SIZE - 1))
+            return (eval_curve(mapping, 0, c),
+                    eval_curve(mapping, 1, c),
+                    eval_curve(mapping, 2, c),
                     1.0)
 
         BUFFER_SIZE = 256  # hard code, this is what cycles does
@@ -1958,17 +2004,11 @@ class ShaderNodeRGBCurve(NodeParser):
 
         if isinstance(in_col.data, tuple):
             out_col = tuple(
-                self.eval_curve(mapping, i,
-                                self.eval_curve(mapping, 3, in_col.data[i]))
-                for i in range(3)
+                eval_curve(mapping, i, eval_curve(mapping, 3, in_col.data[i])) for i in range(3)
             ) + (in_col.data[3],)
 
         else:
-            arr = np.fromiter(
-                (v for i in range(BUFFER_SIZE)
-                   for v in rgba(i)),
-                dtype=np.float32
-            ).reshape(-1, 4)
+            arr = np.fromiter((v for i in range(BUFFER_SIZE) for v in rgba(i)), dtype=np.float32).reshape(-1, 4)
             rpr_buffer = self.rpr_context.create_buffer(arr, pyrpr.BUFFER_ELEMENT_TYPE_FLOAT32)
 
             # apply mapping to each channel
@@ -2002,9 +2042,7 @@ class ShaderNodeRGBCurve(NodeParser):
         mapping.initialize()
 
         out_col = tuple(
-            self.eval_curve(mapping, i,
-                            self.eval_curve(mapping, 3, in_col.get_channel(i).data))
-            for i in range(3)
+            eval_curve(mapping, i, eval_curve(mapping, 3, in_col.get_channel(i).data)) for i in range(3)
         ) + (in_col.get_channel(3).data,)
 
         return fac.blend(in_col, out_col)
