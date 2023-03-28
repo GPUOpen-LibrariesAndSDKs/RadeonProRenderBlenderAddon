@@ -544,9 +544,10 @@ class RPR_RenderProperties(RPR_Properties):
 
     def update_final_render_preset(self, context):
         quality = self.final_render_quality.lower() + '.py'
-        bpy.ops.script.execute_preset(
-            filepath=str(preset_root_dir() / "final" / quality), menu_idname='RPR_RENDER_PT_quality'
-        )
+        mode = self.final_render_mode.lower()
+        preset_path = str(preset_root_dir() / "final" / mode / quality)
+        bpy.ops.script.execute_preset(filepath=preset_path, menu_idname='RPR_RENDER_PT_quality')
+        log.debug(f"Apply final render presets, {preset_path}")
         
     final_render_quality: EnumProperty(
         name="Quality",
@@ -558,9 +559,10 @@ class RPR_RenderProperties(RPR_Properties):
 
     def update_viewport_render_preset(self, context):
         quality = self.viewport_render_quality.lower() + '.py'
-        bpy.ops.script.execute_preset(
-            filepath=str(preset_root_dir() / "viewport" / quality), menu_idname='RPR_RENDER_PT_quality'
-        )
+        mode = self.viewport_render_mode.lower()
+        preset_path = str(preset_root_dir() / "viewport" / mode / quality)
+        bpy.ops.script.execute_preset(filepath=preset_path, menu_idname='RPR_RENDER_PT_quality')
+        log.debug(f"Apply viewport render presets, {preset_path}")
 
     viewport_render_quality: EnumProperty(
         name="Quality",
