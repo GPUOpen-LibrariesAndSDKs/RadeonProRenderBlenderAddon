@@ -662,6 +662,14 @@ class ViewportEngine(Engine):
                                                      frame_current=self.frame_current)
                     is_obj_updated |= is_updated
 
+                    for inst in depsgraph.object_instances:
+                        ob = inst.object
+                        if not inst.is_instance:
+                            continue
+
+                        if ob.original == obj.original:
+                            instance.sync_update(self.rpr_context, inst, is_updated_transform, is_updated_geometry)
+
                     if sync_collection:
                         continue
 
@@ -1150,9 +1158,14 @@ class ViewportEngine(Engine):
             yield obj
 
     def depsgraph_instances(self, depsgraph):
-        for instance in super().depsgraph_instances(depsgraph):
+        for inst in super().depsgraph_instances(depsgraph):
             # check for local view visability
-            if not instance.parent.visible_in_viewport_get(self.space_data):
+            if not inst.parent.visible_in_viewport_get(self.space_data):
                 continue
 
-            yield instance
+            # Blender creates instances for Curve, MetaBall object that is already synced via object sync
+            # exclude it to avoid sync it twice
+            if not isinstance(inst.instance_object.original.data, type(inst.object.data)):
+                continue
+
+            yield inst
