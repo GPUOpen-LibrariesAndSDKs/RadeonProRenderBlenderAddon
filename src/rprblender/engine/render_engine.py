@@ -647,6 +647,11 @@ class RenderEngine(Engine):
             self.notify_status(0, "Syncing instances 0%")
 
             for i, inst in enumerate(self.depsgraph_instances(depsgraph)):
+                # Blender creates instances for Curve, MetaBall object that is already synced via object sync
+                # exclude it to avoid sync it twice
+                if not isinstance(inst.instance_object.original.data, type(inst.object.data)):
+                    continue
+
                 instances_percent = (i * 100) // instances_len
                 if instances_percent > last_instances_percent:
                     self.notify_status(0, f"Syncing instances {instances_percent}%")
