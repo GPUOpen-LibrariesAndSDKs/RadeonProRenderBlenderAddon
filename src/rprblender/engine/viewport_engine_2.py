@@ -143,6 +143,10 @@ class ViewportEngine2(ViewportEngine):
 
                     self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
 
+                    if self.width * self.height == 0:
+                        self.notify_status("", "Rendering Done")
+                        break
+
                     vs.export_camera(self.rpr_context.scene.camera)
                     iteration = 0
 
