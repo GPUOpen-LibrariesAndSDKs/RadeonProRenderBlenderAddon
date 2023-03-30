@@ -511,7 +511,8 @@ class RPR_RenderProperties(RPR_Properties):
 
                 # add compositor node
                 denoiser_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeDenoise)), None)
-                denoiser_node.mute = True
+                if not denoiser_node is None:
+                    denoiser_node.mute = True
 
     final_render_denoise: BoolProperty(
         name="Denoise",
