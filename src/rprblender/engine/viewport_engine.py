@@ -357,6 +357,11 @@ class ViewportEngine(Engine):
                     if self.restart_render_event.is_set():
                         break
 
+                    if self.width * self.height == 0:
+                        self.notify_status("", "Rendering Done")
+                        self.is_rendered = True
+                        continue
+
                     self.rpr_context.set_parameter(pyrpr.CONTEXT_FRAMECOUNT, iteration)
                     self.rpr_context.render(restart=(iteration == 0))
 
@@ -657,6 +662,14 @@ class ViewportEngine(Engine):
                                                      frame_current=self.frame_current)
                     is_obj_updated |= is_updated
 
+                    for inst in depsgraph.object_instances:
+                        ob = inst.object
+                        if not inst.is_instance:
+                            continue
+
+                        if ob.original == obj.original:
+                            instance.sync_update(self.rpr_context, inst, is_updated_transform, is_updated_geometry)
+
                     if sync_collection:
                         continue
 
@@ -825,6 +838,9 @@ class ViewportEngine(Engine):
                 self.draw_texture(self.rpr_context.get_frame_buffer().texture_id, scene)
                 return
 
+            if self.width * self.height == 0:
+                return
+
             im = self._get_render_image()
 
         self.gl_texture.set_image(im)
@@ -840,7 +856,8 @@ class ViewportEngine(Engine):
         with self.render_lock:
             if not self.viewport_settings:
                 self.viewport_settings = ViewportSettings(context)
-                self.viewport_settings.export_camera(self.rpr_context.scene.camera)
+                if self.viewport_settings.width * self.viewport_settings.height != 0:
+                    self.viewport_settings.export_camera(self.rpr_context.scene.camera)
 
                 self._resize(*self._get_resolution())
                 self.is_resolution_adapted = not self.user_settings.adapt_viewport_resolution
@@ -920,7 +937,7 @@ class ViewportEngine(Engine):
         w, h = self.rpr_context.width, self.rpr_context.height
 
         if adapt_ratio is None:
-            if abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF:
+            if w * h and max_w * max_h and (abs(w / h - max_w / max_h) > MIN_ADAPT_RESOLUTION_RATIO_DIFF):
                 scale = math.sqrt(w * h / (max_w * max_h))
                 w, h = int(max_w * scale), int(max_h * scale)
         else:
@@ -1141,9 +1158,14 @@ class ViewportEngine(Engine):
             yield obj
 
     def depsgraph_instances(self, depsgraph):
-        for instance in super().depsgraph_instances(depsgraph):
+        for inst in super().depsgraph_instances(depsgraph):
             # check for local view visability
-            if not instance.parent.visible_in_viewport_get(self.space_data):
+            if not inst.parent.visible_in_viewport_get(self.space_data):
                 continue
 
-            yield instance
+            # Blender creates instances for Curve, MetaBall object that is already synced via object sync
+            # exclude it to avoid sync it twice
+            if not isinstance(inst.instance_object.original.data, type(inst.object.data)):
+                continue
+
+            yield inst

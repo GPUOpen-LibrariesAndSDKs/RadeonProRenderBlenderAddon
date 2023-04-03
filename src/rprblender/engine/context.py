@@ -62,6 +62,7 @@ class RPRContext:
         # scene and objects
         self.scene = None
         self.objects = {}
+        self.mesh_masters = {}
         self.object_hashes = {}
         self.curves = {}
         self.volumes = {}
