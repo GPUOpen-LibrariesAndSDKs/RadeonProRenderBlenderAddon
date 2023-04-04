@@ -1470,6 +1470,17 @@ class ShaderNodeMath(NodeParser):
         elif op == 'ROUND':
             f = in1.floor()
             res = (in1 % 1.0 < 0.5).if_else(f, f + 1.0)
+        elif op == 'TRUNC':
+            if in1 > 0.0:
+                res = in1.floor()
+            else:
+                res = in1.ceil()
+        elif op == 'SQRT':
+            res = (in1 > 0.0).if_else(in1 ** (1/2), 0.0)
+        elif op == 'INVERSE_SQRT':
+            res = (in1 > 0.0).if_else(in1 ** (-1/2), 0.0)
+        elif op == 'SIGN':
+            res = (in1 > 0.0) - (in1 < 0.0)
 
         else:
             in2 = self.get_input_value(1)
@@ -1493,6 +1504,9 @@ class ShaderNodeMath(NodeParser):
                 res = in1 > in2
             elif op == 'MODULO':
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_MOD, in1, in2)
+            elif op == 'PINGPONG':
+                # Implementation from Blender: source/blender/blenlib/intern/ math_base_inline.c
+                res = (in2 != 0.0).if_else(abs((((in1 - in2) / (in2 * 2.0)) % 1.0) * in2 * 2.0 - in2), 0.0)
 
             else:
                 in3 = self.get_input_value(2)
