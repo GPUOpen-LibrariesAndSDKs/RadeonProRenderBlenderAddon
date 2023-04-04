@@ -105,7 +105,11 @@ class NodeItem:
                                        lambda a, b: a % b if not math.isclose(b, 0.0) else 0.0)
 
     def __pow__(self, other):
-        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_POW, lambda a, b: a ** b)
+        # Implementation from Blender: source/blender/blenlib/intern/ math_base_inline.c
+        return self._arithmetic_helper(other, pyrpr.MATERIAL_NODE_OP_POW,
+                                       lambda a, b: (a ** b if not (math.isclose(a, 0.0) and b < 0.0) else 0)
+                                       if a >= 0.0 else a ** math.floor(b + 0.5)
+                                       )
 
     def __neg__(self):
         return 0.0 - self
