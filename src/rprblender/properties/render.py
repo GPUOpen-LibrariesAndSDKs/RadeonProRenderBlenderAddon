@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import math
 import sys
 import os
 
@@ -614,7 +613,7 @@ class RPR_RenderProperties(RPR_Properties):
             ('FSR2_QUALITY_MODE_PERFORMANCE', "Performance", "Performance"),
             ('FSR2_QUALITY_MODE_ULTRA_PERFORMANCE', "Ultra Performance", "Ultra Performance"),
         ),
-        default='FSR2_QUALITY_MODE_BALANCE',
+        default='FSR2_QUALITY_MODE_ULTRA_PERFORMANCE',
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
