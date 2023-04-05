@@ -37,7 +37,7 @@ def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):
     instance_key = key(instance)
     log("sync", instance, instance_key)
 
-    obj = instance.object
+    obj = instance.instance_object if instance.parent.name != instance.object.name else instance.object
 
     if obj.type in ('MESH', 'CURVE', 'FONT', 'SURFACE', 'META'):
         obj_key = object.key(obj)
@@ -88,7 +88,7 @@ def sync_update(rpr_context: RPRContext, instance: bpy.types.DepsgraphObjectInst
 
     if is_updated_geometry:
         rpr_context.remove_object(inst_key)
-        sync(rpr_context, instance)
+        sync(rpr_context, instance, **kwargs)
         return True
 
     if is_updated_transform:

@@ -668,7 +668,7 @@ class ViewportEngine(Engine):
                             continue
 
                         if ob.original == obj.original:
-                            instance.sync_update(self.rpr_context, inst, is_updated_transform, is_updated_geometry)
+                            instance.sync_update(self.rpr_context, inst, is_updated_geometry, is_updated_transform)
 
                     if sync_collection:
                         continue
