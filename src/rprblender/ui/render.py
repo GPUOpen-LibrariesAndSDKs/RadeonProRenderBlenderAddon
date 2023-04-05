@@ -120,9 +120,11 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         self.layout.separator()
         self.layout.prop(rpr, 'viewport_render_mode')
         self.layout.prop(rpr, 'viewport_render_quality')
+
         if rpr.viewport_render_mode == 'HYBRIDPRO':
-            self.layout.prop(rpr, 'viewport_denoiser')
-            col1 = self.layout.column()
+            col = self.layout.column(align=True)
+            col.prop(rpr, 'viewport_denoiser')
+            col1 = col.column()
             col1.prop(rpr, 'viewport_upscale')
             col1.enabled = rpr.viewport_denoiser
 
@@ -198,12 +200,13 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
 
         col.prop(settings, 'use_gl_interop')
 
-        col.prop(rpr, 'viewport_denoiser')
-        col1 = col.column()
-
-        col1.prop(rpr, 'viewport_upscale')
         if rpr.viewport_render_mode == 'HYBRIDPRO':
+            col.prop(rpr, 'viewport_denoiser')
+
+            col1 = col.column()
+            col1.prop(rpr, 'viewport_upscale')
             col1.enabled = rpr.viewport_denoiser
+
             col2 = col.column()
             col2.enabled = rpr.viewport_upscale and rpr.viewport_denoiser
             col2.prop(rpr, 'viewport_upscale_quality')

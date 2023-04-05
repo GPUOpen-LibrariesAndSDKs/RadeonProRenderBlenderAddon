@@ -1169,3 +1169,9 @@ class ViewportEngine(Engine):
                 continue
 
             yield inst
+
+    def setup_image_filter(self, settings):
+        return False
+
+    def setup_upscale_filter(self, settings):
+        return False
