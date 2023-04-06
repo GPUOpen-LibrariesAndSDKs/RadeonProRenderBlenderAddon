@@ -435,10 +435,13 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     log("sync_update", obj, mesh)
 
     obj_key = object.key(obj)
+    mesh_key = obj.data.name
     rpr_shape = rpr_context.objects.get(obj_key, None)
     if rpr_shape:
         if is_updated_geometry:
             rpr_context.remove_object(obj_key)
+            if mesh_key in rpr_context.mesh_masters:
+                rpr_context.mesh_masters.pop(mesh_key)
             sync(rpr_context, obj)
             return True
 
