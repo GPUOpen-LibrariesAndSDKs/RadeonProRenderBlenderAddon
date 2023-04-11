@@ -53,7 +53,7 @@ def enumerate_addon_data():
         if not f.is_file() or f.name in ("configdev.py", "rprblender.log"):
             continue
 
-        if f.name.endswith(('.py', '.ocio', '.spi1d', '.spi3d', '.spimtx')) or f.name in ('athena.bin', 'EULA.html'):
+        if f.name.endswith('.py') or f.name in ('athena.bin', 'EULA.html'):
             yield f, f.relative_to(rprblender_dir)
 
     # copying Core libs
