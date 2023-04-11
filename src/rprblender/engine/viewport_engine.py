@@ -281,7 +281,7 @@ class ViewportEngine(Engine):
                           frame_current=self.frame_current)
 
         # shadow catcher
-        if depsgraph.scene.rpr.render_quality != 'FULL':  # non-Legacy modes
+        if depsgraph.scene.rpr.viewport_render_mode != 'FULL':  # non-Legacy modes
             self.rpr_context.sync_catchers(False)
             bg_filter_enabled = self.rpr_context.use_reflection_catcher or self.rpr_context.use_shadow_catcher
             background_filter_settings = {
@@ -526,7 +526,7 @@ class ViewportEngine(Engine):
         self.rpr_context.set_parameter(pyrpr.CONTEXT_PREVIEW, True)
         self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, 1)
         scene.rpr.export_render_mode(self.rpr_context)
-        scene.rpr.export_ray_depth(self.rpr_context)
+        scene.rpr.export_viewport_ray_depth(self.rpr_context)
         self.rpr_context.texture_compression = scene.rpr.texture_compression
         scene.rpr.export_pixel_filter(self.rpr_context)
 
@@ -1107,7 +1107,7 @@ class ViewportEngine(Engine):
     def update_render(self, scene: bpy.types.Scene, view_layer: bpy.types.ViewLayer):
         ''' update settings if changed while live returns True if restart needed '''
         restart = scene.rpr.export_render_mode(self.rpr_context)
-        restart |= scene.rpr.export_ray_depth(self.rpr_context)
+        restart |= scene.rpr.export_viewport_ray_depth(self.rpr_context)
         restart |= scene.rpr.export_pixel_filter(self.rpr_context)
 
         render_iterations, render_time = (scene.rpr.viewport_limits.max_samples, 0)
@@ -1169,3 +1169,9 @@ class ViewportEngine(Engine):
                 continue
 
             yield inst
+
+    def setup_image_filter(self, settings):
+        return False
+
+    def setup_upscale_filter(self, settings):
+        return False

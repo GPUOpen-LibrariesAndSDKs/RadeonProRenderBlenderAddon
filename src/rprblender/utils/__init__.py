@@ -33,6 +33,9 @@ def is_rpr_active(context: bpy.types.Context):
 def package_root_dir():
     return Path(rprblender.__file__).parent
 
+def preset_root_dir():
+    return package_root_dir() / 'properties/presets'
+
 
 def core_cache_dir():
     return package_root_dir() / ".cache"

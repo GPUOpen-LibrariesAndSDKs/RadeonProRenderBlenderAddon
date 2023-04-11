@@ -207,7 +207,7 @@ class RPR_WORLD_PT_fog(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and context.scene.world and context.scene.rpr.render_quality == 'FULL2'
+        return super().poll(context) and context.scene.world
 
     def draw_header(self, context):
         self.layout.prop(context.scene.world.rpr, 'enabled_fog', text="")
@@ -239,7 +239,7 @@ class RPR_WORLD_PT_atmosphere_volume(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and context.scene.world and context.scene.rpr.render_quality == 'FULL2'
+        return super().poll(context) and context.scene.world
 
     def draw_header(self, context):
         self.layout.prop(context.scene.world.rpr, 'enabled_atmosphere_volume', text="")
