@@ -78,7 +78,6 @@ class RPR_OBJECT_PT_subdivision(RPR_Panel):
 
     def draw_header(self, context):
         row = self.layout.row()
-        row.enabled = context.scene.rpr.render_quality in ('FULL', 'FULL2')
         row.prop(context.object.rpr, 'subdivision', text="")
 
     def draw(self, context):
@@ -88,10 +87,7 @@ class RPR_OBJECT_PT_subdivision(RPR_Panel):
         rpr = context.object.rpr
 
         col = self.layout.column()
-        col.enabled = rpr.subdivision and context.scene.rpr.render_quality in ('FULL', 'FULL2')
-        if context.scene.rpr.render_quality == 'FULL2':
-            col.prop(rpr, 'subdivision_level')
-        else:
-            col.prop(rpr, 'subdivision_factor')
+        col.prop(rpr, 'subdivision_level')
+        col.prop(rpr, 'subdivision_factor')
         col.prop(rpr, 'subdivision_crease_weight')
         col.prop(rpr, 'subdivision_boundary_type')

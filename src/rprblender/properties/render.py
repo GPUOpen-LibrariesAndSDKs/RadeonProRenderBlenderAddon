@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import math
 import sys
 import os
 
@@ -40,9 +39,47 @@ from . import RPR_Properties
 from rprblender.engine import context
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 
-from rprblender.utils import logging
+from rprblender.utils import logging, IS_MAC, preset_root_dir
 log = logging.Log(tag='properties.render')
 
+
+class RPR_RenderRayDepth(bpy.types.PropertyGroup):
+    # RAY DEPTH PROPERTIES
+    ray_cast_epsilon: FloatProperty(
+        name="Ray Cast Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
+        min=0.0, soft_max=2.0,
+        default=0.02,
+    )
+    max_ray_depth: IntProperty(
+        name="Total", description="Max total ray depth",
+        min=0, soft_min=2, soft_max=50,
+        default=8,
+    )
+    diffuse_depth: IntProperty(
+        name="Diffuse", description="Diffuse ray depth",
+        min=0, soft_min=2, soft_max=50,
+        default=3,
+    )
+    glossy_depth: IntProperty(
+        name="Glossy", description="Glossy ray depth",
+        min=0, soft_min=2, soft_max=50,
+        default=5,
+    )
+    shadow_depth: IntProperty(
+        name="Shadow", description="Shadow depth",
+        min=0, soft_min=2, soft_max=50,
+        default=5,
+    )
+    refraction_depth: IntProperty(
+        name="Refraction", description="Refraction ray depth",
+        min=0, soft_min=2, soft_max=50,
+        default=5,
+    )
+    glossy_refraction_depth: IntProperty(
+        name="Glossy Refraction", description="Glossy refraction ray depth",
+        min=0, soft_min=2, soft_max=50,
+        default=5,
+    )
 
 class RPR_RenderLimits(bpy.types.PropertyGroup):
     """ Properties for render limits: 
@@ -271,7 +308,7 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         description="Denoise rendered image with Machine Learning denoiser.\n"
                     "Rendering at 2 times lower resoluting then upscaling rendered image "
                     "in the end of render",
-        default=True if not utils.IS_MAC else False, # TODO remove when macos upscaler fixed
+        default=True if not utils.IS_MAC else False,  # TODO remove when macos upscaler fixed
     )
 
 
@@ -323,6 +360,9 @@ class RPR_RenderProperties(RPR_Properties):
     limits: PointerProperty(type=RPR_RenderLimits)
     viewport_limits: PointerProperty(type=RPR_RenderLimits)
 
+    ray_depth: PointerProperty(type=RPR_RenderRayDepth)
+    viewport_ray_depth: PointerProperty(type=RPR_RenderRayDepth)
+
     # RENDER TILES
     use_tile_render: BoolProperty(
         name="Tiled rendering",
@@ -351,9 +391,8 @@ class RPR_RenderProperties(RPR_Properties):
 
     @property
     def is_tile_render_available(self):
-        return self.use_tile_render and self.render_quality in ('FULL', 'FULL2')
+        return self.use_tile_render and self.final_render_mode in ('FULL', 'FULL2')
 
-    # RAY DEPTH PROPERTIES
     use_clamp_radiance: BoolProperty(
         name="Clamp",
         description="Use clamp radiance",
@@ -363,41 +402,6 @@ class RPR_RenderProperties(RPR_Properties):
         name="Clamp Radiance",
         description="Clamp radiance",
         min=1.0, default=1.0,
-    )
-    max_ray_depth: IntProperty(
-        name="Total", description="Max total ray depth",
-        min=0, soft_min=2, soft_max=50,
-        default=8,
-    )
-    diffuse_depth: IntProperty(
-        name="Diffuse", description="Diffuse ray depth",
-        min=0, soft_min=2, soft_max=50,
-        default=3,
-    )
-    glossy_depth: IntProperty(
-        name="Glossy", description="Glossy ray depth",
-        min=0, soft_min=2, soft_max=50,
-        default=5,
-    )
-    shadow_depth: IntProperty(
-        name="Shadow", description="Shadow depth",
-        min=0, soft_min=2, soft_max=50,
-        default=5,
-    )
-    refraction_depth: IntProperty(
-        name="Refraction", description="Refraction ray depth",
-        min=0, soft_min=2, soft_max=50,
-        default=5,
-    )
-    glossy_refraction_depth: IntProperty(
-        name="Glossy Refraction", description="Glossy refraction ray depth",
-        min=0, soft_min=2, soft_max=50,
-        default=5,
-    )
-    ray_cast_epsilon: FloatProperty(
-        name="Ray Cast Epsilon (mm)", description="Ray cast epsilon (in millimeters)",
-        min=0.0, soft_max=2.0,
-        default=0.02,
     )
 
     # RENDER EFFECTS
@@ -477,27 +481,95 @@ class RPR_RenderProperties(RPR_Properties):
         ]
     if pyhybrid.Context.plugin_id >= 0:
         render_quality_items += [
-            ('HIGH', "High", "High render quality"),
-            ('MEDIUM', "Medium", "Medium render quality"),
-            ('LOW', "Low", "Low render quality"),
+            ('HIGH', "Interactive", "High render quality"),
         ]
 
-    def update_render_quality(self, context):
+    def update_final_render_mode(self, context):
         context.view_layer.update_render_passes()
 
-        if self.render_quality in ('FULL', 'FULL2'):
+        if self.final_render_mode in ('FULL', 'FULL2'):
             return
 
         settings = get_user_settings()
         settings.final_devices.cpu_state = False
-        settings.viewport_devices.cpu_state = False
-
-    render_quality: EnumProperty(
-        name="Render Quality",
-        description="RPR render quality",
+        
+    final_render_mode: EnumProperty(
+        name="Render Mode",
+        description="RPR final render mode",
         items=render_quality_items,
         default='FULL2',
-        update=update_render_quality
+        update=update_final_render_mode
+    )
+
+    def toggle_denoiser(self, context):
+        if self.final_render_denoise:
+            bpy.ops.rpr.add_denoiser_node()
+        else:
+            if bpy.context.scene.use_nodes:
+                nt = bpy.context.scene.node_tree
+
+                # add compositor node
+                denoiser_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeDenoise)), None)
+                if not denoiser_node is None:
+                    denoiser_node.mute = True
+
+    final_render_denoise: BoolProperty(
+        name="Denoise",
+        description="Enable use denoising",
+        default=False,
+        update=toggle_denoiser
+    )
+
+    def update_viewport_render_mode(self, context):
+        if self.viewport_render_mode in ('FULL', 'FULL2'):
+            return
+
+        settings = get_user_settings()
+        settings.viewport_devices.cpu_state = False
+
+    viewport_render_mode: EnumProperty(
+        name="Viewport Mode",
+        description="RPR viewport mode",
+        items=render_quality_items,
+
+        default=render_quality_items[-1][0],
+        update=update_viewport_render_mode
+    )
+
+    quality_presets = [
+            ('ACCURATE', "Accurate", "High render quality"),
+            ('MEDIUM', "Medium", "Medium render quality"),
+            ('FAST', "Fast", "Fast render quality"),
+    ]
+
+    def update_final_render_preset(self, context):
+        quality = self.final_render_quality.lower() + '.py'
+        mode = self.final_render_mode.lower()
+        preset_path = str(preset_root_dir() / "final" / mode / quality)
+        bpy.ops.script.execute_preset(filepath=preset_path, menu_idname='RPR_RENDER_PT_quality')
+        log.debug(f"Apply final render presets, {preset_path}")
+        
+    final_render_quality: EnumProperty(
+        name="Quality",
+        description="RPR final render quality preset",
+        items=quality_presets,
+        default='ACCURATE',
+        update=update_final_render_preset
+    )
+
+    def update_viewport_render_preset(self, context):
+        quality = self.viewport_render_quality.lower() + '.py'
+        mode = self.viewport_render_mode.lower()
+        preset_path = str(preset_root_dir() / "viewport" / mode / quality)
+        bpy.ops.script.execute_preset(filepath=preset_path, menu_idname='RPR_RENDER_PT_quality')
+        log.debug(f"Apply viewport render presets, {preset_path}")
+
+    viewport_render_quality: EnumProperty(
+        name="Quality",
+        description="RPR viewport render quality preset",
+        items=quality_presets,
+        default='FAST',
+        update=update_viewport_render_preset
     )
 
     hybrid_low_mem: BoolProperty(
@@ -541,7 +613,7 @@ class RPR_RenderProperties(RPR_Properties):
             ('FSR2_QUALITY_MODE_PERFORMANCE', "Performance", "Performance"),
             ('FSR2_QUALITY_MODE_ULTRA_PERFORMANCE', "Ultra Performance", "Ultra Performance"),
         ),
-        default='FSR2_QUALITY_MODE_BALANCE',
+        default='FSR2_QUALITY_MODE_ULTRA_PERFORMANCE',
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
@@ -573,7 +645,7 @@ class RPR_RenderProperties(RPR_Properties):
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
 
-        if self.render_quality in ('LOW', 'MEDIUM', 'HIGH') and self.hybrid_low_mem:
+        if self.final_render_mode in ('LOW', 'MEDIUM', 'HIGH') and self.hybrid_low_mem:
             # set these props to use < 4gb
             vertex_mem_size = pyrpr.ffi.new('int*', 768 * 1024 * 1024)  # 768mb texture memory
             acc_mem_size = pyrpr.ffi.new('int*', 1024 ** 3)             # 1gb for bvh memry
@@ -636,22 +708,41 @@ class RPR_RenderProperties(RPR_Properties):
             return devices_settings.final_devices
         return devices_settings.viewport_devices
 
+    def export_viewport_ray_depth(self, rpr_context):
+        """ Exports ray depth settings """
+
+        res = False
+
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_RECURSION, self.viewport_ray_depth.max_ray_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, self.viewport_ray_depth.diffuse_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, self.viewport_ray_depth.glossy_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW, self.viewport_ray_depth.shadow_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, self.viewport_ray_depth.refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, self.viewport_ray_depth.glossy_refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RADIANCE_CLAMP, self.clamp_radiance if \
+            self.use_clamp_radiance else sys.float_info.max)
+
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPSILON,
+                                         self.viewport_ray_depth.ray_cast_epsilon * 0.001)  # Convert millimeters to meters
+
+        return res
+
     def export_ray_depth(self, rpr_context):
         """ Exports ray depth settings """
 
         res = False
 
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_RECURSION, self.max_ray_depth)
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, self.diffuse_depth)
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, self.glossy_depth)
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW, self.shadow_depth)
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, self.refraction_depth)
-        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, self.glossy_refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_RECURSION, self.ray_depth.max_ray_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, self.ray_depth.diffuse_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, self.ray_depth.glossy_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW, self.ray_depth.shadow_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, self.ray_depth.refraction_depth)
+        res |= rpr_context.set_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, self.ray_depth.glossy_refraction_depth)
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_RADIANCE_CLAMP, self.clamp_radiance if \
             self.use_clamp_radiance else sys.float_info.max)
 
         res |= rpr_context.set_parameter(pyrpr.CONTEXT_RAY_CAST_EPSILON,
-                                         self.ray_cast_epsilon * 0.001) # Convert millimeters to meters
+                                         self.ray_depth.ray_cast_epsilon * 0.001) # Convert millimeters to meters
 
         return res
 
@@ -661,7 +752,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     def is_contour_available(self, is_final_engine):
         devices = self.get_devices(is_final_engine=is_final_engine)
-        return self.render_quality == 'FULL2' and not devices.cpu_state
+        return self.final_render_mode == 'FULL2' and not devices.cpu_state
 
     def export_pixel_filter(self, rpr_context):
         """ Exports pixel filter settings """
@@ -673,10 +764,10 @@ class RPR_RenderProperties(RPR_Properties):
         return res
 
     def export_render_quality(self, rpr_context):
-        if self.render_quality == 'FULL':
+        if self.final_render_mode == 'FULL':
             return False
 
-        quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.render_quality)
+        quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.final_render_mode)
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_QUALITY, quality)
 
     @classmethod

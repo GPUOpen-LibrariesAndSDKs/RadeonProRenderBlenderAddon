@@ -607,7 +607,7 @@ class RenderEngine(Engine):
 
         self.rpr_context.resize(self.width, self.height)
 
-        self.needs_contour_pass = view_layer.rpr.use_contour_render and scene.rpr.render_quality == 'FULL2'
+        self.needs_contour_pass = view_layer.rpr.use_contour_render and scene.rpr.final_render_mode == 'FULL2'
         if self.needs_contour_pass:
             view_layer.rpr.contour.export_contour_settings(self.rpr_context)
 
@@ -739,7 +739,7 @@ class RenderEngine(Engine):
         enable_adaptive = scene.rpr.limits.noise_threshold > 0.0
         view_layer.rpr.export_aovs(view_layer, self.rpr_context, self.rpr_engine, enable_adaptive, self.cryptomatte_allowed)
 
-        if scene.rpr.render_quality == 'FULL2':
+        if scene.rpr.final_render_mode == 'FULL2':
             scene.rpr.limits.set_random_seed(self.rpr_context)
 
         if enable_adaptive:
@@ -753,7 +753,7 @@ class RenderEngine(Engine):
         self.setup_image_filter(image_filter_settings)
 
         # Shadow catcher
-        if scene.rpr.render_quality != 'FULL':
+        if scene.rpr.final_render_mode != 'FULL':
             self.rpr_context.sync_catchers(False)
             bg_filter_enabled = scene.render.film_transparent or self.rpr_context.use_reflection_catcher  # single Shadow Catcher AOV is handled by core
             background_filter_settings = {
@@ -779,7 +779,7 @@ class RenderEngine(Engine):
         if self.cryptomatte_allowed:
             self.rpr_context.sync_cryptomatte_hash()
 
-        if scene.rpr.render_quality == 'FULL2':
+        if scene.rpr.final_render_mode == 'FULL2':
             self.render_update_samples = scene.rpr.limits.update_samples_rpr2
         else:
             self.render_update_samples = scene.rpr.limits.update_samples

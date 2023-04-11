@@ -79,7 +79,11 @@ class RPR_RENDER_OP_add_denoiser_node(RPR_Operator):
         view_layer = context.view_layer
 
         # add compositor node
-        denoiser_node = nt.nodes.new(type="CompositorNodeDenoise")
+        denoiser_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeDenoise)), None)
+        if not denoiser_node:
+            denoiser_node = nt.nodes.new(type="CompositorNodeDenoise")
+
+        denoiser_node.mute = False
 
         # adds nescessary AOVS
         view_layer.rpr.enable_aov_by_name('Shading Normal')

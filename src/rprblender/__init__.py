@@ -122,10 +122,10 @@ class RPREngine(bpy.types.RenderEngine):
                 engine_cls = PreviewEngine
 
             elif self.is_animation:
-                engine_cls = animation_engine_cls[depsgraph.scene.rpr.render_quality]
+                engine_cls = animation_engine_cls[depsgraph.scene.rpr.final_render_mode]
 
             else:
-                engine_cls = render_engine_cls[depsgraph.scene.rpr.render_quality]
+                engine_cls = render_engine_cls[depsgraph.scene.rpr.final_render_mode]
 
             self.engine = engine_cls(self)
             self.engine.sync(depsgraph)
@@ -155,7 +155,7 @@ class RPREngine(bpy.types.RenderEngine):
 
         try:
             # if there is no engine set, create it and do the initial sync
-            engine_cls = viewport_engine_cls[depsgraph.scene.rpr.render_quality]
+            engine_cls = viewport_engine_cls[depsgraph.scene.rpr.viewport_render_mode]
 
             if self.engine and type(self.engine) == engine_cls:
                 self.engine.sync_update(context, depsgraph)
@@ -219,7 +219,7 @@ class RPREngine(bpy.types.RenderEngine):
             for i in range(3,6):
                 do_register_pass(cryptomatte_aovs[i])
 
-        if layer.rpr.use_contour_render and scene.rpr.render_quality == "FULL2":
+        if layer.rpr.use_contour_render and scene.rpr.final_render_mode == "FULL2":
             do_register_pass(layer.rpr.contour_info)
 
 
