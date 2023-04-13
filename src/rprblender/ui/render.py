@@ -188,7 +188,7 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
 
-        adapt_resolution = rpr.viewport_render_quality in ('FULL', 'FULL2')
+        adapt_resolution = rpr.viewport_render_mode in ('FULL', 'FULL2')
         col1 = col.column()
         col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
@@ -217,7 +217,7 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.rpr.final_render_quality == 'FULL2'
+        return context.scene.rpr.final_render_mode == 'FULL2'
 
     def draw(self, context):
         self.layout.use_property_split = True
