@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import os
-
 import numpy as np
 
 import bpy
 
 import pyrpr
-from rprblender.utils import helper_lib
+from rprblender.utils import helper_lib, BLENDER_VERSION
 from rprblender.engine.context import RPRContext2
 
 from . import object, material, volume
@@ -48,7 +46,7 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
     if not isinstance(rpr_context, RPRContext2):
         return
 
-    if not helper_lib.is_openvdb_support:
+    if not (helper_lib.is_openvdb_support or BLENDER_VERSION >= '3.5'):
         log.warn("OpenVDB is not supported")
         return
 
@@ -72,7 +70,7 @@ def sync(rpr_context, obj: bpy.types.Object, **kwargs):
 
 
 def sync_update(rpr_context, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
-    if not helper_lib.is_openvdb_support:
+    if not (helper_lib.is_openvdb_support or BLENDER_VERSION >= '3.5'):
         return False
 
     obj_key = object.key(obj)

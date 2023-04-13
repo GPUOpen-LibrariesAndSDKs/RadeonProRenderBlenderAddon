@@ -98,9 +98,6 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         grid = rpr_context.create_grid_from_3d_array(data)
 
     elif obj.type == 'VOLUME':
-        if not helper_lib.is_openvdb_support:
-            return None
-
         if not obj.data.grids.is_loaded:
             obj.data.grids.load()
 
@@ -108,19 +105,58 @@ def create_grid_sampler_node(rpr_context, obj, grid_name, default_grid_name):
         if not vdb_file:  # nothing to export
             return None
 
-        grids = helper_lib.vdb_read_grids_list(vdb_file)
-        if grid_name not in grids:
+        if BLENDER_VERSION >= '3.5':
             obj.data.grids.unload()
-            return None
 
-        # TODO: add support for float vector grid
-        if obj.data.grids[grid_name].channels != 1:
+            import pyopenvdb as vdb
+
+            grids = vdb.readAllGridMetadata(vdb_file)
+            try:
+                grid = next((vdb.read(vdb_file, g.name) for g in grids if g.name == grid_name), None)
+
+            except Exception as err:
+                raise RuntimeError(err)
+
+            if grid is None:
+                return None
+
+            # TODO: add support for float vector grid
+            if grid.valueTypeName != 'float':
+                return
+
+            size = grid.evalLeafDim()
+            values = np.zeros(shape=size, dtype=np.float32)
+
+            # ijk - specifies the index coordinates of the voxel to be copied to array index
+            # otherwise grid becomes shifted
+            grid.copyToArray(values, ijk=grid.evalLeafBoundingBox()[0])
+            indices = np.nonzero(values)
+
+            data = {
+                'size': size,
+                'values': values[indices],
+                'indices': np.ascontiguousarray(np.transpose(indices).astype('uint32')),
+            }
+
+        else:
+            if not helper_lib.is_openvdb_support:
+                obj.data.grids.unload()
+                return None
+
+            grids = helper_lib.vdb_read_grids_list(vdb_file)
+            if grid_name not in grids:
+                obj.data.grids.unload()
+                return None
+
+            # TODO: add support for float vector grid
+            if obj.data.grids[grid_name].channels != 1:
+                obj.data.grids.unload()
+                return None
+
             obj.data.grids.unload()
-            return None
 
-        obj.data.grids.unload()
+            data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
 
-        data = helper_lib.vdb_read_grid_data(vdb_file, grid_name)
         grid = rpr_context.create_grid_from_array_indices(*data['size'], data['values'], data['indices'])
 
     if not grid:
