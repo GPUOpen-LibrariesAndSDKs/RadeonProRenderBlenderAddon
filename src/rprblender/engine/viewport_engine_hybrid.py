@@ -32,11 +32,11 @@ class ViewportEngine(viewport_engine.ViewportEngine):
     def sync(self, context, depsgraph):
         super().sync(context, depsgraph)
 
-        depsgraph.scene.rpr.export_render_quality(self.rpr_context)
+        depsgraph.scene.rpr.export_viewport_render_quality(self.rpr_context)
         log('Finish sync')
 
     def update_render(self, scene, view_layer):
-        restart = scene.rpr.export_render_quality(self.rpr_context)
+        restart = scene.rpr.export_viewport_render_quality(self.rpr_context)
         restart |= super().update_render(scene, view_layer)
 
         return restart
