@@ -232,6 +232,9 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
             row.prop(limits, 'seed')
             row.prop(limits, 'anim_seed', text="", icon='TIME')
 
+            row = col.row()
+            row.prop(rpr, 'texture_compression')
+
 
 class RPR_RENDER_PT_settings(RPR_Panel):
     bl_label = "Settings"

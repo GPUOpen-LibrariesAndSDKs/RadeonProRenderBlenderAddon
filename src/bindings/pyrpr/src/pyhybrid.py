@@ -74,6 +74,18 @@ class Context(pyrpr.Context):
         for _ in range(iterations):
             super().render()
 
+    @classmethod
+    def register_plugin(cls, lib_path, cache_path):
+        super().register_plugin(lib_path, cache_path)
+
+        # trying to create context
+        try:
+            context = cls(pyrpr.CREATION_FLAGS_ENABLE_GPU0)
+
+        except pyrpr.CoreError as err:
+            cls.plugin_id = -1
+            raise RuntimeError("Plugin is not registered", lib_path, err.error_message)
+
 
 @class_ignore_unsupported
 class IESLight(pyrpr.PointLight):

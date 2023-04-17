@@ -763,6 +763,13 @@ class RPR_RenderProperties(RPR_Properties):
         quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.final_render_mode)
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_QUALITY, quality)
 
+    def export_viewport_render_quality(self, rpr_context):
+        if self.viewport_render_mode == 'FULL':
+            return False
+
+        quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.viewport_render_mode)
+        return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_QUALITY, quality)
+
     @classmethod
     def register(cls):
         log("Register")
