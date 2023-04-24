@@ -621,7 +621,8 @@ def get_rpr_sdk(base=Path()):
     return {
         'inc': p / "inc",
         'bin': p / "bin",
-        'lib': p / "lib" if platform.system() == 'Windows' else None
+        'lib': p / "lib" if platform.system() == 'Windows' else None,
+        'hipbin': p / "hipbin",
     }
 
 
@@ -681,7 +682,8 @@ if __name__=='__main__':
                  'rpr_vector_component_type',
                  'rpr_format_ext',
                  'RPR_CONTEXT_CREATE_IMAGE_FROM_EXTERNAL_HANDLE',
-                 'rprGetSupportedDevices',
+                 'rprSetLogFunction',
+                 'RPR_GET_SUPPORTED_DEVICES_FUNC_NAME'
                  ]
     )
 

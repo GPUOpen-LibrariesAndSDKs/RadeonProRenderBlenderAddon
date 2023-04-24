@@ -1718,6 +1718,9 @@ class ShaderNodeNormalMap(NodeParser):
     def export_hybrid(self):
         return self.get_input_value('Color')
 
+    def export_hybridpro(self):
+        return self.export()
+
 
 class ShaderNodeNormal(NodeParser):
     """ Has two outputs "normal" which is just to use the normal output, and dot
