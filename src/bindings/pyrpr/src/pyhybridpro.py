@@ -111,9 +111,9 @@ class Context(pyrpr.Context):
             context = cls(pyrpr.CREATION_FLAGS_ENABLE_GPU0)
 
         except pyrpr.CoreError as err:
-            if err.status == pyrpr.ERROR_UNSUPPORTED:
+            if err.status in (pyrpr.ERROR_UNSUPPORTED, pyrpr.ERROR_INTERNAL_ERROR, pyrpr.ERROR_OUT_OF_VIDEO_MEMORY):
                 cls.plugin_id = -1
-                raise RuntimeError("Plugin is not registered", lib_path, err.error_message)
+                raise RuntimeError("Plugin is not registered", lib_path, err.status, err.error_message)
 
             raise err
 

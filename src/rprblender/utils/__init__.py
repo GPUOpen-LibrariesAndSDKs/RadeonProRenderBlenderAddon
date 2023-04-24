@@ -41,6 +41,16 @@ def core_cache_dir():
     return package_root_dir() / ".cache"
 
 
+def hipbin_dir():
+    if IS_DEBUG_MODE:
+        hipdir = package_root_dir().parent.parent / '.sdk/rpr/hipbin'
+
+    else:
+        hipdir = package_root_dir() / "hipbin"
+
+    return hipdir
+
+
 def blender_root_dir():
     if IS_MAC:
         return Path(sys.executable).parent / '../Resources'

@@ -44,10 +44,14 @@ def find_file(path, glob):
 
 def copy_rpr_sdk():
     rpr_dir = Path("RadeonProRenderSDK/RadeonProRender")
+    hip_dir = Path("RadeonProRenderSDK/hipbin")
 
     # creating rpr dir
     sdk_rpr_dir = sdk_dir / "rpr"
     sdk_rpr_dir.mkdir()
+
+    # creating hipbin dir
+    shutil.copytree(str(hip_dir), str(sdk_rpr_dir / "hipbin"))
 
     # copying inc files
     shutil.copytree(str(rpr_dir / "inc"), str(sdk_rpr_dir / "inc"))

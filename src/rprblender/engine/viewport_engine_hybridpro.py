@@ -51,8 +51,6 @@ class ViewportEngine(viewport_engine.ViewportEngine):
         super().sync(context, depsgraph)
 
         self.rpr_context.set_parameter(pyrpr.CONTEXT_MATERIAL_CACHE, True)
-        self.rpr_context.set_parameter(pyrpr.CONTEXT_RESTIR_GI, True)
-        self.rpr_context.set_parameter(pyrpr.CONTEXT_RESTIR_GI_BIAS_CORRECTION, 3)
         self.rpr_context.set_parameter(pyrpr.CONTEXT_RESERVOIR_SAMPLING, 2)
         self.rpr_context.set_parameter(pyrpr.CONTEXT_RESTIR_SPATIAL_RESAMPLE_ITERATIONS, 3)
         self.rpr_context.set_parameter(pyrpr.CONTEXT_RESTIR_MAX_RESERVOIRS_PER_CELL, 128)
