@@ -153,6 +153,9 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')
 
+        if rpr.final_render_mode in ('HIGH', 'HYBRIDPRO'):
+            col.prop(rpr, 'hybrid_low_mem')
+
         col = self.layout.column(align=True)
         col.enabled = rpr.final_render_mode in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
@@ -187,6 +190,10 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col.prop(limits, 'max_samples')
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
+
+        if rpr.viewport_render_mode in ('HIGH', 'HYBRIDPRO'):
+            row = col.row()
+            row.prop(rpr, 'viewport_hybrid_low_mem')
 
         adapt_resolution = rpr.viewport_render_mode in ('FULL', 'FULL2')
         col1 = col.column()
