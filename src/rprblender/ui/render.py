@@ -473,6 +473,8 @@ class RPR_RENDER_PT_debug(RPR_Panel):
         if utils.IS_WIN or utils.IS_MAC:
             layout.prop(settings, 'collect_stat')
 
+        self.layout.prop(settings, 'use_opencl')
+
         col = layout.column(align=True)
         col.prop(rpr, 'trace_dump')
         row = col.row()
