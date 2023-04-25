@@ -24,6 +24,7 @@ hybridpro_unsupported_log_warn = False
 
 material_library_path = None
 
+use_opencl = False
 enable_hybrid = True
 enable_hybridpro = True
 
