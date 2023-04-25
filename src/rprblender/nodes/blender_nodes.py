@@ -142,7 +142,10 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
     def get_normal_node(self):
         """ Returns the normal node if displacement mode is set to bump 
             this returns a bumped normal, else returns a node_lookup N """
-        if self.material.cycles.displacement_method in {"BUMP", "BOTH"}:
+
+        # TODO RPRContextHybridPro doesn't support MATERIAL_NODE_BUMP_MAP
+        if self.material.cycles.displacement_method in {"BUMP", "BOTH"} and \
+                not isinstance(self.rpr_context, RPRContextHybridPro):
             displacement_input = self.get_input_link("Displacement")
             if displacement_input:
                 return self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
@@ -255,6 +258,30 @@ class ShaderNodeDisplacement(NodeParser):
 
     def export_hybrid(self):
         return None
+
+    def export_hybridpro(self):
+        height = self.get_input_value('Height')
+        midlevel = self.get_input_value('Midlevel')
+        scale = self.get_input_value('Scale')
+        normal = self.get_input_normal('Normal')
+
+        height = (height - midlevel)
+
+        if isinstance(height.data, (float, tuple)):
+            displacement = self.create_node(pyrpr.MATERIAL_NODE_ARITHMETIC, {
+                pyrpr.MATERIAL_INPUT_OP: pyrpr.MATERIAL_NODE_OP_MUL,
+                pyrpr.MATERIAL_INPUT_COLOR1: height,
+                pyrpr.MATERIAL_INPUT_COLOR0: scale,
+            })
+
+        else:
+            displacement = height * scale
+
+        #  TODO normal is not supported at the moment, produces crash if enable
+        # if normal:
+            # displacement *= normal
+
+        return displacement
 
 
 class NodeReroute(NodeParser):
