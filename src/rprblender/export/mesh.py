@@ -22,6 +22,7 @@ import mathutils
 
 import pyrpr
 from rprblender.engine.context import RPRContext, RPRContext2
+from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from . import object, material, volume
 from rprblender.utils import get_data_from_collection, BLENDER_VERSION
 
@@ -260,6 +261,11 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         # setting displacement material
         if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
             rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
+
+            # HybridPro: displacement disappears in case we set displacement material that is already set
+            if isinstance(rpr_context, RPRContextHybridPro) and rpr_shape.displacement_material is rpr_displacement:
+                return True
+
             rpr_shape.set_displacement_material(rpr_displacement)
             # if no subdivision set that up to 'high' so displacement looks good
             # note subdivision is capped to resolution
