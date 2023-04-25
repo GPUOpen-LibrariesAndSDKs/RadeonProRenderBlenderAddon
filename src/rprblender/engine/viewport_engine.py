@@ -494,7 +494,7 @@ class ViewportEngine(Engine):
 
         # setting initial render resolution as (1, 1) just for AOVs creation.
         # It'll be resized to correct resolution in draw() function
-        self.rpr_context.resize(1, 1)
+        self._initial_resize(depsgraph)
 
         self.rpr_context.enable_aov(pyrpr.AOV_COLOR)
 
@@ -1145,6 +1145,9 @@ class ViewportEngine(Engine):
             'ml_color_only': False,
             'ml_use_fp16_compute_type': True,
         }
+
+    def _initial_resize(self, depsgraph):
+        self.rpr_context.resize(1, 1)
 
     def depsgraph_objects(self, depsgraph, with_camera=False):
         for obj in super().depsgraph_objects(depsgraph, with_camera):

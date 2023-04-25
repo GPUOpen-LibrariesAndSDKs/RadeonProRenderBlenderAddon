@@ -605,7 +605,7 @@ class RPR_RenderProperties(RPR_Properties):
 
     viewport_upscale: BoolProperty(
         name="Viewport Upscaling",
-        description="Rendering at 2 times lower resoluting then upscaling rendered image "
+        description="Rendering at lower resoluting then upscaling rendered image "
                     "in the end of render",
         default=True,
     )
