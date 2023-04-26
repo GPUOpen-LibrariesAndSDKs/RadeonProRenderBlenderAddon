@@ -2177,28 +2177,31 @@ class ShaderNodeMapping(NodeParser):
     def rotation(self, mapping, transpose=False):
         """ returns a vector transformed by rotation """
         # Apply rotation to transpose we flip matrix
-        rotation = - self.get_input_default('Rotation')  # must be flipped to match cycles
-        sin_x, sin_y, sin_z = map(math.sin, rotation.data)
-        cos_x, cos_y, cos_z = map(math.cos, rotation.data)
+        rotation = - self.get_input_value('Rotation')  # must be flipped to match cycles
+
+        rot_sin = rotation.sin()
+        sin_x = rot_sin.get_channel(0)
+        sin_y = rot_sin.get_channel(1)
+        sin_z = rot_sin.get_channel(2)
+
+        rot_cos = rotation.cos()
+        cos_x = rot_cos.get_channel(0)
+        cos_y = rot_cos.get_channel(1)
+        cos_z = rot_cos.get_channel(2)
 
         if transpose:
-            part1 = mapping.dot3((cos_y * cos_z,
-                                  sin_y * sin_x * cos_z - cos_x * sin_z,
-                                  sin_y * cos_x * cos_z + sin_x * sin_z, 0.0))
-            part2 = mapping.dot3((cos_y * sin_z,
-                                  sin_y * sin_x * sin_z + cos_x * cos_z,
-                                  sin_y * cos_x * sin_z - sin_x * cos_z, 0.0))
-            part3 = mapping.dot3((-sin_y,
-                                  cos_y * sin_x,
-                                  cos_y * cos_x, 0.0))
+            part1 = mapping.dot3((cos_y * cos_z).combine(
+                sin_y * sin_x * cos_z - cos_x * sin_z, sin_y * cos_x * cos_z + sin_x * sin_z))
+            part2 = mapping.dot3((cos_y * sin_z).combine(
+                sin_y * sin_x * sin_z + cos_x * cos_z, sin_y * cos_x * sin_z - sin_x * cos_z))
+            part3 = mapping.dot3((-sin_y).combine(cos_y * sin_x, cos_y * cos_x))
         else:
-            part1 = mapping.dot3((cos_y * cos_z, cos_y * sin_z, -sin_y, 0.0))
-            part2 = mapping.dot3((sin_y * sin_x * cos_z - cos_x * sin_z,
-                                  sin_y * sin_x * sin_z + cos_x * cos_z,
-                                  cos_y * sin_x, 0.0))
-            part3 = mapping.dot3((sin_y * cos_x * cos_z + sin_x * sin_z,
-                                  sin_y * cos_x * sin_z - sin_x * cos_z,
-                                  cos_y * cos_x, 0.0))
+            part1 = mapping.dot3((cos_y * cos_z).combine(cos_y * sin_z, -sin_y))
+            part2 = mapping.dot3(
+                (sin_y * sin_x * cos_z - cos_x * sin_z).combine(sin_y * sin_x * sin_z + cos_x * cos_z, cos_y * sin_x))
+            part3 = mapping.dot3(
+                (sin_y * cos_x * cos_z + sin_x * sin_z).combine(sin_y * cos_x * sin_z - sin_x * cos_z, cos_y * cos_x))
+
         return part1.combine4(part2, part3, self.node_item((0, 0, 0, 1)))
 
     def export_281(self):
