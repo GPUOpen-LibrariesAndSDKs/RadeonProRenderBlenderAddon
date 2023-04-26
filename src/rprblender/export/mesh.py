@@ -33,6 +33,10 @@ log = logging.Log(tag='export.mesh')
 NUM_TRIANGLES_WARNING = 1000000
 
 
+def key(obj):
+    return f"{obj.data.name_full}_{obj.original.type}"
+
+
 @dataclass(init=False)
 class MeshData:
     """ Dataclass which holds all mesh settings. It is used also for area lights creation """
@@ -364,7 +368,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     transform = object.get_transform(obj)
 
     # the mesh key is used to find duplicated mesh data
-    mesh_key = obj.data.name_full
+    mesh_key = key(obj)
     is_potential_instance = len(obj.modifiers) == 0
     
     # if an object has no modifiers it could potentially instance a mesh
@@ -441,7 +445,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     log("sync_update", obj, mesh)
 
     obj_key = object.key(obj)
-    mesh_key = obj.data.name_full
+    mesh_key = key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
     if rpr_shape:
         if is_updated_geometry:
