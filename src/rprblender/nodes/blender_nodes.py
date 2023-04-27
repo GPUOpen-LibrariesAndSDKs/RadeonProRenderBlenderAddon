@@ -1533,7 +1533,7 @@ class ShaderNodeMath(NodeParser):
                 res = self.create_arithmetic(pyrpr.MATERIAL_NODE_OP_MOD, in1, in2)
             elif op == 'PINGPONG':
                 # Implementation from Blender: source/blender/blenlib/intern/ math_base_inline.c
-                res = (in2 != 0.0).if_else(abs((((in1 - in2) / (in2 * 2.0)) % 1.0) * in2 * 2.0 - in2), 0.0)
+                res = (in2 != 0.0).if_else(abs(((abs((in1 - in2)) / (in2 * 2.0)) % 1.0) * in2 * 2.0 - in2), 0.0)
 
             else:
                 in3 = self.get_input_value(2)
