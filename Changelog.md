@@ -1,3 +1,34 @@
+# Version 3.6
+## New Features:
+- Support for Blender 3.5 has been added.
+- The RPR Final mode now uses AMD’s HIP for running on the GPU. This increases download package size for now, but allows faster first renders as the kernels are pre-compiled.
+- The RPR Interactive mode has been improved with the following developments:
+ - Displacement support;
+ - Lookup UV nodes support;
+ - Support for GPUs with less than 8 GB VRAM;
+ - Support for GPUs without hardware-accelerated ray tracing.
+- The Interactive mode settings to use RESTIR-based direct lighting and FSR2 upscaling have been added. These by default should give excellent interactivity when rendering in the viewport.
+- The new presets for render settings have been added to select viewport or final render qualities. These give our suggestions for settings which can be overridden. 
+- Updated support of shader nodes:
+ - The updated Mix nodes in Blender 3.4 are now supported;
+ - The toon shader UI has been updated to support three modes (single-color, three-color, and five-color);
+ - Better support of the Curves Info node;
+ - Support has been added for operations in the Math node: Truncate, Square Root, Inverse Square Root, Sign, and Ping Pong.
+
+## Bugs Fixed:
+- An error with material previews in Blender 3.4 and 3.5 has been fixed.
+- Nodes with hidden outputs that were still linked could affect render results — fixed.
+- Radius and UV support for new curves in Blender 3.4 has been added.
+- A scene with many duplicated objects sharing the same mesh data should now export faster and use less GPU memory.
+- An error with the Math node has been fixed when using the “Power” operation with bogus data (for example, 0^-1).
+- VDB volumes in Blender 3.5 now work correctly.
+- An issue has been fixed with the Rotation input on the Vector Mapping Node not working. Thanks for the submission, user “jombo23”.
+- A bug on Nvidia caused by a driver update has been fixed. (We now use the HIP feature to compile kernels to CUDA, avoiding buggy OpenCL implementations).
+
+## Known Issues:
+- With Blender 3.5, the switch to use a Metal viewport interferes with viewport rendering. Please switch to the OpenGL GPU backend to use viewport rendering.
+
+
 # Version 3.5
 ## New Features:
 - Support for Blender 3.3 and Blender 3.4 has been added, including support for the new hair system.
