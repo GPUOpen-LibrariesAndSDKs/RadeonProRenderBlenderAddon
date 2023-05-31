@@ -196,7 +196,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
                 self.gpu_states[0] = True
         else:
             # if no GPU then cpu always should be enabled
-            self.cpu_state = True
+            self.cpu_state = bool(pyrpr.Context.cpu_device)
         on_settings_changed(self, context)
 
         # after changing devices its good to reset PreviewEngine and
@@ -215,7 +215,7 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
     cpu_state: BoolProperty(
         name="",
         description="Use CPU device for rendering",
-        default=not pyrpr.Context.gpu_devices,  # True if no GPUs are available
+        default=not pyrpr.Context.gpu_devices and pyrpr.Context.cpu_device is not None,  # True if no GPUs are available
         update=update_states
     )
     cpu_threads: IntProperty(
@@ -645,7 +645,7 @@ class RPR_RenderProperties(RPR_Properties):
         # enable CMJ sampler for adaptive sampling
         context_props = [pyrpr.CONTEXT_SAMPLER_TYPE, pyrpr.CONTEXT_SAMPLER_TYPE_CMJ]
 
-        if devices.cpu_state:
+        if devices.cpu_state and isinstance(rpr_context, context.RPRContext2):
             context_flags |= {pyrpr.Context.cpu_device['flag']}
             context_props.extend([pyrpr.CONTEXT_CPU_THREAD_LIMIT, devices.cpu_threads])
 
