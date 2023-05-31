@@ -33,7 +33,7 @@ class RPR_RENDER_PT_devices(RPR_Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        if not pyrpr.Context.gpu_devices:
+        if not pyrpr.Context.gpu_devices and pyrpr.Context.cpu_device:
             col = layout.column(align=True)
             row = col.row()
             row.enabled = False
@@ -80,7 +80,7 @@ class RPR_RENDER_PT_viewport_devices(RPR_Panel):
         layout.use_property_decorate = False
         self.layout.enabled = settings.separate_viewport_devices
 
-        if not pyrpr.Context.gpu_devices:
+        if not pyrpr.Context.gpu_devices and pyrpr.Context.cpu_device:
             col = layout.column(align=True)
             row = col.row()
             row.enabled = False

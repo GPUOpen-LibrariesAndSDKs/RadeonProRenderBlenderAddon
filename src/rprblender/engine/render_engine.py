@@ -869,12 +869,13 @@ class RenderEngine(Engine):
         ])
         text = text.replace("%so", str(objects_count))
 
-        cpu_name = pyrpr.Context.cpu_device['name']
-        text = text.replace("%c", cpu_name)
-
-        selected_gpu_names = ''
         settings = get_user_settings()
         devices = settings.final_devices
+        if pyrpr.Context.cpu_device:
+            cpu_name = pyrpr.Context.cpu_device['name']
+            text = text.replace("%c", cpu_name)
+
+        selected_gpu_names = ''
         for i, gpu_state in enumerate(devices.available_gpu_states):
             if gpu_state:
                 name = pyrpr.Context.gpu_devices[i]['name']
