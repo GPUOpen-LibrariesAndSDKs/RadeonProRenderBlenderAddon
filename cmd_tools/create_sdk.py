@@ -62,7 +62,7 @@ def copy_rpr_sdk():
     # copying bin lib files
     bin_glob = {
         'Windows': "binWin64/*.dll",
-        'Linux': "binUbuntu18/*.so",
+        'Linux': "binUbuntu20/*.so",
         'Darwin': "binMacOS/*.dylib"
     }[OS]
 
