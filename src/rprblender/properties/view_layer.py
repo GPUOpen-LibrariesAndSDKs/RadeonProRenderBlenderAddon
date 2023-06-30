@@ -226,7 +226,7 @@ class RPR_DenoiserProperties(RPR_Properties):
     )
     def get_settings(self, scene, is_final_engine=True):
         return {
-            'enable': self.enable and self.is_available(scene, is_final_engine),
+            'enable': False,
             'filter_type': self.filter_type,
             'color_sigma': self.color_sigma,
             'normal_sigma': self.normal_sigma,
