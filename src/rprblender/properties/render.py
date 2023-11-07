@@ -582,6 +582,12 @@ class RPR_RenderProperties(RPR_Properties):
         update=update_viewport_render_preset
     )
 
+    legacy_toon_shader: BoolProperty(
+        name="Use Legacy RPR Toon",
+        description="Enable backward compatibility of RPR Toon shader appearance",
+        default=False,
+    )
+
     hybrid_low_mem: BoolProperty(
         name="Use 4GB memory",
         description="Enable to support GPUs with 4Gb VRAM or less for Final render mode",
@@ -800,6 +806,13 @@ class RPR_RenderProperties(RPR_Properties):
 
         quality = getattr(pyrpr, 'RENDER_QUALITY_' + self.viewport_render_mode)
         return rpr_context.set_parameter(pyrpr.CONTEXT_RENDER_QUALITY, quality)
+
+    def export_compatibility_settings(self, rpr_context):
+        """ Exports backward compatibility settings """
+        if self.final_render_mode != 'FULL2':
+            return False
+
+        return rpr_context.set_parameter(pyrpr.CONTEXT_NORMALIZE_LIGHT_INTENSITY_ENABLED, not self.legacy_toon_shader)
 
     @classmethod
     def register(cls):

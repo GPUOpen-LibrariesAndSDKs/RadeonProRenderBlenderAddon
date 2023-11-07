@@ -683,7 +683,10 @@ if __name__=='__main__':
                  'rpr_format_ext',
                  'RPR_CONTEXT_CREATE_IMAGE_FROM_EXTERNAL_HANDLE',
                  'rprSetLogFunction',
-                 'RPR_GET_SUPPORTED_DEVICES_FUNC_NAME'
+                 'RPR_GET_SUPPORTED_DEVICES_FUNC_NAME',
+                 'rpr_debug_timings_mode',
+                 'RPR_CONTEXT_DEBUG_GET_CPU_TIMINGS',
+                 'RPR_CONTEXT_DEBUG_GET_GPU_TIMINGS'
                  ]
     )
 
