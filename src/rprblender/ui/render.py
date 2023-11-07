@@ -240,7 +240,7 @@ class RPR_RENDER_PT_advanced(RPR_Panel):
             row.prop(limits, 'anim_seed', text="", icon='TIME')
 
             col.prop(rpr, 'texture_compression')
-            col.prop(rpr, 'disable_normalize_light_intensity')
+            col.prop(rpr, 'legacy_toon_shader')
 
 
 class RPR_RENDER_PT_settings(RPR_Panel):

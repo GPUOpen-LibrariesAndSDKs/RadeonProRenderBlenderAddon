@@ -531,7 +531,6 @@ class ViewportEngine(Engine):
         scene.rpr.export_pixel_filter(self.rpr_context)
         scene.rpr.export_compatibility_settings(self.rpr_context)
 
-
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0)
 
         self.is_finished = False

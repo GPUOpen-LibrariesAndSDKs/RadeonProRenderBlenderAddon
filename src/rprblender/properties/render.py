@@ -582,7 +582,7 @@ class RPR_RenderProperties(RPR_Properties):
         update=update_viewport_render_preset
     )
 
-    disable_normalize_light_intensity: BoolProperty(
+    legacy_toon_shader: BoolProperty(
         name="Use Legacy RPR Toon",
         description="Enable backward compatibility of RPR Toon shader appearance",
         default=False,
@@ -812,7 +812,7 @@ class RPR_RenderProperties(RPR_Properties):
         if self.final_render_mode != 'FULL2':
             return False
 
-        return rpr_context.set_parameter(pyrpr.CONTEXT_NORMALIZE_LIGHT_INTENSITY_ENABLED, not self.disable_normalize_light_intensity)
+        return rpr_context.set_parameter(pyrpr.CONTEXT_NORMALIZE_LIGHT_INTENSITY_ENABLED, not self.legacy_toon_shader)
 
     @classmethod
     def register(cls):
