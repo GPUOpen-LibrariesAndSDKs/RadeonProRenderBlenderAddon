@@ -529,6 +529,8 @@ class ViewportEngine(Engine):
         scene.rpr.export_viewport_ray_depth(self.rpr_context)
         self.rpr_context.texture_compression = scene.rpr.texture_compression
         scene.rpr.export_pixel_filter(self.rpr_context)
+        scene.rpr.export_compatibility_settings(self.rpr_context)
+
 
         self.render_iterations, self.render_time = (viewport_limits.max_samples, 0)
 
@@ -1109,6 +1111,7 @@ class ViewportEngine(Engine):
         restart = scene.rpr.export_render_mode(self.rpr_context)
         restart |= scene.rpr.export_viewport_ray_depth(self.rpr_context)
         restart |= scene.rpr.export_pixel_filter(self.rpr_context)
+        restart |= scene.rpr.export_compatibility_settings(self.rpr_context)
 
         render_iterations, render_time = (scene.rpr.viewport_limits.max_samples, 0)
 
