@@ -1,4 +1,4 @@
-#**********************************************************************
+# **********************************************************************
 # Copyright 2020 Advanced Micro Devices, Inc
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#********************************************************************
+# ********************************************************************
 import bpy
 from nodeitems_utils import (
     NodeCategory,
@@ -24,6 +24,8 @@ from nodeitems_builtins import (
 )
 
 from rprblender.utils import is_rpr_active, BLENDER_VERSION
+from . import rpr_nodes
+from . import sockets
 
 
 class RPR_ShaderNodeCategory(NodeCategory):
@@ -132,16 +134,13 @@ node_categories = [
     ]), )
 ]
 
-
 def hide_cycles_and_eevee_poll(method):
     @classmethod
     def func(cls, context):
         return not is_rpr_active(context) and method(context)
+
     return func
 
-
-from . import sockets
-from . import rpr_nodes
 
 register_socket_classes, unregister_socket_classes = bpy.utils.register_classes_factory([
     sockets.RPRSocketColor,
@@ -188,8 +187,31 @@ register_node_classes, unregister_node_classes = bpy.utils.register_classes_fact
     rpr_nodes.RPRShaderNodeToon,
 ])
 
-
 old_shader_node_category_poll = None
+
+
+def draw_nodes(self, nodes):
+    col = self.layout.column(align=True)
+    if bpy.context.scene.render.engine != "RPR":
+        return
+
+    for node in nodes:
+        op = col.operator("node.add_node", text=node.bl_label)
+        op.type = node.__name__
+        op.use_transform = True
+
+
+RPR_NODES = {'shader': [rpr_nodes.RPRShaderNodeUber,
+                        rpr_nodes.RPRShaderNodePassthrough,
+                        rpr_nodes.RPRShaderNodeLayered,
+                        rpr_nodes.RPRShaderNodeToon,
+                        rpr_nodes.RPRShaderNodeDoublesided, ],
+             'input': [rpr_nodes.RPRShaderProceduralUVNode,
+                       rpr_nodes.RPRShaderNodeLookup, ],
+             'texture': [rpr_nodes.RPRTextureNodeLayered, ],
+             'converter': [rpr_nodes.RPRValueNode_Math, ]}
+
+
 
 
 def register():
@@ -204,13 +226,30 @@ def register():
     register_socket_interface_classes()
     register_socket_classes()
     register_node_classes()
-    register_node_categories("RPR_NODES", node_categories)
+
+    if BLENDER_VERSION >= "4.0":
+        bpy.types.NODE_MT_category_shader_shader.append(lambda self, context: draw_nodes(self, RPR_NODES['shader']))
+        bpy.types.NODE_MT_category_shader_converter.append(lambda self, context: draw_nodes(self, RPR_NODES['converter']))
+        bpy.types.NODE_MT_category_shader_input.append(lambda self, context: draw_nodes(self, RPR_NODES['input']))
+        bpy.types.NODE_MT_category_shader_texture.append(lambda self, context: draw_nodes(self, RPR_NODES['texture']))
+
+    else:
+        register_node_categories("RPR_NODES", node_categories)
 
 
 def unregister():
     if old_shader_node_category_poll and ShaderNodeCategory.poll is not old_shader_node_category_poll:
         ShaderNodeCategory.poll = old_shader_node_category_poll
-    unregister_node_categories("RPR_NODES")
+
+    if BLENDER_VERSION >= "4.0":
+        bpy.types.NODE_MT_category_shader_shader.remove(RPR_NODES['shader'])
+        bpy.types.NODE_MT_category_shader_converter.remove(RPR_NODES['converter'])
+        bpy.types.NODE_MT_category_shader_input.remove(RPR_NODES['input'])
+        bpy.types.NODE_MT_category_shader_texture.remove(RPR_NODES['texture'])
+
+    else:
+        unregister_node_categories("RPR_NODES")
+
     unregister_node_classes()
     # it's important to keep this order to avoid Blender crash on M2
     unregister_socket_interface_classes()
