@@ -891,15 +891,15 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # Getting require inputs. Note: if some inputs are not needed they won't be taken
         base_color = self.get_input_value('Base Color')
 
-        subsurface = self.get_input_value('Subsurface')
+        subsurface = self.get_input_value('Subsurface Weight' if BLENDER_VERSION >= "4.0" else 'Subsurface')
         subsurface_radius = None
         subsurface_color = None
         if enabled(subsurface):
             subsurface_radius = self.get_input_value('Subsurface Radius')
-            subsurface_color = self.get_input_value('Subsurface Color')
+            subsurface_color = base_color if BLENDER_VERSION >= "4.0" else self.get_input_value('Subsurface Color')
 
         metallic = self.get_input_value('Metallic')
-        specular = self.get_input_value('Specular')
+        specular = self.get_input_value('Specular IOR Level' if BLENDER_VERSION >= "4.0" else 'Specular')
         roughness = self.get_input_value('Roughness')
 
         anisotropic = None
@@ -911,26 +911,26 @@ class ShaderNodeBsdfPrincipled(NodeParser):
                 anisotropic_rotation = self.get_input_value('Anisotropic Rotation')
                 anisotropic_rotation = 0.5 - (anisotropic_rotation % 1.0)
 
-        sheen = self.get_input_value('Sheen')
+        sheen = self.get_input_value('Sheen Weight' if BLENDER_VERSION >= "4.0" else 'Sheen')
         sheen_tint = None
         if enabled(sheen):
             sheen_tint = self.get_input_value('Sheen Tint')
 
-        clearcoat = self.get_input_value('Clearcoat')
+        clearcoat = self.get_input_value('Coat Weight' if BLENDER_VERSION >= "4.0" else 'Clearcoat')
         clearcoat_roughness = None
         clearcoat_normal = None
         if enabled(clearcoat):
-            clearcoat_roughness = self.get_input_value('Clearcoat Roughness')
-            clearcoat_normal = self.get_input_normal('Clearcoat Normal')
+            clearcoat_roughness = self.get_input_value('Coat Roughness' if BLENDER_VERSION >= "4.0" else 'Clearcoat Roughness')
+            clearcoat_normal = self.get_input_normal('Coat Normal' if BLENDER_VERSION >= "4.0" else 'Clearcoat Normal')
 
         ior = self.get_input_value('IOR')
 
-        transmission = self.get_input_value('Transmission')
+        transmission = self.get_input_value('Transmission Weight' if BLENDER_VERSION >= "4.0" else 'Transmission')
         transmission_roughness = None
         if enabled(transmission):
             transmission_roughness = self.get_input_value('Transmission Roughness')
 
-        emission = self.get_input_value('Emission')
+        emission = self.get_input_value('Emission Color' if BLENDER_VERSION >= "4.0" else 'Emission')
         emission_strength = 1.0
 
         # 'Emission Strength' in ShaderNodeBsdfPrincipled is supported from blender 2.91
