@@ -201,17 +201,15 @@ def draw_nodes(self, nodes):
         op.use_transform = True
 
 
-RPR_NODES = {'shader': [rpr_nodes.RPRShaderNodeUber,
+RPR_NODES = {'shader': (rpr_nodes.RPRShaderNodeUber,
                         rpr_nodes.RPRShaderNodePassthrough,
                         rpr_nodes.RPRShaderNodeLayered,
                         rpr_nodes.RPRShaderNodeToon,
-                        rpr_nodes.RPRShaderNodeDoublesided, ],
-             'input': [rpr_nodes.RPRShaderProceduralUVNode,
-                       rpr_nodes.RPRShaderNodeLookup, ],
-             'texture': [rpr_nodes.RPRTextureNodeLayered, ],
-             'converter': [rpr_nodes.RPRValueNode_Math, ]}
-
-
+                        rpr_nodes.RPRShaderNodeDoublesided),
+             'input': (rpr_nodes.RPRShaderProceduralUVNode,
+                       rpr_nodes.RPRShaderNodeLookup,),
+             'texture': (rpr_nodes.RPRTextureNodeLayered,),
+             'converter': (rpr_nodes.RPRValueNode_Math,)}
 
 
 def register():
