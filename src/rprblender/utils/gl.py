@@ -38,7 +38,7 @@ class GLTexture:
 
     def _create(self):
         height, width, channels = self.image.shape
-        pixels = gpu.types.Buffer('FLOAT', width * height * 4, self.image)
+        pixels = gpu.types.Buffer('FLOAT', width * height * channels, self.image)
         self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
 
 
