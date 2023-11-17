@@ -13,7 +13,6 @@
 # limitations under the License.
 #********************************************************************
 from abc import ABCMeta, abstractmethod
-import os
 
 import pyrpr
 import pyhybrid
@@ -65,10 +64,7 @@ class ImageFilter(metaclass=ABCMeta):
                     self.inputs[input_id] = self.context.create_image(self.width, self.height)
 
         self.command_queue = self.context.create_command_queue()
-        if frame_buffer_gl:
-            self.output_image = self.context.create_frame_buffer_image_gl(frame_buffer_gl)
-        else:
-            self.output_image = self.context.create_image(self.width, self.height)
+        self.output_image = self.context.create_image(self.width, self.height)
 
         self._create_filter()
 

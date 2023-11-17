@@ -328,7 +328,8 @@ class ViewportEngine2(ViewportEngine):
             return
 
         self.gl_texture.set_image(im)
-        self.draw_texture(self.gl_texture.texture_id, context.scene)
+        self.draw_texture(context.scene)
+        self.gl_texture.clear()
 
     def sync(self, context, depsgraph):
         super().sync(context, depsgraph)

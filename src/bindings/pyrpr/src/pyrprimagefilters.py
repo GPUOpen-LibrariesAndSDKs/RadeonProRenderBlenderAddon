@@ -23,8 +23,6 @@ from pyrprimagefilterswrap import *
 
 import pyrpr
 
-import bgl
-
 
 class _init_data:
     log_fun = None
@@ -146,9 +144,6 @@ class Context(Object, metaclass=ABCMeta):
     def create_frame_buffer_image(self, frame_buffer):
         return FrameBufferImage(self, frame_buffer)
 
-    def create_frame_buffer_image_gl(self, frame_buffer):
-        return FrameBufferImageGL(self, frame_buffer)
-
     def create_command_queue(self):
         return CommandQueue(self)
 
@@ -251,15 +246,6 @@ class FrameBufferImageCL(FrameBufferImage):
     def _create(self):
         ContextCreateImageFromOpenClMemory(self.context, self._get_desc(), 
                                            self.frame_buffer.get_cl_mem(), False, self)
-
-    def update(self):
-        # image is updated directly
-        pass
-
-
-class FrameBufferImageGL(FrameBufferImage):
-    def _create(self):
-        ContextCreateImageFromOpenGlTexture(self.context, bgl.GL_TEXTURE_2D, 0, self.frame_buffer.gl_texture, self)
 
     def update(self):
         # image is updated directly

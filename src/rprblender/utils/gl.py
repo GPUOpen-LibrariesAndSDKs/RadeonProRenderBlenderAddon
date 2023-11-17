@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-import platform
 import numpy as np
-import bgl
+import gpu
 
 import ctypes
 import sys
@@ -35,35 +34,20 @@ class GLTexture:
 
     def __init__(self):
         self.image = None
-        self.texture_id = 0
+        self.texture = None
 
     def _create(self):
-        textures = bgl.Buffer(bgl.GL_INT, [1,])
-        bgl.glGenTextures(1, textures)
-        self.texture_id = textures[0]
-
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_REPEAT)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
-
         height, width, channels = self.image.shape
-        bgl.glTexImage2D(
-            bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA if platform.system() == 'Darwin' else bgl.GL_RGBA16F,
-            width, height, 0,
-            bgl.GL_RGBA, bgl.GL_FLOAT,
-            bgl.Buffer(bgl.GL_FLOAT, [width, height, channels])
-        )
+        pixels = gpu.types.Buffer('FLOAT', width * height * 4, self.image)
+        self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
 
-    def __del__(self):
+
+    def clear(self):
         if self.image is not None:
             self._delete()
 
     def _delete(self):
-        textures = bgl.Buffer(bgl.GL_INT, [1, ], [self.texture_id, ])
-        bgl.glDeleteTextures(1, textures)
-        self.texture_id = 0
+        self.texture = None
         self.image = None
 
     def set_image(self, image: np.array):
@@ -79,11 +63,3 @@ class GLTexture:
             self._create()
         else:
             self.image = image
-
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-        gl.glTexSubImage2D(
-            bgl.GL_TEXTURE_2D, 0,
-            0, 0, self.image.shape[1], self.image.shape[0],
-            bgl.GL_RGBA, bgl.GL_FLOAT,
-            ctypes.c_void_p(self.image.ctypes.data)
-        )

@@ -53,7 +53,6 @@ class RPRContext:
         self.material_system = None
         self.width = None
         self.height = None
-        self.gl_interop = None
         self.engine_type = None
 
         # Here we'll store some useful blender data, which could be required to do some export
@@ -97,7 +96,6 @@ class RPRContext:
     def init(self, context_flags, context_props):
         self.context = self._Context(context_flags, context_props)
         self.material_system = pyrpr.MaterialSystem(self.context)
-        self.gl_interop = pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP in context_flags
 
         # context settings
         self.set_parameter(pyrpr.CONTEXT_X_FLIP, False)
@@ -159,9 +157,6 @@ class RPRContext:
         if aov_type is not None:
             return self.frame_buffers_aovs[aov_type]['res']
 
-        if self.gl_interop:
-            return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
-
         if self.composite:
             return self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite']
 
@@ -186,13 +181,8 @@ class RPRContext:
         fbs['aov'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
         fbs['aov'].set_name("%d_aov" % aov_type)
         self.context.attach_aov(aov_type, fbs['aov'])
-        if aov_type == pyrpr.AOV_COLOR and self.gl_interop:
-            fbs['res'] = pyrpr.FrameBufferGL(self.context, self.width, self.height)
-            fbs['gl'] = fbs['res']      # resolved and gl framebuffers are the same
-            fbs['gl'].set_name("%d_gl" % aov_type)
-        else:
-            fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
-            fbs['res'].set_name("%d_res" % aov_type)
+        fbs['res'] = pyrpr.FrameBuffer(self.context, self.width, self.height)
+        fbs['res'].set_name("%d_res" % aov_type)
 
         self.frame_buffers_aovs[aov_type] = fbs
 
@@ -300,11 +290,6 @@ class RPRContext:
         self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite'] = pyrpr.FrameBuffer(
             self.context, self.width, self.height)
         self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite'].set_name('default_composite')
-        if self.gl_interop:
-            # splitting resolved and gl framebuffers
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = pyrpr.FrameBuffer(
-                self.context, self.width, self.height)
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'].set_name('default_res')
         # Composite calculation elements frame buffers
         color = self.create_composite(pyrpr.COMPOSITE_FRAMEBUFFER, {
             'framebuffer.input': self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res']
@@ -347,9 +332,6 @@ class RPRContext:
 
     def _disable_catchers(self):
         self.composite = None
-        if self.gl_interop:
-            # set resolved framebuffer be the same as gl
-            self.frame_buffers_aovs[pyrpr.AOV_COLOR]['res'] = self.frame_buffers_aovs[pyrpr.AOV_COLOR]['gl']
         del self.frame_buffers_aovs[pyrpr.AOV_COLOR]['composite']
 
     def sync_auto_adapt_subdivision(self, width=0, height=0):
@@ -613,8 +595,6 @@ class RPRContext:
         if self.composite:
             color_aov = self.frame_buffers_aovs[pyrpr.AOV_COLOR]
             self.composite.compute(color_aov['composite'])
-            if self.gl_interop:
-                color_aov['composite'].resolve(color_aov['gl'])
 
 
 class RPRContext2(RPRContext):
