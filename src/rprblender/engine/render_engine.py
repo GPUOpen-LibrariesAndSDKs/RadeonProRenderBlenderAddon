@@ -92,8 +92,6 @@ class RenderEngine(Engine):
                             dtype=np.float32)
 
         def set_render_result(render_passes: bpy.types.RenderPasses):
-            images = []
-
             x1, y1 = tile_pos
             x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
 
@@ -150,10 +148,7 @@ class RenderEngine(Engine):
 
                     self.cached_rendered_images[p.name][y1:y2, x1:x2] = image
 
-                images.append(image.flatten())
-
-            # efficient way to copy all AOV images
-            render_passes.foreach_set('rect', np.concatenate(images))
+                p.rect = image.reshape(len(p.rect), -1)
 
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
         try:
@@ -189,8 +184,6 @@ class RenderEngine(Engine):
 
     def _update_render_result_contour(self, tile_pos, tile_size, layer_name=""):
         def set_render_result(render_passes: bpy.types.RenderPasses):
-            images = []
-
             x1, y1 = tile_pos
             x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
 
@@ -201,10 +194,7 @@ class RenderEngine(Engine):
                     # getting required rendered image from cached_rendered_images
                     image = self.cached_rendered_images[p.name][y1:y2, x1:x2]
 
-                images.append(image.flatten())
-
-            # efficient way to copy all AOV images
-            render_passes.foreach_set('rect', np.concatenate(images))
+                p.rect = image.reshape(len(p.rect), -1)
 
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
         try:
