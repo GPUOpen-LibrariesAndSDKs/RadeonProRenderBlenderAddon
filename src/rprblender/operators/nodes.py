@@ -342,7 +342,7 @@ class RPR_MATERIAL_OP_principled_to_uber(RPR_Operator):
 
             copy_input(principled_node.inputs['Transmission Weight' if BLENDER_VERSION >= "4.0" else 'Transmission'], uber_node.inputs['Refraction Weight'])
             copy_input(principled_node.inputs['Base Color'], uber_node.inputs['Refraction Color'])
-            copy_input(principled_node.inputs['Transmission Roughness'], uber_node.inputs['Refraction Roughness'])
+            copy_input(principled_node.inputs['Roughness' if BLENDER_VERSION >= "4.0" else 'Transmission Roughness'], uber_node.inputs['Refraction Roughness'])
         
         return {'FINISHED'}
 

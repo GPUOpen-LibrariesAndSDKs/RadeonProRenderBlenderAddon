@@ -928,7 +928,7 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         transmission = self.get_input_value('Transmission Weight' if BLENDER_VERSION >= "4.0" else 'Transmission')
         transmission_roughness = None
         if enabled(transmission):
-            transmission_roughness = self.get_input_value('Transmission Roughness')
+            transmission_roughness = roughness if BLENDER_VERSION >= "4.0" else self.get_input_value('Transmission Roughness')
 
         emission = self.get_input_value('Emission Color' if BLENDER_VERSION >= "4.0" else 'Emission')
         emission_strength = 1.0
