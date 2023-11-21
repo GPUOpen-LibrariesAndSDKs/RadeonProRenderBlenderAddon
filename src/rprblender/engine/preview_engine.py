@@ -80,16 +80,9 @@ class PreviewEngine(Engine):
                 self.rpr_context.render(restart=(sample == 0))
                 self.rpr_context.resolve()
 
-                image = self.rpr_context.get_image().flatten()
-                if BLENDER_VERSION >= '3.4':
-                    # before version 3.4 result.layers[0].passes == ['Combined']
-                    # since version 3.4 result.layers[0].passes == ['Combined', 'Depth']
-                    # we need to add Depth AOV to keep correct array size while using foreach_set
-                    image = np.concatenate(
-                        (image, self.rpr_context.get_image(pyrpr.AOV_DEPTH).flatten())
-                    )
+                combine_path = result.layers[0].passes['Combined']
+                combine_path.rect = self.rpr_context.get_image().reshape(len(combine_path.rect), -1)
 
-                result.layers[0].passes.foreach_set('rect', image)
                 self.rpr_engine.update_result(result)
 
                 sample += update_samples
