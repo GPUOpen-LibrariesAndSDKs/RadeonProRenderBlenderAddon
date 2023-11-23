@@ -30,8 +30,8 @@ from .engine import Engine
 
 from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
-from rprblender.utils import gl
 from rprblender import utils
+from rprblender.utils.gpu import GPUTexture
 from rprblender.utils.user_settings import get_user_settings
 
 from rprblender.utils import logging, BLENDER_VERSION
@@ -188,7 +188,7 @@ class ViewportEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
-        self.gl_texture = gl.GLTexture()
+        self.gpu_texture = GPUTexture()
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
         self.shading_data: ShadingData = None
@@ -746,8 +746,8 @@ class ViewportEngine(Engine):
 
     def draw_texture(self, scene):
         gpu.state.blend_set('ALPHA_PREMULT')
-        if self.gl_texture.texture:
-            draw_texture_2d(self.gl_texture.texture, self.viewport_settings.border[0],
+        if self.gpu_texture.texture:
+            draw_texture_2d(self.gpu_texture.texture, self.viewport_settings.border[0],
                             *self.viewport_settings.border[1])
 
             self.rpr_engine.unbind_display_space_shader()
@@ -755,13 +755,13 @@ class ViewportEngine(Engine):
     def _draw(self, scene):
         im = self.upscaled_image
         if im is not None:
-            self.gl_texture.set_image(im)
+            self.gpu_texture.set_image(im)
             self.draw_texture(scene)
             return
 
         im = self.denoised_image
         if im is not None:
-            self.gl_texture.set_image(im)
+            self.gpu_texture.set_image(im)
             self.draw_texture(scene)
             return
 
@@ -772,9 +772,9 @@ class ViewportEngine(Engine):
 
             im = self._get_render_image()
 
-        self.gl_texture.set_image(im)
+        self.gpu_texture.set_image(im)
         self.draw_texture(scene)
-        self.gl_texture.clear()
+        self.gpu_texture.clear()
 
     def draw(self, context):
         log("Draw")

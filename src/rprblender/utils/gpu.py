@@ -15,21 +15,8 @@
 import numpy as np
 import gpu
 
-import ctypes
-import sys
-from ctypes import cdll
 
-
-if sys.platform == 'linux':
-    gl = cdll.LoadLibrary('libGL.so')
-elif sys.platform == 'darwin':
-    # ToDo: fix this reference
-    gl = cdll.LoadLibrary('/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib')
-else:
-    gl = ctypes.windll.opengl32
-
-
-class GLTexture:
+class GPUTexture:
     channels = 4
 
     def __init__(self):
