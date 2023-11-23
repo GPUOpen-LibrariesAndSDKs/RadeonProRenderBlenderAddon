@@ -13,12 +13,6 @@
 # limitations under the License.
 # ********************************************************************
 import bpy
-from nodeitems_utils import (
-    NodeCategory,
-    NodeItem,
-    register_node_categories,
-    unregister_node_categories,
-)
 from nodeitems_builtins import (
     ShaderNodeCategory,
 )
@@ -28,111 +22,155 @@ from . import rpr_nodes
 from . import sockets
 
 
-class RPR_ShaderNodeCategory(NodeCategory):
-    @classmethod
-    def poll(cls, context):
-        return context.scene.render.engine == "RPR"\
-               and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
+def register_rpr_node_categories():
+    global NODE_CATEGORIES
+
+    if BLENDER_VERSION >= "4.0":
+        NODE_CATEGORIES = {'shader': (rpr_nodes.RPRShaderNodeUber,
+                                rpr_nodes.RPRShaderNodePassthrough,
+                                rpr_nodes.RPRShaderNodeLayered,
+                                rpr_nodes.RPRShaderNodeToon,
+                                rpr_nodes.RPRShaderNodeDoublesided),
+                     'input': (rpr_nodes.RPRShaderProceduralUVNode,
+                               rpr_nodes.RPRShaderNodeLookup,),
+                     'texture': (rpr_nodes.RPRTextureNodeLayered,),
+                     'converter': (rpr_nodes.RPRValueNode_Math,)}
+
+        bpy.types.NODE_MT_category_shader_shader.append(
+            lambda self, context: draw_nodes(self, NODE_CATEGORIES['shader']))
+        bpy.types.NODE_MT_category_shader_converter.append(
+            lambda self, context: draw_nodes(self, NODE_CATEGORIES['converter']))
+        bpy.types.NODE_MT_category_shader_input.append(
+            lambda self, context: draw_nodes(self, NODE_CATEGORIES['input']))
+        bpy.types.NODE_MT_category_shader_texture.append(
+            lambda self, context: draw_nodes(self, NODE_CATEGORIES['texture']))
+
+    else:
+        from nodeitems_utils import (
+            NodeCategory,
+            NodeItem,
+            register_node_categories
+        )
+
+        class RPR_ShaderNodeCategory(NodeCategory):
+            @classmethod
+            def poll(cls, context):
+                return context.scene.render.engine == "RPR"\
+                       and context.space_data.tree_type in ('ShaderNodeTree', 'RPRTreeType')
+
+        def sorted_items(items: list):
+            items.sort(key=lambda x: x.label)
+            return items
+
+        NODE_CATEGORIES = [
+            RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=sorted_items([
+                NodeItem('ShaderNodeAmbientOcclusion'),
+                NodeItem('ShaderNodeFresnel'),
+                NodeItem('ShaderNodeLayerWeight'),
+                NodeItem('ShaderNodeObjectInfo'),
+                NodeItem('ShaderNodeRGB'),
+                NodeItem('ShaderNodeTexCoord'),
+                NodeItem('ShaderNodeValue'),
+                NodeItem('ShaderNodeNewGeometry'),
+                NodeItem('ShaderNodeUVMap'),
+                NodeItem('ShaderNodeVolumeInfo'),
+                NodeItem('RPRShaderProceduralUVNode'),
+                NodeItem('RPRShaderNodeLookup'),
+                NodeItem('ShaderNodeBevel'),
+                NodeItem('ShaderNodeHairInfo'),
+            ])),
+            RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=sorted_items([
+                NodeItem('ShaderNodeOutputMaterial'),
+            ])),
+            RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=sorted_items([
+                NodeItem('ShaderNodeBsdfPrincipled'),
+                NodeItem('ShaderNodeBsdfHair'),
+                NodeItem('ShaderNodeBsdfHairPrincipled'),
+                NodeItem('ShaderNodeAddShader'),
+                NodeItem('ShaderNodeMixShader'),
+                NodeItem('ShaderNodeEmission'),
+                NodeItem('ShaderNodeVolumePrincipled'),
+                NodeItem('ShaderNodeVolumeScatter'),
+                NodeItem('RPRShaderNodeUber'),
+                NodeItem('RPRShaderNodePassthrough'),
+                NodeItem('RPRShaderNodeLayered'),
+                NodeItem('RPRShaderNodeToon'),
+                NodeItem('RPRShaderNodeDoublesided'),
+                NodeItem('ShaderNodeBsdfAnisotropic'),
+                NodeItem('ShaderNodeBsdfDiffuse'),
+                NodeItem('ShaderNodeBsdfGlass'),
+                NodeItem('ShaderNodeBsdfGlossy'),
+                NodeItem('ShaderNodeBsdfRefraction'),
+                NodeItem('ShaderNodeBsdfTranslucent'),
+                NodeItem('ShaderNodeBsdfTransparent'),
+                NodeItem('ShaderNodeBsdfVelvet'),
+                NodeItem('ShaderNodeSubsurfaceScattering'),
+            ])),
+            RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=sorted_items([
+                NodeItem('ShaderNodeTexChecker'),
+                NodeItem('ShaderNodeTexGradient'),
+                NodeItem('ShaderNodeTexImage'),
+                NodeItem('ShaderNodeTexNoise'),
+                NodeItem('ShaderNodeTexVoronoi'),
+                NodeItem('RPRTextureNodeLayered'),
+            ])),
+            RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=sorted_items([
+                NodeItem('ShaderNodeBrightContrast'),
+                NodeItem('ShaderNodeGamma'),
+                NodeItem('ShaderNodeInvert'),
+                NodeItem("ShaderNodeMix", label="Mix Color",
+                         settings={"data_type": "'RGBA'"}, poll=lambda cls: BLENDER_VERSION >= "3.4"),
+                NodeItem('ShaderNodeMixRGB', poll=lambda cls: BLENDER_VERSION < "3.4"),
+                NodeItem('ShaderNodeRGBCurve'),
+                NodeItem('ShaderNodeHueSaturation'),
+            ])),
+            RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=sorted_items([
+                NodeItem('ShaderNodeBump'),
+                NodeItem('ShaderNodeDisplacement'),
+                NodeItem('ShaderNodeMapping'),
+                NodeItem('ShaderNodeNormal'),
+                NodeItem('ShaderNodeNormalMap'),
+            ])),
+            RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=sorted_items([
+                NodeItem('ShaderNodeBlackbody'),
+                NodeItem('ShaderNodeValToRGB'),
+                NodeItem('ShaderNodeCombineXYZ'),
+                NodeItem('ShaderNodeMapRange'),
+                NodeItem('ShaderNodeMath'),
+                NodeItem('ShaderNodeRGBToBW'),
+                NodeItem('ShaderNodeSeparateXYZ'),
+                NodeItem('ShaderNodeVectorMath'),
+                NodeItem('RPRValueNode_Math'),
+                NodeItem("ShaderNodeMix", poll=lambda cls: BLENDER_VERSION >= "3.4"),
+                NodeItem('ShaderNodeSeparateColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
+                NodeItem('ShaderNodeCombineColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
+                NodeItem('ShaderNodeSeparateRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
+                NodeItem('ShaderNodeSeparateHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
+                NodeItem('ShaderNodeCombineRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
+                NodeItem('ShaderNodeCombineHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
+                NodeItem('ShaderNodeFloatCurve', poll=lambda cls: BLENDER_VERSION >= "3.0"),
+            ])),
+            RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
+                NodeItem('NodeReroute'),
+                NodeItem('NodeFrame'),
+            ]), )
+        ]
+
+        register_node_categories("RPR_NODES", NODE_CATEGORIES)
 
 
-def sorted_items(items:list):
-    items.sort(key=lambda x: x.label)
-    return items
+def unregister_rpr_node_categories():
+    if BLENDER_VERSION >= "4.0":
+        bpy.types.NODE_MT_category_shader_shader.remove(NODE_CATEGORIES['shader'])
+        bpy.types.NODE_MT_category_shader_converter.remove(NODE_CATEGORIES['converter'])
+        bpy.types.NODE_MT_category_shader_input.remove(NODE_CATEGORIES['input'])
+        bpy.types.NODE_MT_category_shader_texture.remove(NODE_CATEGORIES['texture'])
 
+    else:
+        from nodeitems_utils import unregister_node_categories
 
-node_categories = [
-    RPR_ShaderNodeCategory('RPR_INPUT', "Input", items=sorted_items([
-        NodeItem('ShaderNodeAmbientOcclusion'),
-        NodeItem('ShaderNodeFresnel'),
-        NodeItem('ShaderNodeLayerWeight'),
-        NodeItem('ShaderNodeObjectInfo'),
-        NodeItem('ShaderNodeRGB'),
-        NodeItem('ShaderNodeTexCoord'),
-        NodeItem('ShaderNodeValue'),
-        NodeItem('ShaderNodeNewGeometry'),
-        NodeItem('ShaderNodeUVMap'),
-        NodeItem('ShaderNodeVolumeInfo'),
-        NodeItem('RPRShaderProceduralUVNode'),
-        NodeItem('RPRShaderNodeLookup'),
-        NodeItem('ShaderNodeBevel'),
-        NodeItem('ShaderNodeHairInfo'),
-    ])),
-    RPR_ShaderNodeCategory('RPR_OUTPUT', "Output", items=sorted_items([
-        NodeItem('ShaderNodeOutputMaterial'),
-    ])),
-    RPR_ShaderNodeCategory('RPR_BLENDER_NODES', "Shader", items=sorted_items([
-        NodeItem('ShaderNodeBsdfPrincipled'),
-        NodeItem('ShaderNodeBsdfHair'),
-        NodeItem('ShaderNodeBsdfHairPrincipled'),
-        NodeItem('ShaderNodeAddShader'),
-        NodeItem('ShaderNodeMixShader'),
-        NodeItem('ShaderNodeEmission'),
-        NodeItem('ShaderNodeVolumePrincipled'),
-        NodeItem('ShaderNodeVolumeScatter'),
-        NodeItem('RPRShaderNodeUber'),
-        NodeItem('RPRShaderNodePassthrough'),
-        NodeItem('RPRShaderNodeLayered'),
-        NodeItem('RPRShaderNodeToon'),
-        NodeItem('RPRShaderNodeDoublesided'),
-        NodeItem('ShaderNodeBsdfAnisotropic'),
-        NodeItem('ShaderNodeBsdfDiffuse'),
-        NodeItem('ShaderNodeBsdfGlass'),
-        NodeItem('ShaderNodeBsdfGlossy'),
-        NodeItem('ShaderNodeBsdfRefraction'),
-        NodeItem('ShaderNodeBsdfTranslucent'),
-        NodeItem('ShaderNodeBsdfTransparent'),
-        NodeItem('ShaderNodeBsdfVelvet'),
-        NodeItem('ShaderNodeSubsurfaceScattering'),
-    ])),
-    RPR_ShaderNodeCategory("RPR_TEXTURES", "Texture", items=sorted_items([
-        NodeItem('ShaderNodeTexChecker'),
-        NodeItem('ShaderNodeTexGradient'),
-        NodeItem('ShaderNodeTexImage'),
-        NodeItem('ShaderNodeTexNoise'),
-        NodeItem('ShaderNodeTexVoronoi'),
-        NodeItem('RPRTextureNodeLayered'),
-    ])),
-    RPR_ShaderNodeCategory('RPR_COLOR', "Color", items=sorted_items([
-        NodeItem('ShaderNodeBrightContrast'),
-        NodeItem('ShaderNodeGamma'),
-        NodeItem('ShaderNodeInvert'),
-        NodeItem("ShaderNodeMix", label="Mix Color",
-                 settings={"data_type": "'RGBA'"}, poll=lambda cls: BLENDER_VERSION >= "3.4"),
-        NodeItem('ShaderNodeMixRGB', poll=lambda cls: BLENDER_VERSION < "3.4"),
-        NodeItem('ShaderNodeRGBCurve'),
-        NodeItem('ShaderNodeHueSaturation'),
-    ])),
-    RPR_ShaderNodeCategory('RPR_VECTOR', "Vector", items=sorted_items([
-        NodeItem('ShaderNodeBump'),
-        NodeItem('ShaderNodeDisplacement'),
-        NodeItem('ShaderNodeMapping'),
-        NodeItem('ShaderNodeNormal'),
-        NodeItem('ShaderNodeNormalMap'),
-    ])),
-    RPR_ShaderNodeCategory('RPR_CONVERTER', "Converter", items=sorted_items([
-        NodeItem('ShaderNodeBlackbody'),
-        NodeItem('ShaderNodeValToRGB'),
-        NodeItem('ShaderNodeCombineXYZ'),
-        NodeItem('ShaderNodeMapRange'),
-        NodeItem('ShaderNodeMath'),
-        NodeItem('ShaderNodeRGBToBW'),
-        NodeItem('ShaderNodeSeparateXYZ'),
-        NodeItem('ShaderNodeVectorMath'),
-        NodeItem('RPRValueNode_Math'),
-        NodeItem("ShaderNodeMix", poll=lambda cls: BLENDER_VERSION >= "3.4"),
-        NodeItem('ShaderNodeSeparateColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
-        NodeItem('ShaderNodeCombineColor', poll=lambda cls: BLENDER_VERSION >= "3.3"),
-        NodeItem('ShaderNodeSeparateRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
-        NodeItem('ShaderNodeSeparateHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
-        NodeItem('ShaderNodeCombineRGB', poll=lambda cls: BLENDER_VERSION < "3.3"),
-        NodeItem('ShaderNodeCombineHSV', poll=lambda cls: BLENDER_VERSION < "3.3"),
-        NodeItem('ShaderNodeFloatCurve', poll=lambda cls: BLENDER_VERSION >= "3.0"),
-    ])),
-    RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
-        NodeItem('NodeReroute'),
-        NodeItem('NodeFrame'),
-    ]), )
-]
+        unregister_node_categories("RPR_NODES")
+
 
 def hide_cycles_and_eevee_poll(method):
     @classmethod
@@ -201,17 +239,6 @@ def draw_nodes(self, nodes):
         op.use_transform = True
 
 
-RPR_NODES = {'shader': (rpr_nodes.RPRShaderNodeUber,
-                        rpr_nodes.RPRShaderNodePassthrough,
-                        rpr_nodes.RPRShaderNodeLayered,
-                        rpr_nodes.RPRShaderNodeToon,
-                        rpr_nodes.RPRShaderNodeDoublesided),
-             'input': (rpr_nodes.RPRShaderProceduralUVNode,
-                       rpr_nodes.RPRShaderNodeLookup,),
-             'texture': (rpr_nodes.RPRTextureNodeLayered,),
-             'converter': (rpr_nodes.RPRValueNode_Math,)}
-
-
 def register():
     # rpr_nodes.generate_types()
 
@@ -224,30 +251,14 @@ def register():
     register_socket_interface_classes()
     register_socket_classes()
     register_node_classes()
-
-    if BLENDER_VERSION >= "4.0":
-        bpy.types.NODE_MT_category_shader_shader.append(lambda self, context: draw_nodes(self, RPR_NODES['shader']))
-        bpy.types.NODE_MT_category_shader_converter.append(lambda self, context: draw_nodes(self, RPR_NODES['converter']))
-        bpy.types.NODE_MT_category_shader_input.append(lambda self, context: draw_nodes(self, RPR_NODES['input']))
-        bpy.types.NODE_MT_category_shader_texture.append(lambda self, context: draw_nodes(self, RPR_NODES['texture']))
-
-    else:
-        register_node_categories("RPR_NODES", node_categories)
+    register_rpr_node_categories()
 
 
 def unregister():
     if old_shader_node_category_poll and ShaderNodeCategory.poll is not old_shader_node_category_poll:
         ShaderNodeCategory.poll = old_shader_node_category_poll
 
-    if BLENDER_VERSION >= "4.0":
-        bpy.types.NODE_MT_category_shader_shader.remove(RPR_NODES['shader'])
-        bpy.types.NODE_MT_category_shader_converter.remove(RPR_NODES['converter'])
-        bpy.types.NODE_MT_category_shader_input.remove(RPR_NODES['input'])
-        bpy.types.NODE_MT_category_shader_texture.remove(RPR_NODES['texture'])
-
-    else:
-        unregister_node_categories("RPR_NODES")
-
+    unregister_rpr_node_categories()
     unregister_node_classes()
     # it's important to keep this order to avoid Blender crash on M2
     unregister_socket_interface_classes()
