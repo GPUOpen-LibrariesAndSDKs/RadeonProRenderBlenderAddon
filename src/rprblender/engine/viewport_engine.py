@@ -20,6 +20,7 @@ import traceback
 import textwrap
 
 import bpy
+import numpy as np
 import gpu
 
 from gpu_extras.presets import draw_texture_2d
@@ -31,7 +32,6 @@ from .engine import Engine
 from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
 from rprblender import utils
-from rprblender.utils.gpu import GPUTexture
 from rprblender.utils.user_settings import get_user_settings
 
 from rprblender.utils import logging, BLENDER_VERSION
@@ -40,6 +40,7 @@ log = logging.Log(tag='viewport_engine')
 
 MIN_ADAPT_RATIO_DIFF = 0.2
 MIN_ADAPT_RESOLUTION_RATIO_DIFF = 0.1
+GPU_TEXTURE_CHANNELS = 4
 
 
 @dataclass(init=False, eq=True)
@@ -188,7 +189,9 @@ class ViewportEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
-        self.gpu_texture = GPUTexture()
+        self.image = None
+        self.gpu_texture = None
+
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
         self.shading_data: ShadingData = None
@@ -343,6 +346,8 @@ class ViewportEngine(Engine):
                             self.rpr_context.resize(self.width, self.height)
                         self.is_resized = False
 
+                    self.image = None
+                    self.gpu_texture = None
                     self.denoised_image = None
                     self.upscaled_image = None
                     self.rpr_context.sync_auto_adapt_subdivision()
@@ -746,8 +751,8 @@ class ViewportEngine(Engine):
 
     def draw_texture(self, scene):
         gpu.state.blend_set('ALPHA_PREMULT')
-        if self.gpu_texture.texture:
-            draw_texture_2d(self.gpu_texture.texture, self.viewport_settings.border[0],
+        if self.gpu_texture:
+            draw_texture_2d(self.gpu_texture, self.viewport_settings.border[0],
                             *self.viewport_settings.border[1])
 
             self.rpr_engine.unbind_display_space_shader()
@@ -755,13 +760,13 @@ class ViewportEngine(Engine):
     def _draw(self, scene):
         im = self.upscaled_image
         if im is not None:
-            self.gpu_texture.set_image(im)
+            self.set_image(im)
             self.draw_texture(scene)
             return
 
         im = self.denoised_image
         if im is not None:
-            self.gpu_texture.set_image(im)
+            self.set_image(im)
             self.draw_texture(scene)
             return
 
@@ -772,9 +777,8 @@ class ViewportEngine(Engine):
 
             im = self._get_render_image()
 
-        self.gpu_texture.set_image(im)
+        self.set_image(im)
         self.draw_texture(scene)
-        self.gpu_texture.clear()
 
     def draw(self, context):
         log("Draw")
@@ -1104,3 +1108,12 @@ class ViewportEngine(Engine):
 
     def setup_upscale_filter(self, settings):
         return False
+
+    def set_image(self, image: np.array):
+        if self.image is image:
+            return
+
+        self.image = image
+        height, width, _ = self.image.shape
+        pixels = gpu.types.Buffer('FLOAT', width * height * GPU_TEXTURE_CHANNELS, self.image)
+        self.gpu_texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
