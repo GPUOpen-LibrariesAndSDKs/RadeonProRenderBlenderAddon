@@ -23,7 +23,7 @@ bl_info = {
     "version": (3, 6, 9),
     "blender": (2, 93, 0),
     "location": "Info header, render engine menu",
-    "description": "Radeon ProRender rendering plugin for Blender 2.9x",
+    "description": "Radeon ProRender rendering plugin for Blender 2.9x+",
     "warning": "",
     "tracker_url": "",
     "wiki_url": "",

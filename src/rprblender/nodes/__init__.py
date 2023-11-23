@@ -153,7 +153,7 @@ def register_rpr_node_categories():
             RPR_ShaderNodeCategory('Layout', "Layout", items=sorted_items([
                 NodeItem('NodeReroute'),
                 NodeItem('NodeFrame'),
-            ]), )
+            ])),
         ]
 
         register_node_categories("RPR_NODES", NODE_CATEGORIES)
