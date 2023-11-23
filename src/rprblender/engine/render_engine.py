@@ -25,7 +25,7 @@ import pyrpr
 from rprblender import utils
 from .engine import Engine
 from rprblender.export import world, camera, object, instance, particle
-from rprblender.utils import render_stamp
+from rprblender.utils import render_stamp, BLENDER_VERSION
 from rprblender.utils.conversion import perfcounter_to_str, get_cryptomatte_hash
 from rprblender.utils.user_settings import get_user_settings
 from rprblender import bl_info
@@ -92,6 +92,8 @@ class RenderEngine(Engine):
                             dtype=np.float32)
 
         def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
             x1, y1 = tile_pos
             x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
 
@@ -148,7 +150,15 @@ class RenderEngine(Engine):
 
                     self.cached_rendered_images[p.name][y1:y2, x1:x2] = image
 
-                p.rect = image.reshape(len(p.rect), -1)
+                images.append(image.flatten())
+
+            images = np.concatenate(images)
+            if BLENDER_VERSION >= '4.0':
+                # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
+                images.resize((len(render_passes) * self.width * self.height * 4,))
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', images)
 
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
         try:
@@ -184,17 +194,28 @@ class RenderEngine(Engine):
 
     def _update_render_result_contour(self, tile_pos, tile_size, layer_name=""):
         def set_render_result(render_passes: bpy.types.RenderPasses):
+            images = []
+
             x1, y1 = tile_pos
             x2, y2 = x1 + tile_size[0], y1 + tile_size[1]
 
             for p in render_passes:
                 if p.name == "Outline":
                     image = self.rpr_context.get_image(pyrpr.AOV_COLOR)
+                    image = image[:, :, 0:p.channels]
                 else:
                     # getting required rendered image from cached_rendered_images
                     image = self.cached_rendered_images[p.name][y1:y2, x1:x2]
 
-                p.rect = image.reshape(len(p.rect), -1)
+                images.append(image.flatten())
+
+            images = np.concatenate(images)
+            if BLENDER_VERSION >= '4.0':
+                # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
+                images.resize((len(render_passes) * self.width * self.height * 4,))
+
+            # efficient way to copy all AOV images
+            render_passes.foreach_set('rect', images)
 
         result = self.rpr_engine.begin_result(*tile_pos, *tile_size, layer=layer_name, view="")
         try:
