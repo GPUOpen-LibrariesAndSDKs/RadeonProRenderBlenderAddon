@@ -22,8 +22,6 @@ import sys
 import numpy as np
 from typing import List
 
-import bgl
-
 import pyrprwrap
 from pyrprwrap import *
 
@@ -964,36 +962,6 @@ class FrameBuffer(Object):
         cl_mem = ffi.new('rpr_cl_mem *')
         FrameBufferGetInfo(self, CL_MEM_OBJECT, sys.getsizeof(cl_mem), cl_mem, ffi.NULL)
         return cl_mem[0]
-
-
-class FrameBufferGL(FrameBuffer):
-    def __init__(self, context, width, height):
-        super().__init__(context, width, height)
-
-    def _create(self):
-        textures = bgl.Buffer(bgl.GL_INT, [1,])
-        bgl.glGenTextures(1, textures)
-        self.texture_id = textures[0]
-
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.texture_id)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_S, bgl.GL_REPEAT)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_WRAP_T, bgl.GL_REPEAT)
-
-        bgl.glTexImage2D(
-            bgl.GL_TEXTURE_2D, 0, bgl.GL_RGBA if platform.system() == 'Darwin' else bgl.GL_RGBA16F,
-            self.width, self.height, 0,
-            bgl.GL_RGBA, bgl.GL_FLOAT,
-            bgl.Buffer(bgl.GL_FLOAT, [self.width, self.height, self.channels])
-        )
-
-        ContextCreateFramebufferFromGLTexture2D(self.context, bgl.GL_TEXTURE_2D, 0, self.texture_id, self)
-
-    def delete(self):
-        super().delete()
-        textures = bgl.Buffer(bgl.GL_INT, [1,], [self.texture_id, ])
-        bgl.glDeleteTextures(1, textures)
 
 
 class Composite(Object):

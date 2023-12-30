@@ -263,14 +263,6 @@ class RPR_UserSettings(bpy.types.PropertyGroup):
         update=on_settings_changed,
     )
 
-    use_gl_interop: BoolProperty(
-        name="OpenGL interoperability",
-        description="Use OpenGL interoperability in viewport. This should speedup viewport rendering. "
-                    "However, to use an external GPU for viewport rendering this should be disabled",
-        default=True,
-        update=on_settings_changed,
-    )
-
     use_opencl: BoolProperty(
         name="Use OpenCL",
         description="Use OpenCl kernels for Final, "
@@ -638,7 +630,7 @@ class RPR_RenderProperties(RPR_Properties):
         default='FSR2_QUALITY_MODE_ULTRA_PERFORMANCE',
     )
 
-    def init_rpr_context(self, rpr_context, is_final_engine=True, use_gl_interop=False, use_contour_integrator=False):
+    def init_rpr_context(self, rpr_context, is_final_engine=True, use_contour_integrator=False):
         """ Initializes rpr_context by device settings """
 
         scene = self.id_data
@@ -659,9 +651,6 @@ class RPR_RenderProperties(RPR_Properties):
         for i, gpu_state in enumerate(devices.available_gpu_states):
             if gpu_state:
                 context_flags |= {pyrpr.Context.gpu_devices[i]['flag']}
-                if use_gl_interop:
-                    context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_GL_INTEROP}
-
                 if settings.use_opencl:
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_OPENCL}
 

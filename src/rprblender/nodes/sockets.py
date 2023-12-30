@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
-from bpy.types import NodeSocket, NodeSocketInterface
+from bpy.types import NodeSocket
 from bpy.props import (
     BoolProperty,
     EnumProperty,
@@ -21,6 +21,11 @@ from bpy.props import (
 )
 
 from rprblender.utils import BLENDER_VERSION
+
+if BLENDER_VERSION >= "4.0":
+    from bpy.types import NodeTreeInterfaceSocket as NodeSocketInterface
+else:
+    from bpy.types import NodeSocketInterface
 
 
 COLORS = {
@@ -52,7 +57,12 @@ class RPRNodeSocket(NodeSocket):
         else:
             layout.prop(self, 'default_value', text=self.name)
 
+    # required for Blender 3.6 and lower
     def draw_color(self, context, node):
+        return self.draw_color_simple()
+
+    @classmethod
+    def draw_color_simple(cls):
         return COLORS['float']
 
 
@@ -67,7 +77,12 @@ class RPRSocketColor(RPRNodeSocket):
     default_value: FloatVectorProperty(name='Color', subtype='COLOR', min=0.0, soft_max=1.0,
                                        size=4, default=(1.0, 1.0, 1.0, 1.0), update=RPRNodeSocket.update)
 
+    # required for Blender 3.6 and lower
     def draw_color(self, context, node):
+        return self.draw_color_simple()
+
+    @classmethod
+    def draw_color_simple(cls):
         return COLORS['color']
 
 

@@ -20,7 +20,9 @@ import traceback
 import textwrap
 
 import bpy
-import bgl
+import numpy as np
+import gpu
+
 from gpu_extras.presets import draw_texture_2d
 from bpy_extras import view3d_utils
 
@@ -29,7 +31,6 @@ from .engine import Engine
 
 from rprblender.export import camera, material, world, object, instance, volume
 from rprblender.export.mesh import assign_materials
-from rprblender.utils import gl
 from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings
 
@@ -39,6 +40,7 @@ log = logging.Log(tag='viewport_engine')
 
 MIN_ADAPT_RATIO_DIFF = 0.2
 MIN_ADAPT_RESOLUTION_RATIO_DIFF = 0.1
+GPU_TEXTURE_CHANNELS = 4
 
 
 @dataclass(init=False, eq=True)
@@ -187,7 +189,9 @@ class ViewportEngine(Engine):
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
 
-        self.gl_texture = gl.GLTexture()
+        self.image = None
+        self.gpu_texture = None
+
         self.viewport_settings: ViewportSettings = None
         self.world_settings: world.WorldData = None
         self.shading_data: ShadingData = None
@@ -338,13 +342,12 @@ class ViewportEngine(Engine):
                     iteration = 0
 
                     if self.is_resized:
-                        if not self.rpr_context.gl_interop:
-                            # When gl_interop is not enabled, than resize is better to do in
-                            # this thread. This is important for hybrid.
-                            with self.render_lock:
-                                self.rpr_context.resize(self.width, self.height)
+                        with self.render_lock:
+                            self.rpr_context.resize(self.width, self.height)
                         self.is_resized = False
 
+                    self.image = None
+                    self.gpu_texture = None
                     self.denoised_image = None
                     self.upscaled_image = None
                     self.rpr_context.sync_auto_adapt_subdivision()
@@ -481,11 +484,9 @@ class ViewportEngine(Engine):
         viewport_limits = scene.rpr.viewport_limits
         view_layer = depsgraph.view_layer
         settings = get_user_settings()
-        use_gl_interop = settings.use_gl_interop and not scene.render.film_transparent
         self.frame_current = depsgraph.scene.frame_current
 
-        scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False,
-                                   use_gl_interop=use_gl_interop)
+        scene.rpr.init_rpr_context(self.rpr_context, is_final_engine=False)
 
         self.rpr_context.blender_data['depsgraph'] = depsgraph
 
@@ -745,107 +746,39 @@ class ViewportEngine(Engine):
     def _sync_update_after(self):
         pass
 
-    @staticmethod
-    def _draw_texture(texture_id, x, y, width, height):
-        # INITIALIZATION
-
-        # Getting shader program
-        shader_program = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGetIntegerv(bgl.GL_CURRENT_PROGRAM, shader_program)
-
-        # Generate vertex array
-        vertex_array = bgl.Buffer(bgl.GL_INT, 1)
-        bgl.glGenVertexArrays(1, vertex_array)
-
-        texturecoord_location = bgl.glGetAttribLocation(shader_program[0], "texCoord")
-        position_location = bgl.glGetAttribLocation(shader_program[0], "pos")
-
-        # Generate geometry buffers for drawing textured quad
-        position = [x, y, x + width, y, x + width, y + height, x, y + height]
-        position = bgl.Buffer(bgl.GL_FLOAT, len(position), position)
-        texcoord = [0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]
-        texcoord = bgl.Buffer(bgl.GL_FLOAT, len(texcoord), texcoord)
-
-        vertex_buffer = bgl.Buffer(bgl.GL_INT, 2)
-        bgl.glGenBuffers(2, vertex_buffer)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[0])
-        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, position, bgl.GL_STATIC_DRAW)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[1])
-        bgl.glBufferData(bgl.GL_ARRAY_BUFFER, 32, texcoord, bgl.GL_STATIC_DRAW)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
-
-        # DRAWING
-        bgl.glActiveTexture(bgl.GL_TEXTURE0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, texture_id)
-
-        bgl.glBindVertexArray(vertex_array[0])
-        bgl.glEnableVertexAttribArray(texturecoord_location)
-        bgl.glEnableVertexAttribArray(position_location)
-
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[0])
-        bgl.glVertexAttribPointer(position_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, vertex_buffer[1])
-        bgl.glVertexAttribPointer(texturecoord_location, 2, bgl.GL_FLOAT, bgl.GL_FALSE, 0, None)
-        bgl.glBindBuffer(bgl.GL_ARRAY_BUFFER, 0)
-
-        bgl.glDrawArrays(bgl.GL_TRIANGLE_FAN, 0, 4)
-
-        bgl.glBindVertexArray(0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
-
-        # DELETING
-        bgl.glDeleteBuffers(2, vertex_buffer)
-        bgl.glDeleteVertexArrays(1, vertex_array)
-
     def _get_render_image(self):
         return self.rpr_context.get_image()
 
-    def draw_texture(self, texture_id, scene):
-        if scene.rpr.render_mode in ('WIREFRAME', 'MATERIAL_INDEX',
-                                     'POSITION', 'NORMAL', 'TEXCOORD'):
-            # Draw without color management
-            draw_texture_2d(texture_id, self.viewport_settings.border[0],
+    def draw_texture(self, scene):
+        gpu.state.blend_set('ALPHA_PREMULT')
+        if self.gpu_texture:
+            draw_texture_2d(self.gpu_texture, self.viewport_settings.border[0],
                             *self.viewport_settings.border[1])
 
-        else:
-            # Bind shader that converts from scene linear to display space,
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_ONE_MINUS_SRC_ALPHA)
-            self.rpr_engine.bind_display_space_shader(scene)
-
-            # note this has to draw to region size, not scaled down size
-            self._draw_texture(texture_id, *self.viewport_settings.border[0],
-                               *self.viewport_settings.border[1])
-
             self.rpr_engine.unbind_display_space_shader()
-            bgl.glDisable(bgl.GL_BLEND)
 
     def _draw(self, scene):
         im = self.upscaled_image
         if im is not None:
-            self.gl_texture.set_image(im)
-            self.draw_texture(self.gl_texture.texture_id, scene)
+            self.set_image(im)
+            self.draw_texture(scene)
             return
 
         im = self.denoised_image
         if im is not None:
-            self.gl_texture.set_image(im)
-            self.draw_texture(self.gl_texture.texture_id, scene)
+            self.set_image(im)
+            self.draw_texture(scene)
             return
 
         with self.render_lock:
             self._resolve()
-            if self.rpr_context.gl_interop:
-                self.draw_texture(self.rpr_context.get_frame_buffer().texture_id, scene)
-                return
-
             if self.width * self.height == 0:
                 return
 
             im = self._get_render_image()
 
-        self.gl_texture.set_image(im)
-        self.draw_texture(self.gl_texture.texture_id, scene)
+        self.set_image(im)
+        self.draw_texture(scene)
 
     def draw(self, context):
         log("Draw")
@@ -910,11 +843,6 @@ class ViewportEngine(Engine):
 
         self.width = width
         self.height = height
-
-        if self.rpr_context.gl_interop:
-            # GL framebuffer ahs to be recreated in this thread,
-            # that's why we call resize here
-            self.rpr_context.resize(self.width, self.height)
 
         if self.image_filter:
             image_filter_settings = self.image_filter.settings.copy()
@@ -1180,3 +1108,12 @@ class ViewportEngine(Engine):
 
     def setup_upscale_filter(self, settings):
         return False
+
+    def set_image(self, image: np.array):
+        if self.image is image:
+            return
+
+        self.image = image
+        height, width, _ = self.image.shape
+        pixels = gpu.types.Buffer('FLOAT', width * height * GPU_TEXTURE_CHANNELS, self.image)
+        self.gpu_texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)

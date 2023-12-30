@@ -327,8 +327,8 @@ class ViewportEngine2(ViewportEngine):
         if im is None:
             return
 
-        self.gl_texture.set_image(im)
-        self.draw_texture(self.gl_texture.texture_id, context.scene)
+        self.set_image(im)
+        self.draw_texture(context.scene)
 
     def sync(self, context, depsgraph):
         super().sync(context, depsgraph)

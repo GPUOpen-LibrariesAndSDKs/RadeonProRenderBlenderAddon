@@ -205,8 +205,6 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         col1.prop(settings, 'viewport_samples_per_sec', slider=True)
         col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
 
-        col.prop(settings, 'use_gl_interop')
-
         if rpr.viewport_render_mode == 'HYBRIDPRO':
             col1 = col.column()
             col1.enabled = rpr.viewport_upscale and rpr.viewport_denoiser

@@ -16,7 +16,7 @@
 Render render stamp text to the image in the right bottom corner.
 This version uses Windows API so it's compatible only with Windows operation system.
 """
-# TODO: try to use bgl and blf modules to render text in platform independent way
+# TODO: try to use blf modules to render text in platform independent way
 
 import platform
 
