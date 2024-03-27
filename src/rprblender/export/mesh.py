@@ -353,16 +353,14 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, 
         rpr_shape.set_light_group_id(3)
         rpr_shape.set_portal_light(False)
 
-
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
-
+    
     mesh = kwargs.get("mesh", obj.data)
     material_override = kwargs.get("material_override", None)
     smoke_modifier = volume.get_smoke_modifier(obj)
 
     indirect_only = kwargs.get("indirect_only", False)
-    log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
 
     obj_key = object.key(obj)
     transform = object.get_transform(obj)
@@ -370,7 +368,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     # the mesh key is used to find duplicated mesh data
     mesh_key = key(obj)
     is_potential_instance = len(obj.modifiers) == 0
-    
+
     # if an object has no modifiers it could potentially instance a mesh
     # instead of exporting a new one
     if is_potential_instance and mesh_key in rpr_context.mesh_masters:
@@ -426,8 +424,6 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
                                      obj.pass_index, obj.pass_index, 1.0)
 
-    
-
     assign_materials(rpr_context, rpr_shape, obj, material_override)
 
     rpr_context.scene.attach(rpr_shape)
@@ -442,7 +438,6 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
     """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
 
     mesh = obj.data
-    log("sync_update", obj, mesh)
 
     obj_key = object.key(obj)
     mesh_key = key(obj)
@@ -460,7 +455,7 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
 
         indirect_only = kwargs.get("indirect_only", False)
         material_override = kwargs.get("material_override", None)
-        
+
         sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
         assign_materials(rpr_context, rpr_shape, obj, material_override)
         return True
