@@ -95,11 +95,12 @@ def export(json_file_name, dependencies, header_file_name, cffi_name, output_nam
         if not cffi_libs_dir.is_dir():
             cffi_libs_dir = Path(_cffi_backend.__file__).parent / 'cffi.libs'
 
-        for path in cffi_libs_dir.iterdir():
-            if '.so' in path.suffixes:
-                # copy library needed for cffi backend
-                ffi_lib = str(path)
-                shutil.copy(ffi_lib, str(build_dir))
+        if cffi_libs_dir.is_dir():
+            for path in cffi_libs_dir.iterdir():
+                if '.so' in path.suffixes:
+                    # copy library needed for cffi backend
+                    ffi_lib = str(path)
+                    shutil.copy(ffi_lib, str(build_dir))
 
         # change RPATH for cffi backend to find libffi in the same directory
         cffi_backend_path = (Path(build_dir) / Path(_cffi_backend.__file__).name).absolute()
