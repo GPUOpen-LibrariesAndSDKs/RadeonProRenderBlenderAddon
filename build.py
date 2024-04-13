@@ -42,7 +42,7 @@ subprocess.check_call([sys.executable, 'rpr_load_store.py'])
 os.chdir(cwd)
 
 if sys.version_info.major == 3 and sys.version_info.minor == 11:
-    # we are going to build RPRBlenderHelper only for python 3.10
+    # we are going to build RPRBlenderHelper only for python 3.11
     os.chdir('RPRBlenderHelper')
     shutil.rmtree('.build', ignore_errors=True)
     os.makedirs('.build')
