@@ -38,7 +38,6 @@ python3.11 -m pip install numpy cffi imageio pytest
 ```
 echo "PATH=/home/amd/.local/bin:$PATH" >> ~/.bashrc
 ```
-13.  
 
 
 # Project build
@@ -68,4 +67,37 @@ export LD_LIBRARY_PATH=/usr/lib64
 python3.11 tests/commandline/run_blender.py $BLENDER_EXE tests/commandline/test_rpr.py
 // In the middle should be your path to Blender's executable file.
 ```
+
+# Debug with PyCharm in Linux
+1. Run pycharm, add project
+2. Add blender iterpretator. `Settings -> Python Iterpreter -> Add Iterpreter. Set blender python interpreter.
+For example, for blender 4.1 on my system:
+```
+/home/amd/blender-4.1.0-linux-x.64/4.1/python/bin/python3.11`
+```
+3. Run once script from project root:
+```
+./run_blender_with_rpr_Ubuntu.sh ~/blnddbg
+```
+4. Add Run/Debug configuration in Pycharm. 
+  1. Select Python from blender (see step 2)
+  2. Select script. Set script path to cmd_tools/run_blender.py. For example:
+    ```
+    /home/amd/workspace/RadeonProRenderBlenderAddon/cmd_tools/run_blender.py
+    ```
+  3. In script argument, set path to blender and path to AMDProRender main script:
+    ```
+    /home/amd/blender-4.1.0-linux-x64/blender /home/amd/workspace/RadeonProRenderBlenderAddon/cmd_tools/test_rpr.py
+    ```
+  3. In `Working directory` select path from step 3. For example:
+    ```
+    /home/amd/blnddbg
+    ```
+  4. In `Environment variables` set: 
+  ```
+  PYTHONUNBUFFERED=1;RPR_BLENDER_DEBUG=1
+  ```
+
+
+
 

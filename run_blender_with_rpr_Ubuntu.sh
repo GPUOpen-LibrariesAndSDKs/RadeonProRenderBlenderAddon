@@ -18,12 +18,20 @@
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
 
 RPR_SDK="$DIR/RadeonProRenderSDK"
 RIF_SDK="$DIR/RadeonProImageProcessingSDK"
 
-function init()
+WORK_DIR=$1
+USE_TMP=false
+
+if [ -z $WORK_DIR ]; then
+	WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
+	echo "WORK_DIR not set. Use tmp workdir $WORK_DIR"
+	USE_TMP=true
+fi
+
+function prepare_runtime()
 {
 	if [ ! -x "$BLENDER_EXE" ]; then
 		echo "Could not find blender application. Please, specify BLENDER_EXE environment variable"
@@ -36,21 +44,24 @@ function init()
 	fi
 
 	# link rpr libs to workdir
-	find "$RPR_SDK/RadeonProRender/binUbuntu20" -name "*.so" -type f -exec ln -s {} "$WORK_DIR" \;
+	find "$RPR_SDK/RadeonProRender/binUbuntu20" -name "*.so" -type f -exec ln -sf {} "$WORK_DIR" \;
 
 	# link hip kernels
-	ln -s $RPR_SDK/hipbin $WORK_DIR/hipbin
+	ln -sf $RPR_SDK/hipbin $WORK_DIR/hipbin
 
 	# link imageprocessing lib to workdir
-	find "$RIF_SDK/Ubuntu20/Dynamic" -name "*.so" -type f -exec ln -s {} "$WORK_DIR" \;
+	find "$RIF_SDK/Ubuntu20/Dynamic" -name "*.so" -type f -exec ln -sf {} "$WORK_DIR" \;
 
 	# link helper to workdir
-	ln -s "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
+	ln -sf "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
 }
 
 # deletes the work directory
 function cleanup {      
-	rm -rf "$WORK_DIR"
+	if $USE_TMP; then
+		echo "drop tmpdir $WORK_DIR"
+		rm -rf "$WORK_DIR"
+	fi
 }
 
 # register the cleanup function to be called on the EXIT signal
@@ -58,7 +69,7 @@ trap cleanup EXIT
 
 function main() 
 {
-	init
+	prepare_runtime
 
   	export RPR_BLENDER_DEBUG=1
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
