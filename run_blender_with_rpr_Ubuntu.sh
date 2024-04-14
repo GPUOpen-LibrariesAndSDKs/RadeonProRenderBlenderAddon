@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #**********************************************************************
-# Copyright 2020 Advanced Micro Devices, Inc
+# Copyright 2024 Advanced Micro Devices, Inc
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,12 +20,8 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
 
-RPR_SDK="ThirdParty/RadeonProRender SDK/Linux-Ubuntu"
-IMAGE_FILTER_DIR="ThirdParty/RadeonProImageProcessing/Linux/Ubuntu"
-IMAGE_FILTER_LIBNAME="libRadeonImageFilters64.so"
-GLTF_DIR="ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/lib"
-GLTF_LIBNAME="libProRenderGLTF.so"
-
+RPR_SDK="$DIR/RadeonProRenderSDK"
+RIF_SDK="$DIR/RadeonProImageProcessingSDK"
 
 function init()
 {
@@ -40,14 +36,13 @@ function init()
 	fi
 
 	# link rpr libs to workdir
-	for f in "$DIR/$RPR_SDK/lib/"*.so; do
-		ln -s "$f" "$WORK_DIR/"
-	done
-	# link imageprocessing lib to workdir
-	ln -s "$DIR/$IMAGE_FILTER_DIR/lib64/$IMAGE_FILTER_LIBNAME" "$WORK_DIR/"
+	find "$RPR_SDK/RadeonProRender/binUbuntu20" -name "*.so" -type f -exec ln -s {} "$WORK_DIR" \;
 
-	# link gltf lib to workdir
-	ln -s "$DIR/$GLTF_DIR/$GLTF_LIBNAME" "$WORK_DIR/"
+	# link hip kernels
+	ln -s $RPR_SDK/hipbin $WORK_DIR/hipbin
+
+	# link imageprocessing lib to workdir
+	find "$RIF_SDK/Ubuntu20/Dynamic" -name "*.so" -type f -exec ln -s {} "$WORK_DIR" \;
 
 	# link helper to workdir
 	ln -s "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
@@ -65,7 +60,7 @@ function main()
 {
 	init
 
-  export RPR_BLENDER_DEBUG=1
+  	export RPR_BLENDER_DEBUG=1
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
 	python3.11 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py
