@@ -48,7 +48,7 @@ if sys.version_info.major == 3 and sys.version_info.minor == 11:
     os.makedirs('.build')
     os.chdir('.build')
     if 'Windows' == platform.system():
-        subprocess.check_call(['cmake', '-G', 'Visual Studio 16 2019',  '..'])
+        subprocess.check_call(['cmake', '-G', 'Visual Studio 17 2022',  '..'])
     else:
         subprocess.check_call(['cmake', '..'])
     subprocess.check_call(['cmake', '--build',  '.', '--config', 'Release', '--clean-first'])
