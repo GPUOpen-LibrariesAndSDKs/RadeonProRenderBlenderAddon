@@ -36,7 +36,6 @@ Once SSH keys are installed update/checkout submodules for active branch
 
 `git submodule update --init -f --recursive`
 
-
 ## Developing
 
 ### Coding Conventions
