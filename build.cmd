@@ -64,6 +64,8 @@ if %vs_major%==15 or %vs_major%==16 (
 	goto :eof
 
 :build_plugin
+py -3.9 -m pip install cffi
+py -3.9 -m pip install numpy
 py -3.11 cmd_tools\create_sdk.py
 py -3.11 src\bindings\pyrpr\src\pyrprapi.py %castxml%
 
