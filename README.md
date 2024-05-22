@@ -2,21 +2,18 @@
 
 ### Build Requirements
 
-2.93+
+4.1+
 ====
-- Blender 2.93+
-- Python 3.9.2 (Blender 2.93 uses 3.9.2) x64(for Core) - all code, addon and misc tested with python3
-- python-cffi - `py -3.9 -m pip install cffi`
+- Blender 4.1+
+- Python 3.11 (Blender 4.1 uses 3.11) x64(for Core) - all code, addon and misc tested with python3
+- python-cffi
+  - `py -3.11 -m pip install cffi`
+  - `py -3.11 -m pip install numpy`
 - Visual Studio 2015 SP3 / 2017 / 2019 with SDK 8.1 and 2015.3 v140 toolset installed
 - If you are using Visual studio 2019 you would need to install the Windows SDK 8.1 manually from Microsoft website https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/
 - cmake 3.x. Make sure it's added to the PATH environment variable
 
 Note that the .sln provided is for easy editing and searching of files on Windows.  The blender code builds on the command line rather than in the solution file.  Visual Studio does provided support for debugging Python when you attach to the running Blender process with loaded addon.
-
-### Software, required for development:
-
-- numpy - `py -3.9 -m pip install numpy`
-
 
 ### ThirdParty libraries
 
