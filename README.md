@@ -2,7 +2,7 @@
 
 ### Build Requirements
 
-4.1+
+4.1+ 
 ====
 - Blender 4.1+
 - Python 3.11 (Blender 4.1 uses 3.11) x64(for Core) - all code, addon and misc tested with python3
