@@ -144,7 +144,7 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             this returns a bumped normal, else returns a node_lookup N """
 
         # TODO RPRContextHybridPro doesn't support MATERIAL_NODE_BUMP_MAP
-        if self.material.cycles.displacement_method in {"BUMP", "BOTH"} and \
+        if self.material.displacement_method in {"BUMP", "BOTH"} and \
                 not isinstance(self.rpr_context, RPRContextHybridPro):
             displacement_input = self.get_input_link("Displacement")
             if displacement_input:

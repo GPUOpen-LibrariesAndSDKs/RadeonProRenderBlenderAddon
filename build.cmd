@@ -64,14 +64,12 @@ if %vs_major%==15 or %vs_major%==16 (
 	goto :eof
 
 :build_plugin
-py -3.7 cmd_tools\create_sdk.py
-py -3.7 src\bindings\pyrpr\src\pyrprapi.py %castxml%
+py -3.11 cmd_tools\create_sdk.py
+py -3.11 src\bindings\pyrpr\src\pyrprapi.py %castxml%
 
 set bindingsOk=.\bindings-ok
 if exist %bindingsOk% (
-	py -3.7 build.py
-	py -3.9 build.py
-	py -3.10 build.py
+	py -3.11 build.py
 ) else (
 	echo Compiling bindings failed
 )

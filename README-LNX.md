@@ -1,75 +1,103 @@
-### Addon Run/Use Linux Ubuntu Requirements
+# Development environment preparation
 
-- Ubuntu 18.04.03
+1. Ubuntu 22.04.04 LTS 
+2. Update system (required for update amdgpu linux drivers)
+```
+apt-get update
+apt-get upgrade
+```
+3. Download [amdgpu drivers for linux](https://www.amd.com/en/support/linux-drivers)
+4. Install amdgpu deb package (it setup official repo + required script for futher gpu driver install)
+```
+apt install ./amdgpu-install_*.deb
+```
+5. Install amdgpu driver itself
+```
+amdgpu-install
+```
+6. Reboot (required for amdgpu driver init)
+7. Download [blender 3.1](https://www.blender.org/download)
+8. Unpack somewhere
+9. Setup env. variable `BLENDER_EXE` and set to blender executable. For example:
+```
+echo "BLENDER_EXE=/home/feniks/bin/blender-4.1.0-linux-x64/blender" >> ~/.bashrc
+```
 
-- AMD drivers from web site
-    // The instruction is here: http://support.amd.com/en-us/kb-articles/Pages/AMDGPU-PRO-Install.aspx 
-
-- Blender 2.80 or later 
-    
-- Embree
-
-    sudo apt-get install alien dpkg
-
-    cd /tmp
-    wget https://github.com/embree/embree/releases/download/v2.12.0/embree-2.12.0.x86_64.rpm.tar.gz
-    tar xzvf ./embree-2.12.0.x86_64.rpm.tar.gz
-    sudo alien embree-lib-2.12.0-1.x86_64.rpm
-    sudo dpkg -i embree-lib_2.12.0-2_amd64.deb
-
-- OpenImageIO
-
-    sudo apt-get install libopenimageio1.6
-
-- FreeImage
-    sudo apt-get install libfreeimage-dev
-
-
-### ThirdParty libraries
-
-There is ThirdParty repository included to the project as a submodule. Please update submodules:
-
-Plugin includes 4 submodules:
-RadeonProRender SDK:
-git@github.com:Radeon-Pro/RadeonProRenderSDK.git
-
-Shared components
-Image Processing Library:
-git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
-
-ThirdParty components and miscellaneous tools
-git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
-
-All of them are included via SSH protocol. You will need to create and install SSH keys https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh
-
-Once SSH keys are installed update/checkout submodules for active branch
-
-` git submodule update --init -f --recursive`
+10. Install blender build dependencies
+```
+sudo apt-get install castxml python3.11 python3.11-dev \
+	build-essential cmake \
+        makeself patchelf libpci-dev libdrm-dev opencl-headers \
+        libopenimageio-dev libfreeimage-dev libembree-dev
+```
+11. Install python deps
+```
+python3.11 -m pip install numpy cffi imageio pytest
+```
+12. Add to PATH required python binaries. For example:
+```
+echo "PATH=/home/amd/.local/bin:$PATH" >> ~/.bashrc
+```
 
 
-### Build Requirements
+# Project build
 
-	sudo apt-get install  \
-		build-essential cmake python3-dev python3-pip \
-		makeself patchelf \
-		libpci-dev libdrm-dev opencl-headers
+> [!NOTE]
+> Dont forget to fetch project submodules  `git submodule update --init -f --recursive`
 
-	pip3 install numpy cffi imageio
+To build project run command
+```
+./build.sh
+```
 
-	// The pytest-v must be more then 3.0 it can be checked calling next command: pip3 show pytest
+## Create shipment archive
+To create shipment archive, please, run script:
+```
+cd BlenderPkg
+./build.sh
+```
+Shipment package should be in  `BuildPkg/.build` directory. 
 
+To install shipment build, run blender, select `Edit -> Preferences -> Addons -> Install`. 
+Then activate "RadeonProRender"
 
-### Build
-
-- Build the pyrpr and RPRHelper
-
-python3 build.py
-
-- run addon from source
+# Run addon from source
+```
 export LD_LIBRARY_PATH=/usr/lib64
-python3 tests/commandline/run_blender.py ~/blender/blender-2.78c-linux-glibc219-x86_64/blender tests/commandline/test_rpr.py
+python3.11 tests/commandline/run_blender.py $BLENDER_EXE tests/commandline/test_rpr.py
 // In the middle should be your path to Blender's executable file.
+```
 
-- make addon installer
-python3 build_zip_installer.py --target linux
-//this will make .zip that can be installed with Blender(User Preferences/Addons/InstallFromFile)
+# Debug with PyCharm in Linux
+1. Run pycharm, add project
+2. Add blender iterpretator. `Settings -> Python Iterpreter -> Add Iterpreter. Set blender python interpreter.
+For example, for blender 4.1 on my system:
+```
+/home/amd/blender-4.1.0-linux-x.64/4.1/python/bin/python3.11`
+```
+3. Run once script from project root:
+```
+./run_blender_with_rpr_Ubuntu.sh ~/blnddbg
+```
+4. Add Run/Debug configuration in Pycharm. 
+  1. Select Python from blender (see step 2)
+  2. Select script. Set script path to cmd_tools/run_blender.py. For example:
+    ```
+    /home/amd/workspace/RadeonProRenderBlenderAddon/cmd_tools/run_blender.py
+    ```
+  3. In script argument, set path to blender and path to AMDProRender main script:
+    ```
+    /home/amd/blender-4.1.0-linux-x64/blender /home/amd/workspace/RadeonProRenderBlenderAddon/cmd_tools/test_rpr.py
+    ```
+  3. In `Working directory` select path from step 3. For example:
+    ```
+    /home/amd/blnddbg
+    ```
+  4. In `Environment variables` set: 
+  ```
+  PYTHONUNBUFFERED=1;RPR_BLENDER_DEBUG=1
+  ```
+
+
+
+

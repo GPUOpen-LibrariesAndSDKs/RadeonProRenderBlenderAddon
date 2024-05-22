@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #**********************************************************************
-# Copyright 2020 Advanced Micro Devices, Inc
+# Copyright 2024 Advanced Micro Devices, Inc
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,16 +18,20 @@
 set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
 
-RPR_SDK="ThirdParty/RadeonProRender SDK/Linux-Ubuntu"
-IMAGE_FILTER_DIR="ThirdParty/RadeonProImageProcessing/Linux/Ubuntu"
-IMAGE_FILTER_LIBNAME="libRadeonImageFilters64.so"
-GLTF_DIR="ThirdParty/RadeonProRender-GLTF/Linux-Ubuntu/lib"
-GLTF_LIBNAME="libProRenderGLTF.so"
+RPR_SDK="$DIR/RadeonProRenderSDK"
+RIF_SDK="$DIR/RadeonProImageProcessingSDK"
 
+WORK_DIR=$1
+USE_TMP=false
 
-function init()
+if [ -z $WORK_DIR ]; then
+	WORK_DIR=`mktemp -d -p /tmp rpr_blender_workdir_XXXXXXXX`
+	echo "WORK_DIR not set. Use tmp workdir $WORK_DIR"
+	USE_TMP=true
+fi
+
+function prepare_runtime()
 {
 	if [ ! -x "$BLENDER_EXE" ]; then
 		echo "Could not find blender application. Please, specify BLENDER_EXE environment variable"
@@ -40,22 +44,24 @@ function init()
 	fi
 
 	# link rpr libs to workdir
-	for f in "$DIR/$RPR_SDK/lib/"*.so; do
-		ln -s "$f" "$WORK_DIR/"
-	done
-	# link imageprocessing lib to workdir
-	ln -s "$DIR/$IMAGE_FILTER_DIR/lib64/$IMAGE_FILTER_LIBNAME" "$WORK_DIR/"
+	find "$RPR_SDK/RadeonProRender/binUbuntu20" -name "*.so" -type f -exec ln -sf {} "$WORK_DIR" \;
 
-	# link gltf lib to workdir
-	ln -s "$DIR/$GLTF_DIR/$GLTF_LIBNAME" "$WORK_DIR/"
+	# link hip kernels
+	ln -sf $RPR_SDK/hipbin $WORK_DIR/hipbin
+
+	# link imageprocessing lib to workdir
+	find "$RIF_SDK/Ubuntu20/Dynamic" -name "*.so" -type f -exec ln -sf {} "$WORK_DIR" \;
 
 	# link helper to workdir
-	ln -s "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
+	ln -sf "$DIR/RPRBlenderHelper/.build/libRPRBlenderHelper.so" "$WORK_DIR/"
 }
 
 # deletes the work directory
 function cleanup {      
-	rm -rf "$WORK_DIR"
+	if $USE_TMP; then
+		echo "drop tmpdir $WORK_DIR"
+		rm -rf "$WORK_DIR"
+	fi
 }
 
 # register the cleanup function to be called on the EXIT signal
@@ -63,12 +69,12 @@ trap cleanup EXIT
 
 function main() 
 {
-	init
+	prepare_runtime
 
-  export RPR_BLENDER_DEBUG=1
+  	export RPR_BLENDER_DEBUG=1
 	export LD_LIBRARY_PATH="$WORK_DIR:$LD_LIBRARY_PATH"
 
-	python3 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py
+	python3.11 cmd_tools/run_blender.py "$BLENDER_EXE" cmd_tools/test_rpr.py
 
 }
 

@@ -57,14 +57,11 @@ class MeshData:
         uv_mesh = mesh
         if obj and obj.mode != 'OBJECT':
             mesh = obj.data
-        # Looks more like Blender's bug that we have to check that mesh has calc_normals_split().
-        # It is possible after deleting corresponded object with such mesh from the scene.
-        if not hasattr(mesh, 'calc_normals_split'):
-            log.warn("No calc_normals_split() in mesh", mesh)
-            return None
+
+        # replacement for calc_normals_split()
+        mesh.corner_normals
 
         # preparing mesh to export
-        mesh.calc_normals_split()
         mesh.calc_loop_triangles()
 
         # getting mesh export data
@@ -84,13 +81,10 @@ class MeshData:
         data.uvs = []
         data.uv_indices = []
 
-        if not hasattr(mesh, 'calc_normals_split'):
-            log.warn("No calc_normals_split() in mesh", mesh)
-            uv_mesh = mesh
+        uv_mesh = mesh
 
-        uv_mesh.calc_normals_split()
+        uv_mesh.corner_normals
         uv_mesh.calc_loop_triangles()
-
 
         primary_uv = uv_mesh.rpr.primary_uv_layer
         if primary_uv:
@@ -263,7 +257,7 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
             rpr_shape.set_volume_material(rpr_volume)
 
         # setting displacement material
-        if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
+        if mat.displacement_method in {'DISPLACEMENT', 'BOTH'}:
             rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
 
             # HybridPro: displacement disappears in case we set displacement material that is already set
