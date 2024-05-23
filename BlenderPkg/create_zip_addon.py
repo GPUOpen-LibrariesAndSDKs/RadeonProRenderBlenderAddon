@@ -81,7 +81,7 @@ def get_version():
     # getting buid version
     build_ver = subprocess.getoutput("git rev-parse --short HEAD")
     if build_ver.find("fatal") != -1:
-        build_ver = 0 # todo. get git hash
+        build_ver = 0 # todo. get git hash 
 
     # getting plugin version
     text = (repo_dir / "src/rprblender/__init__.py").read_text()
