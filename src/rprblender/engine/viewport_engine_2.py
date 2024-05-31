@@ -1,4 +1,3 @@
-#**********************************************************************
 # Copyright 2020 Advanced Micro Devices, Inc
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,47 +11,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #********************************************************************
+import numpy as np
+import math
+import concurrent.futures
 import time
 import threading
-
 import pyrpr
-
 from .viewport_engine import ViewportEngine, ViewportSettings, FinishRenderException
 from .context import RPRContext2
-
 from rprblender.utils import logging
-log = logging.Log(tag='viewport_engine_2')
 
+log = logging.Log(tag='viewport_engine_2')
 
 class ViewportEngine2(ViewportEngine):
     _RPRContext = RPRContext2
 
     def __init__(self, rpr_engine):
         super().__init__(rpr_engine)
-
         self.is_last_iteration = False
         self.rendered_image = None
-
         self.resolve_event = threading.Event()
         self.resolve_thread = None
         self.resolve_lock = threading.Lock()
 
     def stop_render(self):
-        self.is_finished = True
-        self.restart_render_event.set()
-        self.resolve_event.set()
-        self.sync_render_thread.join()
-        self.resolve_thread.join()
+        super().stop_render()  # Call parent stop_render method
+        self.resolve_event.set()  # Set resolve event to signal thread to stop
 
-        self.rpr_context.set_render_update_callback(None)
-        self.rpr_context = None
-        self.image_filter = None
-        self.upscale_filter = None
+        if self.resolve_thread:
+            self.resolve_thread.join()  # Wait for resolve thread to finish
 
     def _resolve(self):
-        self.rpr_context.resolve(None if self.image_filter and self.is_last_iteration else
-                                 (pyrpr.AOV_COLOR,))
-        
+        self.rpr_context.resolve(None if self.image_filter and self.is_last_iteration else (pyrpr.AOV_COLOR,))
+
     def _resize(self, width, height):
         if self.width == width and self.height == height:
             self.is_resized = False
@@ -93,7 +84,7 @@ class ViewportEngine2(ViewportEngine):
                 self.rpr_context.abort_render()
                 return
 
-            # don't need to do intermediate update when progress == 1.0
+            # Don't need to do intermediate update when progress == 1.0
             if progress == 1.0:
                 return
 
@@ -164,7 +155,7 @@ class ViewportEngine2(ViewportEngine):
                     update_iterations = min(32, self.render_iterations - iteration)
                 self.rpr_context.set_parameter(pyrpr.CONTEXT_ITERATIONS, update_iterations)
 
-                # unsetting render update callback for first iteration and set it back
+                # Unsetting render update callback for first iteration and set it back
                 # starting from second iteration
                 if iteration == 0:
                     self.rpr_context.set_render_update_callback(None)
@@ -178,13 +169,13 @@ class ViewportEngine2(ViewportEngine):
                     self.rpr_context.set_render_update_callback(render_update)
                     is_set_callback = True
 
-                # rendering
+                # Rendering
                 with self.render_lock:
                     try:
                         self.rpr_context.render(restart=(iteration == 0))
 
                     except pyrpr.CoreError as e:
-                        if e.status != pyrpr.ERROR_ABORTED:     # ignoring ERROR_ABORTED
+                        if e.status != pyrpr.ERROR_ABORTED:     # Ignoring ERROR_ABORTED
                             raise
 
                 if iteration > 0 and self.restart_render_event.is_set():
@@ -212,7 +203,7 @@ class ViewportEngine2(ViewportEngine):
                 if self.is_last_iteration:
                     break
 
-                # getting render results only for first iteration, for other iterations
+                # Getting render results only for first iteration, for other iterations
                 if iteration == 1:
                     with self.resolve_lock:
                         self._resolve()
@@ -227,7 +218,7 @@ class ViewportEngine2(ViewportEngine):
             if not self.is_last_iteration:
                 continue
 
-            # notifying viewport that rendering is finished
+            # Notifying viewport that rendering is finished
             with self.resolve_lock:
                 self._resolve()
 
@@ -237,7 +228,7 @@ class ViewportEngine2(ViewportEngine):
                     self.notify_status(f"Time: {time_render:.1f} sec | Iteration: {iteration}"
                                        f" | Denoising...", "Render")
 
-                    # applying denoising
+                    # Applying denoising
                     self.update_image_filter_inputs()
                     self.image_filter.run()
                     image = self.image_filter.get_data()
@@ -285,8 +276,6 @@ class ViewportEngine2(ViewportEngine):
                 else:
                     self.rendered_image = image
 
-        log("Finish _do_resolve")
-
     def resolve_background_aovs(self, color_image):
         settings = self.background_filter.settings
         self.rpr_context.resolve((pyrpr.AOV_OPACITY,))
@@ -307,14 +296,12 @@ class ViewportEngine2(ViewportEngine):
         if not self.is_synced or self.is_finished:
             return
 
-        # initializing self.viewport_settings and requesting first self.restart_render_event
         if not self.viewport_settings:
             self.viewport_settings = ViewportSettings(context)
             self._resize(*self._get_resolution())
             self.restart_render_event.set()
             return
 
-        # checking for viewport updates: setting camera position and resizing
         viewport_settings = ViewportSettings(context)
         if viewport_settings.width * viewport_settings.height == 0:
             return

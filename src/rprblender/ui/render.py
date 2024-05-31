@@ -121,13 +121,12 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         self.layout.prop(rpr, 'viewport_render_mode')
         self.layout.prop(rpr, 'viewport_render_quality')
 
-        if rpr.viewport_render_mode == 'HYBRIDPRO':
-            col = self.layout.column(align=True)
-            col.prop(rpr, 'viewport_denoiser')
-            col1 = col.column()
+        if rpr.viewport_render_mode == 'HYBRIDPRO' or rpr.viewport_render_mode == 'FULL2':
+            self.layout.prop(rpr, 'viewport_denoiser')
+            col1 = self.layout.column()
             col1.prop(rpr, 'viewport_upscale')
-            col1.enabled = rpr.viewport_denoiser
-
+            if rpr.viewport_upscale == True:
+                col1.prop(rpr, 'viewport_upscale_quality')
 
 class RPR_RENDER_PT_limits(RPR_Panel):
     bl_label = "Final Render"
@@ -195,25 +194,18 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
             row = col.row()
             row.prop(rpr, 'viewport_hybrid_low_mem')
 
-        adapt_resolution = rpr.viewport_render_mode in ('FULL', 'FULL2')
-        col1 = col.column()
-        col1.enabled = adapt_resolution
-        col1.prop(settings, 'adapt_viewport_resolution')
-
-        col1 = col.column(align=True)
-        col1.enabled = settings.adapt_viewport_resolution and adapt_resolution
-        col1.prop(settings, 'viewport_samples_per_sec', slider=True)
-        col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
-
-        if rpr.viewport_render_mode == 'HYBRIDPRO':
-            col1 = col.column()
-            col1.enabled = rpr.viewport_upscale and rpr.viewport_denoiser
-            col1.prop(rpr, 'viewport_upscale_quality')
-
         col.separator()
         col.prop(limits, 'preview_samples')
         col.prop(limits, 'preview_update_samples')
 
+        col.separator()
+        adapt_resolution = rpr.viewport_render_mode in ('FULL', 'FULL2')
+        col2 = col.column()
+        col2.enabled = adapt_resolution
+        col2.prop(settings, 'adapt_viewport_resolution')
+        if settings.adapt_viewport_resolution == True:
+           col2.prop(settings, 'viewport_samples_per_sec', slider=True)
+           col2.prop(settings, 'min_viewport_resolution_scale', slider=True)
 
 class RPR_RENDER_PT_advanced(RPR_Panel):
     bl_label = "Advanced"

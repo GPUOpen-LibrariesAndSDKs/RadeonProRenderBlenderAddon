@@ -15,6 +15,9 @@
 from dataclasses import dataclass
 import numpy as np
 import math
+import concurrent.futures
+import threading
+import queue
 
 import bpy
 import bmesh
@@ -197,14 +200,14 @@ class MeshData:
         finally:
             bm.free()
 
+# Create a queue for batched material synchronization tasks
+material_sync_queue = queue.Queue()
 
-def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object,
-                     material_override=None) -> bool:
+def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.types.Object, material_override=None) -> bool:
     """
     Assigns materials from material_slots to rpr_shape. It also syncs new material.
     Override material is used instead of mesh-assigned if present.
     """
-    # ViewLayer override is used for all objects in scene on that view layer
     if material_override:
         return assign_override_material(rpr_context, rpr_shape, obj, material_override)
 
@@ -213,79 +216,60 @@ def assign_materials(rpr_context: RPRContext, rpr_shape: pyrpr.Shape, obj: bpy.t
         if rpr_shape.materials:
             rpr_shape.set_material(None)
             return True
-
         return False
 
     mesh = obj.data
     material_unique_indices = (0,)
-    # mesh here could actually be curve data which wouldn't have loop_triangles
     if len(material_slots) > 1 and getattr(mesh, 'loop_triangles', None):
-        # Multiple materials found, going to collect indices of actually used materials
         material_indices = np.fromiter((tri.material_index for tri in mesh.loop_triangles), dtype=np.int32)
         material_unique_indices = np.unique(material_indices)
 
-    # Apply used materials to mesh
+    # Continue with material assignment
     for i in material_unique_indices:
         slot = material_slots[i]
-
         if not slot.material:
             continue
 
-        log(f"Syncing material '{slot.name}'; {slot}")
-
         rpr_material = material.sync(rpr_context, slot.material, obj=obj)
-
         if rpr_material:
             if len(material_unique_indices) == 1:
                 rpr_shape.set_material(rpr_material)
             else:
-                # It is important not to remove previous unused materials here, because core
-                # could crash. They will be in memory till mesh exists.
                 face_indices = np.array(np.where(material_indices == i)[0], dtype=np.int32)
                 rpr_shape.set_material_faces(rpr_material, face_indices)
         else:
             rpr_shape.set_material(None)
 
-    # sync displacement and volume for shape with its first material
+    # Sync displacement and volume for shape with its first material
     if material_slots and material_slots[0].material:
         mat = material_slots[0].material
-
         smoke_modifier = volume.get_smoke_modifier(obj)
         if not smoke_modifier or isinstance(rpr_context, RPRContext2):
-            # setting volume material
             rpr_volume = material.sync(rpr_context, mat, 'Volume', obj=obj)
             rpr_shape.set_volume_material(rpr_volume)
+
+
+        if mat.cycles.displacement_method in {'DISPLACEMENT', 'BOTH'}:
 
         # setting displacement material
         if mat.displacement_method in {'DISPLACEMENT', 'BOTH'}:
             rpr_displacement = material.sync(rpr_context, mat, 'Displacement', obj=obj)
-
-            # HybridPro: displacement disappears in case we set displacement material that is already set
             if isinstance(rpr_context, RPRContextHybridPro) and rpr_shape.displacement_material is rpr_displacement:
                 return True
-
             rpr_shape.set_displacement_material(rpr_displacement)
-            # if no subdivision set that up to 'high' so displacement looks good
-            # note subdivision is capped to resolution
-
-            # TODO
-            # Turn off this params to avoid memory leak in certain cases.
-            # Second, majority of user cases it doesn't take into account at all but should.
-            # Verify after this https://amdrender.atlassian.net/browse/RPR-1149
-            # PR to apply https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/pull/557
-            #
-            # if rpr_shape.subdivision is None:
-            #     rpr_shape.subdivision = {
-            #         'level': 10,
-            #         'boundary': pyrpr.SUBDIV_BOUNDARY_INTERFOP_TYPE_EDGE_AND_CORNER,
-            #         'crease_weight': 10
-            #     }
-
         else:
             rpr_shape.set_displacement_material(None)
 
     return True
 
+def process_material_sync_queue(material_sync_queue):
+    while not material_sync_queue.empty():
+        rpr_context, material = material_sync_queue.get()
+        try:
+            synchronized_material = rpr_context.synchronize_material(material)
+            rpr_context.material_cache.update_material(material, synchronized_material)
+        except Exception as e:
+            print(f"Error synchronizing material: {e}")
 
 def assign_override_material(rpr_context, rpr_shape, obj, material_override) -> bool:
     """ Apply override material to shape if material is correct """
@@ -347,26 +331,32 @@ def sync_visibility(rpr_context, obj: bpy.types.Object, rpr_shape: pyrpr.Shape, 
         rpr_shape.set_light_group_id(3)
         rpr_shape.set_portal_light(False)
 
+def batch_sync(rpr_context, objects):
+    # Batch synchronization of multiple objects
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(sync, rpr_context, obj) for obj in objects]
+        for future in concurrent.futures.as_completed(futures):
+            pass
+
+def batch_sync_update(rpr_context, objects, is_updated_geometry, is_updated_transform, **kwargs):
+    # Batch synchronization of multiple updated objects
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(sync_update, rpr_context, obj, is_updated_geometry, is_updated_transform, **kwargs) for obj in objects]
+        for future in concurrent.futures.as_completed(futures):
+            pass
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
-    """ Creates pyrpr.Shape from obj.data:bpy.types.Mesh """
-
+    # Extract mesh data
     mesh = kwargs.get("mesh", obj.data)
     material_override = kwargs.get("material_override", None)
     smoke_modifier = volume.get_smoke_modifier(obj)
-
-    indirect_only = kwargs.get("indirect_only", False)
-    log("sync", mesh, obj, "IndirectOnly" if indirect_only else "")
-
     obj_key = object.key(obj)
     transform = object.get_transform(obj)
 
-    # the mesh key is used to find duplicated mesh data
     mesh_key = key(obj)
     is_potential_instance = len(obj.modifiers) == 0
-    
-    # if an object has no modifiers it could potentially instance a mesh
-    # instead of exporting a new one
+
+    # Check if the object can potentially be an instance
     if is_potential_instance and mesh_key in rpr_context.mesh_masters:
         rpr_mesh = rpr_context.mesh_masters[mesh_key]
         rpr_shape = rpr_context.create_instance(obj_key, rpr_mesh)
@@ -378,6 +368,7 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
 
         deformation_data = rpr_context.deformation_cache.get(obj_key)
 
+        # Create mesh with deformation data if available
         if smoke_modifier and isinstance(rpr_context, RPRContext2):
             transform = volume.get_transform(obj)
             rpr_shape = rpr_context.create_mesh(
@@ -407,42 +398,40 @@ def sync(rpr_context: RPRContext, obj: bpy.types.Object, **kwargs):
                 data.num_face_vertices
             )
 
+        # Set vertex colors if available
         if data.vertex_colors is not None:
             rpr_shape.set_vertex_colors(data.vertex_colors)
 
-        # add mesh to masters if no modifiers
+        # Cache mesh data if it's a potential instance
         if is_potential_instance:
             rpr_context.mesh_masters[mesh_key] = rpr_shape
 
-    # create an instance of the mesh
+    # Set object name and pass index
     rpr_shape.set_name(obj_key)
     rpr_shape.set_id(obj.pass_index)
     rpr_context.set_aov_index_lookup(obj.pass_index, obj.pass_index,
                                      obj.pass_index, obj.pass_index, 1.0)
 
-    
-
+    # Assign materials
     assign_materials(rpr_context, rpr_shape, obj, material_override)
-
     rpr_context.scene.attach(rpr_shape)
-
     rpr_shape.set_transform(transform)
     object.export_motion_blur(rpr_context, obj_key, transform)
 
-    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
+    # Sync visibility
+    sync_visibility(rpr_context, obj, rpr_shape, indirect_only=kwargs.get("indirect_only", False))
 
 
 def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geometry, is_updated_transform, **kwargs):
-    """ Update existing mesh from obj.data: bpy.types.Mesh or create a new mesh """
-
+    # Update existing mesh or synchronize if it's a new object
     mesh = obj.data
-    log("sync_update", obj, mesh)
-
     obj_key = object.key(obj)
     mesh_key = key(obj)
     rpr_shape = rpr_context.objects.get(obj_key, None)
+
     if rpr_shape:
         if is_updated_geometry:
+            # Remove existing object and sync new mesh data
             rpr_context.remove_object(obj_key)
             if mesh_key in rpr_context.mesh_masters:
                 rpr_context.mesh_masters.pop(mesh_key)
@@ -450,18 +439,20 @@ def sync_update(rpr_context: RPRContext, obj: bpy.types.Object, is_updated_geome
             return True
 
         if is_updated_transform:
+            # Update transform if it has changed
             rpr_shape.set_transform(object.get_transform(obj))
 
+        # Sync material and visibility updates
         indirect_only = kwargs.get("indirect_only", False)
         material_override = kwargs.get("material_override", None)
-        
+
         sync_visibility(rpr_context, obj, rpr_shape, indirect_only=indirect_only)
         assign_materials(rpr_context, rpr_shape, obj, material_override)
         return True
 
+    # If the object doesn't exist, sync new mesh data
     sync(rpr_context, obj, **kwargs)
     return True
-
 
 def cache_blur_data(rpr_context, obj: bpy.types.Object, mesh=None):
     obj_key = object.key(obj)
