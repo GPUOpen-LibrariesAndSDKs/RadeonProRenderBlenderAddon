@@ -1,12 +1,11 @@
-# rpr_testscript
-temporary repo; cannot seem to clone fork of the official RPR Blender Plug-in and contribute to cmd-line tools subdir
+# cmd_tools/test_script
+Test Script to automate testing
 
 ## To Run
 
-### Render
- .\render_test.ps1 -BlendFilesSubdir "BLENDFILES" -GroundTruthSubdir "GROUND_TRUTH" -BlenderSubdir "BLENDER_EXE" -Scene "SCENE"
+.\render_test.ps1 -BlendFilesSubdir "BLENDFILES" -GroundTruthSubdir "GROUND_TRUTH" -BlenderSubdir "BLENDER_EXE" -Scene "SCENE"
 
- - this will render the final render, compare it via Pixel Wise MSE and SSIM, and render the viewport render
+- this will render the final render, compare it via Pixel Wise MSE and SSIM, and render the viewport render
 
 ## TODO
 - add more granular filepath creation - right now it will just create a SCENE subdir that stores the final render as well as the quant. comparison metrics
