@@ -1,9 +1,9 @@
 [submodule "RadeonProRenderSDK"]
 	path = RadeonProRenderSDK
-	url = git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git
 [submodule "RadeonProImageProcessingSDK"]
 	path = RadeonProImageProcessingSDK
-	url = git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/RadeonImageFilter
 [submodule "RadeonProRenderSharedComponents"]
 	path = RadeonProRenderSharedComponents
-	url = git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSharedComponents.git
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderSharedComponents.git
