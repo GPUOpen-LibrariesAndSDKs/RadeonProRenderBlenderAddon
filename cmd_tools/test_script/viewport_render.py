@@ -14,6 +14,53 @@ def set_output_path(subdir_name):
             return None
     return output_dir
 
+
+# def render_viewport_image(output_dir, filename):
+#     class RenderViewportOperator(bpy.types.Operator):
+#         bl_idname = "wm.render_viewport_operator"
+#         bl_label = "Render Viewport Operator"
+
+#         def execute(self, context):
+#             for window in bpy.context.window_manager.windows:
+#                 for area in window.screen.areas:
+#                     if area.type == 'VIEW_3D':
+#                         for space in area.spaces:
+#                             if space.type == 'VIEW_3D':
+#                                 space.shading.type = 'RENDERED'
+#                                 break
+#                         break
+
+#             bpy.context.scene.rpr.viewport_render_mode = 'FULL2'  # Set Viewport Mode to Final
+
+#             # Wait for the viewport to update
+#             bpy.context.view_layer.update()
+
+#             # Use a timer to ensure the viewport is fully updated
+#             bpy.app.timers.register(self.delayed_render, first_interval=3.0)  # Adjust the interval as needed
+
+#             return {'RUNNING_MODAL'}
+
+#         def delayed_render(self):
+#             output_filepath = f"{output_dir}/{filename}"
+#             bpy.context.scene.render.filepath = output_filepath
+
+#             for window in bpy.context.window_manager.windows:
+#                 for area in window.screen.areas:
+#                     if area.type == 'VIEW_3D':
+#                         with bpy.context.temp_override(window=window, area=area, region=area.regions[-1]):
+#                             bpy.ops.render.opengl(write_still=True)
+
+#                         print("VIEWPORT RENDER IS FINISHED")
+#                         return None  # Unregister the timer
+
+#             return 1.0  # Retry if not successful
+
+#     bpy.utils.register_class(RenderViewportOperator)
+
+#     # Execute the operator
+#     bpy.ops.wm.render_viewport_operator()
+
+
 def render_viewport_image(output_dir, filename):
     #bpy.context.scene.rpr.viewport_mode = 'FINAL'
 
@@ -59,6 +106,8 @@ def main():
     parser = argparse.ArgumentParser(description="Render and save a viewport render in Blender.")
     parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
     parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
+    parser.add_argument('--viewport-flag', type=int, required=True, help="Flag to enable viewport render")
+
 
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])  # Arguments after '--'
 
@@ -75,8 +124,11 @@ def main():
         print("Failed to create output directory. Exiting.")
         return
     
-    viewport_filename = f"{args.scene_name}_viewport.png"
-    render_viewport_image(output_dir, viewport_filename)
+    if args.viewport_flag == 1:
+        viewport_filename = f"{args.scene_name}_viewport.png"
+        render_viewport_image(output_dir, viewport_filename)
+    else:
+        print("Viewport render is disabled.")
 
 if __name__ == "__main__":
     main()

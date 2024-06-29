@@ -2,7 +2,7 @@ import os
 import subprocess
 import argparse
 
-def run_blender(blender_path, script_path, scene_path, scene_name):
+def run_blender(blender_path, script_path, scene_path, scene_name, viewport_flag):
     script_dir = os.path.dirname(os.path.abspath(script_path))
     
     # Determine if we should run Blender in background mode
@@ -28,6 +28,9 @@ def run_blender(blender_path, script_path, scene_path, scene_name):
         "--scene-name", scene_name
     ]
 
+    if 'viewport_render.py' in script_path:
+        command.extend(["--viewport-flag", str(viewport_flag)])
+
     if background:
         command.insert(1, "--background")
 
@@ -50,6 +53,7 @@ if __name__ == "__main__":
     parser.add_argument('--script-path', required=True, help='Path to the Python script to run within Blender')
     parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
     parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
+    parser.add_argument('--viewport-flag', type=int, required=False, default=0, help='Flag for Viewport Rendering -> 0 for no viewport, 1 for rendering viewport')
     
     args = parser.parse_args()
 
@@ -57,5 +61,6 @@ if __name__ == "__main__":
     print(f"Script path: {args.script_path}")
     print(f"Scene path: {args.scene_path}")
     print(f"Scene name: {args.scene_name}")
+    print(f"Viewport flag: {args.viewport_flag}")
 
-    run_blender(args.blender_path, args.script_path, args.scene_path, args.scene_name)
+    run_blender(args.blender_path, args.script_path, args.scene_path, args.scene_name, args.viewport_flag)

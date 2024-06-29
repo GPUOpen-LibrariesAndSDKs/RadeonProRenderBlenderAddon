@@ -1,0 +1,3 @@
+Scene: RPR_BMW
+Mean Squared Error (MSE): 9.95
+Structural Similarity Index (SSIM): 0.97

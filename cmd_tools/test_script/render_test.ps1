@@ -2,7 +2,8 @@ param (
     [string]$BlendFilesSubdir,
     [string]$GroundTruthSubdir,
     [string]$BlenderSubdir,
-    [string]$Scene
+    [string]$Scene,
+    [string]$ViewportFlag
 )
 
 # Define paths to the Python script that runs the Blender rendering
@@ -13,15 +14,6 @@ $FinalRenderCommand = @(
     "python", $CmdRenderScript,
     "--blender-path", $BlenderSubdir,
     "--script-path", "final_render.py",
-    "--scene-path", $BlendFilesSubdir,
-    "--scene-name", $Scene
-)
-
-# Define the command to run viewport render
-$ViewportRenderCommand = @(
-    "python", $CmdRenderScript,
-    "--blender-path", $BlenderSubdir,
-    "--script-path", "viewport_render.py",
     "--scene-path", $BlendFilesSubdir,
     "--scene-name", $Scene
 )
@@ -41,7 +33,10 @@ Write-Output "Running final render..."
 Write-Output "Comparing images..."
 & "python" "compare_render.py" --output-dir $Scene --scene-name $Scene
 
-# Run viewport render
-Write-Output "Running viewport render..."
-& "python" $CmdRenderScript --blender-path $BlenderSubdir --script-path "viewport_render.py" --scene-path $BlendFilesSubdir --scene-name $Scene
-
+# Conditionally run viewport render based on the viewport flag
+if ($ViewportFlag -eq "1") {
+    Write-Output "Running viewport render..."
+    & "python" $CmdRenderScript --blender-path $BlenderSubdir --script-path "viewport_render.py" --scene-path $BlendFilesSubdir --scene-name $Scene --viewport-flag $ViewportFlag
+} else {
+    Write-Output "Skipping viewport render..."
+}
