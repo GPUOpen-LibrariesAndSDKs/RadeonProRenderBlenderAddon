@@ -1,0 +1,11 @@
+*.blend
+
+blender_files
+old
+Blender 4.0
+Blender 4.1
+ground_truth
+test_commands.sh
+
+install.sh
+install_lib.py
