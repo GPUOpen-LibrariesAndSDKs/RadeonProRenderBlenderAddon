@@ -14,6 +14,19 @@ def set_output_path(subdir_name):
             return None
     return output_dir
 
+def load_and_register_addon(addon_path):
+    if addon_path not in sys.path:
+        sys.path.append(addon_path)
+    for addon in os.listdir(addon_path):
+        if addon.endswith(".py"):
+            addon_name = addon[:-3]
+            try:
+                bpy.ops.wm.addon_install(filepath=os.path.join(addon_path, addon))
+                bpy.ops.wm.addon_enable(module=addon_name)
+                print(f"Addon {addon_name} installed and enabled.")
+            except Exception as e:
+                print(f"Error installing addon {addon_name}: {e}")
+
 
 # def render_viewport_image(output_dir, filename):
 #     class RenderViewportOperator(bpy.types.Operator):
@@ -107,17 +120,29 @@ def main():
     parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
     parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
     parser.add_argument('--viewport-flag', type=int, required=True, help="Flag to enable viewport render")
-
+    parser.add_argument('--addon-path', required=True, help="Path to the addon directory")
 
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])  # Arguments after '--'
 
     print(f"Scene path: {args.scene_path}")
     print(f"Scene name: {args.scene_name}")
+    print(f"Addon path: {args.addon_path}")
 
     blend_file = os.path.join(args.scene_path, args.scene_name + ".blend")
     print(f"Loading blend file: {blend_file}")
     
     bpy.ops.wm.open_mainfile(filepath=blend_file)
+
+    # Import and register the rprblender addon
+    try:
+        sys.path.append(args.addon_path)
+        import rprblender
+        rprblender.register()
+        print("rprblender addon registered successfully.")
+    except ImportError as e:
+        print(f"Error importing rprblender: {e}")
+    except Exception as e:
+        print(f"Error registering rprblender: {e}")
     
     output_dir = set_output_path(args.scene_name)
     if not output_dir:

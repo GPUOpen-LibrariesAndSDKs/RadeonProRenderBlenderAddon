@@ -7,5 +7,7 @@ Blender 4.1
 ground_truth
 test_commands.sh
 
+RPR_BMW
+
 install.sh
 install_lib.py
