@@ -17,15 +17,18 @@ REM  *******************************************************************
 
 @echo on
 
-if ""=="%BLENDER_EXE%" goto error
+if "%BLENDER_EXE%"=="" goto error
 
 REM set Debug Mode flag
 set RPR_BLENDER_DEBUG=1
 
-python cmd_tools/run_blender.py "%BLENDER_EXE%" cmd_tools/test_rpr.py
+python "..\run_blender.py" "%BLENDER_EXE%" "..\test_rpr.py"
+
 pause
 REM it's much easier to get issue traceback on crash if pause is present; remove if not needed
 exit
 
 :error
 echo "Please set BLENDER_EXE environment variable"
+pause
+

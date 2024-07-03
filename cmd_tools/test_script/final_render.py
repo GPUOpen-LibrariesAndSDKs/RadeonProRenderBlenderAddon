@@ -3,6 +3,7 @@ import bpy
 import sys
 import argparse
 
+
 def create_output_dir(scene_name):
     output_dir = os.path.abspath(scene_name)
     if not os.path.exists(output_dir):
@@ -15,20 +16,6 @@ def create_output_dir(scene_name):
     return output_dir
 
 
-def load_and_register_addon(addon_path):
-    if addon_path not in sys.path:
-        sys.path.append(addon_path)
-    for addon in os.listdir(addon_path):
-        if addon.endswith(".py"):
-            addon_name = addon[:-3]
-            try:
-                bpy.ops.wm.addon_install(filepath=os.path.join(addon_path, addon))
-                bpy.ops.wm.addon_enable(module=addon_name)
-                print(f"Addon {addon_name} installed and enabled.")
-            except Exception as e:
-                print(f"Error installing addon {addon_name}: {e}")
-
-
 def render_final_image(output_file):
     bpy.context.scene.render.engine = 'RPR'
     bpy.context.scene.rpr.final_render_mode = 'FULL2'  # Set Render Mode to Final
@@ -37,22 +24,26 @@ def render_final_image(output_file):
     print(f"Final render saved to: {output_file}")
 
 
-def main():
-    # Argument parsing
-    parser = argparse.ArgumentParser(description="Render and save a scene in Blender.")
-    parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
-    parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
-    parser.add_argument('--addon-path', required=True, help='Path to the addon directory')
+def install_and_enable_addon():
+    # Add the addon path to sys.path
+    # script_dir = os.path.dirname(os.path.abspath(__file__))
+    # addon_src_path = os.path.abspath(os.path.join(script_dir, '../../src'))
+    # print(f"ADDON SRC PATH: {addon_src_path}")
 
-    args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])  # Arguments after '--'
+    # Set up the addon path
+    addon_src_path = os.path.abspath(os.path.join(__file__, '..', '..', '..', 'src'))
+    pyrprwrap_path = os.path.abspath(os.path.join(__file__, '..', '..', '..', 'src', 'bindings', 'pyrpr', 'src'))
 
-    blend_file = os.path.join(args.scene_path, args.scene_name + ".blend")
-    
-    bpy.ops.wm.open_mainfile(filepath=blend_file)
+    if addon_src_path not in sys.path:
+        sys.path.append(addon_src_path)
 
-    # Import and register the rprblender addon
+    if pyrprwrap_path not in sys.path:
+        sys.path.append(pyrprwrap_path)
+
+    print(f"ADDON SRC PATH: {addon_src_path}")
+    print(f"PYRPRWRAP PATH: {pyrprwrap_path}")
+
     try:
-        sys.path.append(args.addon_path)
         import rprblender
         rprblender.register()
         print("rprblender addon registered successfully.")
@@ -60,7 +51,24 @@ def main():
         print(f"Error importing rprblender: {e}")
     except Exception as e:
         print(f"Error registering rprblender: {e}")
+
+
+
+def main():
+    # Argument parsing
+    parser = argparse.ArgumentParser(description="Render and save a scene in Blender.")
+    parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
+    parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
+
+    args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])  # Arguments after '--'
+
+    # Install and enable the addon
+    install_and_enable_addon()
+
+    blend_file = os.path.join(args.scene_path, args.scene_name + ".blend")
     
+    bpy.ops.wm.open_mainfile(filepath=blend_file)
+        
     output_dir = create_output_dir(args.scene_name)
     if not output_dir:
         print("Failed to create output directory. Exiting.")
