@@ -35,11 +35,11 @@ $ViewportRenderCommand = @(
 )
 
 # Define the command to run image comparison
-$CompareCommand = @(
-    "python", "compare_render.py",
-    "--output-dir", $Scene,
-    "--scene-name", $Scene
-)
+# $CompareCommand = @(
+#     "python", "compare_render.py",
+#     "--output-dir", $Scene,
+#     "--scene-name", $Scene
+# )
 
 # Run final render
 Write-Output "Running final render..."
@@ -47,7 +47,7 @@ Write-Output "Running final render..."
 
 # Run image comparison
 Write-Output "Comparing images..."
-& "python" "C:\Users\Spencer_Au_AMD\Documents\GitHub\RadeonProRenderBlenderAddon\cmd_tools\test_script\compare_render.py" --output-dir $Scene --scene-name $Scene
+& "python" ".\compare_render.py" --output-dir $Scene --scene-name $Scene
 
 # Run viewport render
 Write-Output "Running viewport render..."
