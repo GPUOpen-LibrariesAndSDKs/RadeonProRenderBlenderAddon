@@ -30,7 +30,7 @@ $ViewportRenderCommand = @(
     "--blender-path", $BlenderSubdir,
     "--script-path", "viewport_render.py",
     "--scene-path", $BlendFilesSubdir,
-    "--scene-name", $Scene,
+    "--scene-name", $
     "--viewport-flag", $ViewportFlag
 )
 

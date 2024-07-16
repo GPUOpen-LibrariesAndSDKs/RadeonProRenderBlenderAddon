@@ -61,3 +61,5 @@ vscode/
 /tmp
 
 /src/rprblender/utils/athena.bin
+/.vscode
+cmd_tools/test_script/test.py

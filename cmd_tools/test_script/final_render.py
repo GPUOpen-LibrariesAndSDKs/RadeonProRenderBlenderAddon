@@ -25,33 +25,38 @@ def render_final_image(output_file):
 
 
 def install_and_enable_addon():
-    # Add the addon path to sys.path
-    # script_dir = os.path.dirname(os.path.abspath(__file__))
-    # addon_src_path = os.path.abspath(os.path.join(script_dir, '../../src'))
-    # print(f"ADDON SRC PATH: {addon_src_path}")
+    # Set up the addon paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    addon_src_path = os.path.abspath(os.path.join(script_dir, '..', '..', 'src', 'rprblender'))
+    pyrprwrap_path = os.path.abspath(os.path.join(script_dir, '..', '..', 'src', 'bindings', 'pyrpr', 'src'))
 
-    # Set up the addon path
-    addon_src_path = os.path.abspath(os.path.join(__file__, '..', '..', '..', 'src'))
-    pyrprwrap_path = os.path.abspath(os.path.join(__file__, '..', '..', '..', 'src', 'bindings', 'pyrpr', 'src'))
-
-    if addon_src_path not in sys.path:
-        sys.path.append(addon_src_path)
-
-    if pyrprwrap_path not in sys.path:
-        sys.path.append(pyrprwrap_path)
-
+    # Print paths for debugging purposes
     print(f"ADDON SRC PATH: {addon_src_path}")
     print(f"PYRPRWRAP PATH: {pyrprwrap_path}")
 
+    # Append paths to sys.path if not already present
+    if addon_src_path not in sys.path:
+        sys.path.append(addon_src_path)
+    if pyrprwrap_path not in sys.path:
+        sys.path.append(pyrprwrap_path)
+
+    # # Print sys.path for debugging
+    # print(f"sys.path: {sys.path}")
+
+    # # Print contents of the directories
+    # print(f"Contents of ADDON SRC PATH: {os.listdir(addon_src_path)}")
+    # print(f"Contents of PYRPRWRAP PATH: {os.listdir(pyrprwrap_path)}")
+
+    # Attempt to import rprblender and register the addon
     try:
         import rprblender
+        print(f"Contents of rprblender: {dir(rprblender)}")
         rprblender.register()
         print("rprblender addon registered successfully.")
     except ImportError as e:
         print(f"Error importing rprblender: {e}")
     except Exception as e:
         print(f"Error registering rprblender: {e}")
-
 
 
 def main():
