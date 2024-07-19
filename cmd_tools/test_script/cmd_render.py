@@ -10,6 +10,11 @@ def run_blender(blender_path, script_path, scene_path, scene_name, viewport_flag
     # Determine if we should run Blender in background mode
     background = not script_path.endswith('viewport_render.py')
 
+    # Skip running if viewport_flag is 0 and the script is viewport_render.py
+    if script_path.endswith('viewport_render.py') and viewport_flag == 0:
+        print("Skipping viewport render since viewport_flag is 0")
+        return
+
     # Get Blender's Python executable path
     blender_python_executable = subprocess.check_output([
         blender_path, "--background", "--python-expr", "import sys; print(sys.executable)"
@@ -23,8 +28,8 @@ def run_blender(blender_path, script_path, scene_path, scene_name, viewport_flag
     
     command = [
         blender_path,
-        "--python",
-        script_path,
+        "--background" if background else "",
+        "--python", script_path,
         "--",
         "--scene-path", scene_path,
         "--scene-name", scene_name
@@ -33,8 +38,8 @@ def run_blender(blender_path, script_path, scene_path, scene_name, viewport_flag
     if 'viewport_render.py' in script_path:
         command.extend(["--viewport-flag", str(viewport_flag)])
 
-    if background:
-        command.insert(1, "--background")
+    # Remove empty strings from command list
+    command = [arg for arg in command if arg]
 
     print(f"Running command: {' '.join(command)}")
 
