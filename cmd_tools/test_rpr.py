@@ -15,57 +15,17 @@
 
 #script to load addon from within blender text editor
 
-# from pathlib import Path
-
-# src_path = str((Path(__file__).parent.parent/'src').resolve())
-
-# import sys
-# if src_path not in sys.path:
-#     sys.path.append(src_path)
-
-# import rprblender
-
-# rprblender.register()
-
-# import bpy
-# bpy.context.scene.render.engine = 'RPR'
-
 from pathlib import Path
+
+src_path = str((Path(__file__).parent.parent/'src').resolve())
+
 import sys
-import os
+if src_path not in sys.path:
+    sys.path.append(src_path)
 
-# Resolve paths
-script_dir = Path(__file__).parent
-base_src_path = (script_dir / '..' / 'src').resolve()
-rprblender_path = (base_src_path / 'rprblender').resolve()
-pyrpr_path = (base_src_path / 'bindings' / 'pyrpr').resolve()
+import rprblender
 
-# Append paths to sys.path if not already present
-if str(base_src_path) not in sys.path:
-    sys.path.append(str(base_src_path))
-if str(rprblender_path) not in sys.path:
-    sys.path.append(str(rprblender_path))
-if str(pyrpr_path) not in sys.path:
-    sys.path.append(str(pyrpr_path))
-
-# # Print paths for debugging purposes
-# print(f"BASE SRC PATH: {base_src_path}")
-# print(f"RPRBLENDER PATH: {rprblender_path}")
-# print(f"PYRPRWRAP PATH: {pyrprwrap_path}")
-# print(f"sys.path: {sys.path}")
-
-# Import modules
-try:
-    # import pyrprwrap  # Import pyrprwrap explicitly to check its availability
-    # print("pyrprwrap imported successfully")
-
-    import rprblender
-    rprblender.register()
-    print("rprblender addon registered successfully.")
-except ImportError as e:
-    print(f"Error importing module: {e}")
-except Exception as e:
-    print(f"Error registering rprblender: {e}")
+rprblender.register()
 
 import bpy
 bpy.context.scene.render.engine = 'RPR'
