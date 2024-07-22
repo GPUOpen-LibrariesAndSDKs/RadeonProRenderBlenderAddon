@@ -4,6 +4,7 @@ import numpy as np
 import argparse
 from skimage.metrics import structural_similarity as ssim
 
+
 class ImageComparer:
     def __init__(self, output_dir, scene_name):
         self.output_dir = output_dir
@@ -39,6 +40,7 @@ class ImageComparer:
             txt_file.write(f"Scene: {self.scene_name}\n")
             txt_file.write(f"Mean Squared Error (MSE): {mse_value:.2f}\n")
             txt_file.write(f"Structural Similarity Index (SSIM): {ssim_value:.2f}\n")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare rendered images with ground truth images.")

@@ -2,8 +2,6 @@ import os
 import bpy
 import sys
 import argparse
-import importlib.util
-import types
 
 
 def create_output_dir(scene_name):
@@ -37,7 +35,7 @@ def install_and_enable_addon():
 
     # Attempt to import rprblender and register the addon
     try:
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         import rprblender
         rprblender.register()
         print("rprblender addon registered successfully.")
