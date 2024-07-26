@@ -1,12 +1,31 @@
-# cmd_tools/test_script
-Test Script to automate testing
+## .ENV Variables
+set .env variables for 
+    BLENDER_PATH=C:\Program Files\Blender Foundation\Blender {VERSION}  
+    ADDON_ZIP={where build artifact zip is located}  
+    SCENE_PATH={directory containing blend files to be tested}  
+    SCENE_NAME={name of scene}  
+    GROUND_TRUTH={rendered image to compare to for MSE and SSIM}  
+    VIEWPORT_FLAG={0 for no viewport rendering, 1 for viewport}  
 
-## To Run
 
-.\render_test.ps1 -BlendFilesSubdir "BLENDFILES" -GroundTruthSubdir "GROUND_TRUTH" -BlenderSubdir "BLENDER_EXE" -Scene "SCENE" -ViewportFlag BOOL
+## Run Instructions
+Run with `./run_render.cmd`
 
-- this will render the final render, compare it via Pixel Wise MSE and SSIM, and optionally render the viewport render
 
-## TODO
-- add more granular filepath creation - right now it will just create a SCENE subdir that stores the final render as well as the quant. comparison metrics
-- viewport screenshotting
+## Directory Structure
+
+- **{plugin}/**: parent directory for the plugin.
+  - **addons/**: 
+  - **modules/**:
+    - **{rprblender_build}/**: Specific build for the `rprblender` module.
+  - **startup/**: 
+
+
+### Instructions 
+Make sure the {plugin} parent directory shown above is added in this fashion in Script Directories
+
+![{Plugin} Parent Dir is named "addon"](assets\python_module_preferences.png)
+
+Reference: https://blender.stackexchange.com/questions/5287/using-3rd-party-python-modules
+
+

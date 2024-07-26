@@ -6,11 +6,11 @@ from skimage.metrics import structural_similarity as ssim
 
 
 class ImageComparer:
-    def __init__(self, output_dir, scene_name):
-        self.output_dir = output_dir
-        self.scene_name = scene_name
-        self.ground_truth_path = f"ground_truth/{scene_name}_actual.png"
+    def __init__(self, ground_truth_dir, output_dir, scene_name):
+        self.ground_truth_path = os.path.join(ground_truth_dir, f"{scene_name}_actual.png")
         self.render_path = os.path.join(output_dir, f"{scene_name}_final.png")
+        self.scene_name = scene_name
+        self.output_dir = output_dir
 
     def mse(self, imageA, imageB):
         err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
@@ -44,10 +44,11 @@ class ImageComparer:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare rendered images with ground truth images.")
+    parser.add_argument('--ground-truth-dir', required=True, help='Directory of ground truth images')
     parser.add_argument('--output-dir', required=True, help='Directory where the rendered images are saved')
     parser.add_argument('--scene-name', required=True, help='Name of the scene to compare')
 
     args = parser.parse_args()
 
-    comparer = ImageComparer(args.output_dir, args.scene_name)
+    comparer = ImageComparer(args.ground_truth_dir, args.output_dir, args.scene_name)
     comparer.compare_images()

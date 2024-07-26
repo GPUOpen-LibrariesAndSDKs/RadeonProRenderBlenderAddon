@@ -1,70 +1,102 @@
+import importlib
+# clear cache
+importlib.invalidate_caches()
+
 import os
 import subprocess
-import argparse
+import shutil
+import sys
+from dotenv import load_dotenv
+import zipfile
 
-
-def run_blender(blender_path, script_path, scene_path, scene_name, viewport_flag):
-    script_dir = os.path.dirname(os.path.abspath(script_path))
+# unzips addon into the target directory
+def extract_addon_to_module(target_dir):
     
-    # Determine if we should run Blender in background mode
-    background = not script_path.endswith('viewport_render.py')
+    # Extract the ZIP file to the target directory
+    with zipfile.ZipFile(addon, 'r') as zip_ref:
+        zip_ref.extractall(target_dir)
 
-    # Skip running if viewport_flag is 0 and the script is viewport_render.py
-    if script_path.endswith('viewport_render.py') and viewport_flag == 0:
-        print("Skipping viewport render since viewport_flag is 0")
-        return
+    print(f"Addon extracted to {target_dir}")
 
-    # Get Blender's Python executable path
-    blender_python_executable = subprocess.check_output([
-        blender_path, "--background", "--python-expr", "import sys; print(sys.executable)"
-    ]).decode().strip()
 
-    print(f"Blender Python executable: {blender_python_executable}")
-
-    # Get Blender's site-packages directory
-    blender_python_lib = os.path.dirname(blender_python_executable)
-    blender_site_packages = os.path.join(blender_python_lib, "lib", "site-packages")
-    
-    command = [
-        blender_path,
-        "--background" if background else "",
-        "--python", script_path,
-        "--",
-        "--scene-path", scene_path,
-        "--scene-name", scene_name
-    ]
-
-    if 'viewport_render.py' in script_path:
-        command.extend(["--viewport-flag", str(viewport_flag)])
-
-    # Remove empty strings from command list
-    command = [arg for arg in command if arg]
-
-    print(f"Running command: {' '.join(command)}")
-
-    env = os.environ.copy()
-    env['PYTHONPATH'] = script_dir + os.pathsep + blender_site_packages + os.pathsep + env.get('PYTHONPATH', '')
-
+def remove_rprblender(target_dir):
     try:
-        subprocess.run(command, check=True, env=env)
-        print("Blender script executed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred while running Blender: {e}")
+        addon = os.path.join(target_dir, "rprblender")
+        shutil.rmtree(addon, ignore_errors=True)
+        print(f"rprblender removed successfully from {target_dir}.")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"Error removing rprblender: {e}")
+
+
+def print_sys_path():
+    print("SYS.PATH FOR cmd_render.py")
+    for i, path in enumerate(sys.path):
+        print(f"{i}: {path}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Wrapper script to run Blender with Python script.")
-    parser.add_argument('--blender-path', required=True, help='Path to the Blender executable')
-    parser.add_argument('--script-path', required=True, help='Path to the Python script to run within Blender')
-    parser.add_argument('--scene-path', required=True, help='Path to the directory containing the Blender scene files')
-    parser.add_argument('--scene-name', required=True, help='Name of the scene to render')
-    parser.add_argument('--viewport-flag', type=int, required=False, default=0, help='Flag for Viewport Rendering -> 0 for no viewport, 1 for rendering viewport')
+
+    load_dotenv()
+
+    sys.path.append("./rprblender")
+    script = sys.argv[1]
+    blender_path = os.getenv('BLENDER_PATH')
+    blender_version = os.path.basename(blender_path).split()[-1]
+    blender_exe = os.path.join(blender_path, "blender.exe")
+
+    addon = os.getenv('ADDON_ZIP')
+    blender_files = os.getenv('SCENE_PATH')
+    scene = os.getenv('SCENE_NAME')
+    build = os.path.basename(addon)
+    output_dir = os.path.join("Render_Output", os.path.basename(addon))
+
+    ground_truth = os.getenv('GROUND_TRUTH')
+    viewport_flag = os.getenv('VIEWPORT_FLAG')
+
+    print(f"Blender Version: {blender_version}")
+    print(f"Scene name: {scene}")
+
+    #target_dir = os.path.join(blender_path, blender_version, 'scripts', 'modules')
+
+    target_dir = os.path.join(os.getcwd(), "addon", "modules")
+
+    # extract zip file to blender's modules subdir in scripts
+    extract_addon_to_module(target_dir)
+
+    # Always run final_render.py
+    final_render_command = [
+        blender_exe,
+        '--background',
+        '--python', script,
+        blender_files,
+        scene,
+        # addon,
+        # blender_path,
+        # blender_version,
+        output_dir
+
+    ]
+    subprocess.run(final_render_command)
     
-    args = parser.parse_args()
+    # Always run compare_render.py after final_render.py
+    compare_render_command = [
+        'python', 'compare_render.py',
+        '--ground-truth-dir', ground_truth,
+        '--output-dir', output_dir,
+        '--scene-name', scene
+    ]
+    subprocess.run(compare_render_command)
 
-    print(f"Blender path: {args.blender_path}")
-    print(f"Scene name: {args.scene_name}")
+    # Conditionally run viewport render
+    viewport_render_command = [
+        blender_path,
+        '--python', 'viewport_render.py',
+        '--',
+        '--scene-path', blender_files,
+        '--scene-name', scene,
+        '--addon-zip', addon
+    ]
+    if viewport_flag == 1:
+        subprocess.check_call(viewport_render_command)
 
-    run_blender(args.blender_path, args.script_path, args.scene_path, args.scene_name, args.viewport_flag)
+    remove_rprblender(target_dir)
