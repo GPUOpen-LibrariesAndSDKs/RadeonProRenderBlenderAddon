@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import zipfile
 
 # unzips addon into the target directory
+# RPRNAS seems to have double zips
 def extract_addon_to_module(target_dir):
     
     # Extract the ZIP file to the target directory
@@ -17,6 +18,16 @@ def extract_addon_to_module(target_dir):
         zip_ref.extractall(target_dir)
 
     print(f"Addon extracted to {target_dir}")
+
+    # check for double zips as in the case of rprnas
+    for root, dirs, files in os.walk(target_dir):
+        for file in files:
+            if file.endswith('.zip'):
+                zip_path = os.path.join(root, file)
+                with zipfile.ZipFile(zip_path, 'r') as inner_zip_ref:
+                    inner_zip_ref.extractall(target_dir)
+                print(f"Extracted inner ZIP: {zip_path}")
+                os.remove(zip_path) # delete zip
 
 
 def remove_rprblender(target_dir):
@@ -70,9 +81,6 @@ if __name__ == "__main__":
         '--python', script,
         blender_files,
         scene,
-        # addon,
-        # blender_path,
-        # blender_version,
         output_dir
 
     ]
