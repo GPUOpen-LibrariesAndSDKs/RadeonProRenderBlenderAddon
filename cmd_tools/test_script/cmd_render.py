@@ -110,7 +110,7 @@ if __name__ == "__main__":
     
     # Always run compare_render.py after final_render.py
     compare_render_command = [
-        'python', 'compare_render.py',
+        'py -3.11', 'compare_render.py',
         '--ground-truth-dir', ground_truth,
         '--output-dir', output_dir,
         '--scene-name', scene
