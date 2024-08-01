@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    sys.path.append("./rprblender")
+    #sys.path.append("./rprblender")
     script = sys.argv[1]
     blender_path = os.getenv('BLENDER_PATH')
     # this filepathing is specific to windows; prob need to change for ubuntu
