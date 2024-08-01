@@ -45,18 +45,19 @@ def install_and_enable_addon():
     import rprblender
     rprblender.register()
 
-#this does not seem to be removing the plugin folder from script_directories correctly?
+
 def remove_script_path(plugin_folder):
     abs_plugin_folder = os.path.abspath(plugin_folder)
-    script_directories = bpy.context.preferences.filepaths.script_directories
-    for script_dir in script_directories:
+    for script_dir in bpy.context.preferences.filepaths.script_directories:
+    #for script_dir in script_directories:
         #if script_dir.directory == abs_plugin_folder:
-        script_directories.remove(script_dir)
+        bpy.context.preferences.filepaths.script_directories.remove(script_dir)
         bpy.ops.wm.save_userpref()
-        print(f"Removed script path from Blender Preferences: {abs_plugin_folder}")
+        print(f"Removed script path from Blender Preferences: {script_dir}")
         #break
     else:
-        print(f"Script path not found: {abs_plugin_folder}")
+        # do nothing
+        pass
 
 
 def main():

@@ -21,7 +21,6 @@ def ensure_plugin_structure(plugin_folder):
 # unzips addon into the target directory
 # RPRNAS seems to have double zips
 def extract_addon_to_module(target_dir):
-    
     # Extract the ZIP file to the target directory
     with zipfile.ZipFile(addon, 'r') as zip_ref:
         zip_ref.extractall(target_dir)
@@ -62,15 +61,17 @@ if __name__ == "__main__":
     sys.path.append("./rprblender")
     script = sys.argv[1]
     blender_path = os.getenv('BLENDER_PATH')
-    blender_version = os.path.basename(blender_path).split()
-    #print("BLENDER VERSION: " + blender_version)
+    # this filepathing is specific to windows; prob need to change for ubuntu
+    # sets blender_version as Blender 4.1 for creating a subdir for output later
+    blender_version = blender_version = " ".join(os.path.basename(blender_path).split()[-2:])
     blender_exe = os.path.join(blender_path, "blender.exe")
 
     addon = os.getenv('ADDON_ZIP')
     blender_files = os.getenv('SCENE_PATH')
     scene = os.getenv('SCENE_NAME')
     build = os.path.basename(addon)
-    output_dir = os.path.join("Render_Output", os.path.basename(addon))
+
+    output_dir = os.path.join(os.getenv('RENDER_OUTPUT_DIR'), os.path.basename(addon), blender_version)
     plugin_folder = os.getenv('PLUGIN')
 
     ground_truth = os.getenv('GROUND_TRUTH')
@@ -86,10 +87,12 @@ if __name__ == "__main__":
     extract_addon_to_module(target_dir)
 
     # run add_script.py to add the directory to Blender's scripts and then "restart" Blender
+
+    cwd =  os.getcwd()
     subprocess.run([
         blender_exe,
         '--background',
-        '--python', 'add_script.py',
+        '--python', os.path.join(cwd, "add_script.py"),
         plugin_folder
     ])
 
@@ -108,7 +111,7 @@ if __name__ == "__main__":
     
     # Always run compare_render.py after final_render.py
     compare_render_command = [
-        'python', 'compare_render.py',
+        'python', 'compare_render.py',     
         '--ground-truth-dir', ground_truth,
         '--output-dir', output_dir,
         '--scene-name', scene
