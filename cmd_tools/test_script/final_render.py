@@ -4,15 +4,6 @@ import sys
 import bpy
 
 
-def print_script_directories():
-    script_dirs = bpy.context.preferences.filepaths.script_directories
-    for i, path in enumerate(script_dirs):
-        print(f"Script Path {i + 1}: {path}")
-
-    print(dir(bpy.context.preferences.filepaths.script_directories))
-    help(bpy.context.preferences.filepaths.script_directories)
-
-
 def print_sys_path():
     print("SYS.PATH FOR final_render.py")
     for i, path in enumerate(sys.path):
@@ -26,22 +17,6 @@ def create_output_dir(addon_name):
         os.makedirs(output_dir)
     
     return output_dir
-
-
-def add_script_path(plugin_folder):
-    abs_plugin_folder = os.path.abspath(plugin_folder)
-    
-    # add the script directory
-    bpy.ops.preferences.script_directory_add(directory=abs_plugin_folder)
-    print(f"Added script path: {abs_plugin_folder}")
-    
-    # change name of the script directory entry
-    for script_dir in bpy.context.preferences.filepaths.script_directories:
-        if script_dir.directory == abs_plugin_folder:
-            script_dir.name = plugin_folder
-            break
-
-    bpy.ops.wm.save_userpref()
 
 
 def render_final_image(blender_files, scene, addon_name):
@@ -70,16 +45,16 @@ def install_and_enable_addon():
     import rprblender
     rprblender.register()
 
-
+#this does not seem to be removing the plugin folder from script_directories correctly?
 def remove_script_path(plugin_folder):
     abs_plugin_folder = os.path.abspath(plugin_folder)
     script_directories = bpy.context.preferences.filepaths.script_directories
     for script_dir in script_directories:
-        if script_dir.directory == abs_plugin_folder:
-            script_directories.remove(script_dir)
-            bpy.ops.wm.save_userpref()
-            print(f"Removed script path: {abs_plugin_folder}")
-            break
+        #if script_dir.directory == abs_plugin_folder:
+        script_directories.remove(script_dir)
+        bpy.ops.wm.save_userpref()
+        print(f"Removed script path from Blender Preferences: {abs_plugin_folder}")
+        #break
     else:
         print(f"Script path not found: {abs_plugin_folder}")
 
@@ -96,7 +71,10 @@ def main():
     import rprblender
     rprblender.register()
 
-    render_final_image(blender_files, scene, addon_name)
+    try:
+        render_final_image(blender_files, scene, addon_name)
+    except Exception as e:
+        print(f"Exception: {e}")
 
     remove_script_path(plugin_folder)
 

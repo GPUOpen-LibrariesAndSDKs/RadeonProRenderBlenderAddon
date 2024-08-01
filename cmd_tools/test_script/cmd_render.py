@@ -62,7 +62,8 @@ if __name__ == "__main__":
     sys.path.append("./rprblender")
     script = sys.argv[1]
     blender_path = os.getenv('BLENDER_PATH')
-    #blender_version = os.path.basename(blender_path).split()[-1]
+    blender_version = os.path.basename(blender_path).split()
+    #print("BLENDER VERSION: " + blender_version)
     blender_exe = os.path.join(blender_path, "blender.exe")
 
     addon = os.getenv('ADDON_ZIP')
@@ -75,13 +76,10 @@ if __name__ == "__main__":
     ground_truth = os.getenv('GROUND_TRUTH')
     viewport_flag = os.getenv('VIEWPORT_FLAG')
 
-    #print(f"Blender Version: {blender_version}")
     print(f"Scene name: {scene}")
 
-    #target_dir = os.path.join(blender_path, blender_version, 'scripts', 'modules')
-
+    # creates dir with 3 necessary subdir to extract build zip into
     ensure_plugin_structure(plugin_folder)
-
     target_dir = os.path.join(os.getcwd(), plugin_folder, "modules")
 
     # extract zip file to blender's modules subdir in scripts
@@ -118,6 +116,7 @@ if __name__ == "__main__":
     subprocess.run(compare_render_command)
 
     # Conditionally run viewport render
+    # TODO: this hasn't been changed to reflect pulling from zip; probably unnecessary as this isn't going to be used per Sho
     viewport_render_command = [
         blender_path,
         '--python', 'viewport_render.py',
