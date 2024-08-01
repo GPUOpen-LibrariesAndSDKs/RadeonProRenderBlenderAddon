@@ -8,6 +8,7 @@ import shutil
 import sys
 from dotenv import load_dotenv
 import zipfile
+import platform
 
 
 def ensure_plugin_structure(plugin_folder):
@@ -61,10 +62,16 @@ if __name__ == "__main__":
     #sys.path.append("./rprblender")
     script = sys.argv[1]
     blender_path = os.getenv('BLENDER_PATH')
-    # this filepathing is specific to windows; prob need to change for ubuntu
-    # sets blender_version as Blender 4.1 for creating a subdir for output later
+    #print(f"BLENDER PATH: {blender_path}")
     blender_version = blender_version = " ".join(os.path.basename(blender_path).split()[-2:])
-    blender_exe = os.path.join(blender_path, "blender.exe")
+    #print(f"BLENDER VERSION: {blender_version}")
+    if platform.system() == 'Windows':
+        blender_exe = os.path.join(blender_path, "blender.exe")
+        python = 'python'
+    else:
+        # assumes platform is Ubuntu/Linux
+        blender_exe = os.path.join(blender_path, "blender")
+        python = 'python3.11'
 
     addon = os.getenv('ADDON_ZIP')
     blender_files = os.getenv('SCENE_PATH')
@@ -111,7 +118,7 @@ if __name__ == "__main__":
     
     # Always run compare_render.py after final_render.py
     compare_render_command = [
-        'python', 'compare_render.py',     
+        python, 'compare_render.py',     
         '--ground-truth-dir', ground_truth,
         '--output-dir', output_dir,
         '--scene-name', scene

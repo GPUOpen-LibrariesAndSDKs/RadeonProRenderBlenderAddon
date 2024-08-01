@@ -66,7 +66,6 @@ vscode/
 blender_files
 ground_truth
 cmd_tools/test_script/.env
-cmd_tools/test_script/*.sh
 cmd_tools/test_script/old
 cmd_tools/test_script/Render_Output
 cmd_tools/test_script/addon/modules/rprblender

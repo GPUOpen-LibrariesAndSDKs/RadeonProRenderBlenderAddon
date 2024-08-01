@@ -12,7 +12,11 @@ ADDON_ZIP={where build artifact zip is located}
 
 
 ## Run Instructions
-Run with `./run_render.cmd`
+Set .env Variables  
 
+Run with `./run_render.cmd` on Windows  
+Run with `./run_render.sh` on Ubuntu/Linux
+
+Assumes that the ground truth files to compare against are called {SCENE}_actual.png
 
 
