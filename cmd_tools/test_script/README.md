@@ -18,5 +18,9 @@ Run with `./run_render.cmd` on Windows
 Run with `./run_render.sh` on Ubuntu/Linux
 
 Assumes that the ground truth files to compare against are called {SCENE}_actual.png
+Should have Python 3.11 installed from official Python Site
+
+## Resources
+[Python 3.11.9 Installation](https://www.python.org/downloads/release/python-3119/)
 
 

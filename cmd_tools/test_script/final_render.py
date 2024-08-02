@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import sys
 import bpy
+import shutil
 
 
 def print_sys_path():
@@ -19,10 +20,22 @@ def create_output_dir(addon_name):
     return output_dir
 
 
-def render_final_image(blender_files, scene, addon_name):
+def clear_crash_log(scene):
+    crash_log_path = os.path.join(os.getenv('LOCALAPPDATA'), 'Temp', f"{scene}.crash.txt")
+    if os.path.exists(crash_log_path):
+        os.remove(crash_log_path)
+        print(f"Cleared existing crash log: {crash_log_path}")
+    else:
+        print(f"{crash_log_path} does not exist")
 
-    output_dir = create_output_dir(addon_name)
 
+def render_final_image(blender_files, scene, output_dir):
+
+    clear_crash_log(scene)
+    
+    # this try-catch seems to be unnecessary since copying the error log accomplishes the same thing 
+    # plus it doesnt seem to "function" correctly since a failed render doesnt hit the catch
+    #try:
     bpy.context.scene.render.engine = 'RPR'
     temp_path = os.path.join(blender_files, scene + ".blend")
     scene_path = os.path.abspath(temp_path)
@@ -32,6 +45,11 @@ def render_final_image(blender_files, scene, addon_name):
     bpy.context.scene.render.filepath = os.path.join(output_dir, scene + "_final.png")
     bpy.ops.render.render(write_still=True)
     print(f"{scene} rendered successfully at {output_dir}")
+    # except Exception as e:
+    #     error_log_path = os.path.join(output_dir, f"{scene}_error_log.txt")
+    #     with open(error_log_path, 'w') as error_log_file:
+    #         error_log_file.write(str(e))
+    #     print(f"Error when trying to render: {e}. Check {error_log_path} for details.")
 
 
 def install_and_enable_addon():
@@ -46,38 +64,17 @@ def install_and_enable_addon():
     rprblender.register()
 
 
-def remove_script_path(plugin_folder):
-    abs_plugin_folder = os.path.abspath(plugin_folder)
-    for script_dir in bpy.context.preferences.filepaths.script_directories:
-    #for script_dir in script_directories:
-        #if script_dir.directory == abs_plugin_folder:
-        bpy.context.preferences.filepaths.script_directories.remove(script_dir)
-        bpy.ops.wm.save_userpref()
-        print(f"Removed script path from Blender Preferences: {script_dir}")
-        #break
-    else:
-        # do nothing
-        pass
-
-
 def main():
-
-    # print_script_directories()
 
     blender_files = sys.argv[4]
     scene = sys.argv[5]
     addon_name = sys.argv[6]
-    plugin_folder = sys.argv[7]
 
     import rprblender
     rprblender.register()
 
-    try:
-        render_final_image(blender_files, scene, addon_name)
-    except Exception as e:
-        print(f"Exception: {e}")
-
-    remove_script_path(plugin_folder)
+    output_dir = create_output_dir(addon_name)
+    render_final_image(blender_files, scene, output_dir)
 
 
 if __name__ == "__main__":

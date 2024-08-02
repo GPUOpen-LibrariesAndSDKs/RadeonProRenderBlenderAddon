@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import zipfile
 import platform
 
+# wrapper function to call bpy
+
 
 def ensure_plugin_structure(plugin_folder):
     required_dirs = ['addons', 'modules', 'startup']
@@ -111,11 +113,20 @@ if __name__ == "__main__":
         blender_files,
         scene,
         output_dir,
-        plugin_folder
-
     ]
     subprocess.run(final_render_command)
-    
+
+    # need to run remove_script.py since a failed render seems to kick out of final_render.py
+    cwd =  os.getcwd()
+    subprocess.run([
+        blender_exe,
+        '--background',
+        '--python', os.path.join(cwd, "remove_script.py"),
+        plugin_folder,
+        output_dir,
+        scene
+    ])
+
     # Always run compare_render.py after final_render.py
     compare_render_command = [
         python, 'compare_render.py',     
