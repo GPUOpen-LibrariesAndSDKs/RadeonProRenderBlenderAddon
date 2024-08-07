@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import bpy
 import shutil
+import platform
 
 
 def print_sys_path():
@@ -21,16 +22,19 @@ def create_output_dir(addon_name):
 
 
 def clear_crash_log(scene):
-    crash_log_path = os.path.join(os.getenv('LOCALAPPDATA'), 'Temp', f"{scene}.crash.txt")
-    if os.path.exists(crash_log_path):
-        os.remove(crash_log_path)
-        print(f"Cleared existing crash log: {crash_log_path}")
-    else:
-        print(f"{crash_log_path} does not exist")
+    if platform.system() == 'Windows':
+        crash_log_path = os.path.join(os.getenv('LOCALAPPDATA'), 'Temp', f"{scene}.crash.txt")
+        if os.path.exists(crash_log_path):
+            os.remove(crash_log_path)
+            print(f"Cleared existing crash log: {crash_log_path}")
+        else:
+            print(f"{crash_log_path} does not exist")
+            
+    # TODO: implement pulling from Ubuntu; need a render that will fail for sure to test?
+    # prob in var/log/
 
 
 def render_final_image(blender_files, scene, output_dir):
-
     clear_crash_log(scene)
     
     # this try-catch seems to be unnecessary since copying the error log accomplishes the same thing 

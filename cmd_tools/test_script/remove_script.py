@@ -2,15 +2,19 @@ import os
 import bpy
 import sys
 import shutil
+import platform
 
 
 def copy_crash_log(scene, output_dir):
-    crash_log_path = os.path.join(os.getenv('LOCALAPPDATA'), 'Temp', f"{scene}.crash.txt")
-    if os.path.exists(crash_log_path):
-        shutil.copy(crash_log_path, os.path.join(output_dir, f"{scene}.crash.txt"))
-        print(f"Copied crash log to {output_dir}")
-    else:
-        print(f"{crash_log_path} does not exist")
+    if platform.system() == 'Windows':
+        crash_log_path = os.path.join(os.getenv('LOCALAPPDATA'), 'Temp', f"{scene}.crash.txt")
+        if os.path.exists(crash_log_path):
+            shutil.copy(crash_log_path, os.path.join(output_dir, f"{scene}.crash.txt"))
+            print(f"Copied crash log to {output_dir}")
+        else:
+            print(f"{crash_log_path} does not exist")
+    # TODO: implement pulling from Ubuntu; need a render that will fail for sure to test?
+    # prob in var/log/
 
 
 def remove_script_path(plugin_folder):

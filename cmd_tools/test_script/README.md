@@ -17,6 +17,8 @@ Set .env Variables
 Run with `./run_render.cmd` on Windows  
 Run with `./run_render.sh` on Ubuntu/Linux
 
+Renders the scene alongside a txt with MSE/SSIM at {RENDER_OUTPUT_DIR}/{ADDON_ZIP}/{BLENDER_PATH_VERSION}/{SCENE}_final.png
+
 Assumes that the ground truth files to compare against are called {SCENE}_actual.png
 Should have Python 3.11 installed from official Python Site
 
