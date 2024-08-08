@@ -17,7 +17,6 @@ REM  *******************************************************************
 
 @echo on
 
-REM Set the Blender executable path
 if ""=="%BLENDER_EXE%" goto error
 
 REM set Debug Mode flag
