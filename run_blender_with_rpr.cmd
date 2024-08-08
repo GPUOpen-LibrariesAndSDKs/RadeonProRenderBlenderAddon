@@ -18,8 +18,6 @@ REM  *******************************************************************
 @echo on
 
 REM Set the Blender executable path
-set "BLENDER_EXE=C:\Program Files\Blender Foundation\Blender 4.1\blender.exe"
-
 if ""=="%BLENDER_EXE%" goto error
 
 REM set Debug Mode flag
