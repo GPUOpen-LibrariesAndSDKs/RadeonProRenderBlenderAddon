@@ -25,7 +25,7 @@ if ""=="%BLENDER_EXE%" goto error
 REM set Debug Mode flag
 set RPR_BLENDER_DEBUG=1
 
-py -3.11 cmd_tools/run_blender.py "%BLENDER_EXE%" cmd_tools/test_rpr.py
+py cmd_tools/run_blender.py "%BLENDER_EXE%" cmd_tools/test_rpr.py
 pause
 REM it's much easier to get issue traceback on crash if pause is present; remove if not needed
 exit
