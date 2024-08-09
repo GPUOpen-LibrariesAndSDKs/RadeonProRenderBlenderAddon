@@ -60,8 +60,7 @@ Also, make more meaningful commits(one commit per feature) the easy way:
 
 ## Build
 
-<!-- run `build.py` to build. -->
-run `build.cmd` to build on Windows
+run `build.py` to build.
 
 ## Run Addon while developing it(without real installation)
 
