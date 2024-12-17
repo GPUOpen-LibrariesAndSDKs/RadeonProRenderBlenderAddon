@@ -8,8 +8,8 @@ For older Blender versions, see [releases](https://github.com/GPUOpen-LibrariesA
 
 | | |
 |--|--|
-|<img src="./docs/img/bmw.jpg" alt="drawing" width="250"/>|<img src="./docs/img/junkshop.jpg" alt="drawing" width="250"/>|
-|<img src="./docs/img/bmw_o.jpg" alt="drawing" width="250"/>|<img src="./docs/img/junkshop_o.jpg" alt="drawing" width="250"/>|
+|<img src="./docs/img/bmw.jpg" alt="drawing" width="300"/>|<img src="./docs/img/junkshop.jpg" alt="drawing" width="300"/>|
+|<img src="./docs/img/bmw_o.jpg" alt="drawing" width="300"/>|<img src="./docs/img/junkshop_o.jpg" alt="drawing" width="300"/>|
 
 
 ## For Developers
