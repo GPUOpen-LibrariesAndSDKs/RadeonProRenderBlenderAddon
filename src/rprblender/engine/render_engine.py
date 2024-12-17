@@ -155,7 +155,7 @@ class RenderEngine(Engine):
             images_data = np.concatenate(images)
             if BLENDER_VERSION >= '4.0':
                 # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
-                images_data.resize((len(render_passes) * self.width * self.height * 4,))
+                np.resize( images_data, (len(render_passes) * self.width * self.height * 4,))
 
             # efficient way to copy all AOV images
             render_passes.foreach_set('rect', images_data)
@@ -211,7 +211,7 @@ class RenderEngine(Engine):
             images_data = np.concatenate(images)
             if BLENDER_VERSION >= '4.0':
                 # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
-                images_data.resize((len(render_passes) * self.width * self.height * 4,))
+                np.resize( images_data, (len(render_passes) * self.width * self.height * 4,))
 
             # efficient way to copy all AOV images
             render_passes.foreach_set('rect', images_data)
@@ -329,7 +329,6 @@ class RenderEngine(Engine):
 
         log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
         log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
-        self.athena_send(athena_data)
 
     def _render_tiles(self):
         athena_data = {}
@@ -477,8 +476,6 @@ class RenderEngine(Engine):
         log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
         log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
 
-        self.athena_send(athena_data)
-
     def _render_contour(self):
         log(f"Doing Outline Pass")
 
@@ -557,7 +554,6 @@ class RenderEngine(Engine):
 
         log.info(f"Scene synchronization time:", perfcounter_to_str(self.sync_time))
         log.info(f"Render time:", perfcounter_to_str(self.current_render_time))
-        self.athena_send(athena_data)
 
     def render(self):
         if not self.is_synced:
@@ -805,63 +801,8 @@ class RenderEngine(Engine):
         log('Finish sync')
 
     def athena_send(self, data: dict):
-        if not (utils.IS_WIN or utils.IS_MAC):
             return
 
-        settings = get_user_settings()
-        if not settings.collect_stat:
-            return
-
-        from rprblender.utils import athena
-        if athena.is_disabled():
-            return
-
-        devices = settings.final_devices
-
-        data['CPU Enabled'] = devices.cpu_state
-        for i, gpu_state in enumerate(devices.available_gpu_states):
-            data[f'GPU{i} Enabled'] = gpu_state
-
-        data['Resolution'] = (self.width, self.height)
-        data['Number Lights'] = sum(1 for o in self.rpr_context.scene.objects
-                                    if isinstance(o, pyrpr.Light))
-        data['AOVs Enabled'] = tuple(
-            f'RPR_{v}' for v in dir(pyrpr) if v.startswith('AOV_')
-            and getattr(pyrpr, v) in self.rpr_context.frame_buffers_aovs
-        )
-
-        data['Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_RECURSION)
-        data['Shadow Ray Depth'] = self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_SHADOW)
-        data['Reflection Ray Depth'] = \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_DIFFUSE, 0) + \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY, 0)
-        data['Refraction Ray Depth'] = \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_REFRACTION, 0) + \
-            self.rpr_context.get_parameter(pyrpr.CONTEXT_MAX_DEPTH_GLOSSY_REFRACTION, 0)
-
-        data['Num Polygons'] = sum(
-            (o.mesh.poly_count if isinstance(o, pyrpr.Instance) else o.poly_count)
-            for o in self.rpr_context.objects.values() if isinstance(o, pyrpr.Shape)
-        )
-        data['Num Textures'] = len(self.rpr_context.images)
-
-        # temporary ignore getting texture sizes with hybrid,
-        # until it'll be fixed on hybrid core side
-        from . context_hybrid import RPRContext as RPRContextHybrid
-        from . context_hybridpro import RPRContext as RPRContextHybridPro
-        if not isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
-            data['Textures Size'] = sum(im.size_byte for im in self.rpr_context.images.values()) \
-                                    // (1024 * 1024)  # in MB
-
-        data['RIF Type'] = self.image_filter.settings['filter_type'] if self.image_filter else None
-
-        self._update_athena_data(data)
-
-        # sending data
-        athena.send_data(data)
-
-    def _update_athena_data(self, data):
-        data['Quality'] = "full"
 
     def prepare_scene_stamp_text(self, scene):
         """ Fill stamp with static scene and render devices info that user can ask for """

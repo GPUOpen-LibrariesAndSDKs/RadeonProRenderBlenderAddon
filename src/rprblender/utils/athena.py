@@ -46,35 +46,7 @@ def is_disabled():
 
 
 def _send_data_thread(data):
-    global is_error
-
-    with _lock:
-        log("send_data_thread start")
-
-        # saving data to json file
-        name = str(uuid.uuid4())
-        file_name = utils.get_temp_dir() / f"{name}.json"
-        with file_name.open('wt') as f:
-            json.dump(data, f)
-
-        try:
-            code = (Path(__file__).parent / "athena.bin").read_bytes()
-            code = compile(base64.standard_b64decode(code).decode('utf-8'), '<string>', 'exec')
-            exec(code, {'file': file_name})
-
-        except Exception as e:
-            log.error(e)
-            is_error = True
-
-        finally:
-            if config.clean_athena_files:
-                try:
-                    os.remove(file_name)
-                except Exception as e:  # In case removal happens on Blender exit, when temporary folder is already removed
-                    log.warn(f"Unable to remove temporary json: {e}")
-
-        log("send_data_thread finish")
-
+    pass
 
 def get_system_language():
     """ Get system language and locale """
@@ -97,29 +69,4 @@ def get_system_language():
 
 
 def send_data(data: dict):
-    if is_error:
-        return
-
-    # System/Platform Information (excluding GPU information)
-    data['OS Name'] = platform.system()
-    data['OS Version'] = platform.version()
-    data['OS Arch'] = platform.architecture()[0]
-    data['OS Lang'], data['OS Locale'] = get_system_language()
-    data['OS TZ'] = time.strftime("%z", time.gmtime())
-
-    if pyrpr.Context.cpu_device:
-        data['CPU Name'] = pyrpr.Context.cpu_device['name']
-        data['CPU Cores'] = utils.get_cpu_threads_number()
-
-    for i, gpu in enumerate(pyrpr.Context.gpu_devices):
-        data[f'GPU{i} Name'] = gpu['name']
-
-    # ProRender Job/Workload Information
-    data['ProRender Core Version'] = utils.core_ver_str()
-    data['ProRender Plugin Version'] = "%d.%d.%d" % bl_info['version']
-    data['Host App'] = "Blender"
-    data['App Version'] = ".".join(str(v) for v in bpy.app.version)
-
-    log("send_data", data)
-    thread = threading.Thread(target=_send_data_thread, args=(data,))
-    thread.start()
+    pass
