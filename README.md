@@ -7,11 +7,11 @@
 For older Blender versions, see [releases](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases). 
 
 
-<img src="./docs/img/bmw.jpg" alt="drawing" width="200"/>
-<img src="./docs/img/junkshop.jpg" alt="drawing" width="200"/>
+<img src="./docs/img/bmw.jpg" alt="drawing" width="250"/>
+<img src="./docs/img/junkshop.jpg" alt="drawing" width="250"/>
 
-<img src="./docs/img/bmw_o.jpg" alt="drawing" width="200"/>
-<img src="./docs/img/junkshop_o.jpg" alt="drawing" width="200"/>
+<img src="./docs/img/bmw_o.jpg" alt="drawing" width="250"/>
+<img src="./docs/img/junkshop_o.jpg" alt="drawing" width="250"/>
 
 
 ## For Developers
