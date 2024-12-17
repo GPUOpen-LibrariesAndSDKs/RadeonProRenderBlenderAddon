@@ -155,7 +155,6 @@ class RenderEngine(Engine):
             images_data = np.concatenate(images)
             if BLENDER_VERSION >= '4.0':
                 # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
-#                images_data.resize((len(render_passes) * self.width * self.height * 4,))
                 np.resize( images_data, (len(render_passes) * self.width * self.height * 4,))
 
             # efficient way to copy all AOV images
@@ -212,7 +211,7 @@ class RenderEngine(Engine):
             images_data = np.concatenate(images)
             if BLENDER_VERSION >= '4.0':
                 # foreach_set requires every pass to be 4 channels, so we resize to reach desirable size
-                images_data.resize((len(render_passes) * self.width * self.height * 4,))
+                np.resize( images_data, (len(render_passes) * self.width * self.height * 4,))
 
             # efficient way to copy all AOV images
             render_passes.foreach_set('rect', images_data)
