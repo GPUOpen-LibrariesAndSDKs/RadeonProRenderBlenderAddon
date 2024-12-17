@@ -1,9 +1,16 @@
 # Radeon ProRender Blender Addon
 
+## Releases
+- [4.1, 4.2, 4.3](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases/tag/v3.6.11)
+- [4.0](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases/tag/v3.6.10)
+
+For older Blender versions, see [releases](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases). 
+
+
+## For Developers
+
 ### Build Requirements
 
-4.1+ 
-====
 - Blender 4.1+
 - Python 3.11 (Blender 4.1 uses 3.11) x64(for Core) - all code, addon and misc tested with python3
 - python-cffi
@@ -15,48 +22,21 @@
 
 Note that the .sln provided is for easy editing and searching of files on Windows.  The blender code builds on the command line rather than in the solution file.  Visual Studio does provided support for debugging Python when you attach to the running Blender process with loaded addon.
 
-### ThirdParty libraries
-
-There is ThirdParty repository included to the project as a submodule. Please update submodules:
+### Submodules
 
 Plugin includes 4 submodules:
-RadeonProRender SDK:
-git@github.com:Radeon-Pro/RadeonProRenderSDK.git
+- RadeonProRender SDK
+- Shared components
+- Image Processing Library
+- ThirdParty components and miscellaneous tools
 
-Shared components
-Image Processing Library:
-git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git
+Please update submodules:
 
-ThirdParty components and miscellaneous tools
-git@github.com:Radeon-Pro/RadeonProRenderThirdPartyComponents.git
-
-All of them are included via SSH protocol. You will need to create and install SSH keys https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh
-
-Once SSH keys are installed update/checkout submodules for active branch
-
-`git submodule update --init -f --recursive`
+```
+git submodule update --init -f --recursive
+```
 
 ## Developing
-
-### Coding Conventions
-
-Aim is to conform to [pep8](https://www.python.org/dev/peps/pep-0008/). 
-At minimum it's 4 spaces for indentation, sources are utf-8, there's .gitconfig in the root of the project - please set you editor to use it(for most simplicity). E.g. PyCharm(recommended!) default setting are fine and seems that it also picks up .editorconfig automatically also, Tortoise Merge has a checkbox 'Enable EditorConfig', for Visual Studio there's [EditorConfig extension](https://visualstudiogallery.msdn.microsoft.com/c8bccfe2-650c-4b42-bc5c-845e21f96328)
-
-Git - we try to avoid merge commits, easiest way to do it:
-
-`git config [--global] merge.ff only` # this one rejects merges that would result in merge commit
- 
-`git config [--global] pull.rebase true` # converts pull to do, essentially, fetch&rebase 
-
-Also, make more meaningful commits(one commit per feature) the easy way: 
-
-`git merge <branch> --squash` # this will create a single change set from multiple commits coming from <branch>
-
-### Recommended software
-
-- PyCharm Community Edition - very recommended, possible to enable intellisense(limited) for Blender code and for RPR Core
-- Visual Studio - has a very nice python extension, possible to enable intellisense for Blender and for RPR Core, provides remote debugging in Blender
 
 ## Build
 
@@ -71,6 +51,21 @@ run `build.py` to build.
 Example:
 
 `set BLENDER_EXE="C:\Program Files\Blender Foundation\Blender 2.93\blender.exe" && run_blender_with_rpr.cmd`
+
+### Coding Conventions
+
+Aim is to conform to [pep8](https://www.python.org/dev/peps/pep-0008/). 
+At minimum it's 4 spaces for indentation, sources are utf-8, there's .gitconfig in the root of the project - please set you editor to use it(for most simplicity). E.g. PyCharm(recommended!) default setting are fine and seems that it also picks up .editorconfig automatically also, Tortoise Merge has a checkbox 'Enable EditorConfig', for Visual Studio there's [EditorConfig extension](https://visualstudiogallery.msdn.microsoft.com/c8bccfe2-650c-4b42-bc5c-845e21f96328)
+
+Git - we try to avoid merge commits, easiest way to do it:
+
+`git config [--global] merge.ff only` # this one rejects merges that would result in merge commit
+ 
+`git config [--global] pull.rebase true` # converts pull to do, essentially, fetch&rebase 
+
+Also, make more meaningful commits(one commit per feature) the easy way: 
+
+`git merge <branch> --squash` # this will create a single change set from multiple commits coming from `<branch>`
 
 ### Debugging
 
@@ -100,10 +95,11 @@ so that `logging.limit_log(name, level_show_always)` will allow to filter out wh
 
 ## Making a new release
 
-- run `build_installer.py <build_folder>`. Where `build_folder` is some separate location - it will clone needed repos(if not already), reset then to needed branch and build installer. Byt default it builds windows installer on master.  
-- tag the commit in the build folder's ProRenderBlenderPlugin `git tag builds/x.y.zz`
-- push the tag `git push --tags` 
-- increase version in `src/rprblender/__init__.py`
+- Move to `BlenderPkg` directory
+- Run `build_osx-arm64.sh` for Mac for MX processors
+- Tag the commit in the build folder's ProRenderBlenderPlugin `git tag builds/x.y.zz`
+- Push the tag `git push --tags` 
+- Increase version in `src/rprblender/__init__.py`
 
 ## PyCharm
 
@@ -156,7 +152,7 @@ Remote debugging connection established.
 ### Versioning
 
 The version number should be updated when a new plugin is released.  This is done by editing the version field
-of the bl_info structure in the src/rprblender/__init__.py file. Currently a build script will update the build
+of the bl_info structure in the `src/rprblender/__init__.py` file. Currently a build script will update the build
 number when checkins happen to the master branch.  So it is only necessary to update the major or minor number
 when required.
 
