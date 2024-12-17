@@ -6,6 +6,12 @@
 
 For older Blender versions, see [releases](https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon/releases). 
 
+## Supported Devices 
+- AMD GPUs (Vega, Navi 1x, Navi 2x, Navi 3x)
+- NVIDIA GPUs
+- Apple Mx GPUs
+- AMD, Intel CPUs
+
 | | |
 |--|--|
 |<img src="./docs/img/bmw.jpg" alt="drawing" width="300"/>|<img src="./docs/img/junkshop.jpg" alt="drawing" width="300"/>|
