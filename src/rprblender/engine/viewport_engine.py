@@ -1103,12 +1103,6 @@ class ViewportEngine(Engine):
 
             yield inst
 
-    def setup_image_filter(self, settings):
-        return False
-
-    def setup_upscale_filter(self, settings):
-        return False
-
     def set_image(self, image: np.array):
         if self.image is image:
             return
