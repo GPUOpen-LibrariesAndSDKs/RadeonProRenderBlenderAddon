@@ -71,10 +71,11 @@ def enumerate_addon_data():
             yield f, Path("data/models") / f.relative_to(models_dir)
 
     # copying HIP/CUDA precompiled kernels
-    hipbin = repo_dir / ".sdk/rpr/hipbin"
-    for lib in hipbin.glob("*"):
-        if lib.is_file() and lib.suffix in (".cudabin", ".hipbin", ".json"):
-            yield lib, Path("hipbin") / lib.relative_to(hipbin)
+    if OS != 'Darwin':
+        hipbin = repo_dir / ".sdk/rpr/hipbin"
+        for lib in hipbin.glob("*"):
+            if lib.is_file() and lib.suffix in (".cudabin", ".hipbin", ".json"):
+                yield lib, Path("hipbin") / lib.relative_to(hipbin)
 
 
 def get_version():

@@ -477,14 +477,6 @@ class RPR_RenderProperties(RPR_Properties):
         render_quality_items += [
             ('FULL', "Legacy", "Legacy render quality"),
         ]
-    if pyhybridpro.Context.plugin_id >= 0:
-        render_quality_items += [
-            ('HYBRIDPRO', "Interactive", "Interactive render quality, including hardware ray tracing support")
-        ]
-    if pyhybrid.Context.plugin_id >= 0:
-        render_quality_items += [
-            ('HIGH', "Interactive", "High render quality"),
-        ]
 
     def update_final_render_mode(self, context):
         context.view_layer.update_render_passes()
