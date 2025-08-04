@@ -664,6 +664,7 @@ if __name__=='__main__':
         castxml,
         exclude=['RPR_CONTEXT_FLUSH_FRAMEBUFFERS_FUNC_NAME',
                  'RPR_SHAPE_SET_LIGHTMAP_CHART_INDEX_FUNC_NAME',
+                 'RPR_SHAPE_SET_PORTAL_MATERIAL_FUNC_NAME',
                  'RPR_MESH_UPDATE_FUNC_NAME',
                  'RPR_SHAPE_SET_TRANSFORM_BATCH_FUNC_NAME',
                  'rprDirectionalLightSetRasterShadowSplits',
