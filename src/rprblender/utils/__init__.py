@@ -251,9 +251,24 @@ def get_data_from_collection(collection, attribute, size, dtype=np.float32):
     return data.reshape(size)
 
 
+def get_compositor_node_tree(scene=None):
+    """
+    Scene compositor node tree, or None if the scene has none.
+    Blender 5.0 turned it into a standalone data-block reached through 'compositing_node_group'
+    and removed 'Scene.node_tree'.
+    """
+    if scene is None:
+        scene = bpy.context.scene
+
+    if BLENDER_VERSION >= "5.0":
+        return scene.compositing_node_group
+
+    return scene.node_tree
+
+
 def has_denoise_node():
     ''' returns true if compositor node in the tree '''
-    composite_tree = bpy.context.scene.node_tree
+    composite_tree = get_compositor_node_tree()
     if not composite_tree:
         return False
     for node in composite_tree.nodes:

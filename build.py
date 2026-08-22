@@ -40,8 +40,11 @@ subprocess.check_call([sys.executable, 'rpr.py'])
 subprocess.check_call([sys.executable, 'rpr_load_store.py'])
 os.chdir(cwd)
 
-if sys.version_info.major == 3 and sys.version_info.minor == 11:
-    # we are going to build RPRBlenderHelper only for python 3.11
+# Python version Blender ships: 4.1 - 5.0 use 3.11, 5.1 and newer use 3.13
+BLENDER_PYTHON_VERSION = (3, 13)
+
+if sys.version_info[:2] == BLENDER_PYTHON_VERSION:
+    # RPRBlenderHelper is loaded through ctypes and doesn't link Python, build it only once
     os.chdir('RPRBlenderHelper')
     shutil.rmtree('.build', ignore_errors=True)
     os.makedirs('.build')

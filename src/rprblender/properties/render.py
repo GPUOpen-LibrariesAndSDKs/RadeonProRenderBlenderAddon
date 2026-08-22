@@ -41,7 +41,7 @@ from rprblender.engine import context
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 
-from rprblender.utils import logging, IS_MAC, preset_root_dir
+from rprblender.utils import logging, IS_MAC, preset_root_dir, get_compositor_node_tree
 log = logging.Log(tag='properties.render')
 
 
@@ -196,7 +196,10 @@ class RPR_RenderDevices(bpy.types.PropertyGroup):
                 self.gpu_states[0] = True
         else:
             # if no GPU then cpu always should be enabled
-            self.cpu_state = bool(pyrpr.Context.cpu_device)
+            cpu_state = bool(pyrpr.Context.cpu_device)
+            if self.cpu_state != cpu_state:
+                # writing the property calls this update again, only do it when it really changes
+                self.cpu_state = cpu_state
         on_settings_changed(self, context)
 
         # after changing devices its good to reset PreviewEngine and
@@ -507,9 +510,8 @@ class RPR_RenderProperties(RPR_Properties):
         if self.final_render_denoise:
             bpy.ops.rpr.add_denoiser_node()
         else:
-            if bpy.context.scene.use_nodes:
-                nt = bpy.context.scene.node_tree
-
+            nt = get_compositor_node_tree()
+            if nt:
                 # add compositor node
                 denoiser_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeDenoise)), None)
                 if not denoiser_node is None:

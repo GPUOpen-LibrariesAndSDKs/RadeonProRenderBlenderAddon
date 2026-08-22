@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.0)
+# CMake 4.0 dropped compatibility with projects requesting < 3.5
+cmake_minimum_required(VERSION 3.10)
 
 project(RPRBlenderHelper)
 

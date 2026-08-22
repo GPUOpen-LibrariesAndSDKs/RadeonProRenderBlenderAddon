@@ -17,6 +17,7 @@ import bpy
 import shutil
 
 from . import RPR_Operator
+from rprblender.utils import BLENDER_VERSION, get_compositor_node_tree
 
 
 class RPR_RENDER_OP_open_web_page(RPR_Operator):
@@ -72,11 +73,43 @@ class RPR_RENDER_OP_add_denoiser_node(RPR_Operator):
     bl_label = "Add Compositor Denoise Node"
     bl_description = "Adds a denoiser node in compositor and hooks up for RPR."
 
+    def get_compositor_tree(self, context):
+        """
+        Return the scene compositor node tree together with its output socket, creating whatever is
+        missing. Blender 5.0 turned the compositing node tree into a standalone data-block reached
+        through 'compositing_node_group' and dropped the Composite node in favour of Group Output.
+        """
+        scene = context.scene
+
+        if BLENDER_VERSION < "5.0":
+            # enable use_nodes compositing if not already, it also fills the tree with the
+            # Render Layers and Composite nodes
+            scene.use_nodes = True
+            nt = get_compositor_node_tree(scene)
+            output_node = next(
+                (node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeComposite)), None)
+            return nt, output_node.inputs['Image'] if output_node else None
+
+        nt = get_compositor_node_tree(scene)
+        if not nt:
+            nt = bpy.data.node_groups.new("Compositing Nodetree", "CompositorNodeTree")
+            scene.compositing_node_group = nt
+
+        output_node = next(
+            (node for node in nt.nodes if isinstance(node, bpy.types.NodeGroupOutput)), None)
+        if not output_node:
+            output_node = nt.nodes.new(type="NodeGroupOutput")
+
+        # the first Group Output input has to be a Color socket to receive the rendered image
+        if not any(getattr(item, 'in_out', None) == 'OUTPUT' for item in nt.interface.items_tree):
+            nt.interface.new_socket(name="Image", in_out='OUTPUT', socket_type='NodeSocketColor')
+
+        return nt, output_node.inputs[0]
+
     def execute(self, context):
-        # enable use_nodes compositing if not already
-        bpy.context.scene.use_nodes = True
-        nt = bpy.context.scene.node_tree
         view_layer = context.view_layer
+
+        nt, output_socket = self.get_compositor_tree(context)
 
         # add compositor node
         denoiser_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeDenoise)), None)
@@ -89,19 +122,19 @@ class RPR_RENDER_OP_add_denoiser_node(RPR_Operator):
         view_layer.rpr.enable_aov_by_name('Shading Normal')
         view_layer.rpr.enable_aov_by_name('Diffuse Albedo')
 
-        # find render output node
-        output_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeComposite)), None)
-
         # find render result node
         render_node = next((node for node in nt.nodes if isinstance(node, bpy.types.CompositorNodeRLayers)), None)
+        if not render_node and BLENDER_VERSION >= "5.0":
+            # a freshly created 5.x tree is empty, 4.x got this node from use_nodes
+            render_node = nt.nodes.new(type="CompositorNodeRLayers")
 
         # hook up nodes
-        if output_node is None or render_node is None:
+        if output_socket is None or render_node is None:
             return {'FINISHED'}
         nt.links.new(render_node.outputs['Image'], denoiser_node.inputs['Image'])
         nt.links.new(render_node.outputs['Shading Normal'], denoiser_node.inputs['Normal'])
         nt.links.new(render_node.outputs['Diffuse Albedo'], denoiser_node.inputs['Albedo'])
 
-        nt.links.new(denoiser_node.outputs['Image'], output_node.inputs['Image'])
+        nt.links.new(denoiser_node.outputs['Image'], output_socket)
 
         return {'FINISHED'}

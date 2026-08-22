@@ -19,4 +19,4 @@ pushd ..
 call build.cmd
 popd
 
-call py -3.7 create_zip_addon.py
+call py -3.13 create_zip_addon.py

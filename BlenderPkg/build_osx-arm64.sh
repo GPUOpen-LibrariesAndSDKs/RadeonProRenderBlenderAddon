@@ -17,4 +17,4 @@ pushd ..
 ./build_osx-arm64.sh
 popd
 
-arch -arm64 python3.11 create_zip_addon.py
+arch -arm64 python3.13 create_zip_addon.py

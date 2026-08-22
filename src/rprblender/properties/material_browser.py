@@ -52,6 +52,14 @@ class RPR_MaterialBrowserProperties(bpy.types.PropertyGroup):
         self.search_string = search_string  # to remind user what she was looking for
         self.info_type = material_library.rpr_material_library.search_materials(search_string)
 
+    def get_search_field(self):
+        """
+        The search entry is write-only: the typed value is consumed by search_materials() and the
+        current query is displayed separately via 'search_string', so the field clears after each
+        search. Blender 5.x rejects a 'set' callback without a matching 'get', hence this stub.
+        """
+        return ""
+
     # Category / search modes.
     mode: EnumProperty(
         name="Library browsing mode",
@@ -71,6 +79,7 @@ class RPR_MaterialBrowserProperties(bpy.types.PropertyGroup):
     # Search string entry.
     search: StringProperty(
         name="Search",
+        get=get_search_field,
         set=search_materials,
     )
 

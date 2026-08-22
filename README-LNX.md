@@ -25,14 +25,14 @@ echo "BLENDER_EXE=/home/feniks/bin/blender-4.1.0-linux-x64/blender" >> ~/.bashrc
 
 10. Install blender build dependencies
 ```
-sudo apt-get install castxml python3.11 python3.11-dev \
+sudo apt-get install castxml python3.13 python3.13-dev \
 	build-essential cmake \
         makeself patchelf libpci-dev libdrm-dev opencl-headers \
         libopenimageio-dev libfreeimage-dev libembree-dev
 ```
 11. Install python deps
 ```
-python3.11 -m pip install numpy cffi imageio pytest
+python3.13 -m pip install numpy cffi imageio pytest
 ```
 12. Add to PATH required python binaries. For example:
 ```
@@ -64,16 +64,16 @@ Then activate "RadeonProRender"
 # Run addon from source
 ```
 export LD_LIBRARY_PATH=/usr/lib64
-python3.11 tests/commandline/run_blender.py $BLENDER_EXE tests/commandline/test_rpr.py
+python3.13 tests/commandline/run_blender.py $BLENDER_EXE tests/commandline/test_rpr.py
 // In the middle should be your path to Blender's executable file.
 ```
 
 # Debug with PyCharm in Linux
 1. Run pycharm, add project
 2. Add blender iterpretator. `Settings -> Python Iterpreter -> Add Iterpreter. Set blender python interpreter.
-For example, for blender 4.1 on my system:
+For example, for blender 5.2 on my system:
 ```
-/home/amd/blender-4.1.0-linux-x.64/4.1/python/bin/python3.11`
+/home/amd/blender-5.2.0-linux-x64/5.2/python/bin/python3.13`
 ```
 3. Run once script from project root:
 ```

@@ -25,7 +25,8 @@ class RPR_MATERIAL_PT_context(RPR_Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.active_object and context.active_object.type == 'GPENCIL':
+        # Blender 5.0 renamed the Grease Pencil object type to 'GREASEPENCIL'
+        if context.active_object and context.active_object.type in ('GPENCIL', 'GREASEPENCIL'):
             return False
         else:
             return (context.material or context.object) and RPR_Panel.poll(context)

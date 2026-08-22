@@ -197,16 +197,20 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
     if bindingsOk.exists():
          bindingsOk.unlink()
 
+    # castxml ships its own clang, which is usually older than the one the installed MSVC STL
+    # headers assert on (error STL1000). We only parse the plain C RPR headers, so waive the check.
+    defines = ['-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH']
+
     cmd = [castxml,]
     for inc in includes:
         cmd.extend(['-I', inc])
-    cmd.extend(['-std=c++11', '-E', '-dD', '-x' , 'c++', header_file, '-o', 'rprapi.pp'])
+    cmd.extend([*defines, '-std=c++11', '-E', '-dD', '-x' , 'c++', header_file, '-o', 'rprapi.pp'])
     subprocess.check_call(cmd)
 
     cmd = [castxml,]
     for inc in includes:
         cmd.extend(['-I', inc])
-    cmd.extend(['-std=c++11', '--castxml-gccxml', '-x', 'c++', header_file, '-o', 'rprapi.xml'])
+    cmd.extend([*defines, '-std=c++11', '--castxml-gccxml', '-x', 'c++', header_file, '-o', 'rprapi.xml'])
     subprocess.check_call(cmd)
 
     t = xml.etree.ElementTree.parse('rprapi.xml')

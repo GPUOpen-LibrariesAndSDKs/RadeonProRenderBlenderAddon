@@ -22,8 +22,23 @@ from . import rpr_nodes
 from . import sockets
 
 
+def get_shader_category_menus():
+    """
+    Map RPR node category to the Blender shader 'Add' menu it's appended to.
+    Blender 5.0 reorganized that menu: the 'Converter' category is gone and its nodes moved under
+    'Utilities', with the math ones in the 'Utilities/Math' submenu.
+    """
+    converter_menu = bpy.types.NODE_MT_category_shader_math if BLENDER_VERSION >= "5.0" \
+        else bpy.types.NODE_MT_category_shader_converter
+
+    return {'shader': bpy.types.NODE_MT_category_shader_shader,
+            'converter': converter_menu,
+            'input': bpy.types.NODE_MT_category_shader_input,
+            'texture': bpy.types.NODE_MT_category_shader_texture}
+
+
 def register_rpr_node_categories():
-    global NODE_CATEGORIES
+    global NODE_CATEGORIES, NODE_CATEGORY_DRAW_FUNCS
 
     if BLENDER_VERSION >= "4.0":
         NODE_CATEGORIES = {'shader': (rpr_nodes.RPRShaderNodeUber,
@@ -36,14 +51,14 @@ def register_rpr_node_categories():
                      'texture': (rpr_nodes.RPRTextureNodeLayered,),
                      'converter': (rpr_nodes.RPRValueNode_Math,)}
 
-        bpy.types.NODE_MT_category_shader_shader.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['shader']))
-        bpy.types.NODE_MT_category_shader_converter.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['converter']))
-        bpy.types.NODE_MT_category_shader_input.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['input']))
-        bpy.types.NODE_MT_category_shader_texture.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['texture']))
+        # keep the appended draw functions around, Menu.remove() needs the very same objects
+        NODE_CATEGORY_DRAW_FUNCS = []
+        for category, menu in get_shader_category_menus().items():
+            def draw_func(self, context, nodes=NODE_CATEGORIES[category]):
+                draw_nodes(self, nodes)
+
+            menu.append(draw_func)
+            NODE_CATEGORY_DRAW_FUNCS.append((menu, draw_func))
 
     else:
         from nodeitems_utils import (
@@ -160,11 +175,13 @@ def register_rpr_node_categories():
 
 
 def unregister_rpr_node_categories():
+    global NODE_CATEGORY_DRAW_FUNCS
+
     if BLENDER_VERSION >= "4.0":
-        bpy.types.NODE_MT_category_shader_shader.remove(NODE_CATEGORIES['shader'])
-        bpy.types.NODE_MT_category_shader_converter.remove(NODE_CATEGORIES['converter'])
-        bpy.types.NODE_MT_category_shader_input.remove(NODE_CATEGORIES['input'])
-        bpy.types.NODE_MT_category_shader_texture.remove(NODE_CATEGORIES['texture'])
+        for menu, draw_func in NODE_CATEGORY_DRAW_FUNCS:
+            menu.remove(draw_func)
+
+        NODE_CATEGORY_DRAW_FUNCS = []
 
     else:
         from nodeitems_utils import unregister_node_categories
@@ -226,6 +243,9 @@ register_node_classes, unregister_node_classes = bpy.utils.register_classes_fact
 ])
 
 old_shader_node_category_poll = None
+
+# (menu, draw function) pairs appended to Blender's shader 'Add' menu, filled in at register time
+NODE_CATEGORY_DRAW_FUNCS = []
 
 
 def draw_nodes(self, nodes):

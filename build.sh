@@ -2,10 +2,10 @@
 
 cxml="/usr/bin/castxml"
 if [ -f "$cxml" ]; then
-    python3.11 cmd_tools/create_sdk.py
-	python3.11 src/bindings/pyrpr/src/pyrprapi.py $cxml
+    python3.13 cmd_tools/create_sdk.py
+	python3.13 src/bindings/pyrpr/src/pyrprapi.py $cxml
 	if [ -f "./bindings-ok" ]; then
-		python3.11 build.py
+		python3.13 build.py
 	else
 		echo Compiling bindings failed
 	fi

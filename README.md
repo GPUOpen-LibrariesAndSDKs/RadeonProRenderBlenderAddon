@@ -23,10 +23,11 @@ For older Blender versions, see [releases](https://github.com/GPUOpen-LibrariesA
 ### Build Requirements
 
 - Blender 4.1+
-- Python 3.11 (Blender 4.1 uses 3.11) x64(for Core) - all code, addon and misc tested with python3
+- Python matching the Blender you target, x64 (for Core) - all code, addon and misc tested with python3.
+  Blender 4.1 - 5.0 use Python 3.11, Blender 5.1+ use Python 3.13. The build scripts default to 3.13
 - python-cffi
-  - `py -3.11 -m pip install cffi`
-  - `py -3.11 -m pip install numpy`
+  - `py -3.13 -m pip install cffi`
+  - `py -3.13 -m pip install numpy`
 - Visual Studio 2015 SP3 / 2017 / 2019 with SDK 8.1 and 2015.3 v140 toolset installed
 - If you are using Visual studio 2019 you would need to install the Windows SDK 8.1 manually from Microsoft website https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/
 - cmake 3.x. Make sure it's added to the PATH environment variable

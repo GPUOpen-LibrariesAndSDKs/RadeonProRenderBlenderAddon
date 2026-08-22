@@ -64,14 +64,14 @@ if %vs_major%==15 or %vs_major%==16 (
 	goto :eof
 
 :build_plugin
-py -3.11 -m pip install cffi
-py -3.11 -m pip install numpy
-py -3.11 cmd_tools\create_sdk.py
-py -3.11 src\bindings\pyrpr\src\pyrprapi.py %castxml%
+py -3.13 -m pip install cffi
+py -3.13 -m pip install numpy
+py -3.13 cmd_tools\create_sdk.py
+py -3.13 src\bindings\pyrpr\src\pyrprapi.py %castxml%
 
 set bindingsOk=.\bindings-ok
 if exist %bindingsOk% (
-	py -3.11 build.py
+	py -3.13 build.py
 ) else (
 	echo Compiling bindings failed
 )
