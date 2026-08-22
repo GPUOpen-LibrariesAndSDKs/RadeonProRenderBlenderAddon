@@ -258,15 +258,6 @@ class RPRShaderNodeDiffuse(RPRShaderNode):
                     pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
                 }
             },
-            "hybrid:Shader": {
-                "type": pyrpr.MATERIAL_NODE_UBERV2,
-                "params": {
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: 'inputs.Color',
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 'inputs.Roughness',
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: 'normal:inputs.Normal',
-                }
-            },
         }
 
 
@@ -288,13 +279,6 @@ class RPRShaderNodePassthrough(RPRShaderNode):
                 "type": pyrpr.MATERIAL_NODE_PASSTHROUGH,
                 "params": {
                     pyrpr.MATERIAL_INPUT_COLOR: "inputs.Color"
-                }
-            },
-            "hybrid:Shader": {
-                "type": pyrpr.MATERIAL_NODE_UBERV2,
-                "params": {
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: 'inputs.Color'
                 }
             },
         }
@@ -790,14 +774,6 @@ class RPRShaderNodeLookup(RPRShaderNode):
                     pyrpr.MATERIAL_INPUT_VALUE: self.lookup_type_to_id[self.node.lookup_type]
                 })
 
-        def export_hybrid(self):
-            if self.node.lookup_type in ('UV', 'UV1'):  # Only UV supported in Hybrid for now
-                return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP, {
-                    pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_UV
-                })
-
-            return None
-
 
 class RPRShaderProceduralUVNode(RPRShaderNode):
     """ Generates a procedural UV Node
@@ -919,18 +895,6 @@ class RPRShaderProceduralUVNode(RPRShaderNode):
             
             return rpr_node
 
-        def export_hybrid(self):
-            return None
-
-        def export_hybridpro(self):
-            procedural_type = self.node.procedural_type
-            if procedural_type != 'TRIPLANAR':
-                log.warn("Ignoring unsupported RPR procedural type",
-                         procedural_type, self.node, self.material)
-                return None
-
-            return self.export()
-
 
 class RPRShaderNodeBumpMap(RPRShaderNode):
     """ Simple Bump map node with bump value and scale """
@@ -973,7 +937,6 @@ class RPRShaderNodeBumpMap(RPRShaderNode):
                     pyrpr.MATERIAL_INPUT_COLOR1: "nodes.normal_plus_bump"
                 }
             },
-            "hybrid:Normal": None
         }
 
 
@@ -1028,12 +991,6 @@ class RPRShaderNodeNormalMap(RPRShaderNode):
                 pyrpr.MATERIAL_INPUT_COLOR: normal_map,
                 pyrpr.MATERIAL_INPUT_SCALE: scale
             })
-        
-        def export_hybrid(self):
-            return self.get_input_normal('Map')
-
-        def export_hybridpro(self):
-            return self.export()
 
 
 class RPRShaderNodeEmissive(RPRShaderNode):
@@ -1071,14 +1028,6 @@ class RPRShaderNodeEmissive(RPRShaderNode):
                 })
 
             return rpr_node_emissive
-
-        def export_hybrid(self):
-            color = self.get_input_value('Color')
-            intensity = self.get_input_value('Intensity')
-
-            return self.create_node(pyrpr.MATERIAL_NODE_EMISSIVE, {
-                pyrpr.MATERIAL_INPUT_COLOR: color * intensity
-            })
 
 
 class RPRShaderNodeBlend(RPRShaderNode):
@@ -1124,25 +1073,6 @@ class RPRShaderNodeBlend(RPRShaderNode):
                 rpr_node.set_input(pyrpr.MATERIAL_INPUT_COLOR1, shader2)
 
             return rpr_node
-
-        def export_hybrid(self):
-            weight = self.get_input_value('Weight')
-
-            if isinstance(weight.data, float):
-                socket_key = 1 if math.isclose(weight.data, 0.0) else \
-                             2 if math.isclose(weight.data, 1.0) else None
-
-                if socket_key:
-                    shader = self.get_input_link(socket_key)
-                    if shader:
-                        return shader
-
-                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: (1.0, 1.0, 1.0, 1.0),
-                    })
-
-            return self.get_input_link(1)
 
 
 class RPRShaderNodeDoublesided(RPRShaderNode):
@@ -1561,18 +1491,6 @@ class RPRValueNode_Math(RPRShaderNode):
 
             return val
 
-        def export_hybrid(self):
-            op = self.node.operation
-            if op in ('LOG', 'SHUFFLE_YZWX', 'SHUFFLE_ZWXY', 'SHUFFLE_WXYZ'):
-                log.warn("Ignoring unsupported RPR Math operation",
-                         op, self.node, self.material)
-                return None
-
-            return self.export()
-
-        def export_hybridpro(self):
-            return self.export()
-
 
 class RPRShaderNodeToon(RPRShaderNode):
     ''' A toon shader using both the RPR Toon Shader and Ramp node '''
@@ -1780,6 +1698,3 @@ class RPRShaderNodeToon(RPRShaderNode):
                 )
 
             return toon_shader
-
-        def export_hybridpro(self):
-            return None

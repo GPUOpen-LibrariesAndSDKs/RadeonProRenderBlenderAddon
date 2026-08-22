@@ -26,6 +26,9 @@ OS = platform.system()
 
 repo_dir = Path("..")
 
+# the Hybrid and HybridPro backends were removed from the addon, don't ship their plugins
+EXCLUDED_CORE_LIBS = {'hybrid', 'hybridpro'}
+
 
 def enumerate_addon_data():
     # copy pyrpr files
@@ -58,6 +61,12 @@ def enumerate_addon_data():
 
     # copying Core libs
     for lib in (repo_dir / ".sdk/rpr/bin").glob("*"):
+        # strip an optional 'lib' prefix so libHybridPro.so matches HybridPro.dll
+        stem = lib.stem[3:] if lib.stem.startswith('lib') else lib.stem
+        if stem.lower() in EXCLUDED_CORE_LIBS:
+            print(f"skipping {lib.name}")
+            continue
+
         yield lib, lib.name
 
     # copying RIF libs

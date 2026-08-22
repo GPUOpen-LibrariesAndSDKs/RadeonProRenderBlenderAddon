@@ -19,14 +19,10 @@ logging.limit_log('', level_show_min=logging.INFO)
 pyrpr_log_calls = False
 pyrprimagefilters_log_calls = False
 pyrprgltf_log_calls = False
-hybrid_unsupported_log_warn = False
-hybridpro_unsupported_log_warn = False
 
 material_library_path = None
 
 use_opencl = False
-enable_hybrid = True
-enable_hybridpro = True
 
 disable_athena_report = False
 clean_athena_files = True

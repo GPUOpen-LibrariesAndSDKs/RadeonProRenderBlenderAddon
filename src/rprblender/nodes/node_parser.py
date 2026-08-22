@@ -18,8 +18,6 @@ import bpy
 import pyrpr
 
 from rprblender.engine.context import RPRContext, RPRContext2
-from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
-from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from .node_item import NodeItem
 
 from rprblender.utils import logging
@@ -305,10 +303,6 @@ class NodeParser(BaseNodeParser):
         log("export", self.material, self.node, self.socket_out, self.group_nodes)
         if self.node.mute:
             node_item = self.export_muted()
-        elif isinstance(self.rpr_context, RPRContextHybrid):
-            node_item = self.export_hybrid()
-        elif isinstance(self.rpr_context, RPRContextHybridPro):
-            node_item = self.export_hybridpro()
         elif isinstance(self.rpr_context, RPRContext2):
             node_item = self.export_rpr2()
         else:
@@ -325,12 +319,6 @@ class NodeParser(BaseNodeParser):
     @abstractmethod
     def export(self) -> [NodeItem, None]:
         pass
-
-    def export_hybrid(self) -> [NodeItem, None]:
-        return self.export()
-
-    def export_hybridpro(self) -> [NodeItem, None]:
-        return self.export_hybrid()
 
     def export_rpr2(self) -> [NodeItem, None]:
         return self.export()
@@ -501,24 +489,6 @@ class RuleNodeParser(NodeParser):
             return None
 
         return self._export_node_rule_by_key(self.socket_out.name)
-
-    def export_hybrid(self):
-        """ Looking for base node_rule_key = 'hybrid:<socket_out.name> """
-
-        node_rule_key = 'hybrid:' + self.socket_out.name
-        if node_rule_key in self.nodes:
-            return self._export_node_rule_by_key(node_rule_key)
-
-        return self.export()
-
-    def export_hybridpro(self):
-        """ Looking for base node_rule_key = 'hybridpro:<socket_out.name> """
-
-        node_rule_key = 'hybridpro:' + self.socket_out.name
-        if node_rule_key in self.nodes:
-            return self._export_node_rule_by_key(node_rule_key)
-
-        return self.export_hybrid()
 
 
 def get_node_parser_class(node_idname: str):

@@ -28,8 +28,6 @@ from rprblender.export import image, material, volume
 from rprblender.utils.conversion import convert_kelvins_to_rgb
 from .node_parser import BaseNodeParser, RuleNodeParser, NodeParser, MaterialError
 from .node_item import NodeItem
-from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
-from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context import RPRContext2
 from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
 
@@ -143,9 +141,7 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
         """ Returns the normal node if displacement mode is set to bump 
             this returns a bumped normal, else returns a node_lookup N """
 
-        # TODO RPRContextHybridPro doesn't support MATERIAL_NODE_BUMP_MAP
-        if self.material.displacement_method in {"BUMP", "BOTH"} and \
-                not isinstance(self.rpr_context, RPRContextHybridPro):
+        if self.material.displacement_method in {"BUMP", "BOTH"}:
             displacement_input = self.get_input_link("Displacement")
             if displacement_input:
                 return self.create_node(pyrpr.MATERIAL_NODE_BUMP_MAP, {
@@ -167,15 +163,9 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
             # checking if we have connected node to Volume socket
             volume_rpr_node = material.sync(self.rpr_context, self.material, 'Volume')
             if volume_rpr_node:
-                if isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
-                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
-                        pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY: (1.0, 1.0, 1.0),
-                    })
-                else:
-                    return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
-                        pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
-                    })
+                return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
+                    pyrpr.MATERIAL_INPUT_COLOR: (1.0, 1.0, 1.0)
+                })
 
             raise MaterialError("Incorrect Surface input socket",
                                 rpr_node, self.node, self.material)
@@ -202,14 +192,9 @@ class ShaderNodeOutputMaterial(BaseNodeParser):
 
             if input_socket_key == 'Surface':
                 # creating error shader
-                if isinstance(self.rpr_context, (RPRContextHybrid, RPRContextHybridPro)):
-                    return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                        pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: ERROR_OUTPUT_COLOR
-                    })
-                else:
-                    return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
-                        pyrpr.MATERIAL_INPUT_COLOR: ERROR_OUTPUT_COLOR
-                    })
+                return self.create_node(pyrpr.MATERIAL_NODE_PASSTHROUGH, {
+                    pyrpr.MATERIAL_INPUT_COLOR: ERROR_OUTPUT_COLOR
+                })
 
             return None
 
@@ -255,33 +240,6 @@ class ShaderNodeDisplacement(NodeParser):
             })
         else:
             return displacement
-
-    def export_hybrid(self):
-        return None
-
-    def export_hybridpro(self):
-        height = self.get_input_value('Height')
-        midlevel = self.get_input_value('Midlevel')
-        scale = self.get_input_value('Scale')
-        normal = self.get_input_normal('Normal')
-
-        height = (height - midlevel)
-
-        if isinstance(height.data, (float, tuple)):
-            displacement = self.create_node(pyrpr.MATERIAL_NODE_ARITHMETIC, {
-                pyrpr.MATERIAL_INPUT_OP: pyrpr.MATERIAL_NODE_OP_MUL,
-                pyrpr.MATERIAL_INPUT_COLOR1: height,
-                pyrpr.MATERIAL_INPUT_COLOR0: scale,
-            })
-
-        else:
-            displacement = height * scale
-
-        #  TODO normal is not supported at the moment, produces crash if enable
-        # if normal:
-            # displacement *= normal
-
-        return displacement
 
 
 class NodeReroute(NodeParser):
@@ -330,37 +288,6 @@ class ShaderNodeBsdfAnisotropic(NodeParser):
 
         return result
 
-    def export_hybrid(self):
-        color = self.get_input_value('Color')
-        roughness = self.get_input_value('Roughness')
-        anisotropy = self.get_input_value('Anisotropy')
-        rotation = self.get_input_value('Rotation')
-        normal = self.get_input_normal('Normal')
-        # TODO: Use Tangent input and distribution property
-
-        rotation = 0.5 - (rotation % 1)
-
-        result = self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
-            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: color,
-            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: roughness,
-            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY: anisotropy,
-            pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ANISOTROPY_ROTATION: rotation,
-        })
-        if normal:
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
-
-        return result
-
-    def export_hybridpro(self):
-        result = self.export_hybrid()
-        if result:
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE, pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-            result.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, 1.0)
-
-        return result
-
 
 class ShaderNodeBsdfDiffuse(RuleNodeParser):
     # inputs: Color, Roughness, Normal
@@ -375,15 +302,6 @@ class ShaderNodeBsdfDiffuse(RuleNodeParser):
             }
         },
 
-        'hybrid:BSDF': {
-            'type': pyrpr.MATERIAL_NODE_UBERV2,
-            'params': {
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: 'inputs.Color',
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 'inputs.Roughness',
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: 'normal:inputs.Normal',
-            }
-        }
     }
 
 
@@ -444,16 +362,6 @@ class ShaderNodeBsdfGlossy(RuleNodeParser):
                 pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
             }
         },
-        "hybrid:BSDF": {
-            "type": pyrpr.MATERIAL_NODE_UBERV2,
-            "params": {
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS: "inputs.Roughness",
-                pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL: "normal:inputs.Normal",
-            }
-        }
 
     }
     # TODO: Use distribution property
@@ -472,17 +380,6 @@ class ShaderNodeBsdfRefraction(RuleNodeParser):
                 pyrpr.MATERIAL_INPUT_IOR: "inputs.IOR"
             }
         },
-        "hybrid:BSDF": {
-            "type": pyrpr.MATERIAL_NODE_UBERV2,
-            "params": {
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 0.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_ROUGHNESS: "inputs.Roughness",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL: "normal:inputs.Normal",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_IOR: "inputs.IOR"
-            }
-        }
     }
     # TODO: Use distribution property
 
@@ -498,17 +395,6 @@ class ShaderNodeBsdfTranslucent(RuleNodeParser):
                 pyrpr.MATERIAL_INPUT_NORMAL: "normal:inputs.Normal"
             }
         },
-        "hybrid:BSDF": {
-            "type": pyrpr.MATERIAL_NODE_UBERV2,
-            "params": {
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL: "normal:inputs.Normal",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_WEIGHT: 1.0,
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_COLOR: "inputs.Color",
-                pyrpr.MATERIAL_INPUT_UBER_REFRACTION_NORMAL: "normal:inputs.Normal",
-            }
-        }
     }
 
 
@@ -519,15 +405,6 @@ class ShaderNodeBsdfTransparent(NodeParser):
         color = self.get_input_value('Color')
         return self.create_node(pyrpr.MATERIAL_NODE_TRANSPARENT, {
             pyrpr.MATERIAL_INPUT_COLOR: color
-        })
-
-    def export_hybrid(self):
-        color = self.get_input_value('Color')
-        return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS: 0.0,
-            pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: color,
-            pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY: color.average_xyz(),
         })
 
 
@@ -585,12 +462,6 @@ class ShaderNodeEmission(RuleNodeParser):
             }
         },
 
-        "hybrid:Emission": {
-            "type": pyrpr.MATERIAL_NODE_EMISSIVE,
-            "params": {
-                pyrpr.MATERIAL_INPUT_COLOR: "nodes.emission_color"
-            }
-        }
     }
 
 
@@ -647,9 +518,6 @@ class ShaderNodeLayerWeight(NodeParser):
 
             facing = abs(invec_normal) ** blend2
             return 1.0 - facing
-
-    def export_hybrid(self):
-        return None
 
 
 class ShaderNodeGamma(RuleNodeParser):
@@ -752,12 +620,6 @@ class ShaderNodeTexChecker(NodeParser):
 
         return checker.blend(color1, color2)
 
-    def export_hybrid(self):
-        return None
-
-    def export_hybridpro(self):
-        return self.export()
-
 
 class ShaderNodeTexImage(NodeParser):
     def export(self):
@@ -768,15 +630,6 @@ class ShaderNodeTexImage(NodeParser):
         }
 
         return self._export_image_node(wrap_mapping)
-
-    def export_hybrid(self):
-        # Hybrid has separate list of supported wrap types
-        wrap_mapping_hybrid = {
-            'REPEAT': pyrpr.IMAGE_WRAP_TYPE_REPEAT,
-            'EXTEND': pyrpr.IMAGE_WRAP_TYPE_CLAMP_TO_EDGE,
-        }
-
-        return self._export_image_node(wrap_mapping_hybrid)
 
     def _export_image_node(self, wrap_mapping):
         """ Export image node as RPR node using supported wrapping types """
@@ -1085,27 +938,6 @@ class ShaderNodeBsdfHair(NodeParser):
 
         return rpr_node
 
-    def export_hybrid(self):
-        # we'll just use roughness_u and uber for bsdf 
-        component = self.node.component
-        color = self.get_input_value('Color')
-
-        rpr_node = self.create_node(pyrpr.MATERIAL_NODE_UBERV2)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 0.0)
-
-        if component == 'Reflection':
-            roughness_u = self.get_input_value('RoughnessU').clamp(0.001, 1.0)
-            roughness_v = self.get_input_value('RoughnessV').clamp(0.001, 1.0)
-            roughness = (roughness_u + roughness_v) * 0.5
-
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, 1.0)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, color)
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
-        else:
-            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_TRANSPARENCY, color)
-
-        return rpr_node
-
     def _create_ward_node(self, base_color, roughness_u, roughness_v, rotation_angle):
         rpr_node = self.create_node(pyrpr.MATERIAL_NODE_WARD)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_ROUGHNESS_X, roughness_u)
@@ -1248,24 +1080,8 @@ class ShaderNodeNewGeometry(RuleNodeParser):
             }
         },
 
-        "hybrid:Position": None,
-        "hybrid:Normal": None,
-        "hybrid:Incoming": None,
 
-        "hybridpro:Position": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_P,
-            }
-        },
-        "hybridpro:Normal": {
-            "type": pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
-            "params": {
-                pyrpr.MATERIAL_INPUT_VALUE: pyrpr.MATERIAL_NODE_LOOKUP_N,
-            }
-        },
 
-        "hybridpro:Incoming": None,
     }
 
 
@@ -1288,14 +1104,6 @@ class ShaderNodeAddShader(NodeParser):
             pyrpr.MATERIAL_INPUT_COLOR0: shader1,
             pyrpr.MATERIAL_INPUT_COLOR1: shader2
         })
-
-    def export_hybrid(self):
-        shader1 = self.get_input_link(0)
-        if shader1:
-            return shader1
-
-        shader2 = self.get_input_link(1)
-        return shader2
 
 
 class ShaderNodeObjectInfo(NodeParser):
@@ -1322,13 +1130,6 @@ class ShaderNodeObjectInfo(NodeParser):
             return self.create_node(pyrpr.MATERIAL_NODE_INPUT_LOOKUP,
                                     {pyrpr.MATERIAL_INPUT_VALUE:
                                      pyrpr.MATERIAL_NODE_LOOKUP_SHAPE_RANDOM_COLOR})
-
-    def export_hybrid(self):
-        if self.socket_out.name == 'Random':
-            log.warn(f"Unsupported random object info in Hybrid modes")
-            return self.node_item(float(self.object.pass_index))
-        else:
-            return self.export()
 
 
 class ShaderNodeTexCoord(RuleNodeParser):
@@ -1406,16 +1207,6 @@ class ShaderNodeMixRGB(NodeParser):
 
         return rpr_node
 
-    def export_hybrid(self) -> [NodeItem, None]:
-        blend_type = self.node.blend_type
-
-        if blend_type in ('OVERLAY', 'LINEAR_LIGHT', ):
-            log.warn(f"Ignoring unsupported MixRGB type", blend_type, self.node, self.material)
-            return None
-
-        # other operations are supported by Hybrid
-        return self.export()
-
 
 class ShaderNodeMix(NodeParser):
 
@@ -1452,17 +1243,6 @@ class ShaderNodeMix(NodeParser):
             rpr_node = rpr_node.clamp()
 
         return rpr_node
-
-    def export_hybrid(self) -> [NodeItem, None]:
-        data_type = self.node.data_type
-        blend_type = self.node.blend_type
-
-        if data_type == 'RGBA' and blend_type in ('OVERLAY', 'LINEAR_LIGHT', ):
-            log.warn(f"Ignoring unsupported MixRGB type", blend_type, self.node, self.material)
-            return None
-
-        # other operations are supported by Hybrid
-        return self.export()
 
 
 class ShaderNodeMath(NodeParser):
@@ -1563,16 +1343,6 @@ class ShaderNodeMath(NodeParser):
 
         return res
 
-    def export_hybrid(self) -> [NodeItem, None]:
-        op = self.node.operation
-
-        if op in ('LOGARITHM', 'CEIL', 'LESS_THAN', 'GREATER_THAN'):
-            log.warn(f"Ignoring unsupported Math operation", op, self.node, self.material)
-            return None
-
-        # other operations are supported by Hybrid
-        return self.export()
-
 
 class ShaderNodeVectorMath(NodeParser):
     """ Apply vector math operations assuming Blender node was designed to work with 3-axis vectors """
@@ -1654,19 +1424,6 @@ class ShaderNodeVectorMath(NodeParser):
 
         return res
 
-    def export_hybrid(self) -> [NodeItem, None]:
-        op = self.node.operation
-
-        if op in ('PROJECT', ):
-            log.warn(f"Ignoring unsupported Vector Math operation", op, self.node, self.material)
-            return None
-
-        # other operations are supported by Hybrid
-        return self.export()
-
-    def export_hybridpro(self) -> [NodeItem, None]:
-        return self.export()
-
 
 class ShaderNodeMixShader(NodeParser):
     # inputs = ['Fac', 1, 2]
@@ -1698,26 +1455,6 @@ class ShaderNodeMixShader(NodeParser):
 
         return rpr_node
 
-    def export_hybrid(self):
-        factor = self.get_input_value('Fac')
-
-        if isinstance(factor.data, float):
-            socket_key = 1 if math.isclose(factor.data, 0.0) else \
-                2 if math.isclose(factor.data, 1.0) else \
-                    None
-
-            if socket_key:
-                shader = self.get_input_link(socket_key)
-                if shader:
-                    return shader
-
-                return self.create_node(pyrpr.MATERIAL_NODE_UBERV2, {
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT: 1.0,
-                    pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR: (1.0, 1.0, 1.0, 1.0),
-                })
-
-        return self.get_input_link(1)
-
 
 class ShaderNodeNormalMap(NodeParser):
     """ blends between input vec and N based on strength """
@@ -1741,12 +1478,6 @@ class ShaderNodeNormalMap(NodeParser):
                      self.node.uv_map, self.node, self.material)
 
         return rpr_node
-
-    def export_hybrid(self):
-        return self.get_input_value('Color')
-
-    def export_hybridpro(self):
-        return self.export()
 
 
 class ShaderNodeNormal(NodeParser):
@@ -1801,9 +1532,6 @@ class ShaderNodeBump(NodeParser):
 
         return strength.blend(normal_node, bump_node + normal_node)
 
-    def export_hybridpro(self):
-        return None
-
 
 class ShaderNodeValue(NodeParser):
     """ simply return val """
@@ -1850,15 +1578,6 @@ class ShaderNodeBlackbody(NodeParser):
             pyrpr.MATERIAL_INPUT_UV: uv
         })
 
-    def export_hybrid(self):
-        temperature = self.get_input_scalar('Temperature')
-
-        t = temperature.data
-        if isinstance(t, tuple):
-            t = t[0]
-
-        return self.node_item(convert_kelvins_to_rgb(t))
-
 
 class ShaderNodeValToRGB(NodeParser):
     """ Creates an RPR_Buffer from ramp, and samples that in node.
@@ -1896,17 +1615,6 @@ class ShaderNodeValToRGB(NodeParser):
             return buf_node.get_channel(3)
 
         return buf_node
-
-    def export_hybrid(self):
-        fac = self.get_input_scalar('Fac')
-
-        data = fac.data if isinstance(fac.data, float) else (sum(fac.data[:3]) / 3)
-        val = self.node.color_ramp.evaluate(data)
-
-        if self.socket_out.name == 'Alpha':
-            return self.node_item(val[3])
-
-        return self.node_item(val)
 
 
 class ShaderNodeMapRange(NodeParser):
@@ -2009,19 +1717,6 @@ class ShaderNodeFloatCurve(NodeParser):
 
         return fac.blend(in_val, out_val)
 
-    def export_hybrid(self):
-        """ Convert value using curve """
-        in_val = self.get_input_scalar('Value')
-        fac = self.get_input_scalar('Factor')
-        mapping = self.node.mapping
-
-        # these need to be initialized for some reason
-        mapping.initialize()
-
-        out_val = eval_curve(mapping, 0, in_val.get_channel(0).data)
-
-        return fac.blend(in_val, out_val)
-
 
 class ShaderNodeRGBCurve(NodeParser):
     """ Similar to color ramp, except read each channel and apply mapping
@@ -2076,21 +1771,6 @@ class ShaderNodeRGBCurve(NodeParser):
 
         return fac.blend(in_col, out_col)
 
-    def export_hybrid(self):
-        """ Convert color using channel curves """
-        in_col = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
-        mapping = self.node.mapping
-
-        # these need to be initialized for some reason
-        mapping.initialize()
-
-        out_col = tuple(
-            eval_curve(mapping, i, eval_curve(mapping, 3, in_col.get_channel(i).data)) for i in range(3)
-        ) + (in_col.get_channel(3).data,)
-
-        return fac.blend(in_col, out_col)
-
 
 class ShaderNodeTexNoise(NodeParser):
     """Create RPR Noise node"""
@@ -2108,9 +1788,6 @@ class ShaderNodeTexNoise(NodeParser):
         return self.create_node(pyrpr.MATERIAL_NODE_NOISE2D_TEXTURE, {
             pyrpr.MATERIAL_INPUT_UV: scale * mapping
         })
-
-    def export_hybrid(self):
-        return None
 
 
 class ShaderNodeTexVoronoi(NodeParser):
@@ -2158,9 +1835,6 @@ class ShaderNodeTexVoronoi(NodeParser):
         return voronoi
 
     def export(self):
-        return None
-
-    def export_hybrid(self):
         return None
 
 
@@ -2519,9 +2193,6 @@ class ShaderNodeVolumePrincipled(NodeParser):
 
         return rpr_node
 
-    def export_hybrid(self):
-        return None
-
     def export_rpr2(self):
         def volume_export():
             if not self.object:
@@ -2663,9 +2334,6 @@ class ShaderNodeVolumeScatter(NodeParser):
         }
 
         return rpr_node
-
-    def export_hybrid(self):
-        return None
 
     def export_rpr2(self):
         color = self.get_input_value('Color')
@@ -2870,9 +2538,6 @@ class ShaderNodeBevel(NodeParser):
 
         return (bevel + normal).normalize()
 
-    def export_hybrid(self):
-        return None
-
 
 class ShaderNodeHairInfo(NodeParser):
     def export(self):
@@ -2901,11 +2566,3 @@ class ShaderNodeHairInfo(NodeParser):
             return None
 
         return rpr_node
-
-    def export_hybrid(self):
-        out_socket_name = self.socket_out.name
-        if out_socket_name in ("Is Strand", "Length", "Thickness", "Tangent Normal", "Random"):
-            log.warn(f"Ignoring unsupported Output Socket", out_socket_name, self.node, self.material)
-            return None
-
-        return self.export()

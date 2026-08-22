@@ -5,6 +5,9 @@ __pycache__
 .idea/workspace.xml
 /.idea/dictionaries
 
+# local settings of AI coding assistants, these are per-developer
+.claude/settings.local.json
+
 # build
 .sdk
 .build
@@ -53,10 +56,9 @@ build_output/
 bindings-ok
 
 kernelsCache/
-.hybrid_cache
 .tex_cache
 
-vscode/
+.vscode/
 /venv
 /tmp
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 #********************************************************************
 import pyrpr
-import pyhybrid
 
 from . import RPR_Panel
 from rprblender import bl_info
@@ -121,12 +120,11 @@ class RPR_RENDER_PT_quality(RPR_Panel):
         self.layout.prop(rpr, 'viewport_render_mode')
         self.layout.prop(rpr, 'viewport_render_quality')
 
-        if rpr.viewport_render_mode == 'HYBRIDPRO':
-            col = self.layout.column(align=True)
-            col.prop(rpr, 'viewport_denoiser')
-            col1 = col.column()
-            col1.prop(rpr, 'viewport_upscale')
-            col1.enabled = rpr.viewport_denoiser
+        col = self.layout.column(align=True)
+        col.prop(rpr, 'viewport_denoiser')
+        col1 = col.column()
+        col1.prop(rpr, 'viewport_upscale')
+        col1.enabled = rpr.viewport_denoiser
 
 
 class RPR_RENDER_PT_limits(RPR_Panel):
@@ -153,11 +151,7 @@ class RPR_RENDER_PT_limits(RPR_Panel):
         col.enabled = not rpr.is_tile_render_available
         col.prop(limits, 'seconds')
 
-        if rpr.final_render_mode in ('HIGH', 'HYBRIDPRO'):
-            col.prop(rpr, 'hybrid_low_mem')
-
         col = self.layout.column(align=True)
-        col.enabled = rpr.final_render_mode in ('FULL', 'FULL2')
         col.prop(rpr, 'use_tile_render')
 
         col = col.column(align=True)
@@ -191,24 +185,13 @@ class RPR_RENDER_PT_viewport_limits(RPR_Panel):
         row = col.row()
         row.prop(limits, 'noise_threshold', slider=True)
 
-        if rpr.viewport_render_mode in ('HIGH', 'HYBRIDPRO'):
-            row = col.row()
-            row.prop(rpr, 'viewport_hybrid_low_mem')
-
-        adapt_resolution = rpr.viewport_render_mode in ('FULL', 'FULL2')
         col1 = col.column()
-        col1.enabled = adapt_resolution
         col1.prop(settings, 'adapt_viewport_resolution')
 
         col1 = col.column(align=True)
-        col1.enabled = settings.adapt_viewport_resolution and adapt_resolution
+        col1.enabled = settings.adapt_viewport_resolution
         col1.prop(settings, 'viewport_samples_per_sec', slider=True)
         col1.prop(settings, 'min_viewport_resolution_scale', slider=True)
-
-        if rpr.viewport_render_mode == 'HYBRIDPRO':
-            col1 = col.column()
-            col1.enabled = rpr.viewport_upscale and rpr.viewport_denoiser
-            col1.prop(rpr, 'viewport_upscale_quality')
 
         col.separator()
         col.prop(limits, 'preview_samples')

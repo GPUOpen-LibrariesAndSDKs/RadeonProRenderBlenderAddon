@@ -17,8 +17,6 @@ import os
 
 import bpy
 import pyrpr
-import pyhybrid
-import pyhybridpro
 import pyrpr2
 
 from bpy.props import (
@@ -38,8 +36,6 @@ from rprblender import utils
 from rprblender.utils.user_settings import get_user_settings, on_settings_changed
 from . import RPR_Properties
 from rprblender.engine import context
-from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
-from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 
 from rprblender.utils import logging, IS_MAC, preset_root_dir, get_compositor_node_tree
 log = logging.Log(tag='properties.render')
@@ -480,24 +476,10 @@ class RPR_RenderProperties(RPR_Properties):
         render_quality_items += [
             ('FULL', "Legacy", "Legacy render quality"),
         ]
-    if pyhybridpro.Context.plugin_id >= 0:
-        render_quality_items += [
-            ('HYBRIDPRO', "Interactive", "Interactive render quality, including hardware ray tracing support")
-        ]
-    if pyhybrid.Context.plugin_id >= 0:
-        render_quality_items += [
-            ('HIGH', "Interactive", "High render quality"),
-        ]
 
     def update_final_render_mode(self, context):
         context.view_layer.update_render_passes()
 
-        if self.final_render_mode in ('FULL', 'FULL2'):
-            return
-
-        settings = get_user_settings()
-        settings.final_devices.cpu_state = False
-        
     final_render_mode: EnumProperty(
         name="Render Mode",
         description="RPR final render mode",
@@ -524,20 +506,11 @@ class RPR_RenderProperties(RPR_Properties):
         update=toggle_denoiser
     )
 
-    def update_viewport_render_mode(self, context):
-        if self.viewport_render_mode in ('FULL', 'FULL2'):
-            return
-
-        settings = get_user_settings()
-        settings.viewport_devices.cpu_state = False
-
     viewport_render_mode: EnumProperty(
         name="Viewport Mode",
         description="RPR viewport mode",
         items=render_quality_items,
-
-        default=render_quality_items[-1][0],
-        update=update_viewport_render_mode
+        default='FULL2',
     )
 
     quality_presets = [
@@ -582,18 +555,6 @@ class RPR_RenderProperties(RPR_Properties):
         default=False,
     )
 
-    hybrid_low_mem: BoolProperty(
-        name="Use 4GB memory",
-        description="Enable to support GPUs with 4Gb VRAM or less for Final render mode",
-        default=False,
-    )
-
-    viewport_hybrid_low_mem: BoolProperty(
-        name="Use 4GB memory",
-        description="Enable to support GPUs with 4Gb VRAM or less for Viewport render mode",
-        default=False,
-    )
-
     texture_compression: BoolProperty(
         name="Texture Compression",
         description="Enables Texture compression for faster rendering (with lossier textures)",
@@ -617,19 +578,6 @@ class RPR_RenderProperties(RPR_Properties):
         description="Rendering at lower resoluting then upscaling rendered image "
                     "in the end of render",
         default=True,
-    )
-
-    viewport_upscale_quality: EnumProperty(
-        name="Viewport Upscale Quality",
-        description="Viewport upscaler quality mode",
-        items=(
-            ('FSR2_QUALITY_ULTRA_QUALITY', "Ultra Quality", "Ultra Quality"),
-            ('FSR2_QUALITY_MODE_QUALITY', "Quality", "Quality"),
-            ('FSR2_QUALITY_MODE_BALANCE', "Balance", "Balance"),
-            ('FSR2_QUALITY_MODE_PERFORMANCE', "Performance", "Performance"),
-            ('FSR2_QUALITY_MODE_ULTRA_PERFORMANCE', "Ultra Performance", "Ultra Performance"),
-        ),
-        default='FSR2_QUALITY_MODE_ULTRA_PERFORMANCE',
     )
 
     def init_rpr_context(self, rpr_context, is_final_engine=True, use_contour_integrator=False):
@@ -662,32 +610,10 @@ class RPR_RenderProperties(RPR_Properties):
                     metal_enabled = True
                     context_flags |= {pyrpr.CREATION_FLAGS_ENABLE_METAL}
 
-        # set these props to use < 4gb
-        if (self.hybrid_low_mem and is_final_engine) or (self.viewport_hybrid_low_mem and not is_final_engine):
-            if isinstance(rpr_context, RPRContextHybrid):
-                acc_mem_size = pyrpr.ffi.new('int*', 1024 ** 3)             # 1gb for bvh memory
-                context_props.extend([
-                    pyrpr.CONTEXT_CREATEPROP_HYBRID_ACC_MEMORY_SIZE, acc_mem_size])
-
-            if isinstance(rpr_context, RPRContextHybridPro):
-                staging_mem_size = pyrpr.ffi.new('int*', 32 * 1024 * 1024)  # 32mb for staging memory
-                scratch_mem_size = pyrpr.ffi.new('int*', 16 * 1024 * 1024)  # 16mb for scratch memory
-                context_props.extend([
-                    pyrpr.CONTEXT_CREATEPROP_HYBRID_STAGING_MEMORY_SIZE, staging_mem_size,
-                    pyrpr.CONTEXT_CREATEPROP_HYBRID_SCRATCH_MEMORY_SIZE, scratch_mem_size])
-
         # Enable HIP / CUDA support for RPRContext2
         if isinstance(rpr_context, context.RPRContext2):
             hipbin_dir = pyrpr.ffi.new('char[]', str(utils.hipbin_dir()).encode())  # path to precompiled HIP kernels
             context_props.extend([pyrpr.CONTEXT_PRECOMPILED_BINARY_PATH, hipbin_dir])
-
-        #  this functionality requires additional memory on
-        #  both CPU and GPU even when no per-face materials set in scene.
-        #  checking has_multimaterial_object before enable CONTEXT_CREATEPROP_HYBRID_ENABLE_PER_FACE_MATERIALS.
-        if isinstance(rpr_context, RPRContextHybridPro):
-            if next((True for i in bpy.context.scene.objects
-                     if len(i.material_slots) > 1 and len([m for m in i.material_slots if m.material]) > 1), False):
-                context_props.extend([pyrpr.CONTEXT_CREATEPROP_HYBRID_ENABLE_PER_FACE_MATERIALS, pyrpr.ffi.new('int*', 1)])
 
         context_props.append(0)  # should be followed by 0
 
@@ -714,7 +640,7 @@ class RPR_RenderProperties(RPR_Properties):
                 os.mkdir(self.texture_cache_dir)
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
-        if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
+        if isinstance(rpr_context, context.RPRContext2):
             # set ocio config file to blender included one
             rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH,
                                       os.path.join(bpy.utils.resource_path('LOCAL'),
