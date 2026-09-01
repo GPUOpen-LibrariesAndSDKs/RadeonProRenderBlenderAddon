@@ -902,6 +902,13 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         specular = self.get_input_value('Specular IOR Level' if BLENDER_VERSION >= "4.0" else 'Specular')
         roughness = self.get_input_value('Roughness')
 
+        # In Cycles 'Roughness' only drives the specular lobe, the diffuse lobe
+        # stays lambertian. Blender has a separate 'Diffuse Roughness' input,
+        # zero by default. Feeding 'Roughness' to the diffuse lobe darkened every
+        # rough material, down to 0.64 of the Cycles value at roughness 1.
+        diffuse_roughness = self.get_input_value('Diffuse Roughness') \
+            if 'Diffuse Roughness' in self.node.inputs.keys() else 0.0
+
         anisotropic = None
         anisotropic_rotation = None
         if enabled(metallic):
@@ -950,21 +957,39 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # looks like diffuse should be always enabled, regarding cycles
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, base_color)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, diffuse_roughness)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 0.0)
 
         if enabled(normal):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL, normal)
 
-        # setting reflection weight as max of specular and metallic weights
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
-        #rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
-                            pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        if enabled(metallic):
+            # setting reflection weight as max of specular and metallic weights
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        else:
+            # A dielectric has no metalness to describe, and the metalness mode makes
+            # the uber material subtract a Fresnel share from the diffuse lobe even
+            # when the reflection weight is zero: a plain Principled came out at
+            # 0.921 of the Cycles value whatever the specular level. The PBR mode
+            # driven by Blender's own IOR does not, and a dielectric does not tint
+            # its reflection, hence the white reflection colour.
+            # Blender scales the nominal F0 by twice 'Specular IOR Level', while the
+            # RPR reflection weight ends up squared in the highlight, so the weight
+            # matching Cycles is the square root of that. Measured within 0.4% of
+            # Cycles over the whole range, against 1.35x too bright before.
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT,
+                               (specular * 2.0) ** 0.5)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR,
+                               (1.0, 1.0, 1.0, 1.0))
 
         if enabled(normal):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)

@@ -713,11 +713,17 @@ class RPR_RenderProperties(RPR_Properties):
             rpr_context.set_parameter(pyrpr.CONTEXT_TEXTURE_CACHE_PATH, self.texture_cache_dir)
 
         if isinstance(rpr_context, (context.RPRContext2, RPRContextHybridPro)):
-            # set ocio config file to blender included one
-            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH,
-                                      os.path.join(bpy.utils.resource_path('LOCAL'),
-                                                   'datafiles', 'colormanagement',
-                                                   'config.ocio'))
+            # Set the OCIO config file. Blender's own config cannot be parsed by
+            # the OpenColorIO version built into Core, which silently disables every
+            # colorspace conversion and leaves colour textures still sRGB encoded,
+            # about 2.3x too bright. The addon ships a small config using Blender's
+            # own colorspace names, so the name read from the image is still
+            # forwarded as is. Fall back to Blender's config if it is missing.
+            ocio_config = utils.package_root_dir() / 'ocio' / 'config.ocio'
+            ocio_config = str(ocio_config) if ocio_config.is_file() else \
+                os.path.join(bpy.utils.resource_path('LOCAL'),
+                             'datafiles', 'colormanagement', 'config.ocio')
+            rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_CONFIG_PATH, ocio_config)
             rpr_context.set_parameter(pyrpr.CONTEXT_OCIO_RENDERING_COLOR_SPACE, "Linear")
 
     def get_devices(self, is_final_engine=True):
