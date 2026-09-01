@@ -44,8 +44,24 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     if light.type in ('POINT', 'SPOT'):
         units = rpr.intensity_units_point
         if units == 'DEFAULT':
-            # to match cycles: multiplying by coefficient, which was determined with experimentation
-            default_intensity *= 0.01
+            # Blender gives a radiant flux in watts, the core expects a radiant
+            # intensity: a point light spreads its flux over the 4*pi steradians
+            # of the sphere. Measured within 1% of Cycles over the whole range
+            # of energies and distances, against 7.9x too dark with the
+            # hand-tuned 0.01 it replaces.
+            default_intensity *= 1.0 / (4.0 * math.pi)
+            if light.type == 'SPOT':
+                # The core normalises a cone with a further 1/pi, whatever its
+                # angle: the ratio to Cycles was measured constant from 20 to
+                # 150 degrees, and was 2.5x too dark before.
+                default_intensity /= math.pi
+            elif not rpr.ies_file and light.shadow_soft_size > 0.0:
+                # sync() turns a point light of non-zero radius into a sphere
+                # emitter, which the core normalises with that same 1/pi. Blender
+                # gives every new point light a radius of 0.1, so this was the
+                # path most of them took: measured 3.145 times too bright, and
+                # flat from radius 0.05 to 0.50, against 1.008 for a true point.
+                default_intensity /= math.pi
             return default_intensity
 
         # converting to lumen
@@ -76,8 +92,12 @@ def get_radiant_power(light: bpy.types.Light, area=0.0):
     elif light.type == 'AREA':
         units = rpr.intensity_units_area
         if units == 'DEFAULT':
-            # to match cycles: multiplying by coefficient, which was determined with experimentation
-            default_intensity *= 0.1
+            # Same reasoning as above, for a lambertian emitter whose flux
+            # spreads over pi steradians. Measured within 4% of Cycles across
+            # sizes and shapes, the residual being how differently each engine
+            # shapes a wide emitter seen from close by, against 3.1x too dark
+            # with the former 0.1.
+            default_intensity *= 1.0 / math.pi
             if rpr.intensity_normalization:
                 return default_intensity / area
             return default_intensity

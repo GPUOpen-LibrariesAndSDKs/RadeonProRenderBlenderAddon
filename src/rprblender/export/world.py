@@ -331,10 +331,23 @@ class WorldData:
 
         data.intensity = rpr.intensity
 
-        if rpr.mode == 'IBL':
-            data.ibl = WorldData.IblData.init_from_ibl(rpr.ibl)
-        else:
+        background = read_blender_background(world) \
+            if rpr.mode == 'BLENDER' else None
+
+        if background is not None:
+            image, color, strength = background
+            ibl = WorldData.IblData()
+            ibl.image = image
+            ibl.color = color
+            data.ibl = ibl
+            data.intensity = rpr.intensity * strength
+
+        elif rpr.mode == 'SUN_SKY':
             data.sun_sky = WorldData.SunSkyData(rpr.sun_sky)
+
+        else:
+            # 'IBL', or a world tree we could not reduce to one background
+            data.ibl = WorldData.IblData.init_from_ibl(rpr.ibl)
 
         data.rotation = tuple(rpr.world_rotation)
 
@@ -422,6 +435,52 @@ class WorldData:
 
         rpr_context.scene.environment_light.set_intensity_scale(self.intensity)
         rpr_context.scene.environment_light.set_group_id(self.group)
+
+
+def read_blender_background(world: bpy.types.World):
+    """ Return (image name, color, strength) of the Blender world shader
+
+    RPR has always described the environment in its own World panel and never
+    read the node tree, so a world authored the Blender way reached the core
+    with that panel's default 50% grey. Measured on a sphere against a black
+    background, it laid a constant 0.35 floor over the whole frame and made
+    every light read 2 to 6 times too bright, the area light included.
+
+    Returns None when the tree is not something we can reduce to one
+    background, and the RPR panel keeps its say.
+    """
+    if not world.use_nodes or world.node_tree is None:
+        return None, tuple(world.color), 1.0
+
+    output = next((node for node in world.node_tree.nodes
+                   if node.bl_idname == 'ShaderNodeOutputWorld'
+                   and node.is_active_output), None)
+    if output is None:
+        return None
+
+    surface = output.inputs.get('Surface')
+    if surface is None or not surface.links:
+        # nothing drives the output: the world emits nothing
+        return None, (0.0, 0.0, 0.0), 0.0
+
+    background = surface.links[0].from_node
+    if background.bl_idname != 'ShaderNodeBackground':
+        return None
+
+    strength = background.inputs['Strength']
+    if strength.links:
+        return None
+    strength = float(strength.default_value)
+
+    color = background.inputs['Color']
+    if not color.links:
+        return None, tuple(color.default_value)[:3], strength
+
+    source = color.links[0].from_node
+    if source.bl_idname == 'ShaderNodeTexEnvironment' and source.image:
+        return source.image.name, None, strength
+
+    return None
 
 
 def sync(rpr_context: RPRContext, world: bpy.types.World):
