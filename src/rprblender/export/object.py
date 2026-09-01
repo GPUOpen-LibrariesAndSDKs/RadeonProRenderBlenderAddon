@@ -27,7 +27,10 @@ def key(obj: bpy.types.Object):
 
 
 def get_transform(obj: bpy.types.Object):
-    return np.array(obj.matrix_world, dtype=np.float32).reshape(4, 4)
+    # order='C' is required: since Blender 5 mathutils.Matrix is exposed through the
+    # buffer protocol in column-major order, and np.array() preserves that layout.
+    # Values would still read correctly, but pyrpr passes the raw bytes to RPR.
+    return np.array(obj.matrix_world, dtype=np.float32, order='C').reshape(4, 4)
 
 
 def sync(rpr_context, obj: bpy.types.Object, **kwargs):

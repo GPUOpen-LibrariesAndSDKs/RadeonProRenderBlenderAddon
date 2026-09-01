@@ -76,7 +76,7 @@ def set_light_rotation(rpr_light, rotation: Tuple[float]) -> np.array:
     matrix = np.identity(4, dtype=np.float32)
     euler = mathutils.Euler((rotation[0], rotation[1], rotation[2] - np.pi / 2))
 
-    rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32)
+    rotation_matrix = np.array(euler.to_matrix(), dtype=np.float32, order='C')
     fixup = np.array([[1, 0, 0],
                       [0, 0, 1],
                       [0, 1, 0]], dtype=np.float32)

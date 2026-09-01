@@ -200,6 +200,9 @@ SYSTEM_PROCESSOR = platform.uname().machine
 
 BLENDER_VERSION = f'{bpy.app.version[0]}.{bpy.app.version[1]}'
 
+# Blender 5.0 renamed the 'Fac' socket to 'Factor' on every shader node
+FAC = 'Factor' if BLENDER_VERSION >= '5.0' else 'Fac'
+
 IS_DEBUG_MODE = bool(int(os.environ.get('RPR_BLENDER_DEBUG', 0)))
 
 

@@ -26,7 +26,8 @@ def key(instance: bpy.types.DepsgraphObjectInstance):
 
 
 def get_transform(instance: bpy.types.DepsgraphObjectInstance):
-    return np.array(instance.matrix_world, dtype=np.float32).reshape(4, 4)
+    # order='C': see object.get_transform()
+    return np.array(instance.matrix_world, dtype=np.float32, order='C').reshape(4, 4)
 
 
 def sync(rpr_context, instance: bpy.types.DepsgraphObjectInstance, **kwargs):

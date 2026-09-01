@@ -36,7 +36,7 @@ class RPR_WORLD_OP_create_fog_object(RPR_Operator):
         max_pos = -min_pos
         is_min_max_set = False
         for o in scene.objects:
-            m = np.array(o.matrix_world)
+            m = np.array(o.matrix_world, order='C')
             for p in o.bound_box:
                 world_p = m @ (*p, 1.0)
                 min_pos = np.minimum(min_pos, world_p[:3])

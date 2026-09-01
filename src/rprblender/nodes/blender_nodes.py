@@ -31,7 +31,7 @@ from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context import RPRContext2
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
+from rprblender.utils import BLENDER_VERSION, FAC, get_prop_array_data, is_zero
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -292,10 +292,10 @@ class NodeReroute(NodeParser):
 
 
 class ShaderNodeBrightContrast(NodeParser):
-    # inputs: Bright, Contrast, Color
+    # inputs: Brightness, Contrast, Color
 
     def export(self):
-        bright = self.get_input_value('Bright')
+        bright = self.get_input_value('Brightness' if BLENDER_VERSION >= '5.0' else 'Bright')
         color = self.get_input_value('Color')
         contrast = self.get_input_value('Contrast')
 
@@ -598,7 +598,7 @@ class ShaderNodeFresnel(RuleNodeParser):
     # inputs: IOR, Normal
 
     nodes = {
-        "Fac": {
+        FAC: {
             "type": pyrpr.MATERIAL_NODE_FRESNEL,
             "params": {
                 pyrpr.MATERIAL_INPUT_IOR: "inputs.IOR",
@@ -668,7 +668,7 @@ class ShaderNodeGamma(RuleNodeParser):
 
 
 class ShaderNodeInvert(RuleNodeParser):
-    # inputs: Fac, Color
+    # inputs: Factor, Color
 
     nodes = {
         "invert": {
@@ -683,7 +683,7 @@ class ShaderNodeInvert(RuleNodeParser):
             "params": {
                 pyrpr.MATERIAL_INPUT_COLOR0: "inputs.Color",
                 pyrpr.MATERIAL_INPUT_COLOR1: "nodes.invert",
-                pyrpr.MATERIAL_INPUT_WEIGHT: "inputs.Fac"
+                pyrpr.MATERIAL_INPUT_WEIGHT: f"inputs.{FAC}"
             }
         }
     }
@@ -744,7 +744,7 @@ class ShaderNodeTexChecker(NodeParser):
             pyrpr.MATERIAL_INPUT_UV: scale * vector
         })
 
-        if self.socket_out.name == 'Fac':
+        if self.socket_out.name == FAC:
             return checker
 
         color1 = self.get_input_value('Color1')
@@ -1392,7 +1392,7 @@ class ShaderNodeLightFalloff(NodeParser):
 class ShaderNodeMixRGB(NodeParser):
 
     def export(self):
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         color1 = self.get_input_value('Color1')
         color2 = self.get_input_value('Color2')
         blend_type = self.node.blend_type
@@ -1669,10 +1669,10 @@ class ShaderNodeVectorMath(NodeParser):
 
 
 class ShaderNodeMixShader(NodeParser):
-    # inputs = ['Fac', 1, 2]
+    # inputs = ['Factor', 1, 2]
 
     def export(self):
-        factor = self.get_input_value('Fac')
+        factor = self.get_input_value(FAC)
 
         if isinstance(factor.data, float):
             socket_key = 1 if math.isclose(factor.data, 0.0) else \
@@ -1699,7 +1699,7 @@ class ShaderNodeMixShader(NodeParser):
         return rpr_node
 
     def export_hybrid(self):
-        factor = self.get_input_value('Fac')
+        factor = self.get_input_value(FAC)
 
         if isinstance(factor.data, float):
             socket_key = 1 if math.isclose(factor.data, 0.0) else \
@@ -1867,7 +1867,7 @@ class ShaderNodeValToRGB(NodeParser):
         """ create a buffer from ramp data and sample that in nodes if connected """
         buffer_size = 256  # hard code, this is what cycles does
 
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         if isinstance(fac.data, (float, tuple)):
             data = fac.data if isinstance(fac.data, float) else (sum(fac.data[:3]) / 3)
             val = self.node.color_ramp.evaluate(data)
@@ -1898,7 +1898,7 @@ class ShaderNodeValToRGB(NodeParser):
         return buf_node
 
     def export_hybrid(self):
-        fac = self.get_input_scalar('Fac')
+        fac = self.get_input_scalar(FAC)
 
         data = fac.data if isinstance(fac.data, float) else (sum(fac.data[:3]) / 3)
         val = self.node.color_ramp.evaluate(data)
@@ -2025,7 +2025,7 @@ class ShaderNodeFloatCurve(NodeParser):
 
 class ShaderNodeRGBCurve(NodeParser):
     """ Similar to color ramp, except read each channel and apply mapping
-        There are two inputs here, color and Fac.  What cycles does is remap color with the mapping
+        There are two inputs here, color and Factor.  What cycles does is remap color with the mapping
         and mix between in color and remapped one with fac.
     """
     def export(self):
@@ -2040,7 +2040,7 @@ class ShaderNodeRGBCurve(NodeParser):
         BUFFER_SIZE = 256  # hard code, this is what cycles does
 
         in_col = self.get_input_value('Color')
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         mapping = self.node.mapping
 
         # these need to be initialized for some reason
@@ -2079,7 +2079,7 @@ class ShaderNodeRGBCurve(NodeParser):
     def export_hybrid(self):
         """ Convert color using channel curves """
         in_col = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
+        fac = self.get_input_scalar(FAC)
         mapping = self.node.mapping
 
         # these need to be initialized for some reason
@@ -2743,7 +2743,7 @@ class ShaderNodeHueSaturation(NodeParser):
         # http://beesbuzz.biz/code/16-hsv-color-transforms
 
         color = self.get_input_value('Color')
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         hue = (self.get_input_value('Hue') - 0.5) * -math.tau
         saturation = self.get_input_value('Saturation')
         value = self.get_input_value('Value')

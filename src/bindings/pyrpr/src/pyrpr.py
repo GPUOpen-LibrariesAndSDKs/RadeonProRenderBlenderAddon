@@ -487,9 +487,11 @@ class Shape(Object):
         ShapeSetHeteroVolume(self, self.hetero_volume)
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         ShapeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
     def set_motion_transform(self, transform:np.array, transpose=True, time_index=1): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         ShapeSetMotionTransform(self, transpose, ffi.cast('float*', transform.ctypes.data), time_index)
 
     def set_shadow_catcher(self, shadow_catcher):
@@ -659,6 +661,7 @@ class Curve(Object):
         self.material = material
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         CurveSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
 
@@ -833,6 +836,7 @@ class HeteroVolume(Object):
         self.grids = {}
 
     def set_transform(self, transform: np.array, transpose=True):  # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         HeteroVolumeSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
     def set_grid(self, grid_type, grid):
@@ -887,6 +891,7 @@ class Camera(Object):
         CameraSetOrthoHeight(self, height)
 
     def set_motion_transform(self, transform:np.array, transpose=True, time_index = 1): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         CameraSetMotionTransform(self, transpose, ffi.cast('float*', transform.ctypes.data), time_index)
 
     def set_exposure(self, exposure):
@@ -897,6 +902,7 @@ class Camera(Object):
         CameraSetFarPlane(self, far)
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         CameraSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
 
@@ -1161,6 +1167,7 @@ class Light(Object):
         self.context = context
 
     def set_transform(self, transform:np.array, transpose=True): # Blender needs matrix to be transposed
+        transform = np.ascontiguousarray(transform, dtype=np.float32)
         LightSetTransform(self, transpose, ffi.cast('float*', transform.ctypes.data))
 
     def set_group_id(self, group_id):
