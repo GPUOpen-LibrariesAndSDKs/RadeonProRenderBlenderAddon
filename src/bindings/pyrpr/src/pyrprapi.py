@@ -531,6 +531,9 @@ def export(header_file, includes, json_file_name, prefixes, castxml, exclude=Non
         if line.startswith('#define'):
             tokens = line.split()
             name = tokens[1]
+            # skip string-valued defines (e.g. RPR_*_FUNC_NAME): cffi emits defines as integer constants
+            if tokens[2:] and tokens[2].startswith('"'):
+                continue
             # ignore name containing any entry from 'exclude' list
             is_excluded = next((True for e in exclude if e in name), False) if exclude else False
             if 'API_ENTRY' not in name and not is_excluded:
