@@ -1,0 +1,113 @@
+ocio_profile_version: 2
+
+# Minimal OpenColorIO configuration shipped with the Radeon ProRender addon.
+#
+# Blender's own config.ocio cannot be parsed by the OpenColorIO version built
+# into RPR Core, so every ImageSetOcioColorspace() call was silently doing
+# nothing and colour textures were fed to the renderer still sRGB encoded,
+# roughly 2.3x too bright. This configuration is passed to Core instead.
+#
+# Colorspace names and aliases are copied verbatim from Blender's config so
+# that the name taken from Image.colorspace_settings can be forwarded as is.
+# Only the Rec.709 primaries family and the data space are described here,
+# which is what image textures use in practice. Any other colorspace is simply
+# unknown to Core, which leaves the image untouched exactly as before.
+
+description: Radeon ProRender texture decoding, Rec.709 primaries
+
+search_path: ""
+strictparsing: false
+luma: [0.2126, 0.7152, 0.0722]
+
+roles:
+  reference: Linear Rec.709
+  scene_linear: Linear Rec.709
+  rendering: Linear Rec.709
+  compositing_log: Linear Rec.709
+  default: Linear Rec.709
+  data: Non-Color
+  color_picking: sRGB
+  color_timing: sRGB
+  matte_paint: sRGB
+  texture_paint: sRGB
+
+displays:
+  sRGB:
+    - !<View> {name: Standard, colorspace: sRGB}
+
+active_displays: [sRGB]
+active_views: [Standard]
+
+colorspaces:
+  - !<ColorSpace>
+    name: Linear Rec.709
+    aliases: [Linear, lin_rec709_scene, Linear BT.709, Linear BT.709 I-D65, Linear Tristimulus, linrec709, Utility - Linear - sRGB, Utility - Linear - Rec.709, Linear Rec.709 (sRGB), lin_rec709_srgb, lin_rec709, lin_srgb, "CGI: Linear - Rec.709"]
+    family: linear
+    bitdepth: 32f
+    description: Scene linear, Rec.709 primaries, D65 white point. Reference space.
+    isdata: false
+    encoding: scene-linear
+    allocation: lg2
+    allocationvars: [-12, 12]
+
+  - !<ColorSpace>
+    name: sRGB
+    aliases: [srgb_rec709_display, srgb_rec709_scene, sRGB I-D65, srgb_display, sRGB - Display, Utility - sRGB - Texture, sRGB - Texture, srgb_tx, srgb_texture, Input - Generic - sRGB - Texture, "sRGB Display: 2.2 Gamma - Rec.709"]
+    family: display
+    bitdepth: 32f
+    description: sRGB encoded Rec.709, the usual encoding of colour textures.
+    isdata: false
+    encoding: sdr-video
+    allocation: uniform
+    to_scene_reference: !<ExponentWithLinearTransform> {gamma: 2.4, offset: 0.055, direction: forward}
+
+  - !<ColorSpace>
+    name: Gamma 1.8 Encoded Rec.709
+    aliases: [g18_rec709_scene, g18_rec709, Gamma 1.8 Rec.709 - Texture, Utility - Gamma 1.8 - Rec.709 - Texture]
+    family: gamma
+    bitdepth: 32f
+    isdata: false
+    encoding: sdr-video
+    allocation: uniform
+    to_scene_reference: !<ExponentTransform> {value: 1.8, direction: forward}
+
+  - !<ColorSpace>
+    name: Gamma 2.2 Encoded Rec.709
+    aliases: [g22_rec709_scene, g22_rec709, Gamma 2.2 Rec.709 - Texture, Utility - Gamma 2.2 - Rec.709 - Texture, sRGB 2.2]
+    family: gamma
+    bitdepth: 32f
+    isdata: false
+    encoding: sdr-video
+    allocation: uniform
+    to_scene_reference: !<ExponentTransform> {value: 2.2, direction: forward}
+
+  - !<ColorSpace>
+    name: Gamma 2.4 Encoded Rec.709
+    aliases: [g24_rec709, Gamma 2.4 Rec.709 - Texture, Utility - Rec.709 - Display, rec709_display]
+    family: gamma
+    bitdepth: 32f
+    isdata: false
+    encoding: sdr-video
+    allocation: uniform
+    to_scene_reference: !<ExponentTransform> {value: 2.4, direction: forward}
+
+  - !<ColorSpace>
+    name: Rec.1886
+    aliases: [g24_rec709_display, BT.1886, BT.1886 2.4, BT.1886 EOTF, BT.1886 I-D65, Rec.1886 / Rec.709 Video - Display, rec1886_rec709_display, rec1886_rec709_video_display, Rec.1886 Rec.709 - Display, "Rec1886: 2.4 Gamma - Rec.709"]
+    family: display
+    bitdepth: 32f
+    description: Rec.1886 EOTF over Rec.709 primaries, a pure 2.4 exponent.
+    isdata: false
+    encoding: sdr-video
+    allocation: uniform
+    to_scene_reference: !<ExponentTransform> {value: 2.4, direction: forward}
+
+  - !<ColorSpace>
+    name: Non-Color
+    aliases: [Generic Data, Non-Colour Data, Raw, Utility - Raw]
+    family: data
+    bitdepth: 32f
+    description: Not colour data. Normal maps, roughness, masks. Never decoded.
+    isdata: true
+    encoding: data
+    allocation: uniform

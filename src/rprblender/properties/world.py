@@ -199,10 +199,13 @@ class RPR_EnvironmentProperties(RPR_Properties):
     )
     mode: EnumProperty(
         name="Environment Type",
-        items=(('IBL', "IBL", "Use IBL environment light"),
+        items=(('BLENDER', "Blender World",
+                "Follow the world shader: the Background node's color and"
+                " strength, or the environment texture it is fed with"),
+               ('IBL', "IBL", "Use IBL environment light"),
                ('SUN_SKY', "Sun & Sky", "Use Sun & Sky")),
         description="Environment light type",
-        default='IBL',
+        default='BLENDER',
     )
     intensity: FloatProperty(
         name="Intensity",

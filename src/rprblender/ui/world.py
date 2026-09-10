@@ -48,7 +48,12 @@ class RPR_WORLD_PT_environment(RPR_Panel):
         row.use_property_split = False
         row.prop(rpr, 'mode', expand=True)
 
-        if rpr.mode == 'IBL':
+        if rpr.mode == 'BLENDER':
+            col = layout.column()
+            col.enabled = False
+            col.label(text="Driven by the world's Background node")
+
+        elif rpr.mode == 'IBL':
             ibl = rpr.ibl
 
             layout.template_ID(ibl, "image", open="image.open")

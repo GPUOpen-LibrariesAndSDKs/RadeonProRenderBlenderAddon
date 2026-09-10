@@ -31,7 +31,7 @@ from .node_item import NodeItem
 from rprblender.engine.context_hybrid import RPRContext as RPRContextHybrid
 from rprblender.engine.context_hybridpro import RPRContext as RPRContextHybridPro
 from rprblender.engine.context import RPRContext2
-from rprblender.utils import BLENDER_VERSION, get_prop_array_data, is_zero
+from rprblender.utils import BLENDER_VERSION, FAC, get_prop_array_data, is_zero
 
 from rprblender.utils import logging
 log = logging.Log(tag='export.rpr_nodes')
@@ -292,10 +292,10 @@ class NodeReroute(NodeParser):
 
 
 class ShaderNodeBrightContrast(NodeParser):
-    # inputs: Bright, Contrast, Color
+    # inputs: Brightness, Contrast, Color
 
     def export(self):
-        bright = self.get_input_value('Bright')
+        bright = self.get_input_value('Brightness' if BLENDER_VERSION >= '5.0' else 'Bright')
         color = self.get_input_value('Color')
         contrast = self.get_input_value('Contrast')
 
@@ -598,7 +598,7 @@ class ShaderNodeFresnel(RuleNodeParser):
     # inputs: IOR, Normal
 
     nodes = {
-        "Fac": {
+        FAC: {
             "type": pyrpr.MATERIAL_NODE_FRESNEL,
             "params": {
                 pyrpr.MATERIAL_INPUT_IOR: "inputs.IOR",
@@ -668,7 +668,7 @@ class ShaderNodeGamma(RuleNodeParser):
 
 
 class ShaderNodeInvert(RuleNodeParser):
-    # inputs: Fac, Color
+    # inputs: Factor, Color
 
     nodes = {
         "invert": {
@@ -683,7 +683,7 @@ class ShaderNodeInvert(RuleNodeParser):
             "params": {
                 pyrpr.MATERIAL_INPUT_COLOR0: "inputs.Color",
                 pyrpr.MATERIAL_INPUT_COLOR1: "nodes.invert",
-                pyrpr.MATERIAL_INPUT_WEIGHT: "inputs.Fac"
+                pyrpr.MATERIAL_INPUT_WEIGHT: f"inputs.{FAC}"
             }
         }
     }
@@ -744,7 +744,7 @@ class ShaderNodeTexChecker(NodeParser):
             pyrpr.MATERIAL_INPUT_UV: scale * vector
         })
 
-        if self.socket_out.name == 'Fac':
+        if self.socket_out.name == FAC:
             return checker
 
         color1 = self.get_input_value('Color1')
@@ -902,6 +902,13 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         specular = self.get_input_value('Specular IOR Level' if BLENDER_VERSION >= "4.0" else 'Specular')
         roughness = self.get_input_value('Roughness')
 
+        # In Cycles 'Roughness' only drives the specular lobe, the diffuse lobe
+        # stays lambertian. Blender has a separate 'Diffuse Roughness' input,
+        # zero by default. Feeding 'Roughness' to the diffuse lobe darkened every
+        # rough material, down to 0.64 of the Cycles value at roughness 1.
+        diffuse_roughness = self.get_input_value('Diffuse Roughness') \
+            if 'Diffuse Roughness' in self.node.inputs.keys() else 0.0
+
         anisotropic = None
         anisotropic_rotation = None
         if enabled(metallic):
@@ -950,21 +957,39 @@ class ShaderNodeBsdfPrincipled(NodeParser):
         # looks like diffuse should be always enabled, regarding cycles
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_COLOR, base_color)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_WEIGHT, 1.0)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, roughness)
+        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_ROUGHNESS, diffuse_roughness)
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_BACKSCATTER_WEIGHT, 0.0)
 
         if enabled(normal):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_DIFFUSE_NORMAL, normal)
 
-        # setting reflection weight as max of specular and metallic weights
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
         rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_ROUGHNESS, roughness)
-        #rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
 
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
-                            pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
-        rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        if enabled(metallic):
+            # setting reflection weight as max of specular and metallic weights
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT, specular.max(metallic))
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_METALNESS)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_METALNESS, metallic)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR, base_color)
+        else:
+            # A dielectric has no metalness to describe, and the metalness mode makes
+            # the uber material subtract a Fresnel share from the diffuse lobe even
+            # when the reflection weight is zero: a plain Principled came out at
+            # 0.921 of the Cycles value whatever the specular level. The PBR mode
+            # driven by Blender's own IOR does not, and a dielectric does not tint
+            # its reflection, hence the white reflection colour.
+            # Blender scales the nominal F0 by twice 'Specular IOR Level', while the
+            # RPR reflection weight ends up squared in the highlight, so the weight
+            # matching Cycles is the square root of that. Measured within 0.4% of
+            # Cycles over the whole range, against 1.35x too bright before.
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_WEIGHT,
+                               (specular * 2.0) ** 0.5)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_MODE,
+                               pyrpr.UBER_MATERIAL_IOR_MODE_PBR)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_IOR, ior)
+            rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_COLOR,
+                               (1.0, 1.0, 1.0, 1.0))
 
         if enabled(normal):
             rpr_node.set_input(pyrpr.MATERIAL_INPUT_UBER_REFLECTION_NORMAL, normal)
@@ -1392,7 +1417,7 @@ class ShaderNodeLightFalloff(NodeParser):
 class ShaderNodeMixRGB(NodeParser):
 
     def export(self):
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         color1 = self.get_input_value('Color1')
         color2 = self.get_input_value('Color2')
         blend_type = self.node.blend_type
@@ -1669,10 +1694,10 @@ class ShaderNodeVectorMath(NodeParser):
 
 
 class ShaderNodeMixShader(NodeParser):
-    # inputs = ['Fac', 1, 2]
+    # inputs = ['Factor', 1, 2]
 
     def export(self):
-        factor = self.get_input_value('Fac')
+        factor = self.get_input_value(FAC)
 
         if isinstance(factor.data, float):
             socket_key = 1 if math.isclose(factor.data, 0.0) else \
@@ -1699,7 +1724,7 @@ class ShaderNodeMixShader(NodeParser):
         return rpr_node
 
     def export_hybrid(self):
-        factor = self.get_input_value('Fac')
+        factor = self.get_input_value(FAC)
 
         if isinstance(factor.data, float):
             socket_key = 1 if math.isclose(factor.data, 0.0) else \
@@ -1867,7 +1892,7 @@ class ShaderNodeValToRGB(NodeParser):
         """ create a buffer from ramp data and sample that in nodes if connected """
         buffer_size = 256  # hard code, this is what cycles does
 
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         if isinstance(fac.data, (float, tuple)):
             data = fac.data if isinstance(fac.data, float) else (sum(fac.data[:3]) / 3)
             val = self.node.color_ramp.evaluate(data)
@@ -1898,7 +1923,7 @@ class ShaderNodeValToRGB(NodeParser):
         return buf_node
 
     def export_hybrid(self):
-        fac = self.get_input_scalar('Fac')
+        fac = self.get_input_scalar(FAC)
 
         data = fac.data if isinstance(fac.data, float) else (sum(fac.data[:3]) / 3)
         val = self.node.color_ramp.evaluate(data)
@@ -2025,7 +2050,7 @@ class ShaderNodeFloatCurve(NodeParser):
 
 class ShaderNodeRGBCurve(NodeParser):
     """ Similar to color ramp, except read each channel and apply mapping
-        There are two inputs here, color and Fac.  What cycles does is remap color with the mapping
+        There are two inputs here, color and Factor.  What cycles does is remap color with the mapping
         and mix between in color and remapped one with fac.
     """
     def export(self):
@@ -2040,7 +2065,7 @@ class ShaderNodeRGBCurve(NodeParser):
         BUFFER_SIZE = 256  # hard code, this is what cycles does
 
         in_col = self.get_input_value('Color')
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         mapping = self.node.mapping
 
         # these need to be initialized for some reason
@@ -2079,7 +2104,7 @@ class ShaderNodeRGBCurve(NodeParser):
     def export_hybrid(self):
         """ Convert color using channel curves """
         in_col = self.get_input_scalar('Color')
-        fac = self.get_input_scalar('Fac')
+        fac = self.get_input_scalar(FAC)
         mapping = self.node.mapping
 
         # these need to be initialized for some reason
@@ -2743,7 +2768,7 @@ class ShaderNodeHueSaturation(NodeParser):
         # http://beesbuzz.biz/code/16-hsv-color-transforms
 
         color = self.get_input_value('Color')
-        fac = self.get_input_value('Fac')
+        fac = self.get_input_value(FAC)
         hue = (self.get_input_value('Hue') - 0.5) * -math.tau
         saturation = self.get_input_value('Saturation')
         value = self.get_input_value('Value')

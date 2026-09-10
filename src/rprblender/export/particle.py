@@ -93,7 +93,8 @@ def sync(rpr_context, emitter: bpy.types.Object):
             loc = mathutils.Matrix.Translation(particle.location)
             scale = mathutils.Matrix.Scale(particle.size, 4)
             rot = mathutils.Quaternion(particle.rotation)
-            mat = np.array(loc @ rot.to_matrix().to_4x4() @ scale, dtype=np.float32).reshape(4, 4)
+            mat = np.array(loc @ rot.to_matrix().to_4x4() @ scale, dtype=np.float32,
+                           order='C').reshape(4, 4)
 
             rpr_context.scene.attach(instance)
             instance.set_transform(mat)
@@ -103,7 +104,7 @@ def sync(rpr_context, emitter: bpy.types.Object):
             if rpr_context.do_motion_blur:
                 prev_loc = mathutils.Matrix.Translation(particle.prev_location)
                 prev_mat = np.array(prev_loc @ rot.to_matrix().to_4x4() @ scale,
-                                    dtype=np.float32).reshape(4, 4)
+                                    dtype=np.float32, order='C').reshape(4, 4)
                 instance.set_motion_transform(prev_mat)
 
 

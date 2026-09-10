@@ -16,6 +16,7 @@ import ast
 from xml.etree import ElementTree   # for some reason Blender doesn't allow access via xml.etree.ElementTree
 
 import bpy
+from rprblender.utils import FAC
 from rprblender.utils.logging import Log
 log = Log(tag='material_loader')
 
@@ -484,7 +485,7 @@ class ImageTextureCompiler(BasicNodeCompiler):
 
 class ValueBlendCompiler(MappedNodeCompiler):
     input_sockets_info = {
-        'weight': MatLibSocketInfo('Fac', 'float4', ''),
+        'weight': MatLibSocketInfo(FAC, 'float4', ''),
         'color0': MatLibSocketInfo('Color1', 'float4', ''),
         'color1': MatLibSocketInfo('Color2', 'float4', ''),
     }

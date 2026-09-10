@@ -220,7 +220,7 @@ class CameraData:
         else:
             rpr_camera.set_f_stop(None)
 
-        rpr_camera.set_transform(np.array(self.transform, dtype=np.float32))
+        rpr_camera.set_transform(np.array(self.transform, dtype=np.float32, order='C'))
 
 
 def sync(rpr_context: RPRContext, obj: bpy.types.Object):

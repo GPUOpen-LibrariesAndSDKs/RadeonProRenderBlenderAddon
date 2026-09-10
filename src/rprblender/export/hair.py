@@ -205,7 +205,7 @@ def sync(rpr_context, emitter: bpy.types.Object):
             #  subtract emitter transforms from hair transform and apply instance/particle transform
             #  need because hair comes with emitter transform and applied twice
             transform = np.array(inst.matrix_world @ emitter.matrix_world.inverted(),
-                                 dtype=np.float32)
+                                 dtype=np.float32, order='C')
 
         else:
             hair_key = key(p_sys, emitter)

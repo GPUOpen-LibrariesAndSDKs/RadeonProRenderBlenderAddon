@@ -22,6 +22,20 @@ from . import rpr_nodes
 from . import sockets
 
 
+# Blender renames these node category menus across versions: the shader
+# "Converter" category became "Utilities" in 5.0. First existing name wins.
+NODE_CATEGORY_MENUS = {
+    'shader': ("NODE_MT_category_shader_shader",),
+    'converter': ("NODE_MT_category_shader_converter",
+                  "NODE_MT_category_shader_utilities"),
+    'input': ("NODE_MT_category_shader_input",),
+    'texture': ("NODE_MT_category_shader_texture",),
+}
+
+# (menu, draw_func) pairs appended at register time, removed at unregister time
+NODE_MENU_DRAW_FUNCS = []
+
+
 def register_rpr_node_categories():
     global NODE_CATEGORIES
 
@@ -36,14 +50,19 @@ def register_rpr_node_categories():
                      'texture': (rpr_nodes.RPRTextureNodeLayered,),
                      'converter': (rpr_nodes.RPRValueNode_Math,)}
 
-        bpy.types.NODE_MT_category_shader_shader.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['shader']))
-        bpy.types.NODE_MT_category_shader_converter.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['converter']))
-        bpy.types.NODE_MT_category_shader_input.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['input']))
-        bpy.types.NODE_MT_category_shader_texture.append(
-            lambda self, context: draw_nodes(self, NODE_CATEGORIES['texture']))
+        for category, menu_names in NODE_CATEGORY_MENUS.items():
+            menu = next((getattr(bpy.types, name) for name in menu_names
+                         if hasattr(bpy.types, name)), None)
+            if menu is None:
+                print(f"RPR: no node category menu among {menu_names}, "
+                      f"'{category}' nodes won't appear in the Add menu")
+                continue
+
+            def draw(self, context, category=category):
+                draw_nodes(self, NODE_CATEGORIES[category])
+
+            menu.append(draw)
+            NODE_MENU_DRAW_FUNCS.append((menu, draw))
 
     else:
         from nodeitems_utils import (
@@ -161,10 +180,9 @@ def register_rpr_node_categories():
 
 def unregister_rpr_node_categories():
     if BLENDER_VERSION >= "4.0":
-        bpy.types.NODE_MT_category_shader_shader.remove(NODE_CATEGORIES['shader'])
-        bpy.types.NODE_MT_category_shader_converter.remove(NODE_CATEGORIES['converter'])
-        bpy.types.NODE_MT_category_shader_input.remove(NODE_CATEGORIES['input'])
-        bpy.types.NODE_MT_category_shader_texture.remove(NODE_CATEGORIES['texture'])
+        for menu, draw in NODE_MENU_DRAW_FUNCS:
+            menu.remove(draw)
+        NODE_MENU_DRAW_FUNCS.clear()
 
     else:
         from nodeitems_utils import unregister_node_categories
